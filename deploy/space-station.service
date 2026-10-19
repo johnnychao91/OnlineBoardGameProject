@@ -1,0 +1,28 @@
+# 複製到 /etc/systemd/system 前，確認帳號、目錄與 Node 路徑。
+# DATA_DIR 必須與 ReadWritePaths 指向同一個可寫入資料目錄。
+[Unit]
+Description=太空維修站遊戲服務
+After=network.target
+
+[Service]
+Type=simple
+User=space-station
+Group=space-station
+WorkingDirectory=/opt/space-station
+EnvironmentFile=/etc/space-station.env
+# docs/DEPLOYMENT.md 將官方 Node.js 24 ARM64 安裝在 /opt/node24。
+# 已有系統 Node.js 24 時可改成實際路徑，但不要使用家目錄內的 nvm。
+ExecStart=/opt/node24/bin/node dist/server/index.cjs
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=30
+UMask=0077
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/var/lib/space-station
+
+[Install]
+WantedBy=multi-user.target

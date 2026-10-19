@@ -1,0 +1,43 @@
+# 適用 Apache 2.4.47 以上；請使用發行版仍提供安全更新的版本。
+# 先取得涵蓋此子網域的 HTTPS 憑證，再調整路徑並啟用。
+# 必要模組：proxy、proxy_http、headers、ssl、alias。
+# 範本只處理遊戲子網域；請保留原有主網站的虛擬主機設定。
+# example.com 是示範值。複製到 /etc 後再改成實際站點，不要提交正式配置。
+
+<VirtualHost *:80>
+    ServerName boardgame.example.com
+    DocumentRoot /var/www/space-station-acme
+    <Directory /var/www/space-station-acme>
+        Options None
+        AllowOverride None
+        Require all granted
+    </Directory>
+    # 保留 HTTP-01 驗證路徑，讓 Certbot webroot 能在不中斷 Apache 下續期。
+    RedirectMatch permanent "^/(?!\.well-known/acme-challenge/)(.*)$" "https://boardgame.example.com/$1"
+</VirtualHost>
+
+<VirtualHost *:443>
+    ServerName boardgame.example.com
+
+    SSLEngine On
+    SSLCertificateFile /etc/letsencrypt/live/boardgame.example.com/fullchain.pem
+    SSLCertificateKeyFile /etc/letsencrypt/live/boardgame.example.com/privkey.pem
+
+    ProxyRequests Off
+    ProxyPreserveHost On
+    # 應大於 Socket.IO 的 pingInterval + pingTimeout。
+    ProxyTimeout 90
+
+    RequestHeader set X-Forwarded-Proto "https"
+    RequestHeader set X-Forwarded-Port "443"
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set Referrer-Policy "no-referrer"
+
+    # Node.js 同時提供前端、API 與 Socket.IO polling／WebSocket。
+    ProxyPass / http://127.0.0.1:3001/ upgrade=websocket
+    ProxyPassReverse / http://127.0.0.1:3001/
+
+    # Debian／Raspberry Pi OS 路徑；其他發行版請依實際日誌目錄調整。
+    ErrorLog /var/log/apache2/space-station-error.log
+    CustomLog /var/log/apache2/space-station-access.log combined
+</VirtualHost>

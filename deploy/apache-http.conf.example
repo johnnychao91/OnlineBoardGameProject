@@ -1,0 +1,14 @@
+# 首次申請憑證前使用；成功後以 apache.conf.example 取代同一個設定檔。
+# 不代理遊戲、不要求憑證；只提供 Certbot webroot 的 HTTP-01 驗證檔。
+# example.com 是示範值。複製到 /etc 後再改成實際站點，不要提交正式配置。
+<VirtualHost *:80>
+    ServerName boardgame.example.com
+    DocumentRoot /var/www/space-station-acme
+    <Directory /var/www/space-station-acme>
+        Options None
+        AllowOverride None
+        Require all granted
+    </Directory>
+    ErrorLog /var/log/apache2/space-station-error.log
+    CustomLog /var/log/apache2/space-station-access.log combined
+</VirtualHost>

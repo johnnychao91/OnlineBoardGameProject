@@ -1,0 +1,98 @@
+export interface RoomPlayer { id: number | string; name?: string; isConnected: boolean; ready: boolean; }
+export interface RoomInfo {
+  roomId: string;
+  matchID: string;
+  gameName: string;
+  status: 'lobby' | 'briefing' | 'playing' | 'finished';
+  numPlayers: number;
+  minPlayers: number;
+  maxPlayers: number;
+  players: RoomPlayer[];
+  spectatorCount: number;
+  godViewAllowed: boolean;
+}
+export interface SeatSession extends RoomInfo { access?: 'player'; playerID: string; credentials: string; }
+export interface ObserverSession extends RoomInfo { access: 'spectator'; observerID: string; credentials: string; }
+export type AuthSession = SeatSession | ObserverSession;
+export type Admission = AuthSession & { inviteUrl?: string };
+export interface GameInfo { id: string; name: string; description: string; minPlayers: number; maxPlayers: number; }
+export type Perspective = 'blind' | 'god';
+export function isPlayer(session: AuthSession): session is SeatSession { return session.access !== 'spectator'; }
+
+const seatKey = (roomId: string) => `friends-table.seat.${roomId}`;
+const tokenKey = (roomId: string) => `friends-table.invite.${roomId}`;
+const inviteKey = (roomId: string) => `friends-table.share.${roomId}`;
+const requestKey = (roomId: string, mode = 'player') => `friends-table.join-request.${roomId}.${mode}`;
+const legacyRequestKey = (roomId: string) => `friends-table.join-request.${roomId}`;
+
+export async function api<T>(path: string, init: RequestInit = {}, seat?: AuthSession): Promise<T> {
+  const response = await fetch(path, {
+    ...init,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(seat ? { Authorization: `Bearer ${seat.credentials}`, ...(isPlayer(seat) ? { 'X-Player-ID': seat.playerID } : { 'X-Observer-ID': seat.observerID }) } : {}),
+      ...init.headers,
+    },
+    credentials: 'same-origin',
+    referrerPolicy: 'no-referrer',
+  });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(body.error || '連線暫時沒有成功，請稍後重試。');
+  return body as T;
+}
+
+export function saveSeat(value: Admission): AuthSession {
+  const { inviteUrl, ...seat } = value;
+  // A seat credential never enters an invitation URL, analytics or the visible UI.
+  localStorage.setItem(seatKey(seat.roomId), JSON.stringify(seat));
+  sessionStorage.removeItem(tokenKey(seat.roomId));
+  sessionStorage.removeItem(requestKey(seat.roomId));
+  sessionStorage.removeItem(requestKey(seat.roomId, 'spectator'));
+  sessionStorage.removeItem(legacyRequestKey(seat.roomId));
+  if (inviteUrl) sessionStorage.setItem(inviteKey(seat.roomId), inviteUrl);
+  return seat;
+}
+
+export function loadSeat(roomId: string): AuthSession | null {
+  try {
+    const value = JSON.parse(localStorage.getItem(seatKey(roomId)) || 'null');
+    return value?.roomId === roomId && typeof value.credentials === 'string'
+      && (value.access === 'spectator' ? typeof value.observerID === 'string' : typeof value.playerID === 'string')
+      && typeof value.matchID === 'string' ? value : null;
+  } catch { return null; }
+}
+
+export function forgetSeat(roomId: string) { localStorage.removeItem(seatKey(roomId)); }
+export function pendingToken(roomId: string) { return sessionStorage.getItem(tokenKey(roomId)); }
+/** Reuse across retries so a lost admission response cannot consume another seat. */
+export function pendingRequestID(roomId: string, mode: 'player' | 'spectator' = 'player') {
+  const existing = sessionStorage.getItem(requestKey(roomId, mode));
+  if (existing) return existing;
+  const legacy = mode === 'player' ? sessionStorage.getItem(legacyRequestKey(roomId)) : null;
+  const requestID = legacy || crypto.randomUUID();
+  sessionStorage.setItem(requestKey(roomId, mode), requestID);
+  return requestID;
+}
+export function savedInvite(roomId: string) { return sessionStorage.getItem(inviteKey(roomId)); }
+export function saveInvite(roomId: string, url: string) { sessionStorage.setItem(inviteKey(roomId), url); }
+
+/** Run before React renders: fragments never reach HTTP requests or our access logs. */
+export function captureInvite() {
+  const match = location.pathname.match(/^\/join\/([A-Za-z0-9_-]+)\/?$/);
+  if (!match || !location.hash) return;
+  const token = new URLSearchParams(location.hash.slice(1)).get('invite');
+  if (token && token.length <= 256) {
+    if (sessionStorage.getItem(tokenKey(match[1])) !== token) {
+      sessionStorage.removeItem(requestKey(match[1]));
+      sessionStorage.removeItem(requestKey(match[1], 'spectator'));
+      sessionStorage.removeItem(legacyRequestKey(match[1]));
+    }
+    sessionStorage.setItem(tokenKey(match[1]), token);
+  }
+  history.replaceState(null, '', location.pathname);
+}
+
+export function rememberedName() {
+  try { return localStorage.getItem('friends-table.name') || ''; } catch { return ''; }
+}
+export function rememberName(name: string) { localStorage.setItem('friends-table.name', name); }
