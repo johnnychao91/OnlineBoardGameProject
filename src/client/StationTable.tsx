@@ -2,6 +2,7 @@ import type { CardKind, StationState } from '../games/station/game';
 import type { CSSProperties } from 'react';
 import { getCardSlots } from '../games/station/view-model';
 import { Icon } from './ui';
+import { DeviceArtwork } from './StationArtwork';
 import './station-display.css';
 
 export const roleNames = { engineer: '維修員', saboteur: '干擾者' };
@@ -59,6 +60,7 @@ export function RoundRevealList({ G, nameOf }: { G: StationState; nameOf: (id: s
     {reveals.length ? <ol>{reveals.map((entry, index) => <li key={`${entry.round}-${index}`}
       className={index === reveals.length - 1 ? 'latest-reveal' : ''}>
       <span className="reveal-order">{index + 1}</span>
+      <DeviceArtwork kind={entry.kind} />
       <div><strong className={`card-kind-${entry.kind}`}>{cardNames[entry.kind]}</strong>
         <p><span>{nameOf(entry.actorID)}</span><span aria-hidden="true"> → </span><span>{nameOf(entry.targetID)}</span><span> · 第 {entry.slot + 1} 張</span></p>
       </div>
@@ -81,6 +83,7 @@ function CardContents({ slot, kind, revealed, selected }: {
 }) {
   return <>
     <span className="slot-number">{String(slot + 1).padStart(2, '0')}</span>
+    <DeviceArtwork kind={kind} />
     <Icon type={kind === 'hazard' ? 'signal' : kind === 'repair' ? 'check' : 'orbit'} size={22} />
     <strong>{kind ? cardNames[kind] : '暗牌'}</strong>
     <span className="card-state-label">{selected ? '預選中' : revealed ? '已翻開' : '未翻開'}</span>

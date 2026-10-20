@@ -6,6 +6,7 @@ import { BattleReport } from './BattleReport';
 import { possibleRoleCounts } from '../games/station/view-model';
 import { SnapshotPlayerSelect, useInspectedPlayer } from './SnapshotPlayerSelect';
 import { stationSnapshotState } from './snapshot-view';
+import { DeviceArtwork, RoleArtwork } from './StationArtwork';
 
 /** Read-only by construction: snapshots never receive a game client or move callbacks. */
 export function StationSnapshot({ G: unknownState, info, perspective, replay = false }: SnapshotProps) {
@@ -31,6 +32,7 @@ export function StationSnapshot({ G: unknownState, info, perspective, replay = f
         <div className="private-content">
           <SnapshotPlayerSelect playerIDs={playerIDs} value={selectedID} onChange={setSelectedID} nameOf={nameOf} label="查看隊員資訊" />
           <div className={`role-card ${role ?? 'unrevealed'}`}>
+            <RoleArtwork role={role} />
             <span>{nameOf(selectedID)}的身分</span><strong>{role ? roleNames[role] : '尚未公開'}</strong>
             <div className="possible-roles"><span>本局可能的全場人數</span>
               {possibleRoleCounts(info.numPlayers, role).map(({ engineer, saboteur }) => <p key={`${engineer}-${saboteur}`}>
@@ -39,9 +41,9 @@ export function StationSnapshot({ G: unknownState, info, perspective, replay = f
             </div>
           </div>
           {inspected ? <><p className="small muted">目前剩餘設備組成</p><div className="composition">
-            <div><strong>{inspected.composition.stable}</strong><span>穩定設備</span></div>
-            <div><strong className="mint">{inspected.composition.repair}</strong><span>維修模組</span></div>
-            <div><strong className="card-kind-hazard">{inspected.composition.hazard}</strong><span>反應爐危機</span></div>
+            <div><DeviceArtwork kind="stable" /><strong>{inspected.composition.stable}</strong><span>穩定設備</span></div>
+            <div><DeviceArtwork kind="repair" /><strong className="mint">{inspected.composition.repair}</strong><span>維修模組</span></div>
+            <div><DeviceArtwork kind="hazard" /><strong className="card-kind-hazard">{inspected.composition.hazard}</strong><span>反應爐危機</span></div>
           </div></> : <p className="small muted">剩餘 {G.players[selectedID]?.cardCount ?? 0} 張未檢修設備。盲視角不顯示秘密組成。</p>}
           <p className="small muted snapshot-readonly-note">{replay ? '歷史畫面 · 唯讀復盤' : '觀戰席 · 不占參與席位'}。切換隊員僅改變查看對象，不會操作牌桌。</p>
         </div>

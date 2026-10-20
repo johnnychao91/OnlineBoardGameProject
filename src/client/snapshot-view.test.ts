@@ -45,6 +45,7 @@ describe('read-only snapshot layouts', () => {
     expect(html).toContain('查看隊員資訊');
     expect(html).toContain('role-card unrevealed');
     expect(html).not.toMatch(/role-card saboteur|observer-composition|face-hazard|face-repair|face-stable/);
+    expect(html).not.toMatch(/data-art-kind|data-art-role/);
     expect(html).not.toMatch(/<button\b/);
     expect(G).toEqual(before);
   });
@@ -53,11 +54,14 @@ describe('read-only snapshot layouts', () => {
     const G = stationState();
     const god = renderToStaticMarkup(createElement(StationSnapshot, { G, info, perspective: 'god', replay: true }));
     expect(god).toContain('role-card saboteur');
+    expect(god).toContain('data-art-role="saboteur"');
     expect(god).not.toMatch(/<button\b/);
     G.status = 'finished';
     G.players['0'].revealedRole = 'engineer';
     const blind = renderToStaticMarkup(createElement(StationSnapshot, { G, info, perspective: 'blind', replay: true }));
     expect(blind).toContain('role-card engineer');
+    expect(blind).toContain('data-art-role="engineer"');
+    expect(blind).not.toContain('data-art-role="saboteur"');
     expect(blind).not.toMatch(/role-card saboteur|observer-composition/);
     expect(stationSnapshotState(G, 'blind').secret).toBeUndefined();
   });

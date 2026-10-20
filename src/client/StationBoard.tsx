@@ -7,6 +7,7 @@ import { Icon } from './ui';
 import { BattleReport } from './BattleReport';
 import { StationSoundToggle, useStationSounds } from './station-sounds';
 import { cardNames, initials, MissionProgress, roleNames, RoundRevealList, StationTable, TurnNotice } from './StationTable';
+import { DeviceArtwork, RoleArtwork } from './StationArtwork';
 
 export { cardNames, initials, roleNames } from './StationTable';
 
@@ -179,6 +180,7 @@ export function StationBoard({ G, playerID, moves, isConnected }: BoardProps) {
           </button>
           {privateExpanded && mine && <div className="private-content">
             <div className={`role-card ${mine.role}`}>
+              <RoleArtwork role={mine.role} />
               <span>你的身份</span><strong>{roleNames[mine.role]}</strong>
               <div className="possible-roles"><span>本局可能的全場人數（包含你）</span>
                 {roles.map(({ engineer, saboteur }) => <p key={`${engineer}-${saboteur}`}>
@@ -190,9 +192,9 @@ export function StationBoard({ G, playerID, moves, isConnected }: BoardProps) {
             </div>
             <p className="small muted">目前剩餘設備組成</p>
             <div className="composition">
-              <div><strong>{mine.composition.stable}</strong><span>穩定設備</span></div>
-              <div className="mint"><strong>{mine.composition.repair}</strong><span>維修模組</span></div>
-              <div className="card-kind-hazard"><strong>{mine.composition.hazard}</strong><span>反應爐危機</span></div>
+              <div><DeviceArtwork kind="stable" /><strong>{mine.composition.stable}</strong><span>穩定設備</span></div>
+              <div className="mint"><DeviceArtwork kind="repair" /><strong>{mine.composition.repair}</strong><span>維修模組</span></div>
+              <div className="card-kind-hazard"><DeviceArtwork kind="hazard" /><strong>{mine.composition.hazard}</strong><span>反應爐危機</span></div>
             </div>
             <p className="small muted">你知道數量，不知道暗牌的排列位置。</p>
           </div>}

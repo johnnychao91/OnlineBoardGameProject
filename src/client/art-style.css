@@ -1,5 +1,8 @@
 /* Optional visual experiment. Every rule is scoped to the browser preference;
    the simple style and game state do not depend on these decorative assets. */
+.station-device-art, .role-card > .station-role-art,
+.cipher-resource-art, .cipher-metrics .cipher-resource-art { display: none; }
+
 :root[data-visual-style="art"] {
   --art-station: url('./assets/art/ink-space-station.png');
   --art-cipher: url('./assets/art/ink-cipher-room.png');
@@ -143,6 +146,47 @@
 }
 :root[data-visual-style="art"] .role-card.engineer { background: #20372f; border-color: #8cb99c; }
 :root[data-visual-style="art"] .role-card.saboteur { background: #37242a; border-color: #b1757a; }
+
+/* Only authorized faces receive an artwork marker. Unrevealed equipment uses
+   one shared back; art never reads or encodes the hidden deck. */
+:root[data-visual-style="art"] .station-device-art {
+  display: block;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: contain;
+  pointer-events: none;
+}
+:root[data-visual-style="art"] .station-device-art[data-art-kind="stable"] { background-image: url('./assets/art/ink-stable-equipment.png'); }
+:root[data-visual-style="art"] .station-device-art[data-art-kind="repair"] { background-image: url('./assets/art/ink-repair-module.png'); }
+:root[data-visual-style="art"] .station-device-art[data-art-kind="hazard"] { background-image: url('./assets/art/ink-reactor-crisis.png'); }
+:root[data-visual-style="art"] .station-table .station-card:has(.station-device-art) {
+  position: relative;
+  display: block;
+  min-height: 110px;
+  isolation: isolate;
+  background-image: radial-gradient(ellipse at 50% 35%, #a9bda32b, transparent 70%);
+}
+:root[data-visual-style="art"] .station-card .station-device-art { position: absolute; inset: 3px 2px 28px; z-index: -1; }
+:root[data-visual-style="art"] .station-card:has(.station-device-art) > svg { display: none; }
+:root[data-visual-style="art"] .station-card:has(.station-device-art) > .slot-number {
+  position: absolute; top: 3px; left: 4px; padding: 0 2px; border-radius: 3px; background: #0d1824d9; color: #e8e7d5;
+}
+:root[data-visual-style="art"] .station-card:has(.station-device-art) > strong {
+  position: absolute; bottom: 13px; left: 0; right: 0; font-size: 10px; line-height: 1.4;
+  background: #0d1824e8; padding: 1px 0; color: inherit;
+}
+:root[data-visual-style="art"] .station-card:has(.station-device-art) > .card-state-label {
+  position: absolute; bottom: 1px; left: 0; right: 0; font-size: 8px; line-height: 1.3;
+}
+:root[data-visual-style="art"] .composition .station-device-art { width: 100%; height: 52px; margin: 0 0 3px; }
+:root[data-visual-style="art"] .station-round-reveals .station-device-art { width: 36px; height: 36px; flex: 0 0 36px; }
+:root[data-visual-style="art"] .role-card > .station-role-art {
+  display: block; float: right; width: 96px; height: 96px; margin: -6px -6px 4px 5px;
+  background: center / contain no-repeat; pointer-events: none;
+}
+:root[data-visual-style="art"] .station-role-art[data-art-role="engineer"] { background-image: url('./assets/art/ink-engineer.png'); }
+:root[data-visual-style="art"] .station-role-art[data-art-role="saboteur"] { background-image: url('./assets/art/ink-saboteur.png'); }
+:root[data-visual-style="art"] .role-card .possible-roles { clear: both; }
 :root[data-visual-style="art"] :is(.station-round-reveals, .cipher-log) {
   background-image: linear-gradient(180deg, #122025fa, #122025e6 40%, #12202580), var(--art-scene);
   background-size: cover;
@@ -153,12 +197,41 @@
   background-size: cover;
   background-position: center;
 }
-:root[data-visual-style="art"] .cipher-card:not(.cipher-card-send):not(.cipher-card-back) {
-  background: repeating-linear-gradient(165deg, #b7bd8009 0 1px, transparent 1px 5px), #28372e;
-  border-color: #b2b58b;
-  box-shadow: inset 0 0 0 3px #101e2433;
-  color: #f0e6c3;
+:root[data-visual-style="art"] .cipher-card { aspect-ratio: 2 / 3; align-self: start; height: auto; }
+:root[data-visual-style="art"] .cipher-card:not(.cipher-card-back) {
+  background: #d6c6a0 url('./assets/art/ink-cipher-card.png') center / 100% 100% no-repeat;
+  border-color: #a99a75;
+  box-shadow: inset 0 0 0 2px #1c2e2a, 1px 3px 0 #050b0c80;
+  color: #172d28;
+  opacity: 1;
 }
+:root[data-visual-style="art"] .cipher-card:not(.cipher-card-back) strong {
+  color: #172d28; font-family: Georgia, 'Times New Roman', serif; font-weight: 700;
+  text-shadow: 0 1px 0 #fff2c6; background: #e9dcb6dc; border-radius: 4px;
+  padding: 0 3px; line-height: 1.1;
+}
+:root[data-visual-style="art"] .cipher-card:not(.cipher-card-back) :is(.cipher-card-mark, .cipher-card-caption) {
+  color: #172d28; background: #e9dcb6e8; padding: 0 3px; border-radius: 3px;
+}
+:root[data-visual-style="art"] .cipher-card-send:not(:disabled) {
+  outline: 2px solid #cbeeb0; outline-offset: 1px; border-color: #203b2e;
+  box-shadow: 0 0 15px #c7e99a38;
+}
+:root[data-visual-style="art"] .cipher-card-send:not(:disabled) .cipher-card-caption { color: #eaffd9; background: #23462f; }
+:root[data-visual-style="art"] .cipher-card-send:disabled { filter: saturate(.55); }
+:root[data-visual-style="art"] .cipher-card:focus-visible { outline: 3px solid #f5d598; outline-offset: 3px; }
+:root[data-visual-style="art"] .cipher-number-strip > span {
+  background: #d6c6a0; color: #203b2e; border: 2px double #8e8a65; box-shadow: inset 0 0 0 1px #eadfbc;
+}
+:root[data-visual-style="art"] .cipher-discarded .cipher-number-strip > span { color: #67412c; background: #caba95; }
+:root[data-visual-style="art"] .cipher-resource-art {
+  display: inline-block; width: 26px; height: 26px; flex: 0 0 26px;
+  background: center / contain no-repeat; pointer-events: none; vertical-align: middle;
+}
+:root[data-visual-style="art"] .cipher-resource-art[data-art-resource="pulse"] { background-image: url('./assets/art/ink-silent-pulse.png'); }
+:root[data-visual-style="art"] .cipher-resource-art[data-art-resource="cover"] { background-image: url('./assets/art/ink-cover.png'); }
+:root[data-visual-style="art"] .cipher-metrics .cipher-resource-art { display: block; float: right; width: 42px; height: 48px; margin: 0; }
+:root[data-visual-style="art"] .cipher-pulse > .cipher-resource-art { float: right; width: 64px; height: 64px; margin: 0 0 5px 8px; }
 :root[data-visual-style="art"] .cipher-card-back {
   background: linear-gradient(#12222bad, #0c1822e8), var(--art-cipher) 12% 42% / 260%;
   border-color: #8b9279;
@@ -174,6 +247,24 @@
 }
 :root[data-visual-style="art"] .room-history-replay:has([data-art-game="encrypted-call"]) { --art-scene: var(--art-cipher); }
 :root[data-visual-style="art"] .replay-controls { background: #17252bf5; }
+
+@media (min-width: 1100px) and (min-height: 700px) {
+  :root[data-visual-style="art"] .station-live .station-players { grid-template-rows: repeat(var(--station-rows), minmax(110px, 1fr)); }
+  :root[data-visual-style="art"] .station-table .station-card:has(.station-device-art) { min-height: 56px; }
+  :root[data-visual-style="art"] .station-card .station-device-art { inset: 0 0 24px; }
+  :root[data-visual-style="art"] .role-card > .station-role-art { width: 62px; height: 62px; margin: -3px -3px 3px 3px; }
+  :root[data-visual-style="art"] .composition .station-device-art { height: 38px; }
+  :root[data-visual-style="art"] .station-round-reveals .station-device-art { width: 28px; height: 28px; flex-basis: 28px; }
+  :root[data-visual-style="art"] .cipher-metrics .cipher-resource-art { width: 34px; height: 38px; }
+  :root[data-visual-style="art"] .cipher-tools .cipher-resource-art { width: 20px; height: 20px; flex-basis: 20px; }
+  :root[data-visual-style="art"] .cipher-pulse > .cipher-resource-art { width: 40px; height: 40px; }
+}
+
+@media (max-width: 700px) {
+  :root[data-visual-style="art"] .cipher-metrics .cipher-resource-art { width: 28px; height: 32px; }
+  :root[data-visual-style="art"] .cipher-tools .button { gap: 4px; }
+  :root[data-visual-style="art"] .cipher-tools .cipher-resource-art { width: 20px; height: 20px; flex-basis: 20px; }
+}
 
 @media (max-width: 700px) {
   :root[data-visual-style="art"] :is(.home-page, .join-page, .room-page, .shared-replay-page, .rules-page) { background-attachment: scroll; }

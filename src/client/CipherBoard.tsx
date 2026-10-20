@@ -101,6 +101,7 @@ export function CipherBoard({ G, playerID, moves, isConnected }: BoardProps) {
         </section>}
 
         {G.status === 'pulse' && G.pulse && <section className="panel cipher-pulse">
+          <CipherResourceArtwork resource="pulse" />
           <div className="eyebrow">SILENT PULSE REQUEST</div><h2>是否發動靜默脈衝？</h2>
           <p><strong>{nameOf(G.pulse.proposerID)}</strong> 提議消耗 1 次脈衝，公開棄掉每位特務最小的一張牌。</p>
           <p className="small muted">全員同意才會發動；任一人拒絕就取消。討論只限同意與否，請勿暗示手牌大小。</p>
@@ -114,7 +115,7 @@ export function CipherBoard({ G, playerID, moves, isConnected }: BoardProps) {
 
         {G.status === 'playing' && <div className="cipher-tools">
           <button className="button secondary" disabled={!canAct} onClick={() => send('requestSync')}>暫停，重新同步</button>
-          <button className="button secondary" disabled={!canAct || G.pulses < 1} onClick={() => send('proposePulse')}>提議靜默脈衝 <span>×{G.pulses}</span></button>
+          <button className="button secondary" disabled={!canAct || G.pulses < 1} onClick={() => send('proposePulse')}><CipherResourceArtwork resource="pulse" />提議靜默脈衝 <span>×{G.pulses}</span></button>
         </div>}
         {notice && <p className="error-message" role="status">{notice}</p>}
         {pending && <p className="small muted" role="status">正在確認操作…</p>}
@@ -140,10 +141,14 @@ export function CipherHeading({ G }: { G: CipherState }) {
   </div>;
 }
 
+function CipherResourceArtwork({ resource }: { resource: 'cover' | 'pulse' }) {
+  return <span className="cipher-resource-art" data-art-resource={resource} aria-hidden="true" />;
+}
+
 export function CipherMetrics({ G }: { G: CipherState }) {
   return <div className="cipher-metrics" aria-label="任務狀態">
-    <div><span>剩餘掩護</span><strong className={G.cover <= 1 ? 'amber' : ''}>{G.cover}<small> / 6</small></strong></div>
-    <div><span>靜默脈衝</span><strong>{G.pulses}<small> / 3</small></strong></div>
+    <div><CipherResourceArtwork resource="cover" /><span>剩餘掩護</span><strong className={G.cover <= 1 ? 'amber' : ''}>{G.cover}<small> / 6</small></strong></div>
+    <div><CipherResourceArtwork resource="pulse" /><span>靜默脈衝</span><strong>{G.pulses}<small> / 3</small></strong></div>
     <div><span>尚待傳送</span><strong>{Object.values(G.players).reduce((sum, p) => sum + p.cardCount, 0)}<small> 張</small></strong></div>
   </div>;
 }
