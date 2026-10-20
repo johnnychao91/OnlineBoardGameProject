@@ -187,8 +187,10 @@ boardgame_root_migrate() {
         fi
       done
       if [ "$(sudo -u "$deployer" git -C /opt/space-station rev-parse HEAD)" != "$old_commit" ]; then
-        sudo -u "$deployer" git -C /opt/space-station switch --detach "$old_commit" || recovery=1
+        sudo -u "$deployer" bash -c 'umask 022; exec git "$@"' bash \
+          -C /opt/space-station switch --detach "$old_commit" || recovery=1
       fi
+      sudo -u space-station test -r /opt/space-station/package.json || recovery=1
       systemctl daemon-reload || recovery=1
       /usr/sbin/apache2ctl configtest || recovery=1
       if [ "$recovery" = 0 ]; then
@@ -267,12 +269,16 @@ boardgame_root_migrate() {
     -e 's|/var/log/apache2/space-station-|/var/log/apache2/boardgame-|g' "$apache"
   /usr/sbin/apache2ctl configtest
 
-  sudo -u "$deployer" git -C /opt/space-station merge --ff-only "$target"
+  # Public checkout files must remain readable by the separate service account.
+  # Set this inside the target user's shell; sudo may retain the root 077 umask.
+  sudo -u "$deployer" bash -c 'umask 022; exec git "$@"' bash \
+    -C /opt/space-station merge --ff-only "$target"
   mv /opt/space-station/node_modules "$stage/previous/node_modules"
   mv /opt/space-station/dist "$stage/previous/dist"
   mv "$stage/node_modules" /opt/space-station/node_modules
   mv "$stage/dist" /opt/space-station/dist
   mv /opt/space-station /opt/boardgame
+  sudo -u boardgame test -r /opt/boardgame/package.json
   sudo -u boardgame test -r /opt/boardgame/dist/server/index.cjs
   sudo -u boardgame test -r /opt/boardgame/dist/client/index.html
   install -o root -g root -m 0644 "$stage/deploy/boardgame.service" /etc/systemd/system/boardgame.service
