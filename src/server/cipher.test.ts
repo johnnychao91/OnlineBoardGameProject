@@ -220,16 +220,18 @@ describe('Encrypted call HTTP and socket integration', () => {
     expect(Object.values(next.G.private).every((hand) => hand.cards.length === 2)).toBe(true);
   });
 
-  it('enforces readiness, host authority and 2–4 seats at the server', async () => {
+  it('enforces readiness, host authority and 2–4 active players while allowing more waiting seats', async () => {
     const f = await fixture();
     const solo = await group(f, 1);
     expect((await f.request(path(solo.host, 'ready'), { ready: true }, solo.host)).status).toBe(200);
     expect((await f.request(path(solo.host, 'start'), {}, solo.host)).status).toBe(409);
     const full = await group(f, 4);
-    expect((await f.request(path(full.host, 'join'), {
+    const fifth = await f.request(path(full.host, 'join'), {
       inviteToken: token(full.host.inviteUrl, 'invite'), displayName: '第五位',
-    })).status).toBe(409);
+    });
+    expect(fifth.status).toBe(200);
     expect((await f.request(path(full.host, 'start'), {}, full.host)).status).toBe(409);
+    expect((await f.request(path(full.host, 'leave'), {}, fifth.body as unknown as Seat)).status).toBe(200);
     expect((await f.request(path(full.host, 'start'), {}, full.seats[1])).status).toBe(403);
     expect((await f.request('/api/rooms', { gameId, displayName: '指揮員', numPlayers: 2 })).status).toBe(400);
     expect((await start(f, full)).numPlayers).toBe(4);

@@ -6,9 +6,9 @@ import type { Context } from 'koa';
 import serve from 'koa-static';
 import { Server } from 'boardgame.io/server';
 import { createMatch } from 'boardgame.io/internal';
-import { gameDefinitions, getGameDefinition, publicGameDefinitions } from '../games/registry';
+import { gameDefinitions, getGameDefinition, publicGameDefinitions, type GameDefinition } from '../games/registry';
 import { GuardedTransport } from './transport';
-import { RoomStore, currentMatchID, hostPlayerID, hostObserverID, roomMatchIDs, type RoomRecord, type RoomHistory, type RoleSwitchReceipt } from './rooms';
+import { RoomStore, currentMatchID, hostPlayerID, hostObserverID, roomMatchIDs, matchGameID, ROOM_CAPACITY, type RoomRecord, type RoomHistory, type RoleSwitchReceipt } from './rooms';
 import { RoomPresence } from './presence';
 import { FileStorage } from './storage';
 import { collectStatistics } from './statistics';
@@ -29,6 +29,24 @@ export interface AppConfig {
 const INVITE_TTL = 24 * 60 * 60 * 1000;
 const REPLAY_SHARE_TTL = 7 * 24 * 60 * 60 * 1000;
 const UUID_V4 = /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i;
+/** Waiting room capacity is independent of the selected game's player limit. */
+function createWaitingMatch(definition: GameDefinition) {
+  return createMatch({
+    game: {
+      ...definition.game, seed: randomToken(), minPlayers: ROOM_CAPACITY, maxPlayers: ROOM_CAPACITY,
+      validateSetupData: () => undefined,
+      setup: (context) => {
+        // Initialize the game's empty lobby with valid game settings, then add
+        // shared waiting seats. Real play is initialized again with its true count.
+        const G = definition.game.setup!({ ...context, ctx: { ...context.ctx, numPlayers: definition.maxPlayers } }, undefined);
+        const player = Object.values(G.players)[0];
+        for (let id = 0; id < ROOM_CAPACITY; id++) G.players[id] ??= { ...(player as object) };
+        return G;
+      },
+    },
+    numPlayers: ROOM_CAPACITY, setupData: undefined, unlisted: true,
+  });
+}
 const roleSwitchCredential = (credential: string, roomId: string, matchID: string, requestID: string, access: string) =>
   createHmac('sha256', credential).update(JSON.stringify(['boardgame-role-switch-v1', roomId, matchID, requestID, access])).digest('base64url');
 function fail(status: number, message: string, code?: 'ADMISSION_REMOVED'): never {
@@ -93,11 +111,13 @@ export async function createApplication(config: AppConfig) {
     return { metadata, state };
   };
   const publicRoom = (room: RoomRecord, metadata: any, state: any, matchID = currentMatchID(room), historical = false) => ({
-    roomId: room.roomId, matchID, gameName: room.gameId, hostPlayerID: historical ? null : hostPlayerID(room),
+    roomId: room.roomId, matchID, gameName: matchGameID(room, matchID),
+    gameSelected: historical || room.gameSelected !== false, roomCapacity: ROOM_CAPACITY,
+    hostPlayerID: historical ? null : hostPlayerID(room),
     hostObserverID: historical ? null : hostObserverID(room),
-    history: historical ? [] : room.history || [],
+    history: historical ? [] : (room.history || []).map(entry => ({ ...entry, gameName: entry.gameName ?? room.gameId })),
     numPlayers: state.G.status === 'lobby' ? Object.values(metadata.players).filter((p: any) => p.credentials).length : state.ctx.numPlayers,
-    minPlayers: getGameDefinition(room.gameId)!.minPlayers, maxPlayers: getGameDefinition(room.gameId)!.maxPlayers,
+    minPlayers: getGameDefinition(matchGameID(room, matchID))!.minPlayers, maxPlayers: getGameDefinition(matchGameID(room, matchID))!.maxPlayers,
     status: state.G.status,
     ...(!historical && state.G.status === 'finished' && room.completedDisplay?.matchID === matchID
       ? { completedDisplayUntil: room.completedDisplay.until } : {}),
@@ -150,7 +170,7 @@ export async function createApplication(config: AppConfig) {
   };
   const replayPayload = async (room: RoomRecord, perspective: 'blind' | 'god', matchID = currentMatchID(room)) => {
     const replay = await db.fetchReplay(matchID);
-    const definition = getGameDefinition(room.gameId)!;
+    const definition = getGameDefinition(matchGameID(room, matchID))!;
     return { complete: replay.complete, frames: replay.frames.map((frame) => ({
       stateID: frame.stateID, at: frame.at, G: definition.observerView(frame.G, perspective),
     })) };
@@ -178,13 +198,13 @@ export async function createApplication(config: AppConfig) {
       if (Date.now() < room.completedDisplay!.until) return room;
     }
     const matchID = randomToken(12);
-    const match = createMatch({ game: { ...definition.game, seed: randomToken() }, numPlayers: definition.maxPlayers, setupData: undefined, unlisted: true });
+    const match = createWaitingMatch(definition);
     if ('setupDataError' in match) fail(500, '無法返回等待室');
     for (const player of Object.values(metadata.players)) {
       if (player.credentials) match.metadata.players[player.id] = { ...player, isConnected: false };
     }
     const nextHost = retainedHost(room, Object.values(match.metadata.players));
-    const history: RoomHistory = { matchID: previousID, endedAt: Date.now(), ending,
+    const history: RoomHistory = { matchID: previousID, gameName: room.gameId, endedAt: Date.now(), ending,
       numPlayers: state.ctx.numPlayers, ...(outcome && ending === 'completed' ? { winner: outcome.winner, reason: outcome.reason } : {}) };
     const next: RoomRecord = { ...room, currentMatchID: matchID, ...nextHost, completedDisplay: undefined,
       departedPlayerIDs: [], history: [...(room.history || []), history] };
@@ -255,7 +275,7 @@ export async function createApplication(config: AppConfig) {
       const matchID = share.matchID ?? room.roomId;
       if (!roomMatchIDs(room).includes(matchID)) fail(403, '回放分享已失效');
       const { metadata, state } = await snapshot(room, matchID);
-      if (!getGameDefinition(room.gameId)!.getOutcome(state.G)) fail(409, '對局尚未結束');
+      if (!getGameDefinition(matchGameID(room, matchID))!.getOutcome(state.G)) fail(409, '對局尚未結束');
       ctx.body = { room: publicRoom(room, metadata, state, matchID, true), perspective: share.perspective, frameIndex: share.frameIndex,
         ...await replayPayload(room, share.perspective, matchID) };
       return;
@@ -264,7 +284,7 @@ export async function createApplication(config: AppConfig) {
       if (!limiter.allow(`create:${ctx.ip}`, 12, 600000)) fail(429, '建立房間太頻繁，請稍後重試');
       const body = await jsonBody(ctx);
       if (config.createRoomKey && !safeEqual(body.createKey, config.createRoomKey)) fail(403, '建立房間密鑰不正確');
-      const definition = getGameDefinition(body.gameId);
+      const definition = getGameDefinition(body.gameId === undefined ? gameDefinitions[0].id : body.gameId);
       if (!definition) fail(400, '遊戲不正確');
       if (body.numPlayers !== undefined) fail(400, '不需預選人數，開局時依參與者人數決定');
       const name = displayName(body.displayName);
@@ -273,11 +293,11 @@ export async function createApplication(config: AppConfig) {
       const credentials = randomToken();
       // The framework's default seed is timestamp-based. Use independent CSPRNG
       // entropy for each match and keep it only in server storage.
-      const match = createMatch({ game: { ...definition.game, seed: randomToken() }, numPlayers: definition.maxPlayers, setupData: undefined, unlisted: true });
+      const match = createWaitingMatch(definition);
       if ('setupDataError' in match) fail(400, '無法使用這組遊戲設定');
       match.metadata.players['0'].name = name;
       match.metadata.players['0'].credentials = credentials;
-      const room: RoomRecord = { roomId, currentMatchID: roomId, hostPlayerID: '0', gameId: definition.id, numPlayers: definition.maxPlayers, inviteHash: hashToken(invite), inviteExpiresAt: Date.now() + INVITE_TTL, createdAt: Date.now() };
+      const room: RoomRecord = { roomId, currentMatchID: roomId, hostPlayerID: '0', gameId: definition.id, gameSelected: body.gameId !== undefined, numPlayers: ROOM_CAPACITY, inviteHash: hashToken(invite), inviteExpiresAt: Date.now() + INVITE_TTL, createdAt: Date.now() };
       await db.createMatch(roomId, match);
       await rooms.save(room);
       presence.touch(roomId, 'player:0', 'admission');
@@ -286,7 +306,7 @@ export async function createApplication(config: AppConfig) {
         inviteUrl: `${origin}/join/${roomId}#invite=${invite}`, expiresAt: room.inviteExpiresAt };
       return;
     }
-    const route = /^\/api\/rooms\/([A-Za-z0-9_-]+)(?:\/(join|watch|invite|ready|remove|start|view|replay|share|revoke-shares|return|abort|leave|heartbeat|switch-role))?$/.exec(ctx.path);
+    const route = /^\/api\/rooms\/([A-Za-z0-9_-]+)(?:\/(join|watch|invite|ready|remove|start|view|replay|share|revoke-shares|return|abort|leave|heartbeat|switch-role|game))?$/.exec(ctx.path);
     if (!route) fail(404, '找不到此功能');
     const room = getRoom(route[1]);
     const operation = route[2];
@@ -304,8 +324,8 @@ export async function createApplication(config: AppConfig) {
     if (ctx.method === 'GET' && (operation === 'view' || operation === 'replay')) {
       const { metadata } = await snapshot(room);
       const viewer = authenticateViewer(ctx, room, metadata);
-      const definition = getGameDefinition(room.gameId)!;
       const matchID = operation === 'replay' ? requestedMatch(room, ctx.query.matchID) : currentMatchID(room);
+      const definition = getGameDefinition(matchGameID(room, matchID))!;
       const selected = await snapshot(room, matchID);
       const state = selected.state;
       const finished = !!definition.getOutcome(state.G);
@@ -369,7 +389,7 @@ export async function createApplication(config: AppConfig) {
         const name = displayName(body.displayName);
         let seat = Object.values(metadata.players).find((player) => !player.credentials);
         // Old waiting rooms may have fewer placeholder slots; extend only before play.
-        if (!seat && Object.keys(metadata.players).length < definition.maxPlayers) {
+        if (!seat && Object.keys(metadata.players).length < ROOM_CAPACITY) {
           const id = Object.keys(metadata.players).length;
           seat = metadata.players[id] = { id };
         }
@@ -421,10 +441,10 @@ export async function createApplication(config: AppConfig) {
         if (viewer.access === body.access) fail(409, '目前已是所選身分');
         const spectators = { ...current.spectators };
         const participants = Object.values(metadata.players).filter((player) => player.credentials);
-        if (body.access === 'player' && participants.length >= definition.maxPlayers) fail(409, '參與席位已滿，請先留在觀戰席');
+        if (body.access === 'player' && participants.length >= ROOM_CAPACITY) fail(409, '參與席位已滿，請先留在觀戰席');
         if (body.access === 'spectator' && Object.keys(spectators).length >= 128) fail(409, '此房觀戰席數量已達上限');
         const nextID = randomToken(12);
-        const match = createMatch({ game: { ...definition.game, seed: randomToken() }, numPlayers: definition.maxPlayers, setupData: undefined, unlisted: true });
+        const match = createWaitingMatch(definition);
         if ('setupDataError' in match) fail(500, '無法切換房間身分');
         // The framework freezes nested G during initialization. Copy before
         // restoring only the unchanged members' waiting-room readiness.
@@ -474,8 +494,37 @@ export async function createApplication(config: AppConfig) {
         transport.closeMatch(matchID);
         ctx.body = { ...publicRoom(next, match.metadata, match.initialState), access: body.access,
           ...(body.access === 'player' ? { playerID: targetID } : { observerID: targetID }), credentials: nextCredentials };
+      } else if (operation === 'game') {
+        authenticateHost(ctx, current, metadata, '只有房主可以切換遊戲');
+        if (body.matchID !== matchID) fail(409, '對局已更新，請重新確認房間狀態');
+        if (!definition.isJoinable(state.G)) fail(409, '對局進行中不能切換遊戲，請先返回等待室');
+        const selected = getGameDefinition(body.gameId);
+        if (!selected) fail(400, '遊戲不正確');
+        if (current.gameSelected !== false && selected.id === current.gameId) {
+          ctx.body = publicRoom(current, metadata, state);
+          return;
+        }
+        const nextID = randomToken(12);
+        const match = createWaitingMatch(selected);
+        if ('setupDataError' in match) fail(500, '無法切換遊戲');
+        match.metadata.createdAt = metadata.createdAt;
+        match.metadata.updatedAt = Date.now();
+        match.initialState._stateID = state._stateID + 1;
+        for (const player of Object.values(metadata.players)) {
+          if (player.credentials) match.metadata.players[player.id] = { ...player, isConnected: false };
+        }
+        const next: RoomRecord = { ...current, currentMatchID: nextID, gameId: selected.id,
+          gameSelected: true, numPlayers: ROOM_CAPACITY, completedDisplay: undefined, departedPlayerIDs: [],
+          // Pin legacy records before changing the room's current game id.
+          history: (current.history || []).map(entry => ({ ...entry, gameName: entry.gameName ?? current.gameId })),
+        };
+        await db.createNextMatch(matchID, nextID, match);
+        await rooms.save(next);
+        transport.closeMatch(matchID);
+        ctx.body = publicRoom(next, match.metadata, match.initialState);
       } else if (operation === 'ready') {
         const playerID = authenticate(ctx, metadata);
+        if (current.gameSelected === false) fail(409, '請先由房主選擇遊戲');
         if (!definition.isJoinable(state.G)) fail(409, '遊戲已開始');
         if (typeof body.ready !== 'boolean') fail(400, '準備狀態不正確');
         state.G.players[playerID] ??= { ready: false, acknowledged: false, cardCount: 0 };
@@ -504,6 +553,7 @@ export async function createApplication(config: AppConfig) {
         ctx.body = publicRoom(current, updated.metadata, updated.state);
       } else if (operation === 'start') {
         authenticateHost(ctx, current, metadata, '只有房主可以開始');
+        if (current.gameSelected === false) fail(409, '請先由房主選擇遊戲');
         if (!definition.isJoinable(state.G)) fail(409, '遊戲已開始');
         const participants = Object.values(metadata.players).filter((player) => player.credentials);
         const count = participants.length;
@@ -575,7 +625,7 @@ export async function createApplication(config: AppConfig) {
         authenticateViewer(ctx, current, metadata);
         const replayMatchID = requestedMatch(current, body.matchID);
         const selected = await snapshot(current, replayMatchID);
-        if (!definition.getOutcome(selected.state.G)) fail(409, '對局結束後才能分享復盤');
+        if (!getGameDefinition(matchGameID(current, replayMatchID))!.getOutcome(selected.state.G)) fail(409, '對局結束後才能分享復盤');
         const perspective = perspectiveOf(body.perspective);
         const replay = await db.fetchReplay(replayMatchID);
         if (!replay.complete) fail(409, '這場對局沒有完整回放');

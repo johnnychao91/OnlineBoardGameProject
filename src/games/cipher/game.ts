@@ -277,7 +277,7 @@ export const CipherGame: Game<CipherState, Record<string, unknown>, CipherSetupD
     }
     if (setupData?.participantIDs !== undefined && (!Array.isArray(setupData.participantIDs)
       || setupData.participantIDs.length !== numPlayers
-      || setupData.participantIDs.some((id: unknown) => typeof id !== 'string' || !/^[0-3]$/.test(id))
+      || setupData.participantIDs.some((id: unknown) => typeof id !== 'string' || !/^[0-7]$/.test(id))
       || new Set(setupData.participantIDs).size !== numPlayers)) return '參與玩家席位不正確。';
     return undefined;
   },

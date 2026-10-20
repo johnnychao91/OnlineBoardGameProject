@@ -2,6 +2,8 @@ export interface RoomPlayer { id: number | string; name?: string; isConnected: b
 export interface RoomSpectator { id: string; name: string; }
 export interface RoomHistoryEntry {
   matchID: string;
+  /** Historical game identity remains fixed when the room changes games. */
+  gameName?: string;
   endedAt: number;
   ending: 'completed' | 'host-ended' | 'empty';
   numPlayers: number;
@@ -12,6 +14,9 @@ export interface RoomInfo {
   roomId: string;
   matchID: string;
   gameName: string;
+  /** Absent in older saved sessions, which already had a selected game. */
+  gameSelected?: boolean;
+  roomCapacity?: number;
   /** lobby / finished are shared; each game defines its active phase names. */
   status: string;
   numPlayers: number;

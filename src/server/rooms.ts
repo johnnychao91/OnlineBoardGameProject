@@ -25,6 +25,8 @@ export interface RoomRecord {
   history?: RoomHistory[];
   completedDisplay?: { matchID: string; until: number };
   gameId: string;
+  /** Undefined on legacy rooms, which already selected a game at creation. */
+  gameSelected?: boolean;
   numPlayers: number;
   inviteHash: string;
   inviteExpiresAt: number;
@@ -36,6 +38,8 @@ export interface RoomRecord {
 }
 export interface RoomHistory {
   matchID: string;
+  /** Registry id of this historical match; absent only on pre-switching records. */
+  gameName?: string;
   endedAt: number;
   ending: 'completed' | 'host-ended' | 'empty';
   numPlayers: number;
@@ -47,6 +51,9 @@ export const hostObserverID = (room: RoomRecord) => room.hostObserverID ?? null;
 export const hostPlayerID = (room: RoomRecord) => hostObserverID(room) !== null
   ? null : room.hostPlayerID === undefined ? '0' : room.hostPlayerID;
 export const roomMatchIDs = (room: RoomRecord) => [...new Set([...(room.history || []).map((entry) => entry.matchID), currentMatchID(room)])];
+export const matchGameID = (room: RoomRecord, matchID: string) =>
+  room.history?.find(entry => entry.matchID === matchID)?.gameName ?? room.gameId;
+export const ROOM_CAPACITY = 8;
 export class RoomStore {
   readonly rooms = new Map<string, RoomRecord>();
   private file: string;
@@ -59,6 +66,7 @@ export class RoomStore {
       if (!Array.isArray(records)) throw new Error('房間索引格式錯誤');
       for (const room of records) {
         if (!validRoomID(room.roomId) || typeof room.inviteHash !== 'string'
+          || (room.gameSelected !== undefined && typeof room.gameSelected !== 'boolean')
           || (room.currentMatchID !== undefined && !validRoomID(room.currentMatchID))
           || (room.hostObserverID != null && (!validRoomID(room.hostObserverID)
             || !Object.prototype.hasOwnProperty.call(room.spectators ?? {}, room.hostObserverID)

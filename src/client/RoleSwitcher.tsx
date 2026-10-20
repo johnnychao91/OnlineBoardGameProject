@@ -13,7 +13,7 @@ export function RoleSwitcher({ seat, info, onChange }: {
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
   const pending = readRoleSwitch(seat);
   const playing = isPlayer(seat);
-  const full = !playing && info.numPlayers >= info.maxPlayers;
+  const full = !playing && info.numPlayers >= (info.roomCapacity ?? info.maxPlayers);
   const target = playing ? '觀戰' : '參加遊戲';
   async function changeRole() {
     if (locked.current) return;

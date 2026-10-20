@@ -1,0 +1,6 @@
+.room-game-picker { padding: 16px 18px; margin: 16px 0; border-color: #45665f; }
+.room-game-picker-heading { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 8px; }
+.room-game-picker-heading label { font-size: 13px; font-weight: 600; }
+.room-game-picker-heading > span { font-size: 10px; color: var(--mint); }
+.room-game-picker .room-game-name { display: block; font-size: 17px; }
+.room-game-picker > p { margin: 8px 0 0; }

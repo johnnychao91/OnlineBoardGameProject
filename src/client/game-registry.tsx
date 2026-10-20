@@ -18,6 +18,7 @@ const StationClient = Client({ game: StationGame, board: StationBoard, loading: 
 const CipherClient = Client({ game: CipherGame, board: CipherBoard, loading: ConnectingGame, multiplayer: SocketIO({ server: window.location.origin }), debug: false });
 
 export interface ClientGameDefinition {
+  name: string;
   PlayerClient: ComponentType<{ matchID: string; playerID: string; credentials: string }>;
   /** A separate read-only renderer is used for live observation and historical replay. */
   Snapshot: ComponentType<SnapshotProps>;
@@ -34,6 +35,7 @@ export interface ClientGameDefinition {
 /** Add each game's player client, snapshot renderer and statistics labels together. */
 export const clientGames: Record<string, ClientGameDefinition> = {
   'space-station': {
+    name: '太空維修站',
     PlayerClient: props => <StationClient {...props} />,
     Snapshot: StationSnapshot,
     Rules: RuleSummary,
@@ -43,6 +45,7 @@ export const clientGames: Record<string, ClientGameDefinition> = {
     reasonLabels: { 'all-repairs': '完成全部維修', hazard: '揭開反應爐危機', 'round-limit': '四輪時間用盡' },
   },
   'encrypted-call': {
+    name: '加密通話',
     PlayerClient: props => <CipherClient {...props} />,
     Snapshot: CipherSnapshot,
     Rules: CipherRuleSummary,

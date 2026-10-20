@@ -70,6 +70,17 @@ describe('player and spectator host presentation', () => {
     expect(returning).toContain('加入玩家席位後仍保留房主權限，但需重新準備');
   });
 
+  it('uses shared waiting-room capacity instead of a selected game limit when offering a player seat', () => {
+    const info = { ...spectatorHosted, gameName: 'encrypted-call', minPlayers: 2, maxPlayers: 4, roomCapacity: 8 };
+    const render = (numPlayers: number) => renderToStaticMarkup(createElement(RoleSwitcher, {
+      seat: observer, info: { ...info, numPlayers }, onChange: () => {},
+    }));
+    expect(render(4)).not.toContain('disabled=""');
+    expect(render(4)).toContain('改為參加遊戲');
+    expect(render(8)).toContain('disabled=""');
+    expect(render(8)).toContain('玩家席位已滿');
+  });
+
   it('shows the active-game abort control to the spectator host but not a regular observer or player zero', () => {
     const info = { ...spectatorHosted, status: 'playing' };
     const markup = (seat: AuthSession) => renderToStaticMarkup(createElement(RoomActions, { seat, info, onUpdate: () => {} }));

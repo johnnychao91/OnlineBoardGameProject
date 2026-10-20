@@ -24,6 +24,7 @@ API 與網頁同源，正式環境使用 HTTPS；開發由 Vite 代理。POST �
 | `POST /api/rooms/:id/watch` | body 邀請 | 觀戰 session；任何階段都可加入 |
 | `GET /api/rooms/:id` | 玩家／觀戰 | `RoomInfo` |
 | `POST /api/rooms/:id/switch-role` | 玩家／觀戰 | `{access,matchID,requestID}`，只在等待室切換參與／觀戰；回新身分 session |
+| `POST /api/rooms/:id/game` | 房主 | `{matchID,gameId}`，只在等待室選擇或更換遊戲，重設準備；回 `RoomInfo` |
 | `POST /api/rooms/:id/ready` | 玩家 | `{ready:boolean,matchID}`，只在等待室；回 `RoomInfo` |
 | `POST /api/rooms/:id/remove` | 房主 | `{playerID,membershipID}`，只在等待室單次移出其他玩家；回 `RoomInfo` |
 | `POST /api/rooms/:id/start` | 房主 | `{matchID}`，符合該遊戲的人數範圍且全員準備後開始；回 `RoomInfo` |
@@ -43,18 +44,20 @@ API 與網頁同源，正式環境使用 HTTPS；開發由 Vite 代理。POST �
 ## 建房與動態人數
 
 ```json
-{ "gameId": "space-station", "displayName": "小宇", "createKey": "填入建房密鑰" }
+{ "displayName": "小宇", "createKey": "填入建房密鑰" }
 ```
 
 不傳 `numPlayers`，舊格式回 400。暱稱去空白後須 1～24 個 Unicode code points，不含控制字元。正式環境建房密鑰至少 16 字元；開發可留空。
 
-`gameId` 可為 `space-station`（太空維修站，4～8 人）或 `encrypted-call`（加密通話，2～4 人），完整列表以 `/api/games` 為準。房間不能在進行中切換遊戲。`RoomInfo.status` 的 `lobby` 為共用等待室，其餘由遊戲決定；加密通話另有 `syncing`、`playing`、`pulse`、`intermission`、`finished`。所有房間、觀戰、回放與分享端點共用同一套授權規則。
+`gameId` 選填，省略時建立尚未選遊戲的等待室（`gameSelected:false`），不能準備或開局；底層 `gameName` 不表示房主已選定遊戲。仍接受舊客戶端傳入 `space-station`（太空維修站，4～8 人）或 `encrypted-call`（加密通話，2～4 人），完整列表以 `/api/games` 為準。`RoomInfo.status` 的 `lobby` 為共用等待室，其餘由遊戲決定；加密通話另有 `syncing`、`playing`、`pulse`、`intermission`、`finished`。
 
-建立時預留最大席位，等待室顯示實際參與者與獨立觀戰名單。`ready` 更新自己的準備狀態。`start`、加入、移出與身分切換請求共用房間序列佇列，檢查實際人數與準備狀態，用新的加密亂數種子初始化正確人數，保留既有席位 ID 與憑證。席位不必連續；遊戲登錄的 `startSetupData(participantIDs)` 接收伺服器核對過的參與席位，遊戲依此建立角色、牌與行動順序。觀戰者不進玩家 metadata，也不計配牌。
+房主（包含觀戰房主）可用 `game` 端點選擇遊戲，須帶目前等待室的 `matchID`。換遊戲建立新等待室 ID、清除全員準備，保留房號、成員座位與憑證、房主、邀請和歷史；舊 ID 的操作不得套用到新等待室。對局中拒絕換遊戲。房間參與席容量 `roomCapacity` 為 8，與遊戲開局上限分開；換成 2～4 人遊戲仍保留所有成員，超過 4 人時不能開始，須自行改為觀戰或離開。
+
+建立時預留房間容量，等待室顯示實際參與者與獨立觀戰名單。`ready` 更新自己的準備狀態。`start`、加入、移出、選遊戲與身分切換請求共用房間序列佇列，檢查實際人數與準備狀態，用新的加密亂數種子初始化正確人數，保留既有席位 ID 與憑證。席位不必連續；遊戲登錄的 `startSetupData(participantIDs)` 接收伺服器核對過的參與席位，遊戲依此建立角色、牌與行動順序。觀戰者不進玩家 metadata，也不計配牌。
 
 ## 等待室切換身分
 
-`switch-role` 的 `access` 必須為 `"player"` 或 `"spectator"`；`matchID` 為目前等待室 ID，`requestID` 為必填 UUIDv4。使用目前身分的授權標頭，不需重新提供邀請或暱稱。只能在等待室轉為另一種身分；遊戲進行中、所選身分相同、參與席位或觀戰席已滿，均回 409。參與席上限依遊戲定義，觀戰席最多 128 位。
+`switch-role` 的 `access` 必須為 `"player"` 或 `"spectator"`；`matchID` 為目前等待室 ID，`requestID` 為必填 UUIDv4。使用目前身分的授權標頭，不需重新提供邀請或暱稱。只能在等待室轉為另一種身分；遊戲進行中、所選身分相同、參與席位或觀戰席已滿，均回 409。參與席上限為房間容量 8 位，觀戰席最多 128 位。
 
 成功後回傳新的玩家或觀戰 session，保留房號、暱稱、邀請、歷史及其他成員憑證；原憑證立即失效。新入座玩家須重新準備，其他玩家的準備狀態保留。房主改為觀戰時保留管理權，更新為 `hostObserverID`；即使沒有玩家，也不會將房主交給下一位入座者。觀戰房主切回玩家後，管理權跟隨新的玩家身分。只有房主主動離開房間才交接給剩餘玩家；沒有玩家時兩個房主欄位皆為 `null`，下一位入座者接任。
 
@@ -98,6 +101,8 @@ API 與網頁同源，正式環境使用 HTTPS；開發由 Vite 代理。POST �
 | --- | --- |
 | `roomId`, `matchID` | 16 字元 base64url 識別碼；房號穩定，返回等待室或切換身分時目前對局 ID 更新 |
 | `gameName` | 登錄的遊戲識別碼 |
+| `gameSelected` | 是否已選定遊戲；舊資料缺省視為 `true`，`false` 時不可準備／開局 |
+| `roomCapacity` | 房間參與席容量 8；與所選遊戲的 `maxPlayers` 不同 |
 | `numPlayers` | 實際入座參與者數，開局後固定 |
 | `minPlayers`, `maxPlayers` | 遊戲人數範圍 |
 | `status` | 共用 `lobby`；太空維修站另有 `briefing`, `claiming`, `playing`, `round-review`, `finished`，其他遊戲依自身定義 |
@@ -107,7 +112,7 @@ API 與網頁同源，正式環境使用 HTTPS；開發由 Vite 代理。POST �
 | `godViewAllowed` | 本版 true；不授予進行中玩家觀戰權限 |
 | `hostPlayerID` | 目前房主座位字串；沒有玩家時為 `null` |
 | `completedDisplayUntil` | 選填；目前終局牌桌的最早自動返回時間，Unix 毫秒，歷史投影不帶此欄位 |
-| `history` | 依結束順序的 `{matchID,endedAt,ending,numPlayers,winner?,reason?}`；`ending` 為 `completed`、`host-ended` 或 `empty`，沒有秘密牌面 |
+| `history` | 依結束順序的 `{matchID,gameName,endedAt,ending,numPlayers,winner?,reason?}`；`ending` 為 `completed`、`host-ended` 或 `empty`。每局依自身遊戲渲染與統計，沒有秘密牌面 |
 
 ## 視角與回放
 
