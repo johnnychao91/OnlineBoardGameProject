@@ -312,7 +312,7 @@ describe('Reusable rooms and match lifecycle', () => {
     const activeID = g.matchID;
     const otherState = await f.state(other.matchID);
     expect((await f.request(path(g.host, 'abort'), { matchID: activeID }, g.seats[1])).status).toBe(403);
-    expect((await f.request(path(g.host, 'abort'), { matchID: activeID }, g.observer)).status).toBe(401);
+    expect((await f.request(path(g.host, 'abort'), { matchID: activeID }, g.observer)).status).toBe(403);
     expect((await f.request(path(g.host, 'abort'), { matchID: activeID }, other.host)).status).toBe(401);
     expect((await f.request(path(g.host, 'abort'), { matchID: other.matchID }, g.host)).status).toBe(409);
     expect((await f.request(path(g.host, 'return'), { matchID: activeID }, g.host)).status).toBe(409);

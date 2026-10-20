@@ -150,19 +150,123 @@ describe('Authenticated spectator roster and in-room role switching', () => {
     expect(after.status).toBe(200);
   });
 
-  it('hands host authority to remaining players, then to the first spectator who takes an empty room seat', async () => {
+  it.each(games)('keeps the host in charge while observing, starting, ending and rejoining $id', async game => {
+    const f = await fixture(); const g = await group(f, game.id, game.minimum + 1);
+    await ready(f, g.room, g.members);
+    const oldSocket = await f.connect(game.id);
+    await f.sync(oldSocket, g.room.matchID, g.room);
+    const body = switchBody(g.room.matchID, 'spectator');
+    const switched = await f.request(path(g.room, 'switch-role'), body, g.room);
+    expect(switched.status).toBe(200);
+    const host = switched.body as Member;
+    expect(switched.body).toMatchObject({
+      hostPlayerID: null, hostObserverID: host.observerID, numPlayers: game.minimum, spectatorCount: 2,
+    });
+    await vi.waitFor(() => expect(oldSocket.connected).toBe(false));
+    expect((await f.request(path(g.room, 'invite'), {}, g.room)).status).toBe(401);
+    for (const member of [g.observer, g.members[1]]) {
+      for (const operation of ['invite', 'start', 'remove', 'return', 'abort', 'revoke-shares']) {
+        expect((await f.request(path(g.room, operation), { matchID: switched.body.matchID }, member)).status).toBe(403);
+      }
+    }
+    const rotated = await f.request(path(g.room, 'invite'), {}, host);
+    expect(rotated.status).toBe(200);
+    expect((await f.request(path(g.room, 'join'), {
+      displayName: '過期邀請', inviteToken: fragment(g.room.inviteUrl), requestID: randomUUID(),
+    })).status).toBe(403);
+    const removed = switched.body.players.find((player: any) => player.id === g.members[1].playerID);
+    expect((await f.request(path(g.room, 'remove'), {
+      playerID: removed.id, membershipID: removed.membershipID, matchID: switched.body.matchID,
+    }, host)).status).toBe(200);
+    expect((await f.request(path(g.room), undefined, g.members[1])).status).toBe(401);
+    const joined = await f.request(path(g.room, 'join'), {
+      displayName: '替補朋友', inviteToken: fragment(rotated.body.inviteUrl), requestID: randomUUID(),
+    });
+    expect(joined.status).toBe(200);
+    expect(joined.body).toMatchObject({ hostPlayerID: null, hostObserverID: host.observerID, numPlayers: game.minimum });
+    const players = [...g.members.slice(2), joined.body as Member];
+    expect((await f.request(path(g.room, 'ready'), { ready: true }, host)).status).toBe(401);
+    await ready(f, g.room, players);
+    const started = await f.request(path(g.room, 'start'), { matchID: joined.body.matchID }, host);
+    expect(started.status).toBe(200);
+    expect(started.body).toMatchObject({ hostPlayerID: null, hostObserverID: host.observerID, numPlayers: game.minimum });
+    const abort = await f.request(path(g.room, 'abort'), { matchID: started.body.matchID }, host);
+    expect(abort.status).toBe(200);
+    expect(abort.body).toMatchObject({ status: 'lobby', hostPlayerID: null, hostObserverID: host.observerID, numPlayers: game.minimum });
+    expect(abort.body.history[0].ending).toBe('host-ended');
+    await f.restart();
+    const retry = await f.request(path(g.room, 'switch-role'), body, g.room);
+    expect(retry.status).toBe(200);
+    expect(retry.body.credentials).toBe(host.credentials);
+    expect(retry.body).toMatchObject({ hostPlayerID: null, hostObserverID: host.observerID, matchID: abort.body.matchID });
+
+    await ready(f, g.room, players);
+    const again = await f.request(path(g.room, 'start'), { matchID: abort.body.matchID }, host);
+    expect(again.status).toBe(200);
+    const { state } = await f.app.db.fetch(again.body.matchID, { state: true });
+    state!.G.status = 'finished';
+    state!.G.winner = game.id === 'space-station' ? 'engineer' : 'agents';
+    state!.G.winReason = game.id === 'space-station' ? 'all-repairs' : 'all-levels';
+    state!._stateID++;
+    await f.app.db.setState(again.body.matchID, state!);
+    // Completion hold timing is tested separately. Preserve this completed game
+    // while exercising observer-host authorization of the explicit return.
+    const record = f.app.rooms.rooms.get(g.room.roomId)!;
+    await f.app.rooms.save({ ...record, completedDisplay: { matchID: again.body.matchID, until: Date.now() - 1 } });
+    expect((await f.request(path(g.room, 'return'), { matchID: again.body.matchID }, g.observer)).status).toBe(403);
+    const completed = await f.request(path(g.room, 'return'), { matchID: again.body.matchID }, host);
+    expect(completed.status).toBe(200);
+    expect(completed.body).toMatchObject({ status: 'lobby', hostPlayerID: null, hostObserverID: host.observerID });
+    expect(completed.body.history.at(-1).ending).toBe('completed');
+    const share = await f.request(path(g.room, 'share'), { matchID: again.body.matchID, frameIndex: 0 }, host);
+    expect(share.status).toBe(200);
+    const shareHeaders = { 'X-Replay-Token': fragment(share.body.url, 'share') };
+    const shared = await f.request(`/api/replays/${g.room.roomId}`, undefined, undefined, shareHeaders);
+    expect(shared.status).toBe(200);
+    expect(shared.body.room).toMatchObject({ hostPlayerID: null, hostObserverID: null, spectators: [], spectatorCount: 0 });
+    expect(JSON.stringify(shared.body)).not.toContain(host.observerID);
+    expect((await f.request(path(g.room, 'revoke-shares'), {}, players[0])).status).toBe(403);
+    expect((await f.request(path(g.room, 'revoke-shares'), {}, host)).status).toBe(200);
+    expect((await f.request(`/api/replays/${g.room.roomId}`, undefined, undefined, shareHeaders)).status).toBe(403);
+    await f.restart();
+    expect((await f.request(path(g.room), undefined, host)).body).toMatchObject({
+      hostPlayerID: null, hostObserverID: host.observerID, matchID: completed.body.matchID,
+    });
+    const returned = await f.request(path(g.room, 'switch-role'), switchBody(completed.body.matchID, 'player'), host);
+    expect(returned.status).toBe(200);
+    expect(returned.body).toMatchObject({ hostPlayerID: returned.body.playerID, hostObserverID: null, numPlayers: game.minimum + 1 });
+    expect((await f.request(path(g.room, 'invite'), {}, returned.body as Member)).status).toBe(200);
+    expect((await f.request(path(g.room, 'invite'), {}, host)).status).toBe(401);
+    expect((await f.request('/api/stats')).body.completedGames).toBe(1);
+  }, 15000);
+
+  it('retains the observer host in an empty lobby and transfers authority only when that host leaves', async () => {
     const f = await fixture(); const g = await group(f);
     const first = await f.request(path(g.room, 'switch-role'), switchBody(g.room.matchID, 'spectator'), g.room);
     expect(first.status).toBe(200);
-    expect(first.body.hostPlayerID).toBe(g.members[1].playerID);
-    expect((await f.request(path(g.room, 'invite'), {}, first.body as Member)).status).toBe(401);
+    expect(first.body).toMatchObject({ hostPlayerID: null, hostObserverID: first.body.observerID });
+    expect((await f.request(path(g.room, 'invite'), {}, first.body as Member)).status).toBe(200);
     const last = await f.request(path(g.room, 'switch-role'), switchBody(first.body.matchID, 'spectator'), g.members[1]);
     expect(last.status).toBe(200);
-    expect(last.body).toMatchObject({ hostPlayerID: null, numPlayers: 0, spectatorCount: 3, status: 'lobby' });
-    const newHost = await f.request(path(g.room, 'switch-role'), switchBody(last.body.matchID, 'player'), g.observer);
-    expect(newHost.status).toBe(200);
-    expect(newHost.body.hostPlayerID).toBe(newHost.body.playerID);
-    expect((await f.request(path(g.room, 'invite'), {}, newHost.body as Member)).status).toBe(200);
+    expect(last.body).toMatchObject({ hostPlayerID: null, hostObserverID: first.body.observerID, numPlayers: 0, spectatorCount: 3, status: 'lobby' });
+    const player = await f.request(path(g.room, 'switch-role'), switchBody(last.body.matchID, 'player'), g.observer);
+    expect(player.status).toBe(200);
+    expect(player.body).toMatchObject({ hostPlayerID: null, hostObserverID: first.body.observerID });
+    expect((await f.request(path(g.room, 'invite'), {}, player.body as Member)).status).toBe(403);
+    expect((await f.request(path(g.room, 'leave'), {}, first.body as Member)).status).toBe(200);
+    const transferred = await f.request(path(g.room), undefined, player.body as Member);
+    expect(transferred.body).toMatchObject({ hostPlayerID: player.body.playerID, hostObserverID: null });
+    expect((await f.request(path(g.room, 'invite'), {}, player.body as Member)).status).toBe(200);
+    expect((await f.request(path(g.room, 'invite'), {}, first.body as Member)).status).toBe(401);
+    const observedAgain = await f.request(path(g.room, 'switch-role'), switchBody(transferred.body.matchID, 'spectator'), player.body as Member);
+    expect(observedAgain.status).toBe(200);
+    expect((await f.request(path(g.room, 'leave'), {}, observedAgain.body as Member)).status).toBe(200);
+    const noHost = await f.request(path(g.room), undefined, last.body as Member);
+    expect(noHost.body).toMatchObject({ hostPlayerID: null, hostObserverID: null, numPlayers: 0 });
+    const nextHost = await f.request(path(g.room, 'switch-role'), switchBody(noHost.body.matchID, 'player'), last.body as Member);
+    expect(nextHost.status).toBe(200);
+    expect(nextHost.body).toMatchObject({ hostPlayerID: nextHost.body.playerID, hostObserverID: null });
+    expect((await f.request(path(g.room, 'invite'), {}, nextHost.body as Member)).status).toBe(200);
   });
 
   it.each(games)('rejects full player seats in $id without revoking the observer or changing the room', async game => {
@@ -343,22 +447,40 @@ describe('Authenticated spectator roster and in-room role switching', () => {
     expect((await f.request('/api/stats')).body.completedGames).toBe(0);
   });
 
-  it.each(['player', 'spectator'] as const)('leaves the original %s credentials usable if publishing the switch fails', async targetRole => {
+  it.each([
+    { targetRole: 'player' as const, isHost: false }, { targetRole: 'spectator' as const, isHost: false },
+    { targetRole: 'player' as const, isHost: true }, { targetRole: 'spectator' as const, isHost: true },
+  ])('preserves the original credentials and host rights when publishing $targetRole fails (host: $isHost)', async ({ targetRole, isHost }) => {
     const f = await fixture(); const g = await group(f);
-    const source = targetRole === 'player' ? g.observer : g.members[1];
+    let source: Member = isHost ? g.room : targetRole === 'player' ? g.observer : g.members[1];
+    let sourceMatchID = g.room.matchID;
+    if (isHost && targetRole === 'player') {
+      const switched = await f.request(path(g.room, 'switch-role'), switchBody(sourceMatchID, 'spectator'), source);
+      expect(switched.status).toBe(200);
+      source = switched.body as Member;
+      sourceMatchID = switched.body.matchID;
+    }
     const before = (await f.request(path(g.room), undefined, source)).body;
-    const storedBefore = await f.app.db.fetch(g.room.matchID, { metadata: true, state: true });
-    const body = switchBody(g.room.matchID, targetRole);
+    const storedBefore = await f.app.db.fetch(sourceMatchID, { metadata: true, state: true });
+    const body = switchBody(sourceMatchID, targetRole);
     vi.spyOn(f.app.rooms, 'save').mockRejectedValueOnce(new Error('Injected room publication failure'));
     expect((await f.request(path(g.room, 'switch-role'), body, source)).status).toBe(500);
     expect((await f.request(path(g.room), undefined, source)).body).toEqual(before);
-    expect(await f.app.db.fetch(g.room.matchID, { metadata: true, state: true })).toEqual(storedBefore);
+    expect(await f.app.db.fetch(sourceMatchID, { metadata: true, state: true })).toEqual(storedBefore);
+    if (isHost) expect((await f.request(path(g.room, 'revoke-shares'), {}, source)).status).toBe(200);
     await f.restart();
     expect((await f.request(path(g.room), undefined, source)).body).toEqual(before);
     const retried = await f.request(path(g.room, 'switch-role'), body, source);
     expect(retried.status).toBe(200);
     expect((await f.request(path(g.room), undefined, source)).status).toBe(401);
     expect((await f.request(path(g.room), undefined, retried.body as Member)).status).toBe(200);
+    if (isHost) {
+      expect(retried.body).toMatchObject(targetRole === 'player'
+        ? { hostPlayerID: retried.body.playerID, hostObserverID: null }
+        : { hostPlayerID: null, hostObserverID: retried.body.observerID });
+      expect((await f.request(path(g.room, 'revoke-shares'), {}, retried.body as Member)).status).toBe(200);
+      expect((await f.request(path(g.room, 'revoke-shares'), {}, g.members[1])).status).toBe(403);
+    }
   });
 
   it('shows names to authenticated members but excludes the live spectator roster and switch receipts from shared history', async () => {
@@ -382,7 +504,7 @@ describe('Authenticated spectator roster and in-room role switching', () => {
     const replay = await f.request(`/api/replays/${g.room.roomId}`, undefined, undefined,
       { 'X-Replay-Token': fragment(share.body.url, 'share') });
     expect(replay.status).toBe(200);
-    expect(replay.body.room).toMatchObject({ spectators: [], spectatorCount: 0, history: [], hostPlayerID: null });
+    expect(replay.body.room).toMatchObject({ spectators: [], spectatorCount: 0, history: [], hostPlayerID: null, hostObserverID: null });
     expect(JSON.stringify(replay.body)).not.toMatch(/觀戰朋友|observerID|credentialHash|roleSwitch|requestID/);
     const privateReplay = await f.request(path(g.room, `replay?matchID=${g.room.matchID}`), undefined, g.room);
     expect(privateReplay.status).toBe(200);

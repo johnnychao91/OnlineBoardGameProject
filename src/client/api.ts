@@ -23,6 +23,8 @@ export interface RoomInfo {
   spectators?: RoomSpectator[];
   godViewAllowed: boolean;
   hostPlayerID?: string | null;
+  /** A host may manage the room from the spectator seats without counting as a player. */
+  hostObserverID?: string | null;
   history?: RoomHistoryEntry[];
   /** Earliest automatic lobby return for the completed live match, in Unix milliseconds. */
   completedDisplayUntil?: number;
@@ -34,8 +36,20 @@ export type Admission = AuthSession & { inviteUrl?: string };
 export interface GameInfo { id: string; name: string; description: string; minPlayers: number; maxPlayers: number; }
 export type Perspective = 'blind' | 'god';
 export function isPlayer(session: AuthSession): session is SeatSession { return session.access !== 'spectator'; }
+export function roomHostPlayerID(info: RoomInfo): string | null {
+  if (info.hostObserverID != null) return null;
+  if (typeof info.hostPlayerID === 'string' && info.hostPlayerID) return info.hostPlayerID;
+  return info.hostPlayerID === undefined && info.hostObserverID === undefined ? '0' : null;
+}
 export function isRoomHost(session: AuthSession, info: RoomInfo) {
-  return isPlayer(session) && session.playerID === (info.hostPlayerID === undefined ? '0' : info.hostPlayerID);
+  if (session.roomId !== info.roomId) return false;
+  if (session.access === 'spectator') {
+    return typeof session.observerID === 'string' && !!session.observerID
+      && typeof info.hostObserverID === 'string' && session.observerID === info.hostObserverID;
+  }
+  return (session.access === undefined || session.access === 'player')
+    && typeof session.playerID === 'string' && !!session.playerID
+    && session.playerID === roomHostPlayerID(info);
 }
 
 const seatKey = (roomId: string) => `friends-table.seat.${roomId}`;

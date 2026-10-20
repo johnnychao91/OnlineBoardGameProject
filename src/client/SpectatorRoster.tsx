@@ -21,6 +21,7 @@ export function SpectatorRoster({ info, seat }: { info: RoomInfo; seat: AuthSess
           return <li key={spectator.id} className={mine ? 'spectator-roster-person mine' : 'spectator-roster-person'}>
             <span className="spectator-roster-avatar" aria-hidden="true"><Icon type="signal" size={15} /></span>
             <span className="spectator-roster-name">{spectator.name}</span>
+            {info.hostObserverID === spectator.id && <span className="spectator-roster-you spectator-roster-host">房主</span>}
             {mine && <span className="spectator-roster-you">你</span>}
           </li>;
         })}

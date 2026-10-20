@@ -62,8 +62,9 @@ export function RoleSwitcher({ seat, info, onChange }: {
     <p className="small muted">{pending ? '切換結果尚待確認；重試會找回同一次切換，不會重複占位。'
       : info.status !== 'lobby' ? '本局進行中，身分暫時固定；回到等待室後即可切換。'
         : full ? '玩家席位已滿，有人改為觀戰或離開後即可入座。'
-          : playing && isRoomHost(seat, info) ? '改為觀戰會釋出席位並交接房主；若沒有其他玩家，下一位入座者將接任。'
+          : playing && isRoomHost(seat, info) ? '改為觀戰會釋出玩家席位，仍保留房主權限；可以管理房間並在全員準備後開始遊戲。'
             : playing ? '改為觀戰會釋出玩家席位。保留暱稱與房間，觀戰不計入開局人數。'
+              : isRoomHost(seat, info) ? '加入玩家席位後仍保留房主權限，但需重新準備，並計入本局玩家人數。'
               : '加入玩家席位後需重新準備。保留暱稱與房間，不用重開邀請。'}</p>
     <ErrorMessage>{error}</ErrorMessage>
   </section>;

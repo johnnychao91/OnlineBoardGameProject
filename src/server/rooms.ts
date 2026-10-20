@@ -19,6 +19,8 @@ export interface RoomRecord {
   roomId: string;
   currentMatchID?: string;
   hostPlayerID?: string | null;
+  /** The host can stay in the room as an observer instead of occupying a seat. */
+  hostObserverID?: string | null;
   departedPlayerIDs?: string[];
   history?: RoomHistory[];
   completedDisplay?: { matchID: string; until: number };
@@ -41,7 +43,9 @@ export interface RoomHistory {
   reason?: string;
 }
 export const currentMatchID = (room: RoomRecord) => room.currentMatchID ?? room.roomId;
-export const hostPlayerID = (room: RoomRecord) => room.hostPlayerID === undefined ? '0' : room.hostPlayerID;
+export const hostObserverID = (room: RoomRecord) => room.hostObserverID ?? null;
+export const hostPlayerID = (room: RoomRecord) => hostObserverID(room) !== null
+  ? null : room.hostPlayerID === undefined ? '0' : room.hostPlayerID;
 export const roomMatchIDs = (room: RoomRecord) => [...new Set([...(room.history || []).map((entry) => entry.matchID), currentMatchID(room)])];
 export class RoomStore {
   readonly rooms = new Map<string, RoomRecord>();
@@ -56,6 +60,9 @@ export class RoomStore {
       for (const room of records) {
         if (!validRoomID(room.roomId) || typeof room.inviteHash !== 'string'
           || (room.currentMatchID !== undefined && !validRoomID(room.currentMatchID))
+          || (room.hostObserverID != null && (!validRoomID(room.hostObserverID)
+            || !Object.prototype.hasOwnProperty.call(room.spectators ?? {}, room.hostObserverID)
+            || room.hostPlayerID != null))
           || (room.completedDisplay !== undefined && (!validRoomID(room.completedDisplay.matchID)
             || !Number.isFinite(room.completedDisplay.until) || room.completedDisplay.until < 0))
           || (room.history !== undefined && (!Array.isArray(room.history) || room.history.some((entry) => !validRoomID(entry.matchID))))) throw new Error('房間索引格式錯誤');

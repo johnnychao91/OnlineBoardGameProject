@@ -228,7 +228,7 @@ describe('Host removes a waiting-room membership once', () => {
     const removal = { playerID: target.id, membershipID: target.membershipID };
     expect((await f.request(roomPath(host, 'remove'), removal)).status).toBe(401);
     expect((await f.request(roomPath(host, 'remove'), removal, seatHeaders(seats[2]))).status).toBe(403);
-    expect((await f.request(roomPath(host, 'remove'), removal, observerHeaders(observer))).status).toBe(401);
+    expect((await f.request(roomPath(host, 'remove'), removal, observerHeaders(observer))).status).toBe(403);
     for (const invalid of [
       { ...removal, playerID: '0' }, { ...removal, playerID: '../1' },
       { ...removal, playerID: 1 }, { playerID: '1' },
@@ -354,12 +354,12 @@ describe('Independent, read-only spectators', () => {
     expect((await f.request(roomPath(host, 'view'), undefined)).status).toBe(401);
   });
 
-  it('rejects observer credentials for every player mutation and mixed viewer credentials', async () => {
+  it('rejects non-host observers for host controls, player-only mutations and mixed viewer credentials', async () => {
     const f = await fixture();
     const host = await f.create();
     const observer = await watch(f, host);
     for (const operation of ['ready', 'start', 'invite', 'revoke-shares']) {
-      expect((await f.request(roomPath(host, operation), { ready: true }, observerHeaders(observer))).status).toBe(401);
+      expect((await f.request(roomPath(host, operation), { ready: true }, observerHeaders(observer))).status).toBe(operation === 'ready' ? 401 : 403);
       expect((await f.request(roomPath(host, operation), { ready: true }, seatHeaders({ playerID: '0', credentials: observer.credentials }))).status).toBe(401);
     }
     expect((await f.request(roomPath(host), undefined, { ...observerHeaders(observer), 'X-Player-ID': '0' })).status).toBe(401);
@@ -495,7 +495,7 @@ describe('Completed replay access and scoped sharing', () => {
     const activeToken = fragmentToken(active.body.url, 'share');
     expect(f.app.rooms.rooms.get(host.roomId)!.replayShares).toHaveLength(1);
     expect((await f.request(roomPath(host, 'revoke-shares'), {}, seatHeaders(seats[1]))).status).toBe(403);
-    expect((await f.request(roomPath(host, 'revoke-shares'), {}, observerHeaders(observer))).status).toBe(401);
+    expect((await f.request(roomPath(host, 'revoke-shares'), {}, observerHeaders(observer))).status).toBe(403);
     expect((await f.request(`/api/replays/${host.roomId}`, undefined, { 'X-Replay-Token': activeToken })).status).toBe(200);
     const revoked = await f.request(roomPath(host, 'revoke-shares'), {}, seatHeaders(host));
     expect(revoked.status).toBe(200);

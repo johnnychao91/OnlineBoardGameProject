@@ -1,7 +1,7 @@
 import { useContext, useEffect, useRef, useState, type FormEvent } from 'react';
 import {
   api, ApiError, captureInvite, forgetSeat, isPlayer, isRoomHost, loadSeat, pendingRequestID, pendingToken, rememberedName,
-  rememberName, resetAdmission, savedInvite, saveSeat, type Admission, type AuthSession, type GameInfo, type RoomInfo,
+  rememberName, resetAdmission, roomHostPlayerID, savedInvite, saveSeat, type Admission, type AuthSession, type GameInfo, type RoomInfo,
 } from './api';
 import { clientGames } from './game-registry';
 import { CreationPassword } from './CreationPassword';
@@ -91,6 +91,7 @@ function Lobby({ onUpdate }: { onUpdate: (info: RoomInfo) => void }) {
   const players = info.players.filter(p => p.name);
   const own = isPlayer(seat) ? players.find(p => String(p.id) === seat.playerID) : undefined;
   const host = isRoomHost(seat, info);
+  const hostPlayerID = roomHostPlayerID(info);
   const ready = players.filter(p => p.ready).length;
   const eligible = players.length >= info.minPlayers && players.length <= info.maxPlayers && ready === players.length;
   async function action(endpoint: 'ready' | 'start' | 'remove', body: object) {
@@ -100,7 +101,16 @@ function Lobby({ onUpdate }: { onUpdate: (info: RoomInfo) => void }) {
     }, seat)); }
     catch (e) { setError((e as Error).message); } finally { setBusy(false); }
   }
-  return <main className="room-layout"><section><div className="eyebrow">FRIENDS AT THE TABLE</div><h1>{info.gameName === 'encrypted-call' ? '特務到齊，準備接通。' : '隊員到齊，就能出發。'}</h1><p className="muted">{players.length} 位玩家 · {info.minPlayers}～{info.maxPlayers} 人可開始 · {info.spectatorCount} 位已加入觀戰</p><section className="panel roster"><div className="section-heading"><h2>參與名單</h2><span>{players.length} / {info.maxPlayers}</span></div>{players.map(player => <div className="roster-row" key={player.membershipID || player.id}><span className={`avatar ${isPlayer(seat) && String(player.id) === seat.playerID ? 'mine' : ''}`}>{initials(player.name || '')}</span><div><strong>{player.name}{isPlayer(seat) && String(player.id) === seat.playerID && <small className="you-label">你</small>}</strong><small>{String(player.id) === (info.hostPlayerID ?? '0') ? '房主' : `隊員 ${Number(player.id) + 1}`}</small></div><span className={`ready-pill ${player.ready ? 'ready' : ''}`}>{player.ready ? '已準備' : '準備中'}</span>{host && String(player.id) !== info.hostPlayerID && String(player.id) !== (isPlayer(seat) ? seat.playerID : null) && <RemovePlayer player={player} busy={busy} onRemove={target => action('remove', { playerID: String(target.id), membershipID: target.membershipID })} />}</div>)}{host && <p className="small muted">開局前可移出隊員；持有效邀請的人仍可重新加入。</p>}{players.length < info.minPlayers && <p className="small muted lobby-missing">再邀請 {info.minPlayers - players.length} 位玩家，就達到出發人數。</p>}{players.length >= info.minPlayers && <p className="small muted lobby-missing">{players.length < info.maxPlayers ? '還有朋友要上場？開始前都能加入。' : '玩家已滿，其他朋友仍可觀戰。'}</p>}</section><ErrorMessage>{error}</ErrorMessage>{isPlayer(seat) ? <div className="action-dock"><button className={`button full ${own?.ready ? 'secondary' : 'primary'}`} disabled={busy} onClick={() => action('ready', { ready: !own?.ready })}>{own?.ready ? '已準備好 · 點此取消' : '我準備好了'}<Icon type="check" /></button>{host && <button className="button primary full" disabled={busy || !eligible} onClick={() => action('start', {})}>以目前 {players.length} 位隊員開始<Icon type="arrow" /></button>}<p className="small muted center">{ready} / {players.length} 位已準備 · {host ? '開始時鎖定隊員名單與本局人數。' : '全員準備後，等待房主開始。'}</p></div> : <Note>你已在觀戰席，無需準備，也不計入開局人數。房主開始後，這裡會自動切換到對局。</Note>}</section><aside>{host ? <ShareInvite active /> : <Note>邀請由房主管理。遊戲開始後，仍可邀請其他朋友來觀戰。</Note>}{Rules && <div className="panel mission-brief"><div className="section-label">任務簡報</div><h2>{presentation.lobbyTitle || '遊戲簡介'}</h2><p>{presentation.lobbyDescription}</p><button className="text-button" onClick={() => setRules(!rules)}>{rules ? '收起玩法' : '展開玩法說明'} ↓</button>{rules && <Rules />}</div>}</aside></main>;
+  return <main className="room-layout"><section><div className="eyebrow">FRIENDS AT THE TABLE</div><h1>{info.gameName === 'encrypted-call' ? '特務到齊，準備接通。' : '隊員到齊，就能出發。'}</h1><p className="muted">{players.length} 位玩家 · {info.minPlayers}～{info.maxPlayers} 人可開始 · {info.spectatorCount} 位已加入觀戰</p><section className="panel roster"><div className="section-heading"><h2>參與名單</h2><span>{players.length} / {info.maxPlayers}</span></div>{players.map(player => <div className="roster-row" key={player.membershipID || player.id}><span className={`avatar ${isPlayer(seat) && String(player.id) === seat.playerID ? 'mine' : ''}`}>{initials(player.name || '')}</span><div><strong>{player.name}{isPlayer(seat) && String(player.id) === seat.playerID && <small className="you-label">你</small>}</strong><small>{String(player.id) === hostPlayerID ? '房主' : `隊員 ${Number(player.id) + 1}`}</small></div><span className={`ready-pill ${player.ready ? 'ready' : ''}`}>{player.ready ? '已準備' : '準備中'}</span>{host && String(player.id) !== hostPlayerID && String(player.id) !== (isPlayer(seat) ? seat.playerID : null) && <RemovePlayer player={player} busy={busy} onRemove={target => action('remove', { playerID: String(target.id), membershipID: target.membershipID })} />}</div>)}{host && <p className="small muted">開局前可移出隊員；持有效邀請的人仍可重新加入。</p>}{players.length < info.minPlayers && <p className="small muted lobby-missing">再邀請 {info.minPlayers - players.length} 位玩家，就達到出發人數。</p>}{players.length >= info.minPlayers && <p className="small muted lobby-missing">{players.length < info.maxPlayers ? '還有朋友要上場？開始前都能加入。' : '玩家已滿，其他朋友仍可觀戰。'}</p>}</section><ErrorMessage>{error}</ErrorMessage><div className="action-dock">
+      {isPlayer(seat) ? <button className={`button full ${own?.ready ? 'secondary' : 'primary'}`} disabled={busy} onClick={() => action('ready', { ready: !own?.ready })}>
+        {own?.ready ? '已準備好 · 點此取消' : '我準備好了'}<Icon type="check" />
+      </button> : <Note>{host ? '你是觀戰房主，無需準備，也不計入開局人數。參與玩家全員準備後，你就能開始遊戲。'
+        : '你已在觀戰席，無需準備，也不計入開局人數。房主開始後，這裡會自動切換到對局。'}</Note>}
+      {host && <button className="button primary full" disabled={busy || !eligible} onClick={() => action('start', {})}>
+        以目前 {players.length} 位隊員開始<Icon type="arrow" />
+      </button>}
+      {(isPlayer(seat) || host) && <p className="small muted center">{ready} / {players.length} 位已準備 · {host ? '開始時鎖定隊員名單與本局人數。' : '全員準備後，等待房主開始。'}</p>}
+    </div></section><aside>{host ? <ShareInvite active /> : <Note>邀請由房主管理。遊戲開始後，仍可邀請其他朋友來觀戰。</Note>}{Rules && <div className="panel mission-brief"><div className="section-label">任務簡報</div><h2>{presentation.lobbyTitle || '遊戲簡介'}</h2><p>{presentation.lobbyDescription}</p><button className="text-button" onClick={() => setRules(!rules)}>{rules ? '收起玩法' : '展開玩法說明'} ↓</button>{rules && <Rules />}</div>}</aside></main>;
 }
 
 function Room({ seat, onSwitch }: { seat: AuthSession; onSwitch: (seat: AuthSession) => void }) {
@@ -191,7 +201,7 @@ function Room({ seat, onSwitch }: { seat: AuthSession; onSwitch: (seat: AuthSess
       : <RoomContext.Provider value={{ seat: session, info, inviteUrl, setInviteUrl }}>
         <div className="room-chrome">
         <div className="room-tools">
-          <div className="room-status-line"><span>{isPlayer(seat) ? '玩家座位' : '觀戰席'} · {info.numPlayers} 位玩家 · {info.spectatorCount} 位已加入觀戰</span></div>
+          <div className="room-status-line"><span>{host && '房主 · '}{isPlayer(seat) ? '玩家座位' : '觀戰席'} · {info.numPlayers} 位玩家 · {info.spectatorCount} 位已加入觀戰</span></div>
           {stationActive ? <details className="station-room-menu"><summary>房間管理</summary><div className="station-room-menu-content">
             <RoleSwitcher seat={session} info={info} onChange={onSwitch} />
             <RoomActions seat={session} info={info} onUpdate={acceptInfo} />

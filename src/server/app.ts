@@ -8,7 +8,7 @@ import { Server } from 'boardgame.io/server';
 import { createMatch } from 'boardgame.io/internal';
 import { gameDefinitions, getGameDefinition, publicGameDefinitions } from '../games/registry';
 import { GuardedTransport } from './transport';
-import { RoomStore, currentMatchID, hostPlayerID, roomMatchIDs, type RoomRecord, type RoomHistory, type RoleSwitchReceipt } from './rooms';
+import { RoomStore, currentMatchID, hostPlayerID, hostObserverID, roomMatchIDs, type RoomRecord, type RoomHistory, type RoleSwitchReceipt } from './rooms';
 import { RoomPresence } from './presence';
 import { FileStorage } from './storage';
 import { collectStatistics } from './statistics';
@@ -93,6 +93,7 @@ export async function createApplication(config: AppConfig) {
   };
   const publicRoom = (room: RoomRecord, metadata: any, state: any, matchID = currentMatchID(room), historical = false) => ({
     roomId: room.roomId, matchID, gameName: room.gameId, hostPlayerID: historical ? null : hostPlayerID(room),
+    hostObserverID: historical ? null : hostObserverID(room),
     history: historical ? [] : room.history || [],
     numPlayers: state.G.status === 'lobby' ? Object.values(metadata.players).filter((p: any) => p.credentials).length : state.ctx.numPlayers,
     minPlayers: getGameDefinition(room.gameId)!.minPlayers, maxPlayers: getGameDefinition(room.gameId)!.maxPlayers,
@@ -121,6 +122,25 @@ export async function createApplication(config: AppConfig) {
     if (ctx.get('X-Player-ID') || !validRoomID(observerID) || !validCredential(credential)
       || !safeEqual(hashToken(credential), room.spectators?.[observerID]?.credentialHash)) fail(401, '觀戰憑證不正確');
     return { access: 'spectator' as const, id: observerID };
+  };
+  const isHost = (room: RoomRecord, viewer: { access: 'player' | 'spectator'; id: string }) =>
+    viewer.access === 'player' ? hostPlayerID(room) === viewer.id : hostObserverID(room) === viewer.id;
+  const authenticateHost = (ctx: Context, room: RoomRecord, metadata: any, message: string) => {
+    const viewer = authenticateViewer(ctx, room, metadata);
+    if (!isHost(room, viewer)) fail(403, message);
+    return viewer;
+  };
+  const retainedHost = (room: RoomRecord, players: Array<{ id: number; credentials?: string }>,
+    spectators = room.spectators) => {
+    const observerID = hostObserverID(room);
+    if (observerID !== null && Object.prototype.hasOwnProperty.call(spectators ?? {}, observerID)) {
+      return { hostPlayerID: null, hostObserverID: observerID };
+    }
+    const participants = players.filter(player => player.credentials).sort((a, b) => a.id - b.id);
+    const previousPlayerID = hostPlayerID(room);
+    const playerID = participants.some(player => String(player.id) === previousPlayerID)
+      ? previousPlayerID : participants.length ? String(participants[0].id) : null;
+    return { hostPlayerID: playerID, hostObserverID: null };
   };
   const perspectiveOf = (value: unknown) => {
     if (value === undefined || value === 'blind') return 'blind' as const;
@@ -162,13 +182,10 @@ export async function createApplication(config: AppConfig) {
     for (const player of Object.values(metadata.players)) {
       if (player.credentials) match.metadata.players[player.id] = { ...player, isConnected: false };
     }
-    const participants = Object.values(match.metadata.players).filter((player) => player.credentials);
-    const previousHost = hostPlayerID(room);
-    const nextHost = participants.some((player) => String(player.id) === previousHost)
-      ? previousHost : participants.length ? String(participants[0].id) : null;
+    const nextHost = retainedHost(room, Object.values(match.metadata.players));
     const history: RoomHistory = { matchID: previousID, endedAt: Date.now(), ending,
       numPlayers: state.ctx.numPlayers, ...(outcome && ending === 'completed' ? { winner: outcome.winner, reason: outcome.reason } : {}) };
-    const next: RoomRecord = { ...room, currentMatchID: matchID, hostPlayerID: nextHost, completedDisplay: undefined,
+    const next: RoomRecord = { ...room, currentMatchID: matchID, ...nextHost, completedDisplay: undefined,
       departedPlayerIDs: [], history: [...(room.history || []), history] };
     // Create first, then atomically publish the new room pointer. A failed index
     // write leaves an unused file, never an overwritten completed game.
@@ -360,7 +377,8 @@ export async function createApplication(config: AppConfig) {
         seat.credentials = credentials;
         metadata.updatedAt = Date.now();
         await db.setMetadata(matchID, metadata);
-        const updated = hostPlayerID(current) === null ? { ...current, hostPlayerID: String(seat.id) } : current;
+        const updated = hostPlayerID(current) === null && hostObserverID(current) === null
+          ? { ...current, hostPlayerID: String(seat.id), hostObserverID: null } : current;
         if (updated !== current) await rooms.save(updated);
         presence.touch(current.roomId, `player:${seat.id}`, 'admission');
         ctx.body = { ...publicRoom(updated, metadata, state), access: 'player', playerID: String(seat.id), credentials: seat.credentials };
@@ -429,11 +447,14 @@ export async function createApplication(config: AppConfig) {
           seat.credentials = nextCredentials;
           delete spectators[viewer.id];
         }
-        const remaining = Object.values(match.metadata.players).filter((player) => player.credentials).sort((a, b) => a.id - b.id);
-        const previousHost = hostPlayerID(current);
-        const nextHost = remaining.some((player) => String(player.id) === previousHost)
-          ? previousHost : remaining.length ? String(remaining[0].id) : null;
-        const next: RoomRecord = { ...current, currentMatchID: nextID, hostPlayerID: nextHost,
+        // Hosting belongs to the same person across a role switch. Both host
+        // pointers publish atomically with the new membership and retry receipt.
+        const hostAfterSwitch = isHost(current, viewer)
+          ? { ...current, hostPlayerID: body.access === 'player' ? targetID : null,
+            hostObserverID: body.access === 'spectator' ? targetID : null }
+          : current;
+        const nextHost = retainedHost(hostAfterSwitch, Object.values(match.metadata.players), spectators);
+        const next: RoomRecord = { ...current, currentMatchID: nextID, ...nextHost,
           departedPlayerIDs: [], spectators,
           revokedObserverAdmissions: viewer.access === 'spectator'
             ? [...new Set([...(current.revokedObserverAdmissions || []), sourceHash])] : current.revokedObserverAdmissions,
@@ -462,7 +483,7 @@ export async function createApplication(config: AppConfig) {
         await db.setState(matchID, state);
         ctx.body = publicRoom(current, metadata, state);
       } else if (operation === 'remove') {
-        if (authenticate(ctx, metadata) !== hostPlayerID(current)) fail(403, '只有房主可以移出玩家');
+        authenticateHost(ctx, current, metadata, '只有房主可以移出玩家');
         if (!definition.isJoinable(state.G)) fail(409, '遊戲開始後不能移出玩家');
         if (typeof body.playerID !== 'string' || !/^\d$/.test(body.playerID) || body.playerID === hostPlayerID(current)
           || typeof body.membershipID !== 'string' || !/^[a-f0-9]{16}$/.test(body.membershipID)) {
@@ -481,7 +502,7 @@ export async function createApplication(config: AppConfig) {
         const updated = await snapshot(current);
         ctx.body = publicRoom(current, updated.metadata, updated.state);
       } else if (operation === 'start') {
-        if (authenticate(ctx, metadata) !== hostPlayerID(current)) fail(403, '只有房主可以開始');
+        authenticateHost(ctx, current, metadata, '只有房主可以開始');
         if (!definition.isJoinable(state.G)) fail(409, '遊戲已開始');
         const participants = Object.values(metadata.players).filter((player) => player.credentials);
         const count = participants.length;
@@ -502,7 +523,7 @@ export async function createApplication(config: AppConfig) {
         presence.touch(current.roomId, `${viewer.access === 'player' ? 'player' : 'spectator'}:${viewer.id}`, body.sessionID);
         ctx.body = { ok: true };
       } else if (operation === 'return' || operation === 'abort') {
-        if (authenticate(ctx, metadata) !== hostPlayerID(current)) fail(403, '只有房主可以結束本局');
+        authenticateHost(ctx, current, metadata, '只有房主可以結束本局');
         if (body.matchID !== matchID) fail(409, '對局已更新，請重新確認房間狀態');
         if (definition.isJoinable(state.G)) fail(409, '目前已在等待室');
         const finished = !!definition.getOutcome(state.G);
@@ -535,12 +556,13 @@ export async function createApplication(config: AppConfig) {
             state._stateID += 1;
             await db.setState(matchID, state);
           }
-          const remaining = Object.values(metadata.players).filter((entry) => entry.credentials);
           updated = { ...current,
-            hostPlayerID: hostPlayerID(current) === viewer.id ? (remaining.length ? String(remaining[0].id) : null) : hostPlayerID(current),
             departedPlayerIDs: [...new Set([...(current.departedPlayerIDs || []), viewer.id])] };
           transport.removePlayer(matchID, viewer.id, credentials);
         }
+        // Only an actual departure transfers ownership. Other observers are
+        // not promoted; with no players left the next player admission hosts.
+        updated = { ...updated, ...retainedHost(updated, Object.values(metadata.players), updated.spectators) };
         await rooms.save(updated);
         presence.remove(current.roomId, `${viewer.access === 'player' ? 'player' : 'spectator'}:${viewer.id}`);
         const anyoneAdmitted = Object.values(metadata.players).some((entry) => entry.credentials) || Object.keys(updated.spectators || {}).length > 0;
@@ -564,11 +586,11 @@ export async function createApplication(config: AppConfig) {
         await rooms.save({ ...current, replayShares: [...shares, { matchID: replayMatchID, tokenHash: hashToken(token), expiresAt, frameIndex: body.frameIndex, perspective }] });
         ctx.body = { url: `${origin}/replay/${current.roomId}#share=${token}`, expiresAt };
       } else if (operation === 'revoke-shares') {
-        if (authenticate(ctx, metadata) !== hostPlayerID(current)) fail(403, '只有房主可以撤銷分享');
+        authenticateHost(ctx, current, metadata, '只有房主可以撤銷分享');
         await rooms.save({ ...current, replayShares: [] });
         ctx.body = { revoked: true };
       } else if (operation === 'invite') {
-        if (authenticate(ctx, metadata) !== hostPlayerID(current)) fail(403, '只有房主可以重設邀請');
+        authenticateHost(ctx, current, metadata, '只有房主可以重設邀請');
         const invite = randomToken();
         const updated = { ...current, inviteHash: hashToken(invite), inviteExpiresAt: Date.now() + INVITE_TTL };
         await rooms.save(updated);
