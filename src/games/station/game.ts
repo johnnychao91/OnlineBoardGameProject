@@ -10,6 +10,8 @@ export type WinReason = 'all-repairs' | 'hazard' | 'round-limit';
 export interface StationSetupData {
   /** The HTTP lobby has already authorized starting with these participants. */
   startImmediately?: boolean;
+  /** Stable occupied seat IDs, provided only by the authorized server lobby. */
+  participantIDs?: string[];
 }
 
 export interface StationPlayer {
@@ -274,6 +276,13 @@ export const StationGame: Game<StationState, Record<string, unknown>, StationSet
       || (setupData.startImmediately !== undefined && typeof setupData.startImmediately !== 'boolean'))) {
       return '遊戲開始設定不正確。';
     }
+    if (setupData?.participantIDs !== undefined && (!Array.isArray(setupData.participantIDs)
+      || setupData.participantIDs.length !== numPlayers
+      || setupData.participantIDs[0] !== '0'
+      || setupData.participantIDs.some((id: unknown) => typeof id !== 'string' || !/^[0-7]$/.test(id))
+      || new Set(setupData.participantIDs).size !== numPlayers)) {
+      return '參與玩家席位不正確。';
+    }
     return undefined;
   },
   setup: ({ ctx, random }, setupData) => {
@@ -283,8 +292,8 @@ export const StationGame: Game<StationState, Record<string, unknown>, StationSet
     }
     const G: StationState = {
       status: 'lobby',
-      players: Object.fromEntries(Array.from({ length: ctx.numPlayers }, (_, index) => [
-        String(index), { ready: setupData?.startImmediately === true, acknowledged: false, cardCount: 0 },
+      players: Object.fromEntries((setupData?.participantIDs ?? Array.from({ length: ctx.numPlayers }, (_, index) => String(index))).map((id: string) => [
+        id, { ready: setupData?.startImmediately === true, acknowledged: false, cardCount: 0 },
       ])),
       round: 0,
       revealsThisRound: 0,
@@ -301,7 +310,14 @@ export const StationGame: Game<StationState, Record<string, unknown>, StationSet
   },
   // Everyone must be able to ready/acknowledge. Each move independently enforces
   // its status and actor restrictions; G.activePlayer is the actual turn owner.
-  turn: { activePlayers: ActivePlayers.ALL },
+  turn: {
+    order: {
+      first: () => 0,
+      next: ({ ctx }) => (ctx.playOrderPos + 1) % ctx.playOrder.length,
+      playOrder: ({ G }) => Object.keys(G.players),
+    },
+    activePlayers: ActivePlayers.ALL,
+  },
   moves: {
     setReady: { move: setReady, client: false, undoable: false, redact: true },
     startGame: { move: startGame, client: false, undoable: false, redact: true },

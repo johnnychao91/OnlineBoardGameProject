@@ -213,7 +213,9 @@ describe('旁觀、復盤與共用遊戲登錄介面', () => {
   it('共用介面提供開始設定與觀戰投影，只在結束後產生獨立結果資料', () => {
     const definition = getGameDefinition('space-station')!;
     const client = makeClient();
-    expect(definition.startSetupData).toEqual({ startImmediately: true });
+    expect(definition.startSetupData(['0', '2', '3', '4'])).toEqual({
+      startImmediately: true, participantIDs: ['0', '2', '3', '4'],
+    });
     expect(definition.getOutcome(raw(client))).toBeNull();
     readyAndStart(client);
     expect(definition.getOutcome(raw(client))).toBeNull();

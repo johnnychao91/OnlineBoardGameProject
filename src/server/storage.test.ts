@@ -345,6 +345,38 @@ describe('持久化回放與原子開局', () => {
     expect((await storage.fetchReplay(ID)).frames.map((frame) => frame.stateID)).toEqual([0, 1]);
   });
 
+  it('移出原子保存席位、狀態與撤銷紀錄，拒絕過期請求且開局後仍保留撤銷', async () => {
+    const { storage, dir } = await fixture();
+    const occupied = metadata();
+    occupied.players['1'] = { id: 1, name: '朋友', credentials: 'guest-removal-test', isConnected: true };
+    const lobby = gameState(0, 'lobby');
+    lobby.G.players = { '0': { ready: true }, '1': { ready: true } };
+    await storage.createMatch(ID, { initialState: lobby, metadata: occupied });
+    const filename = join(dir, `${ID}.json`);
+    const before = await readFile(filename, 'utf8');
+    const removed = structuredClone(lobby);
+    removed._stateID = 1;
+    removed.G.players['1'].ready = false;
+    await expect(storage.removePlayer(ID, '1', 'wrong-credential', removed)).rejects.toThrow('無法移出');
+    await expect(storage.removePlayer(ID, '0', 'private-seat', removed)).rejects.toThrow('無法移出');
+    expect(await readFile(filename, 'utf8')).toBe(before);
+    const writing = storage.removePlayer(ID, '1', 'guest-removal-test', removed);
+    removed.G.players['1'].ready = true;
+    await writing;
+    const saved = await storage.fetch(ID, { metadata: true, state: true });
+    expect(saved.metadata.players['1']).toEqual({ id: 1 });
+    expect(saved.state.G.players['1'].ready).toBe(false);
+    expect(saved.state._stateID).toBe(1);
+    const raw = await readFile(filename, 'utf8');
+    expect(raw).not.toContain('guest-removal-test');
+    expect(JSON.parse(raw).revokedAdmissions).toEqual([expect.stringMatching(/^[a-f0-9]{64}$/)]);
+    await storage.startMatch(ID, { initialState: gameState(2, 'briefing'), metadata: saved.metadata });
+    const reopened = new FileStorage({ dir });
+    await reopened.connect();
+    expect(await reopened.isAdmissionRevoked(ID, 'guest-removal-test')).toBe(true);
+    expect(await reopened.isAdmissionRevoked(ID, 'fresh-admission')).toBe(false);
+  });
+
   it('拒絕非整數、負數或不安全的狀態版本，不破壞原對局與回放', async () => {
     const { storage } = await fixture();
     await storage.createMatch(ID, { initialState: gameState(0, 'briefing'), metadata: metadata() });

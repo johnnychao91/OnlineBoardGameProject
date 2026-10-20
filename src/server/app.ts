@@ -23,7 +23,9 @@ export interface AppConfig {
 }
 const INVITE_TTL = 24 * 60 * 60 * 1000;
 const REPLAY_SHARE_TTL = 7 * 24 * 60 * 60 * 1000;
-function fail(status: number, message: string): never { throw Object.assign(new Error(message), { status }); }
+function fail(status: number, message: string, code?: 'ADMISSION_REMOVED'): never {
+  throw Object.assign(new Error(message), { status, code });
+}
 function displayName(value: unknown) {
   if (typeof value !== 'string') fail(400, '請輸入暱稱');
   const name = value.trim();
@@ -82,7 +84,10 @@ export async function createApplication(config: AppConfig) {
     numPlayers: Object.values(metadata.players).filter((p: any) => p.credentials).length,
     minPlayers: getGameDefinition(room.gameId)!.minPlayers, maxPlayers: getGameDefinition(room.gameId)!.maxPlayers,
     status: state.G.status,
-    players: Object.values(metadata.players).filter((p: any) => p.credentials).map((p: any) => ({ id: String(p.id), name: p.name || '', isConnected: !!p.isConnected, ready: !!state.G.players?.[p.id]?.ready })),
+    players: Object.values(metadata.players).filter((p: any) => p.credentials).map((p: any) => ({
+      id: String(p.id), name: p.name || '', isConnected: !!p.isConnected, ready: !!state.G.players?.[p.id]?.ready,
+      membershipID: hashToken(`${room.roomId}:${p.credentials}`).slice(0, 16),
+    })),
     spectatorCount: Object.keys(room.spectators || {}).length, godViewAllowed: true,
   });
   const authenticate = (ctx: Context, metadata: any) => {
@@ -128,7 +133,11 @@ export async function createApplication(config: AppConfig) {
     } catch (error) {
       const status = (error as { status?: number }).status;
       ctx.status = status && status >= 400 && status < 500 ? status : 500;
-      ctx.body = { error: ctx.status === 500 ? '伺服器暫時無法處理，請稍後重試' : (error as Error).message };
+      ctx.body = {
+        error: ctx.status === 500 ? '伺服器暫時無法處理，請稍後重試' : (error as Error).message,
+        ...(ctx.status === 403 && (error as { code?: string }).code === 'ADMISSION_REMOVED'
+          ? { code: 'ADMISSION_REMOVED' } : {}),
+      };
       if (ctx.status === 500) console.error('Request failed:', (error as Error).name);
     }
   });
@@ -185,7 +194,7 @@ export async function createApplication(config: AppConfig) {
         inviteUrl: `${origin}/join/${roomId}#invite=${invite}`, expiresAt: room.inviteExpiresAt };
       return;
     }
-    const route = /^\/api\/rooms\/([A-Za-z0-9_-]+)(?:\/(join|watch|invite|ready|start|view|replay|share|revoke-shares))?$/.exec(ctx.path);
+    const route = /^\/api\/rooms\/([A-Za-z0-9_-]+)(?:\/(join|watch|invite|ready|remove|start|view|replay|share|revoke-shares))?$/.exec(ctx.path);
     if (!route) fail(404, '找不到此功能');
     const room = getRoom(route[1]);
     const operation = route[2];
@@ -223,6 +232,9 @@ export async function createApplication(config: AppConfig) {
         if (body.requestID !== undefined && (typeof body.requestID !== 'string' || !/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(body.requestID))) fail(400, '加入請求識別碼不正確');
         const watching = operation === 'watch';
         const credentials = body.requestID ? admissionCredential(watching ? `${current.roomId}:observer` : current.roomId, body.inviteToken, body.requestID) : randomToken();
+        if (!watching && body.requestID && await db.isAdmissionRevoked(current.roomId, credentials)) {
+          fail(403, '這次入座已被房主移出，請重新開啟有效邀請加入', 'ADMISSION_REMOVED');
+        }
         // A response lost on a mobile connection can be retried without claiming a
         // second seat. Possessing both secrets is equivalent to the issued seat key.
         const previous = !watching && body.requestID && Object.values(metadata.players).find((player) => safeEqual(player.credentials, credentials));
@@ -269,6 +281,24 @@ export async function createApplication(config: AppConfig) {
         state._stateID += 1;
         await db.setState(current.roomId, state);
         ctx.body = publicRoom(current, metadata, state);
+      } else if (operation === 'remove') {
+        if (authenticate(ctx, metadata) !== '0') fail(403, '只有房主可以移出玩家');
+        if (!definition.isJoinable(state.G)) fail(409, '遊戲開始後不能移出玩家');
+        if (typeof body.playerID !== 'string' || !/^[1-9]$/.test(body.playerID)
+          || typeof body.membershipID !== 'string' || !/^[a-f0-9]{16}$/.test(body.membershipID)) {
+          fail(400, '請選擇房主以外的玩家');
+        }
+        const target = metadata.players[Number(body.playerID)];
+        if (!target?.credentials
+          || !safeEqual(body.membershipID, hashToken(`${current.roomId}:${target.credentials}`).slice(0, 16))) {
+          fail(409, '這個席位已變更，請確認目前玩家後再操作');
+        }
+        state.G.players[body.playerID] = { ready: false, acknowledged: false, cardCount: 0 };
+        state._stateID += 1;
+        await db.removePlayer(current.roomId, body.playerID, target.credentials, state);
+        transport.removePlayer(current.roomId, body.playerID, target.credentials);
+        const updated = await snapshot(current);
+        ctx.body = publicRoom(current, updated.metadata, updated.state);
       } else if (operation === 'start') {
         if (authenticate(ctx, metadata) !== '0') fail(403, '只有房主可以開始');
         if (!definition.isJoinable(state.G)) fail(409, '遊戲已開始');
@@ -276,7 +306,8 @@ export async function createApplication(config: AppConfig) {
         const count = participants.length;
         if (count < definition.minPlayers || count > definition.maxPlayers) fail(409, `需要 ${definition.minPlayers}～${definition.maxPlayers} 位參與者`);
         if (participants.some((p) => !state.G.players[p.id]?.ready)) fail(409, '所有參與者準備後才能開始');
-        const match = createMatch({ game: { ...definition.game, seed: randomToken() }, numPlayers: count, setupData: definition.startSetupData, unlisted: true });
+        const match = createMatch({ game: { ...definition.game, seed: randomToken() }, numPlayers: count,
+          setupData: definition.startSetupData(participants.map((player) => String(player.id))), unlisted: true });
         if ('setupDataError' in match) fail(400, '無法開始這個遊戲');
         match.metadata.players = Object.fromEntries(participants.map((p) => [String(p.id), p]));
         match.metadata.createdAt = metadata.createdAt;

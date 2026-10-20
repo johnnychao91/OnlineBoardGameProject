@@ -1,4 +1,4 @@
-export interface RoomPlayer { id: number | string; name?: string; isConnected: boolean; ready: boolean; }
+export interface RoomPlayer { id: number | string; name?: string; isConnected: boolean; ready: boolean; membershipID?: string; }
 export interface RoomInfo {
   roomId: string;
   matchID: string;
@@ -25,6 +25,10 @@ const inviteKey = (roomId: string) => `friends-table.share.${roomId}`;
 const requestKey = (roomId: string, mode = 'player') => `friends-table.join-request.${roomId}.${mode}`;
 const legacyRequestKey = (roomId: string) => `friends-table.join-request.${roomId}`;
 
+export class ApiError extends Error {
+  constructor(message: string, readonly status: number, readonly code?: string) { super(message); this.name = 'ApiError'; }
+}
+
 export async function api<T>(path: string, init: RequestInit = {}, seat?: AuthSession): Promise<T> {
   const response = await fetch(path, {
     ...init,
@@ -37,7 +41,8 @@ export async function api<T>(path: string, init: RequestInit = {}, seat?: AuthSe
     referrerPolicy: 'no-referrer',
   });
   const body = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(body.error || '連線暫時沒有成功，請稍後重試。');
+  if (!response.ok) throw new ApiError(body.error || '連線暫時沒有成功，請稍後重試。', response.status,
+    typeof body.code === 'string' ? body.code : undefined);
   return body as T;
 }
 
@@ -62,8 +67,20 @@ export function loadSeat(roomId: string): AuthSession | null {
   } catch { return null; }
 }
 
-export function forgetSeat(roomId: string) { localStorage.removeItem(seatKey(roomId)); }
+/** An old tab must not clear a replacement identity saved by another tab. */
+export function forgetSeat(roomId: string, credentials?: string) {
+  if (credentials && loadSeat(roomId)?.credentials !== credentials) return;
+  localStorage.removeItem(seatKey(roomId));
+  sessionStorage.removeItem(requestKey(roomId));
+  sessionStorage.removeItem(requestKey(roomId, 'spectator'));
+  sessionStorage.removeItem(legacyRequestKey(roomId));
+}
 export function pendingToken(roomId: string) { return sessionStorage.getItem(tokenKey(roomId)); }
+/** Use only after the server confirms the old admission was revoked, not on network failures. */
+export function resetAdmission(roomId: string, mode: 'player' | 'spectator') {
+  sessionStorage.removeItem(requestKey(roomId, mode));
+  if (mode === 'player') sessionStorage.removeItem(legacyRequestKey(roomId));
+}
 /** Reuse across retries so a lost admission response cannot consume another seat. */
 export function pendingRequestID(roomId: string, mode: 'player' | 'spectator' = 'player') {
   const existing = sessionStorage.getItem(requestKey(roomId, mode));

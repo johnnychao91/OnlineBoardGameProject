@@ -86,7 +86,7 @@ interface GameDefinition {
   maxPlayers: number;
   game: Game<any>;
   isJoinable: (state: any) => boolean;
-  startSetupData: Record<string, unknown>;
+  startSetupData: (participantIDs: string[]) => Record<string, unknown>;
   observerView: (state: any, perspective: 'blind' | 'god') => unknown;
   getOutcome: (state: any) => { winner: string; reason: string; roles: Record<string, string> } | null;
 }
@@ -94,7 +94,9 @@ interface GameDefinition {
 
 `isJoinable` 是必填函式，收到的是該遊戲的 `G` 狀態。太空維修站只在 `G.status === 'lobby'` 時回傳 `true`；伺服器以此判斷能否加入新玩家、修改準備狀態或開始對局。它不限制重設邀請或加入觀戰。公開遊戲列表只回傳 `id`、`name`、`description`、`minPlayers`、`maxPlayers`，不回傳函式。
 
-`startSetupData` 讓伺服器用正確人數直接初始化正式對局；`observerView` 明確列出允許的觀戰／回放欄位；`getOutcome` 僅在合法終局回傳結果，供統計及賽後分享授權。房主重設邀請不再受開局限制，但開始後邀請只能建立新觀戰身份。新遊戲也需提供前端唯讀快照 renderer；等待室的共用狀態約定為 `G.status`、`G.players[id].ready`。
+`startSetupData(participantIDs)` 讓伺服器用實際座位清單與正確人數直接初始化正式對局。清單由伺服器 metadata 取得，不採用客戶端傳值；移出玩家後可能為 `['0', '2', '3', '4']`，不能假定編號連續，也不能改號導致既有憑證對到別人的座位。遊戲 setup、回合 playOrder、配牌與視角必須使用這份清單，`ctx.numPlayers` 則是實際參與人數。
+
+`observerView` 明確列出允許的觀戰／回放欄位；`getOutcome` 僅在合法終局回傳結果，供統計及賽後分享授權。房主重設邀請不再受開局限制，但開始後邀請只能建立新觀戰身份。新遊戲也需提供前端唯讀快照 renderer；等待室的共用狀態約定為 `G.status`、`G.players[id].ready`。
 
 將規則放進自己的 `src/games/<遊戲目錄>/`，在登錄表新增定義，再於 `src/client` 的遊戲畫面選擇層加入同一個 `id` 對應的 React 元件。伺服器規則模組不要匯入瀏覽器專用元件。
 

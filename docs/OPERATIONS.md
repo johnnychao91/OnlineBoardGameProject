@@ -13,7 +13,7 @@
 | 私有環境設定 | `/etc/space-station.env` |
 | 正式遊戲資料 | `/var/lib/space-station` |
 | 服務設定 | `/etc/systemd/system/space-station.service` |
-| Apache 遊戲站設定 | `/etc/apache2/sites-available/space-station.conf` |
+| Apache 遊戲站設定 | 以主機實際檔名為準；以下透過 `--apache-config` 指定 |
 | ACME 驗證目錄 | `/var/www/space-station-acme` |
 | 本機備份 | `/var/backups/space-station`，僅 root 可讀 |
 
@@ -33,67 +33,27 @@ curl --fail --silent --show-error --retry 10 --retry-connrefused --retry-delay 1
 
 先與朋友約定維護時間，最好等所有對局結束。備份期間遊戲會暫時無法連線。回放、全站統計與已發出的邀請／回放授權都來自遊戲資料，必須一起保存。
 
-下列整段可直接執行。它會先檢查 Git 工作目錄、記錄目前版本，再停止服務，確認程序乾淨結束後才備份。**完成後保持停服**，方便接續更新；若只做備份，請依本節最後的指令重新啟動。
+先確認 Apache 遊戲站的實際檔名。它可以使用自訂檔名，不需要為了更新而改名；`space-station.conf` 只是初次部署文件的範例。以下設定只在私人 SSH 終端機輸入：
 
 ```bash
-(
-  set -euo pipefail
-  export PATH="/opt/node24/bin:$PATH"
-  cd /opt/space-station
-
-  if [ -n "$(git status --porcelain)" ]; then
-    echo '程式目錄有本機修改；請先確認及保存修改，再做版本化備份。' >&2
-    exit 1
-  fi
-
-  backup_commit=$(git rev-parse HEAD)
-  backup_node=$(node --version)
-  backup_npm=$(npm --version)
-
-  sudo bash -s -- "$backup_commit" "$backup_node" "$backup_npm" <<'BACKUP'
-set -euo pipefail
-umask 077
-
-systemctl stop space-station
-test "$(systemctl show space-station --property=MainPID --value)" = '0'
-test "$(systemctl show space-station --property=ActiveState --value)" = 'inactive'
-test "$(systemctl show space-station --property=Result --value)" = 'success'
-
-install -d -m 0700 /var/backups/space-station
-backup_dir="/var/backups/space-station/$(date -u +%Y%m%dT%H%M%SZ)-${1:0:12}"
-mkdir -m 0700 "$backup_dir"
-
-printf '%s\n' "$1" > "$backup_dir/source-commit.txt"
-printf 'Node=%s\nnpm=%s\nCreatedUTC=%s\n' "$2" "$3" "$(date -u +%FT%TZ)" \
-  > "$backup_dir/runtime.txt"
-
-tar -czf "$backup_dir/data.tar.gz" -C /var/lib space-station
-tar -czf "$backup_dir/config.tar.gz" -C / \
-  etc/space-station.env \
-  etc/systemd/system/space-station.service \
-  etc/apache2/sites-available/space-station.conf
-
-cd "$backup_dir"
-sha256sum data.tar.gz config.tar.gz source-commit.txt runtime.txt > SHA256SUMS
-sha256sum --check SHA256SUMS
-printf '\n備份完成：%s\n服務目前已停止。\n' "$backup_dir"
-BACKUP
-)
+read -r -p 'Apache 遊戲站設定的完整路徑：' station_apache_config
+sudo test -s "$station_apache_config"
+cd /opt/space-station
+bash deploy/backup.sh --apache-config "$station_apache_config"
 ```
 
-請記下最後印出的完整備份路徑。時間戳記使用 UTC，與臺灣時間相差 8 小時。`SHA256SUMS` 用於偵測備份損壞；它不是來源簽章，只還原你自己管理、可信任的備份。
+[備份腳本](../deploy/backup.sh) 在停服前先確認設定檔與資料存在、記錄 Git 版本及 Apache 實際路徑。通過乾淨停服檢查後，備份資料並驗證雜湊。**原本正在執行的服務，完成後會自動重新啟動；備份中途失敗也會嘗試恢復服務。** 原本已停止的服務則維持停止。更新腳本會使用 `--keep-stopped`，讓成功的備份接續啟用新版；一般備份不用加這個參數。
 
-任何步驟報錯都先停止後續更新。若停止服務逾時、`Result` 不是 `success`，查看 `sudo journalctl -u space-station -n 100 --no-pager`，不要把那次資料宣稱為乾淨的一致性備份。備份中途磁碟滿或壓縮失敗時，留下的目錄也不能當成成功備份；須有完整檔案且雜湊驗證通過。
+請記下 `Backup verified` 後的完整備份路徑。時間戳記使用 UTC，與臺灣時間相差 8 小時。`SHA256SUMS` 用於偵測備份損壞；它不是來源簽章，只還原你自己管理、可信任的備份。
 
-單純備份且整段成功時，重新啟動原版本：
+任何步驟報錯都先停止後續更新。若停止服務逾時、`Result` 不是 `success`，查看 `sudo journalctl -u space-station -n 100 --no-pager`，不要把那次資料宣稱為乾淨的一致性備份。備份中途磁碟滿或壓縮失敗時，留下的目錄也不能當成成功備份；須有完整檔案且雜湊驗證通過。腳本無法保證在停電、磁碟故障或被強制終止時恢復服務；中斷後請檢查：
 
 ```bash
-sudo systemctl start space-station
 sudo systemctl status space-station --no-pager
 curl --fail --silent --show-error --retry 10 --retry-connrefused --retry-delay 1 --max-time 5 http://127.0.0.1:3001/api/health
 ```
 
-備份不包含 Node 安裝檔、`node_modules`、建置產物或 HTTPS 私鑰；程式可按記錄的提交版本重新取得及建置。憑證與其他主機設定請另外納入你原有的系統備份。ACME 驗證目錄不是遊戲資料。
+備份會包含已存在的 `space-station-reload-apache`／`space-station-apache` 憑證續期 hook。自訂其他名稱的 hook、憑證與其他主機設定請另外納入你原有的系統備份。備份不包含 Node 安裝檔、`node_modules`、建置產物或 HTTPS 私鑰；程式可按記錄的提交版本重新取得及建置。ACME 驗證目錄不是遊戲資料。
 
 ### 備份保存方式
 
@@ -105,36 +65,42 @@ curl --fail --silent --show-error --retry 10 --retry-connrefused --retry-delay 1
 
 ## 3. 從 GitHub 更新
 
-先完整執行第 2 節，取得成功備份並保持停服。若上一節已重新啟動，必須再停止並重新備份，才能確保更新前的最新狀態已保存。
+先等所有對局結束，保留足夠磁碟空間容納一份新程式、套件、舊建置與資料備份。下列流程適用本文件的標準目錄、Node 24 與 systemd 服務，使用既有 `origin/main`，只接受 fast-forward 更新。執行前應確認要部署的提交已推上 GitHub 且 CI 通過。
 
-以下流程使用既有 Git remote，僅允許 fast-forward 更新，保留 `/etc/space-station.env` 與正式資料。`--include=dev` 是必要的：測試、TypeScript 與前端建置都需要開發依賴。
+第一次升級到提供此腳本的版本時，舊 clone 還沒有 `deploy/update.sh`。以下先 fetch，再從該提交讀取腳本執行；不需要先更動正在使用的程式、依賴或私有設定：
 
 ```bash
 (
   set -euo pipefail
   export PATH="/opt/node24/bin:$PATH"
   cd /opt/space-station
-
-  test "$(sudo systemctl show space-station --property=MainPID --value)" = '0'
-  test "$(sudo systemctl show space-station --property=ActiveState --value)" = 'inactive'
-  test "$(sudo systemctl show space-station --property=Result --value)" = 'success'
   test -z "$(git status --porcelain)"
   test "$(git branch --show-current)" = 'main'
-
-  git pull --ff-only
-  npm ci --include=dev
-  npm test
-  npm run build
-
-  sudo systemctl start space-station
-  sudo systemctl status space-station --no-pager
-  curl --fail --silent --show-error --retry 10 --retry-connrefused --retry-delay 1 --max-time 5 http://127.0.0.1:3001/api/health
-  curl --fail --silent --show-error --retry 10 --retry-connrefused --retry-delay 1 --max-time 5 https://boardgame.example.com/api/health
-  git log -1 --format='%h %s'
+  git fetch origin
+  git log -1 --format='%h %s' origin/main
+  read -r -p 'Apache 遊戲站設定的完整路徑：' station_apache_config
+  sudo test -s "$station_apache_config"
+  git show origin/main:deploy/update.sh |
+    bash -s -- --apache-config "$station_apache_config"
 )
 ```
 
-`set -e` 使安裝、測試或建置失敗時立即停止，**不會繼續啟動半成品**。如果失敗發生在服務已啟動之後，先執行 `sudo systemctl stop space-station`，檢查日誌，再依下節回退；不要持續反覆啟動未知狀態的版本。
+[更新腳本](../deploy/update.sh) 會：
+
+1. 在獨立的 `/opt/space-station-update.*` 目錄取得新版來源，完成 `npm ci --include=dev`、測試及建置。此時舊服務繼續運作，舊 `node_modules` 與 `dist` 都不會改動。
+2. 停止遊戲，執行第 2 節的完整備份。只有備份成功才更新 Git，並換上預先建好的套件和前後端。
+3. 啟動新版並檢查本機健康狀態。Apache、憑證、私有 env 及資料目錄的設定維持原狀。
+
+安裝或建置失敗時舊服務仍可運作。若換檔失敗、**新版程序還未啟動**，腳本嘗試恢復舊套件、舊建置及程式版本，再啟動舊服務；Git 可能停在舊提交的 detached HEAD。新版一旦嘗試啟動，就可能改寫資料，因此健康檢查失敗時不會自動覆蓋資料或盲目回退程式，請查看日誌並依第 4 節用配對備份處理。
+
+完成後，另外確認公開入口，並保留腳本印出的備份與暫存路徑：
+
+```bash
+sudo systemctl status space-station --no-pager
+curl --fail --silent --show-error --max-time 10 https://boardgame.example.com/api/health
+```
+
+`/opt/space-station-update.*` 會保留上一版建置及套件，便於排錯；不是正式資料備份。確認新版與備份正常後，可以刪除當次印出的完整暫存目錄來釋放空間，勿用不確定的路徑或萬用字元批次刪除。不要同時執行更新、還原或另一份維護程序。
 
 更新成功後，請所有玩家重新整理頁面。再開一個測試房，確認加入、4 人開始、斷線重連、觀戰、賽後回放及圖片下載。GitHub 的 Windows／Linux CI 成功，仍不等於這部 ARM64 Pi 與 Apache 的驗收已通過。
 
@@ -144,7 +110,7 @@ curl --fail --silent --show-error --retry 10 --retry-connrefused --retry-delay 1
 
 有兩種情況：
 
-- 新版從未啟動，只在安裝、測試或建置失敗：資料未被新版服務使用，可先照 4.3 回到備份的程式版本、重新建置，成功後啟動。
+- 新版從未啟動：安裝、測試或建置失敗時，舊服務通常仍在執行，不需要還原資料。換檔失敗會嘗試自動恢復舊服務；若恢復失敗，再依 4.3 回到備份版本。
 - 新版已啟動、需要還原歷史資料，或無法確定資料是否改變：以同一份備份配對程式版本和資料，依 4.1～4.4 完整還原。
 
 還原到舊備份會失去備份之後的新對局和進度。先停止服務並保留目前資料；不要直接覆寫、合併或刪除正在使用的資料目錄。程式碼回退不會自動回退資料格式。
@@ -175,8 +141,13 @@ tar -xzf data.tar.gz -C /var/lib/space-station-restore
 tar -xzf config.tar.gz -C /var/lib/space-station-restore/config
 install -m 0600 source-commit.txt /var/lib/space-station-restore/source-commit.txt
 install -m 0600 runtime.txt /var/lib/space-station-restore/runtime.txt
+if [ -s apache-config-path.txt ]; then
+  install -m 0600 apache-config-path.txt /var/lib/space-station-restore/apache-config-path.txt
+fi
 PREPARE
 ```
+
+新版備份會記錄 Apache 實際路徑。較早的備份若沒有 `apache-config-path.txt`，先檢查 `tar -tzf config.tar.gz` 中的 Apache 路徑，在私有還原目錄補上對應的絕對路徑，再進行設定還原；不要假設檔名一定是 `space-station.conf`。
 
 這一步尚未變更正式資料或正式設定。接著檢查資料能解析，且房間索引對應的對局檔存在；不印出牌面或憑證：
 
@@ -213,29 +184,37 @@ CHECK
 
 ### 4.2 停服並保存目前狀態
 
-在替換前，若目前服務能正常啟動、停止，先用第 2 節另外做一份備份並保持停服。這份備份應與你選來還原的舊備份不同。若新版已啟動失敗、無法通過乾淨停服檢查，不能宣稱已做一致性備份；下面仍會在確認沒有程序後保留現況的整份資料、設定和停止結果，供後續排查。
+在替換前，若目前服務能正常啟動、停止，先用第 2 節另外做一份備份。這份備份應與你選來還原的舊備份不同。若新版已啟動失敗、無法通過乾淨停服檢查，不能宣稱已做一致性備份；下面仍會在確認沒有程序後保留現況的整份資料、設定和停止結果，供後續排查。
 
 下段會把目前整個資料目錄改名保留，再把已驗證的隔離資料放到正式位置。正式 `DATA_DIR` 路徑不變，因此不需變動 service 的 `ReadWritePaths`。
 
 ```bash
-sudo bash <<'RESTORE_DATA'
+read -r -p '目前 Apache 遊戲站設定的完整路徑：' station_current_apache
+sudo bash -s -- "$station_current_apache" <<'RESTORE_DATA'
 set -euo pipefail
 umask 077
+current_apache=$(realpath -e -- "$1")
+case "$current_apache" in
+  /etc/apache2/sites-available/*.conf) ;;
+  *) echo 'Apache 設定路徑不正確。' >&2; exit 1 ;;
+esac
+test -s "$current_apache"
+test -d /var/lib/space-station-restore/space-station
+test ! -L /var/lib/space-station
+test ! -L /var/lib/space-station-restore/space-station
 systemctl stop space-station
 test "$(systemctl show space-station --property=MainPID --value)" = '0'
 case "$(systemctl show space-station --property=ActiveState --value)" in
   inactive|failed) ;;
   *) echo '服務尚未停止，不能替換資料。' >&2; exit 1 ;;
 esac
-test -d /var/lib/space-station-restore/space-station
-test ! -L /var/lib/space-station
-test ! -L /var/lib/space-station-restore/space-station
 previous_data="/var/lib/space-station-before-restore-$(date -u +%Y%m%dT%H%M%SZ)"
 test ! -e "$previous_data"
 mkdir -m 0700 "${previous_data}-config"
 cp -a /etc/space-station.env "${previous_data}-config/space-station.env"
 cp -a /etc/systemd/system/space-station.service "${previous_data}-config/space-station.service"
-cp -a /etc/apache2/sites-available/space-station.conf "${previous_data}-config/space-station.conf"
+cp -a "$current_apache" "${previous_data}-config/apache.conf"
+printf '%s\n' "$current_apache" > "${previous_data}-config/apache-config-path.txt"
 systemctl show space-station --property=MainPID,ActiveState,Result \
   > "${previous_data}-config/stopped-status.txt"
 mv -T /var/lib/space-station "$previous_data"
@@ -280,12 +259,28 @@ RESTORE_DATA
 完整還原時，先確認第 4.2 節已保存目前設定，再將同份備份的設定放回。若你後來改過網域、憑證或目錄，先在私有終端機檢查差異，調整成有效設定後才套用；不要把密鑰內容貼到公開對話或 Issue。
 
 ```bash
-sudo install -m 0600 /var/lib/space-station-restore/config/etc/space-station.env \
+sudo bash <<'RESTORE_CONFIG'
+set -euo pipefail
+restore_apache=$(cat /var/lib/space-station-restore/apache-config-path.txt)
+case "$restore_apache" in
+  /etc/apache2/sites-available/*.conf) ;;
+  *) echo '備份的 Apache 設定路徑不正確。' >&2; exit 1 ;;
+esac
+test -s "/var/lib/space-station-restore/config$restore_apache"
+test -s "$restore_apache"
+install -m 0600 /var/lib/space-station-restore/config/etc/space-station.env \
   /etc/space-station.env
-sudo install -m 0644 /var/lib/space-station-restore/config/etc/systemd/system/space-station.service \
+install -m 0644 /var/lib/space-station-restore/config/etc/systemd/system/space-station.service \
   /etc/systemd/system/space-station.service
-sudo install -m 0644 /var/lib/space-station-restore/config/etc/apache2/sites-available/space-station.conf \
-  /etc/apache2/sites-available/space-station.conf
+install -m 0644 "/var/lib/space-station-restore/config$restore_apache" "$restore_apache"
+for restore_hook in space-station-reload-apache space-station-apache; do
+  restore_hook_source="/var/lib/space-station-restore/config/etc/letsencrypt/renewal-hooks/deploy/$restore_hook"
+  if [ -f "$restore_hook_source" ]; then
+    install -d -m 0755 /etc/letsencrypt/renewal-hooks/deploy
+    install -m 0755 "$restore_hook_source" "/etc/letsencrypt/renewal-hooks/deploy/$restore_hook"
+  fi
+done
+RESTORE_CONFIG
 ```
 
 只回退程式且設定未變時，略過上述設定還原。接著執行：
@@ -351,3 +346,23 @@ sudo certbot renew --dry-run
 此命令驗證本機已登記的續期設定，可能涵蓋其他網站；失敗時先確認 DNS、80 埠、ACME webroot 例外路徑和憑證管理設定。不要為更新遊戲而停用既有憑證續期排程。應用程式、Apache、OS 與 Node 安全更新是不同工作，各自需要保留可回復版本與驗收結果。
 
 目前資料使用 schema 1。0.1 的既有對局可載入，但缺少逐步快照的舊局不會補造完整回放；更新後才開始的新局才有完整記錄。這不包含更早的 boardgame.io FlatFile 格式，後者沒有自動遷移。未來遊戲規則或資料格式變更時，請先查看對應版本的遷移說明，再決定能否沿用既有對局。
+
+## 7. 換成自己記得住的開房密碼
+
+開房密碼只控制「建立新房間」，朋友透過邀請加入不需要它。可以保留目前的隨機密碼，在建立房間頁選擇記住密碼；只在自己的裝置使用此功能。也可以在 Pi 私有設定換成自訂密碼：
+
+```bash
+sudo nano /etc/space-station.env
+```
+
+只修改 `CREATE_ROOM_KEY=` 後面的值。建議用至少 16 個 ASCII 字元、由 4 個彼此無關的單字搭配連字號或數字組成的密語；不要用姓名、網域、生日或本文示例當成實際密碼，也不要留空。不要變更其他設定或把這個檔案放進 Git。
+
+按 `Ctrl+O`、Enter 儲存，再按 `Ctrl+X` 離開。等對局結束後，讓遊戲服務讀取新設定：
+
+```bash
+sudo systemctl restart space-station
+curl --fail --silent --show-error --retry 10 --retry-connrefused --retry-delay 1 --max-time 5 \
+  http://127.0.0.1:3001/api/health
+```
+
+不需要重新建置程式或重新載入 Apache。現有玩家身份、房間與邀請不會因此被撤銷；重啟時連線會短暫中斷。若瀏覽器記住舊密碼，下次開房時改填新密碼並重新記住即可。

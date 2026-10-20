@@ -24,6 +24,7 @@ API 與網頁同源，正式環境使用 HTTPS；開發由 Vite 代理。POST �
 | `POST /api/rooms/:id/watch` | body 邀請 | 觀戰 session；任何階段都可加入 |
 | `GET /api/rooms/:id` | 玩家／觀戰 | `RoomInfo` |
 | `POST /api/rooms/:id/ready` | 玩家 | `{ready:boolean}`，只在等待室；回 `RoomInfo` |
+| `POST /api/rooms/:id/remove` | 房主 | `{playerID,membershipID}`，只在等待室單次移出其他玩家；回 `RoomInfo` |
 | `POST /api/rooms/:id/start` | 房主 | `{}`，實際 4～8 人全準備後開始；回 `RoomInfo` |
 | `POST /api/rooms/:id/invite` | 房主 | `{}`，輪替入房邀請；回 `inviteUrl,expiresAt` |
 | `GET /api/rooms/:id/view?perspective=blind` | 觀戰；終局亦可玩家 | `{G,stateID,perspective}`；視角也可為 `god` |
@@ -42,13 +43,21 @@ API 與網頁同源，正式環境使用 HTTPS；開發由 Vite 代理。POST �
 
 不傳 `numPlayers`，舊格式回 400。暱稱去空白後須 1～24 個 Unicode code points，不含控制字元。正式環境建房密鑰至少 16 字元；開發可留空。
 
-建立時預留最大席位，等待室只顯示入座參與者。`ready` 更新自己的準備狀態。`start` 與加入請求共用房間序列佇列，檢查實際人數與準備狀態，用新的加密亂數種子初始化正確人數，保留既有席位憑證。觀戰者不進玩家 metadata，也不計配牌。
+建立時預留最大席位，等待室只顯示入座參與者。`ready` 更新自己的準備狀態。`start`、加入與移出請求共用房間序列佇列，檢查實際人數與準備狀態，用新的加密亂數種子初始化正確人數，保留既有席位 ID 與憑證。席位不必連續；遊戲登錄的 `startSetupData(participantIDs)` 接收伺服器核對過的參與席位，遊戲依此建立角色、牌與行動順序。觀戰者不進玩家 metadata，也不計配牌。
+
+## 房主單次移出
+
+房主對等待室內其他已入座玩家呼叫 `remove`，body 傳該列 `id` 作為 `playerID`，及該列 `membershipID`。`membershipID` 是這次入座的公開識別值，不能用於認證；若席位已換人，舊值回 409，避免過期畫面或重送請求誤移出新玩家。房主不能移出自己；觀戰身份無法使用此端點；對局開始或結束後都回 409。
+
+成功後原席位憑證立即失效、既有 Socket 斷線，清除準備狀態並釋出席位。憑證撤銷雜湊、席位及準備狀態在同一份對局檔案原子更新；重啟後仍有效。原本 `inviteToken + requestID` 的入座重試回 `403` 與 `{error:"說明",code:"ADMISSION_REMOVED"}`，不能恢復被移出的身份；前端清除該次加入請求識別碼，由使用者再次選擇加入，避免遺失回應後一直重試同一份已撤銷請求。既有身份讀取或操作回 401，前端清除失效身份並提示重新開啟邀請。
+
+這是單次移出，沒有封鎖名單。同一人可重新開啟仍有效的邀請，以新的加入請求重新入座，取得全新憑證並重新準備。房主若不希望舊邀請繼續使用，可另外輪替邀請；其他已入座玩家不受影響。
 
 ## 入座與觀戰
 
 `join`、`watch` 接受 `{inviteToken,displayName,requestID?}`。邀請 token 是網址 `#invite=` 後的 43 字元值，有效 24 小時，房主可隨時輪替。開局後只能新增觀戰者。
 
-`requestID` 選填 UUIDv4，但前端會為同一次加入保存並重用，以免手機重試多占席位。伺服器以原邀請、房號、身份類型及 UUID 產生 HMAC 憑證；已成功請求即使邀請輪替或到期，仍可重取原結果。參與與觀戰使用不同 domain，權限不共用。未提供 UUID 不保證冪等。
+`requestID` 選填 UUIDv4，但前端會為同一次加入保存並重用，以免手機重試多占席位。伺服器以原邀請、房號、身份類型及 UUID 產生 HMAC 憑證；仍有效的已成功請求即使邀請輪替或到期，仍可重取原結果，被房主移出的入座除外。參與與觀戰使用不同 domain，權限不共用。未提供 UUID 不保證冪等。
 
 `inviteToken + requestID` 等同該次身份權限。前端讀取 fragment 後暫存並立即清除網址；加入成功保存 session 後清除加入資料。這不是跨裝置或清除資料後的身份找回服務。
 
@@ -63,7 +72,7 @@ API 與網頁同源，正式環境使用 HTTPS；開發由 Vite 代理。POST �
 | `numPlayers` | 實際入座參與者數，開局後固定 |
 | `minPlayers`, `maxPlayers` | 遊戲人數範圍 |
 | `status` | `lobby`, `briefing`, `playing`, `finished` |
-| `players` | 已入座者的 `id,name,isConnected,ready`；無憑證 |
+| `players` | 已入座者的 `id,name,isConnected,ready,membershipID`；無憑證，ID 可能缺號 |
 | `spectatorCount` | 已發行觀戰身份數，不代表在線人數 |
 | `godViewAllowed` | 本版 true；不授予進行中玩家觀戰權限 |
 
@@ -112,4 +121,4 @@ Socket 每連線 180 包／分、單包 16 KiB。每房最多 128 份觀戰身�
 
 400 格式錯誤；401 身份無效；403 權限／邀請／分享失效；404 未知端點／房號；409 狀態／人數／準備衝突；410 缺對局；413 過大；415 非 JSON；429 過頻；500 未公開的內部錯誤。
 
-尚無原房再開局、離席釋放、踢人、席位轉移、身份找回、刪除房間、自動清理 API；下一局新建房間。
+尚無原房再開局、自行離席、進行中移出、觀戰者移出、席位轉移、身份找回、刪除房間、自動清理 API；下一局新建房間。

@@ -6,7 +6,9 @@
 
 這是操作指南，尚未替你的 Pi、DNS、路由器或憑證做任何變更。前提為仍受安全更新支援的 Raspberry Pi OS／Debian **64 位元**、systemd、Apache 2.4.47 以上；32 位元系統不能直接使用下方 ARM64 Node 安裝包。每個程式區塊成功後再往下做，遇到錯誤先修正。
 
-首次上線依序完成第 1～9 節；之後使用 [更新、備份與還原手冊](OPERATIONS.md)。已依舊版部署過的機器應走更新流程，不要重新建立私有設定或套用初次安裝指令。
+首次上線依序完成第 1～9 節；之後使用 [更新、備份與還原手冊](OPERATIONS.md)。已使用目前這個新儲存庫部署的機器應走更新流程，不要重新建立私有設定或套用初次安裝指令。
+
+**若 Pi 留有刪除、重建 GitHub 儲存庫之前的舊 clone，不能直接套用一般更新流程。** 新舊提交歷史不同，不要合併無關歷史，也不要使用 `--allow-unrelated-histories`。先依維運手冊完成停服備份，保留舊程式目錄作為回復來源，再從新的 GitHub 儲存庫 clone 到新的空目錄；若仍要使用下方固定的 `/opt/space-station` 路徑，先將已確認的舊程式目錄另名保留。沿用 Git 外既有的 `/etc/space-station.env`、Apache／憑證設定與 `/var/lib/space-station` 資料，不要重建密鑰、覆蓋設定或把舊 `.git` 搬進新 clone。新程式建置成功、服務路徑確認無誤後，再啟動並驗收。
 
 ```text
 朋友手機／電腦 → HTTPS/WSS :443 → Pi 的 Apache
@@ -35,7 +37,7 @@ sudo ss -ltnp
 
 預期架構為 `aarch64`、位元數為 `64`。確認 3001 尚未被其他服務占用，記下主網站所用的 Apache 設定檔；不要停用它。若現有網站經由 Cloudflare Tunnel、CDN 或外部代理，先閱讀第 6 節的入口說明。
 
-安裝基本工具並 clone。`/opt/space-station` 必須是尚不存在的新目錄；若已存在，先確認內容，改走更新流程。
+安裝基本工具並 clone。`/opt/space-station` 必須是尚不存在的新目錄；若已存在，先確認是目前儲存庫的部署，還是上面所述的舊 clone，再選擇更新或重新 clone，不能覆蓋既有目錄。
 
 ```bash
 sudo apt update
@@ -103,6 +105,8 @@ npm --version
 cd /opt/space-station
 export PATH="/opt/node24/bin:$PATH"
 npm ci --include=dev
+npm run check:public
+npm run test:public
 npm test
 npm run build
 test -f dist/server/index.cjs
@@ -118,6 +122,7 @@ test -f dist/client/index.html
 | `/opt/space-station` | 程式與建置；部署帳號可寫，服務帳號只讀 |
 | `/opt/node24` | Node 24；root 管理，服務帳號只讀 |
 | `/etc/space-station.env` | 正式設定與建房密鑰；root、0600 |
+| `/etc/apache2/sites-available/space-station.conf`、`/etc/letsencrypt` | 實際網域、Apache 配置及憑證；由 root／Certbot 管理，保留私鑰權限 |
 | `/var/lib/space-station` | 房間、玩家憑證及完整回放；服務帳號、0700 |
 | `/var/backups/space-station` | 私有備份；root、0700 |
 | `/var/www/space-station-acme` | 僅供憑證驗證；不放程式或對局資料 |
@@ -152,9 +157,17 @@ chmod 0600 /etc/space-station.env
 SH
 ```
 
+**啟動服務之前，必須修改剛建立的私有設定：**
+
+```bash
+sudoedit /etc/space-station.env
+```
+
+把 `PUBLIC_ORIGIN` 的示範值改成你自己的實際遊戲 HTTPS origin，格式為 `https://你的遊戲主機名稱`，不能有結尾 `/`、子路徑或查詢字串。`boardgame.example.com` 只是示範，不能照填作為正式網址。實際值只改在這份 `/etc` 檔案，後續 Apache 與憑證也只設定在 `/etc`；不要修改 Git 裡的 `.env.example`、`deploy/` 範本或文件。
+
 需要建房密鑰時，在自己的私人 SSH 終端機用 `sudo nano /etc/space-station.env` 查看，保存到密碼管理器。不要將檔案、畫面或密鑰上傳 GitHub。只有建立房間的人需要密鑰，朋友只要邀請連結。
 
-`PUBLIC_ORIGIN` 必須是 `https://boardgame.example.com`，不能有結尾 `/` 或子路徑。保留 `HOST=127.0.0.1`，對外只開 Apache 的 80／443，不開 3001。不要啟動兩個程序共用同一個 `DATA_DIR`。
+`PUBLIC_ORIGIN` 必須與朋友實際開啟的遊戲網址一致。保留 `HOST=127.0.0.1`，對外只開 Apache 的 80／443，不開 3001。不要啟動兩個程序共用同一個 `DATA_DIR`。
 
 ## 5. 讓 systemd 自動啟動遊戲
 

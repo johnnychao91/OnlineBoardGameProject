@@ -3,7 +3,7 @@ import { lstat, mkdir, readFile, readdir, rename, rm, writeFile } from 'node:fs/
 import { join, resolve } from 'node:path';
 import { Async } from 'boardgame.io/internal';
 import type { LogEntry, Server, State, StorageAPI } from 'boardgame.io';
-import { validRoomID } from './security';
+import { hashToken, safeEqual, validRoomID } from './security';
 
 /** 伺服器私有回放資料；對外提供前仍須另做觀看權限與遊戲資訊過濾。 */
 export interface ReplayFrame {
@@ -18,6 +18,8 @@ interface StoredMatch extends StorageAPI.FetchFields {
   // 舊 schema 1 檔案沒有這兩欄，不得據其目前狀態補造過去歷史。
   replayFrames?: ReplayFrame[];
   replayComplete?: boolean;
+  /** Revoked admissions must not be restored by retrying their original join request. */
+  revokedAdmissions?: string[];
 }
 
 /** 立即複製輸入，避免呼叫端在排隊期間修改尚未寫入的資料。 */
@@ -105,6 +107,10 @@ export class FileStorage extends Async {
       if (match.replayComplete !== undefined && typeof match.replayComplete !== 'boolean') {
         throw new Error('回放資料格式錯誤');
       }
+      if (match.revokedAdmissions !== undefined && (!Array.isArray(match.revokedAdmissions)
+        || match.revokedAdmissions.some((hash) => typeof hash !== 'string' || !/^[a-f0-9]{64}$/.test(hash)))) {
+        throw new Error('已撤銷的入座資料格式錯誤');
+      }
       if (match.replayFrames !== undefined) {
         if (!Array.isArray(match.replayFrames)) throw new Error('回放資料格式錯誤');
         let previousID = -1;
@@ -151,7 +157,36 @@ export class FileStorage extends Async {
       const record = await this.readMatch(matchID);
       if (!record) throw new Error('對局不存在');
       if (record.state.G?.status !== 'lobby') throw new Error('僅能從等待室開始對局');
+      replacement.revokedAdmissions = record.revokedAdmissions;
       await this.writeMatch(matchID, replacement);
+    });
+  }
+
+  /** Clear membership, ready state, and its retry credential in one file replacement. */
+  async removePlayer(matchID: string, playerID: string, credentials: string, state: State): Promise<void> {
+    const incoming = jsonCopy(state);
+    validateStateID(incoming);
+    return this.enqueue(matchID, async () => {
+      const record = await this.readMatch(matchID);
+      if (!record) throw new Error('對局不存在');
+      if (playerID === '0' || record.state.G?.status !== 'lobby' || incoming.G?.status !== 'lobby'
+        || incoming._stateID !== record.state._stateID + 1
+        || !safeEqual(record.metadata.players[Number(playerID)]?.credentials, credentials)) {
+        throw new Error('無法移出此席位');
+      }
+      record.metadata.players[Number(playerID)] = { id: Number(playerID) };
+      record.metadata.updatedAt = Date.now();
+      record.state = incoming;
+      record.revokedAdmissions = [...(record.revokedAdmissions || []), hashToken(credentials)];
+      await this.writeMatch(matchID, record);
+    });
+  }
+
+  async isAdmissionRevoked(matchID: string, credentials: string): Promise<boolean> {
+    return this.enqueue(matchID, async () => {
+      const record = await this.readMatch(matchID);
+      if (!record) throw new Error('對局不存在');
+      return record.revokedAdmissions?.includes(hashToken(credentials)) ?? false;
     });
   }
 

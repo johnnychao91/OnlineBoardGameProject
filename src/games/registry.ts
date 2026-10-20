@@ -18,7 +18,7 @@ export interface GameDefinition {
   game: Game<any>;
   isJoinable: (state: any) => boolean;
   /** Passed by the authorized HTTP start flow, never accepted directly from spectators. */
-  startSetupData: Record<string, unknown>;
+  startSetupData: (participantIDs: string[]) => Record<string, unknown>;
   /** The caller must authorize this perspective before returning the projection. */
   observerView: (state: any, perspective: ObserverPerspective) => unknown;
   getOutcome: (state: any) => GameOutcome | null;
@@ -29,7 +29,7 @@ export const gameDefinitions: GameDefinition[] = [{
   description: '在未知與信任之間，讓太空站恢復運作。',
   minPlayers: 4, maxPlayers: 8, game: StationGame,
   isJoinable: (state) => state.status === 'lobby',
-  startSetupData: { startImmediately: true },
+  startSetupData: (participantIDs) => ({ startImmediately: true, participantIDs }),
   observerView: stationObserverView,
   getOutcome: (state: StationState) => {
     if (state.status !== 'finished' || !state.winner || !state.winReason) return null;

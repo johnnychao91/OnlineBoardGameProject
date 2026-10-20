@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { api, captureInvite, loadSeat, pendingRequestID, pendingToken, saveSeat, type ObserverSession, type RoomInfo, type SeatSession } from './api';
+import { api, ApiError, captureInvite, forgetSeat, loadSeat, pendingRequestID, pendingToken, resetAdmission, saveSeat, type ObserverSession, type RoomInfo, type SeatSession } from './api';
 
 function memoryStorage() {
   const values = new Map<string, string>();
@@ -91,5 +91,44 @@ describe('browser identity and invite boundaries', () => {
     expect(loaded).not.toHaveProperty('inviteUrl');
     expect(pendingToken(room.roomId)).toBeNull();
     expect(pendingRequestID(room.roomId, 'spectator')).not.toBe(oldRequest);
+  });
+
+  it('distinguishes revoked identity from a temporary connection or server failure', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 401, json: async () => ({ error: '憑證已失效' }) }));
+    await expect(api(`/api/rooms/${room.roomId}`, {}, player)).rejects.toMatchObject({ name: 'ApiError', status: 401 });
+    await expect(api(`/api/rooms/${room.roomId}`, {}, player)).rejects.toBeInstanceOf(ApiError);
+  });
+
+  it('clears a removed seat and its admission nonce, preserving a freshly opened invitation', () => {
+    saveSeat(player);
+    vi.stubGlobal('location', { pathname: '/join/room-test', hash: '#invite=valid-rejoin-invite' });
+    captureInvite();
+    const previous = pendingRequestID(room.roomId);
+    forgetSeat(room.roomId, player.credentials);
+    expect(loadSeat(room.roomId)).toBeNull();
+    expect(pendingRequestID(room.roomId)).not.toBe(previous);
+    expect(pendingToken(room.roomId)).toBe('valid-rejoin-invite');
+  });
+
+  it('does not clear a replacement identity when an older tab learns its seat was revoked', () => {
+    saveSeat({ ...player, credentials: 'replacement-test-credential' });
+    forgetSeat(room.roomId, player.credentials);
+    expect(loadSeat(room.roomId)?.credentials).toBe('replacement-test-credential');
+  });
+
+  it('allows a fresh explicit attempt when a lost join response was revoked before saving a seat', async () => {
+    vi.stubGlobal('location', { pathname: '/join/room-test', hash: '#invite=valid-rejoin-invite' });
+    captureInvite();
+    const previous = pendingRequestID(room.roomId);
+    const spectatorRequest = pendingRequestID(room.roomId, 'spectator');
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: false, status: 403, json: async () => ({ error: '上次加入已移出', code: 'ADMISSION_REMOVED' }),
+    }));
+    await expect(api('/api/rooms/room-test/join')).rejects.toMatchObject({ status: 403, code: 'ADMISSION_REMOVED' });
+    expect(loadSeat(room.roomId)).toBeNull();
+    resetAdmission(room.roomId, 'player');
+    expect(pendingRequestID(room.roomId)).not.toBe(previous);
+    expect(pendingRequestID(room.roomId, 'spectator')).toBe(spectatorRequest);
+    expect(pendingToken(room.roomId)).toBe('valid-rejoin-invite');
   });
 });

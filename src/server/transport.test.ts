@@ -317,4 +317,62 @@ describe('Socket.IO 權限與資料邊界', () => {
       expect(info.state.G.status).toBe('lobby');
     }
   });
+
+  it('移出玩家會撤銷連線；保留缺號席位仍能確認、完成一輪並保留正確回放', async () => {
+    const room = await createRoom();
+    const seats = await fillRoom(room);
+    const last = await post(`/api/rooms/${room.roomId}/join`, {
+      inviteToken: new URLSearchParams(new URL(room.inviteUrl).hash.slice(1)).get('invite'), displayName: '尾端玩家',
+    });
+    expect(last.status).toBe(200);
+    seats.push(last.body as Seat);
+    const oldSocket = await connect();
+    await sync(oldSocket, room, seats[1]);
+    const oldUpdates = vi.fn();
+    oldSocket.on('update', oldUpdates);
+    const target = last.body.players.find((player: any) => player.id === '1');
+    const removed = await post(`/api/rooms/${room.roomId}/remove`, {
+      playerID: '1', membershipID: target.membershipID,
+    }, room);
+    expect(removed.status).toBe(200);
+    await vi.waitFor(() => expect(oldSocket.connected).toBe(false));
+    const survivors = seats.filter((seat) => seat.playerID !== '1');
+    for (const seat of survivors) expect((await post(`/api/rooms/${room.roomId}/ready`, { ready: true }, seat)).status).toBe(200);
+    expect((await post(`/api/rooms/${room.roomId}/start`, {}, room)).status).toBe(200);
+    room.numPlayers = 4;
+    const clients = await Promise.all(survivors.map(() => connect()));
+    await Promise.all(clients.map((socket, index) => sync(socket, room, survivors[index])));
+    const initial = (await app.db.fetch(room.roomId, { state: true })).state!;
+    expect(initial.ctx.playOrder).toEqual(['0', '2', '3', '4']);
+    expect(Object.keys(initial.ctx.activePlayers!)).toEqual(['0', '2', '3', '4']);
+    expect(Object.keys(initial.G.players)).toEqual(['0', '2', '3', '4']);
+    expect(Object.keys(initial.G.private)).toEqual(['0', '2', '3', '4']);
+    const oldReconnect = await connect();
+    const oldSynced = vi.fn();
+    oldReconnect.on('sync', oldSynced);
+    oldReconnect.emit('sync', room.roomId, '1', seats[1].credentials, 4);
+    oldReconnect.emit('update', movePacket(seats[1], 'acknowledge'), initial._stateID, room.roomId, '1');
+    for (let index = 0; index < survivors.length; index++) await move(clients[index], room, survivors[index], 'acknowledge');
+    // Avoid the hazard without depending on shuffled card order, and force the
+    // last noncontiguous seat to act in this round.
+    for (let reveal = 0; reveal < 4; reveal++) {
+      const current = (await app.db.fetch(room.roomId, { state: true })).state!;
+      const actor = survivors.findIndex((seat) => seat.playerID === current.G.activePlayer);
+      const entries = Object.entries(current.G.secret.cards) as [string, string[]][];
+      const target = reveal === 0 ? entries.find(([id]) => id === '4')!
+        : entries.find(([id, cards]) => id !== current.G.activePlayer && cards.includes('stable'))!;
+      const slot = reveal === 0 ? target[1].findIndex((kind) => kind !== 'hazard') : target[1].indexOf('stable');
+      await move(clients[actor], room, survivors[actor], 'reveal', [target[0], slot]);
+    }
+    const after = (await app.db.fetch(room.roomId, { state: true })).state!;
+    expect(after.G).toMatchObject({ status: 'briefing', round: 2 });
+    expect(after.G.log.some((entry: any) => entry.actorID === '4')).toBe(true);
+    expect(after.G.log.every((entry: any) => entry.actorID !== '1' && entry.targetID !== '1')).toBe(true);
+    const replay = await app.db.fetchReplay(room.roomId);
+    expect(replay.complete).toBe(true);
+    expect(replay.frames).toHaveLength(9);
+    for (const frame of replay.frames) expect(Object.keys(frame.G.players)).toEqual(['0', '2', '3', '4']);
+    expect(oldUpdates).not.toHaveBeenCalled();
+    expect(oldSynced).not.toHaveBeenCalled();
+  });
 });

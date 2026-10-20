@@ -188,6 +188,83 @@ describe('Dynamic participant counts and authorized start', () => {
   });
 });
 
+describe('Host removes a waiting-room membership once', () => {
+  it('revokes credentials and admission retries across restart, while allowing a fresh admission into the seat', async () => {
+    const f = await fixture();
+    const host = await f.create();
+    const admission = { inviteToken: inviteToken(host), displayName: '朋友', requestID: randomUUID() };
+    const guest = (await f.request(roomPath(host, 'join'), admission)).body;
+    await ready(f, host, guest);
+    const target = guest.players.find((player: any) => player.id === guest.playerID);
+    const removal = { playerID: guest.playerID, membershipID: target.membershipID };
+    const removed = await f.request(roomPath(host, 'remove'), removal, seatHeaders(host));
+    expect(removed.status).toBe(200);
+    expect(removed.body.numPlayers).toBe(1);
+    expect(removed.body.players.map((player: any) => player.id)).toEqual(['0']);
+    expectNoServerSecrets(removed.body);
+    expect((await f.app.db.fetch(host.roomId, { state: true })).state.G.players['1'].ready).toBe(false);
+    for (let attempt = 0; attempt < 2; attempt++) {
+      expect((await f.request(roomPath(host), undefined, seatHeaders(guest))).status).toBe(401);
+      expect((await f.request(roomPath(host, 'ready'), { ready: true }, seatHeaders(guest))).status).toBe(401);
+      expect(await f.request(roomPath(host, 'join'), admission)).toMatchObject({
+        status: 403, body: { code: 'ADMISSION_REMOVED', error: expect.any(String) },
+      });
+      if (attempt === 0) await f.restart();
+    }
+    const replacement = await joinPlayer(f, host, '朋友');
+    expect(replacement.playerID).toBe(guest.playerID);
+    expect(replacement.credentials).not.toBe(guest.credentials);
+    expect(replacement.players.find((player: any) => player.id === guest.playerID)).toMatchObject({ ready: false });
+    expect((await f.request(roomPath(host, 'remove'), removal, seatHeaders(host))).status).toBe(409);
+    expect((await f.request(roomPath(host), undefined, seatHeaders(replacement))).status).toBe(200);
+    expect((await f.request(roomPath(host, 'join'), admission)).status).toBe(403);
+  });
+
+  it('requires the host and the current occupied membership, and refuses changes after start', async () => {
+    const f = await fixture();
+    const { host, seats } = await populatedRoom(f, 4);
+    const observer = await watch(f, host);
+    const target = seats[1].players.find((player: any) => player.id === seats[1].playerID);
+    const removal = { playerID: target.id, membershipID: target.membershipID };
+    expect((await f.request(roomPath(host, 'remove'), removal)).status).toBe(401);
+    expect((await f.request(roomPath(host, 'remove'), removal, seatHeaders(seats[2]))).status).toBe(403);
+    expect((await f.request(roomPath(host, 'remove'), removal, observerHeaders(observer))).status).toBe(401);
+    for (const invalid of [
+      { ...removal, playerID: '0' }, { ...removal, playerID: '../1' },
+      { ...removal, playerID: 1 }, { playerID: '1' },
+    ]) {
+      expect((await f.request(roomPath(host, 'remove'), invalid, seatHeaders(host))).status).toBe(400);
+    }
+    expect((await f.request(roomPath(host, 'remove'), { ...removal, playerID: '7' }, seatHeaders(host))).status).toBe(409);
+    expect((await f.request(roomPath(host, 'start'), {}, seatHeaders(host))).status).toBe(200);
+    expect((await f.request(roomPath(host, 'remove'), removal, seatHeaders(host))).status).toBe(409);
+    expect((await f.request(roomPath(host), undefined, seatHeaders(seats[1]))).status).toBe(200);
+    await finish(f, host);
+    expect((await f.request(roomPath(host, 'remove'), removal, seatHeaders(host))).status).toBe(409);
+  });
+
+  it('serializes start and removal so a started game retains every participant', async () => {
+    const f = await fixture();
+    const { host, seats } = await populatedRoom(f, 4);
+    const target = seats[1].players.find((player: any) => player.id === seats[1].playerID);
+    const [removed, started] = await Promise.all([
+      f.request(roomPath(host, 'remove'), { playerID: target.id, membershipID: target.membershipID }, seatHeaders(host)),
+      f.request(roomPath(host, 'start'), {}, seatHeaders(host)),
+    ]);
+    expect([removed.status, started.status].sort()).toEqual([200, 409]);
+    const { state, metadata } = await f.app.db.fetch(host.roomId, { state: true, metadata: true });
+    if (removed.status === 200) {
+      expect(state.G.status).toBe('lobby');
+      expect(metadata.players['1'].credentials).toBeUndefined();
+      expect(Object.values(metadata.players).filter((player) => player.credentials)).toHaveLength(3);
+    } else {
+      expect(state.G.status).toBe('briefing');
+      expect(metadata.players['1'].credentials).toBe(seats[1].credentials);
+      expect(Object.keys(state.G.players)).toHaveLength(4);
+    }
+  });
+});
+
 describe('Independent, read-only spectators', () => {
   it('retries the same observer admission across invite rotation and restart without taking another seat', async () => {
     const f = await fixture();

@@ -7,6 +7,9 @@ import type { RoomStore } from './rooms';
 
 /** Guard the wire protocol, not only the buttons exposed by the browser client. */
 export class GuardedTransport extends SocketIO {
+  private readonly bindings = new Map<string, {
+    socket: any; matchID: string; playerID: string; credentials: string; revoked?: boolean;
+  }>();
   constructor(private rooms: RoomStore, private origins: string[]) {
     super({ socketOpts: {
       maxHttpBufferSize: 16384,
@@ -22,16 +25,27 @@ export class GuardedTransport extends SocketIO {
   async drain(): Promise<void> {
     await Promise.all([...this.perMatchQueue.values()].map((queue) => queue.onIdle()));
   }
+  /** Called from the shared match queue after durable membership revocation. */
+  removePlayer(matchID: string, playerID: string, credentials: string): void {
+    for (const binding of this.bindings.values()) {
+      if (binding.matchID !== matchID || binding.playerID !== playerID || !safeEqual(binding.credentials, credentials)) continue;
+      binding.revoked = true;
+      // The emit guard takes effect immediately, before the framework's queued
+      // disconnect cleanup: a replacement's private view must never be sent.
+      binding.socket.disconnect(true);
+    }
+  }
   override init(app: any, games: Game[], origins: any) {
     super.init(app, games, origins);
     for (const game of games) {
       const allowedMoves = new Set(Object.keys(game.moves || {}));
       app._io.of(game.name).on('connection', (socket: any) => {
         const rate = new RateLimiter();
-        let binding: { matchID: string; playerID: string; credentials: string } | undefined;
+        let binding: { socket: any; matchID: string; playerID: string; credentials: string; revoked?: boolean } | undefined;
         const originalEmit = socket.emit.bind(socket);
         const filter = getFilterPlayerView(game);
         socket.emit = (event: string, ...args: any[]) => {
+          if (binding?.revoked) return false;
           if (event === 'sync' && args[1]?.initialState && binding) {
             // v0.50.2 filters the live state but leaves initialState (including RNG
             // seed) untouched. Apply the same server-side player view to both.
@@ -44,7 +58,11 @@ export class GuardedTransport extends SocketIO {
           const listeners = socket.listeners(event);
           socket.removeAllListeners(event);
           socket.on(event, (...args: any[]) => {
-            const execute = async () => { for (const listener of listeners) await listener(...args); };
+            const execute = async () => {
+              if (event === 'sync' && (!socket.connected || binding?.revoked)) return;
+              for (const listener of listeners) await listener(...args);
+              if (event === 'disconnect') this.bindings.delete(socket.id);
+            };
             // The upstream update listener already queues moves. sync/disconnect
             // also write metadata, so serialize those with admissions and moves.
             const work = event !== 'update' && binding
@@ -56,6 +74,7 @@ export class GuardedTransport extends SocketIO {
         socket.use(async (packet: unknown[], next: (error?: Error) => void) => {
           try {
             if (!rate.allow('packets', 180, 60000)) throw new Error('操作過於頻繁');
+            if (binding?.revoked) throw new Error('未授權');
             const [event, ...args] = packet;
             if (event === 'sync') {
               const [matchID, playerID, credentials] = args;
@@ -65,8 +84,11 @@ export class GuardedTransport extends SocketIO {
               if (!room || room.gameId !== game.name) throw new Error('房間不存在');
               const { metadata } = await app.context.db.fetch(matchID, { metadata: true });
               if (!metadata || !safeEqual(metadata.players[playerID]?.credentials, credentials)) throw new Error('未授權');
+              // Removal or disconnect can occur while metadata is being read.
+              if (!socket.connected || binding?.revoked) throw new Error('未授權');
               if (binding && (binding.matchID !== matchID || binding.playerID !== playerID || !safeEqual(binding.credentials, credentials))) throw new Error('不可切換座位');
-              binding = { matchID, playerID, credentials };
+              binding = { socket, matchID, playerID, credentials };
+              this.bindings.set(socket.id, binding);
             } else if (event === 'update') {
               const [action, stateID, matchID, playerID] = args as any[];
               if (!binding || matchID !== binding.matchID || playerID !== binding.playerID || !Number.isSafeInteger(stateID) || stateID < 0) throw new Error('未授權');
