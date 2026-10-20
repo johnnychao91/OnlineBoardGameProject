@@ -13,7 +13,7 @@ export function RoomHistory({ seat, info }: { seat: AuthSession; info: RoomInfo 
   return <section className="room-history">
     <div className="panel previous-result">
       <div className="eyebrow">MISSION ARCHIVE</div>
-      <h2>{latest.ending === 'completed'
+      <h2 className={info.gameName === 'space-station' && latest.ending === 'completed' && latest.winner === 'saboteur' ? 'role-saboteur' : undefined}>{latest.ending === 'completed'
         ? gameResultLabel(info.gameName, latest.winner)
         : '上一局已提前結束'}</h2>
       <p className="muted">{latest.ending === 'completed'
@@ -27,7 +27,7 @@ export function RoomHistory({ seat, info }: { seat: AuthSession; info: RoomInfo 
         <summary>這個房間的已完成對局</summary>
         {history.map((entry, index) => entry.ending === 'completed' && <button className="text-button" key={entry.matchID}
           onClick={() => setSelected(entry.matchID)}>
-          第 {index + 1} 局 · {entry.numPlayers} 人 · {gameResultLabel(info.gameName, entry.winner)}
+          第 {index + 1} 局 · {entry.numPlayers} 人 · <span className={info.gameName === 'space-station' && entry.winner === 'saboteur' ? 'role-saboteur' : undefined}>{gameResultLabel(info.gameName, entry.winner)}</span>
         </button>)}
       </details>}
     </div>

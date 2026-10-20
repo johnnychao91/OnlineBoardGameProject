@@ -35,7 +35,7 @@ export function TurnNotice({ G, nameOf, ownID, replay = false }: {
     role="status" aria-live="polite" aria-atomic="true">
     <span className="turn-symbol"><Icon type={playing ? 'arrow' : 'signal'} size={24} /></span>
     <div>
-      <strong>{heading}</strong>
+      <strong className={G.status === 'finished' && G.winner === 'saboteur' ? 'role-saboteur' : undefined}>{heading}</strong>
       <p>{G.status === 'briefing' ? (G.rulesVersion ?? 1) >= 2 ? '每輪重新洗牌，全員確認後進入宣稱階段。' : '每輪重新洗牌，全員確認後開始檢修。'
         : G.status === 'claiming' ? '宣稱可以說謊。所有人提交後，才開始檢修。'
           : playing ? myTurn ? (G.rulesVersion ?? 1) >= 2 ? '先點一張暗牌讓大家看到，再點同一張確認檢修。' : '討論後，選擇其他隊員的一張暗牌。' : '請一起討論，只有目前負責檢修的隊員能翻牌。'
@@ -114,7 +114,7 @@ export function StationTable({ G, nameOf, ownID, god = false, canSelect = false,
           <span className={`avatar ${id === ownID ? 'mine' : ''}`}>{initials(nameOf(id))}</span>
           <strong>{nameOf(id)}{id === ownID && <small className="you-label">你</small>}</strong>
           {active && <span className="actor-tag"><Icon type="arrow" size={13} />正在檢修</span>}
-          {role && <span className={`observer-role ${role === 'engineer' ? 'mint' : 'amber'}`}>{roleNames[role]}</span>}
+          {role && <span className={`observer-role ${role === 'engineer' ? 'mint' : 'role-saboteur'}`}>{roleNames[role]}</span>}
           <span className="remaining">暗牌 {player.cardCount} 張</span>
         </div>
         <div className="station-player-facts">

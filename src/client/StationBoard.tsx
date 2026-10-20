@@ -178,7 +178,7 @@ export function StationBoard({ G, playerID, moves, isConnected }: BoardProps) {
               <span>你的身份</span><strong>{roleNames[mine.role]}</strong>
               <div className="possible-roles"><span>本局可能的全場人數（包含你）</span>
                 {roles.map(({ engineer, saboteur }) => <p key={`${engineer}-${saboteur}`}>
-                  <b>維修員 {engineer} 位</b><span>／</span><b>干擾者 {saboteur} 位</b>
+                  <b>維修員 {engineer} 位</b><span>／</span><b className="role-saboteur">干擾者 {saboteur} 位</b>
                 </p>)}
                 {roles.length > 1 && <small>以上是可能組合，實際陣營人數不公開。</small>}
               </div>
@@ -221,7 +221,7 @@ export function StationBoard({ G, playerID, moves, isConnected }: BoardProps) {
         <RoundRevealList G={G} nameOf={nameOf} />
         {G.status === 'finished' && <details className="panel station-results-details"><summary>陣營揭曉與戰報</summary>
           <div className="role-reveal-grid">{Object.keys(G.players).map(pid => <div key={pid}>
-            <span className={G.players[pid].revealedRole === 'saboteur' ? 'amber' : 'mint'}>{G.players[pid].revealedRole ? roleNames[G.players[pid].revealedRole!] : '未知'}</span>
+            <span className={G.players[pid].revealedRole === 'saboteur' ? 'role-saboteur' : 'mint'}>{G.players[pid].revealedRole ? roleNames[G.players[pid].revealedRole!] : '未知'}</span>
             <strong>{nameOf(pid)}{pid === id && '（你）'}</strong>
           </div>)}</div>
           <BattleReport G={G} info={info} perspective="blind" label="製作本局戰報圖" />

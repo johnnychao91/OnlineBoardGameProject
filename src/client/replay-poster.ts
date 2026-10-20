@@ -13,7 +13,7 @@ const HEIGHT = 1350;
 const FONT = 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft JhengHei", sans-serif';
 const COLORS = {
   ink: '#edf8f7', muted: '#a8c0c4', faint: '#738f98', mint: '#8be7ca',
-  amber: '#ffd18a', navy: '#071820', panel: '#102b36', stroke: '#284752',
+  amber: '#ffd18a', red: '#ff929b', navy: '#071820', panel: '#102b36', stroke: '#284752',
 };
 const CARDS: Record<CardKind, { label: string; detail: string; color: string; mark: string }> = {
   stable: { label: '穩定設備', detail: '設備維持穩定，任務繼續。', color: '#b6d0df', mark: '—' },
@@ -222,11 +222,11 @@ export async function createReplayPoster({ G, players, step, totalSteps }: Repla
   text(ctx, found === required ? '維修模組已全部找到' : `還有 ${required - found} 個維修模組等待被發現`, 100, 938, 21, COLORS.muted);
 
   const finished = G.status === 'finished';
-  const accent = finished && G.winner === 'saboteur' ? COLORS.amber : COLORS.mint;
+  const accent = finished && G.winner === 'saboteur' ? COLORS.red : COLORS.mint;
   box(ctx, 64, 1006, 952, 213, 28, finished ? '#17323b' : '#0c222c', finished ? accent : COLORS.stroke);
   text(ctx, finished ? '任務結果' : '這一刻，任務仍在繼續', 100, 1049, 19, accent, 650);
   const winner = G.winner === 'engineer' ? '維修員獲勝' : G.winner === 'saboteur' ? '干擾者獲勝' : '任務結束';
-  text(ctx, finished ? winner : '下一個選擇，由你們決定', 100, 1109, finished ? 44 : 36, COLORS.ink, 750);
+  text(ctx, finished ? winner : '下一個選擇，由你們決定', 100, 1109, finished ? 44 : 36, finished && G.winner === 'saboteur' ? COLORS.red : COLORS.ink, 750);
   const reason = G.winReason === 'all-repairs' ? '所有維修模組都已找到，太空站恢復運作。'
     : G.winReason === 'hazard' ? '反應爐危機被揭開，這次任務宣告結束。'
       : G.winReason === 'round-limit' ? '第四輪結束時維修尚未完成，任務時間已用盡。'

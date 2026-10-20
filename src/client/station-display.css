@@ -1,4 +1,10 @@
 /* Station-specific layout; small windows retain normal document scrolling. */
+.role-saboteur, .previous-result h2.role-saboteur,
+.faction-statistics .saboteur-statistics > strong,
+.faction-statistics .saboteur-statistics > .mint { color: #ff929b; }
+.faction-statistics .saboteur-statistics .progress-track > span { background: #ff929b; }
+.private-content .role-card.saboteur { background: #54253366; border-color: #ff879580; }
+.private-content .role-card.saboteur strong { color: #ff929b; }
 .card-kind-hazard, .private-content .card-kind-hazard { color: #ff929b; }
 .card-kind-repair { color: var(--mint); }
 .card-kind-stable { color: #d5e1f2; }
