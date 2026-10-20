@@ -1,10 +1,11 @@
 import type { FnContext, Game } from 'boardgame.io';
 import { ActivePlayers, INVALID_MOVE } from 'boardgame.io/core';
+import { stationRolePool } from './view-model';
 
 export type Role = 'engineer' | 'saboteur';
 export type CardKind = 'stable' | 'repair' | 'hazard';
 export type Composition = Record<CardKind, number>;
-export type GameStatus = 'lobby' | 'briefing' | 'playing' | 'finished';
+export type GameStatus = 'lobby' | 'briefing' | 'claiming' | 'playing' | 'finished';
 export type WinReason = 'all-repairs' | 'hazard' | 'round-limit';
 
 export interface StationSetupData {
@@ -18,6 +19,8 @@ export interface StationPlayer {
   ready: boolean;
   acknowledged: boolean;
   cardCount: number;
+  /** Public statement about this round's repair cards; players may bluff. */
+  claim?: number | null;
   revealedRole?: Role;
 }
 
@@ -30,14 +33,29 @@ export interface RevealRecord {
   round: number;
   actorID: string;
   targetID: string;
-  /** Zero-based position in the target's remaining cards at the time of reveal. */
+  /** V2: fixed round slot. Legacy: position in the remaining cards when revealed. */
   slot: number;
   kind: CardKind;
 }
 
+export interface PendingReveal {
+  actorID: string;
+  targetID: string;
+  slot: number;
+  round: number;
+  /** Monotonically increasing per match, including across rounds. */
+  selectionID: number;
+}
+
 export interface StationState {
+  /** Absent in saved legacy matches; those keep their original move semantics. */
+  rulesVersion?: 2;
   status: GameStatus;
   players: Record<string, StationPlayer>;
+  /** V2 uses fixed slots throughout a round; null means still face down. */
+  publicCards?: Record<string, (CardKind | null)[]>;
+  pendingReveal?: PendingReveal | null;
+  selectionSequence?: number;
   round: number;
   revealsThisRound: number;
   repairsFound: number;
@@ -79,15 +97,6 @@ function compositionOf(cards: CardKind[]): Composition {
   return result;
 }
 
-function rolePool(numPlayers: number): Role[] {
-  const engineers = numPlayers <= 5 ? 3 : numPlayers === 6 ? 4 : 5;
-  const saboteurs = numPlayers <= 6 ? 2 : 3;
-  return [
-    ...Array<Role>(engineers).fill('engineer'),
-    ...Array<Role>(saboteurs).fill('saboteur'),
-  ];
-}
-
 function dealRound(G: StationState, deck: CardKind[], random: RandomAPI): void {
   const ids = Object.keys(G.players);
   const shuffled = random.Shuffle(deck);
@@ -95,12 +104,20 @@ function dealRound(G: StationState, deck: CardKind[], random: RandomAPI): void {
   if (!G.secret || !Number.isInteger(perPlayer)) {
     throw new Error('Cannot deal an invalid station state.');
   }
+  if (G.rulesVersion === 2) {
+    G.publicCards = {};
+    G.pendingReveal = null;
+  }
   ids.forEach((id, index) => {
     const cards = random.Shuffle(shuffled.slice(index * perPlayer, (index + 1) * perPlayer));
     G.secret!.cards[id] = cards;
     G.private[id].composition = compositionOf(cards);
     G.players[id].cardCount = cards.length;
     G.players[id].acknowledged = false;
+    if (G.rulesVersion === 2) {
+      G.publicCards![id] = cards.map(() => null);
+      G.players[id].claim = null;
+    }
   });
   G.revealsThisRound = 0;
   G.status = 'briefing';
@@ -111,6 +128,7 @@ function finish(G: StationState, winner: Role, reason: WinReason): void {
   G.winner = winner;
   G.winReason = reason;
   G.activePlayer = null;
+  if (G.rulesVersion === 2) G.pendingReveal = null;
   for (const id of Object.keys(G.players)) {
     G.players[id].revealedRole = G.private[id].role;
   }
@@ -125,7 +143,7 @@ function setReady({ G, playerID }: MoveContext, ready: unknown) {
 
 function beginGame(G: StationState, random: RandomAPI): void {
   const ids = Object.keys(G.players);
-  const roles = random.Shuffle(rolePool(ids.length));
+  const roles = random.Shuffle(stationRolePool(ids.length));
   G.secret = { cards: {}, unusedRoles: roles.slice(ids.length) };
   ids.forEach((id, index) => {
     G.private[id] = {
@@ -158,25 +176,85 @@ function acknowledge({ G, playerID }: MoveContext) {
   }
   G.players[playerID].acknowledged = true;
   if (Object.values(G.players).every((player) => player.acknowledged)) {
+    G.status = G.rulesVersion === 2 ? 'claiming' : 'playing';
+  }
+}
+
+function declareRepairs({ G, playerID }: MoveContext, count: unknown, round: unknown) {
+  if (G.rulesVersion !== 2 || G.status !== 'claiming' || !isSeat(G, playerID)
+    || typeof round !== 'number' || !Number.isInteger(round) || round !== G.round
+    || G.players[playerID].claim !== null || typeof count !== 'number'
+    || !Number.isInteger(count) || count < 0 || !G.publicCards?.[playerID]
+    || count > G.publicCards[playerID].length) {
+    return INVALID_MOVE;
+  }
+  G.players[playerID].claim = count;
+  if (Object.values(G.players).every((player) => player.claim !== null && player.claim !== undefined)) {
     G.status = 'playing';
   }
 }
 
-function reveal({ G, playerID, random }: MoveContext, targetID: unknown, slot: unknown) {
+function isLegalTarget(G: StationState, playerID: string, targetID: unknown, slot: unknown):
+  targetID is string {
   if (G.status !== 'playing' || !isSeat(G, playerID)
     || G.activePlayer !== playerID || !isSeat(G, targetID)
     || targetID === playerID || typeof slot !== 'number'
     || !Number.isInteger(slot) || slot < 0 || !G.secret) {
-    return INVALID_MOVE;
+    return false;
   }
   const cards = G.secret.cards[targetID];
-  if (!cards || slot >= cards.length) return INVALID_MOVE;
+  return !!cards && slot < cards.length
+    && (G.rulesVersion !== 2 || G.publicCards?.[targetID]?.[slot] === null);
+}
 
-  const [kind] = cards.splice(slot, 1);
-  G.players[targetID].cardCount = cards.length;
+function selectCard({ G, playerID }: MoveContext, targetID: unknown, slot: unknown) {
+  if (G.rulesVersion !== 2 || !isLegalTarget(G, playerID, targetID, slot)) return INVALID_MOVE;
+  G.selectionSequence = (G.selectionSequence ?? 0) + 1;
+  G.pendingReveal = {
+    actorID: playerID, targetID, slot: slot as number, round: G.round,
+    selectionID: G.selectionSequence,
+  };
+}
+
+function clearSelection({ G, playerID }: MoveContext) {
+  if (G.rulesVersion !== 2 || G.status !== 'playing' || !isSeat(G, playerID)
+    || G.activePlayer !== playerID || !G.pendingReveal
+    || G.pendingReveal.actorID !== playerID) {
+    return INVALID_MOVE;
+  }
+  G.pendingReveal = null;
+}
+
+function reveal(
+  { G, playerID, random }: MoveContext,
+  targetID: unknown,
+  slot: unknown,
+  selectionID?: unknown,
+) {
+  if (!isLegalTarget(G, playerID, targetID, slot)) return INVALID_MOVE;
+  const position = slot as number;
+  if (G.rulesVersion === 2) {
+    const pending = G.pendingReveal;
+    if (!pending || typeof selectionID !== 'number' || !Number.isSafeInteger(selectionID)
+      || pending.actorID !== playerID || pending.targetID !== targetID
+      || pending.slot !== position || pending.round !== G.round
+      || pending.selectionID !== selectionID) {
+      return INVALID_MOVE;
+    }
+  }
+
+  const cards = G.secret!.cards[targetID];
+  const kind = G.rulesVersion === 2 ? cards[position] : cards.splice(position, 1)[0];
+  if (G.rulesVersion === 2) {
+    G.publicCards![targetID][position] = kind;
+    G.pendingReveal = null;
+    G.players[targetID].cardCount -= 1;
+  } else {
+    G.players[targetID].cardCount = cards.length;
+  }
   G.private[targetID].composition[kind] -= 1;
   G.revealsThisRound += 1;
-  G.log.push({ round: G.round, actorID: playerID, targetID, slot, kind });
+  G.log.push({ round: G.round, actorID: playerID, targetID, slot: position, kind });
   G.activePlayer = targetID;
 
   if (kind === 'hazard') {
@@ -194,7 +272,8 @@ function reveal({ G, playerID, random }: MoveContext, targetID: unknown, slot: u
       finish(G, 'saboteur', 'round-limit');
       return;
     }
-    const remaining = Object.values(G.secret.cards).flat();
+    const remaining = Object.entries(G.secret!.cards).flatMap(([id, hand]) =>
+      G.rulesVersion === 2 ? hand.filter((_, index) => G.publicCards![id][index] === null) : hand);
     G.round += 1;
     dealRound(G, remaining, random);
   }
@@ -218,13 +297,30 @@ export function stationPlayerView({ G, playerID }: {
 }): StationState {
   const ownInfo = playerID !== null && isSeat(G, playerID) ? G.private[playerID] : undefined;
   return {
+    ...(G.rulesVersion === undefined ? {} : { rulesVersion: G.rulesVersion }),
     status: G.status,
     players: Object.fromEntries(Object.entries(G.players).map(([id, player]) => [id, {
       ready: player.ready,
       acknowledged: player.acknowledged,
       cardCount: player.cardCount,
+      ...(player.claim === undefined ? {} : { claim: player.claim }),
       ...(player.revealedRole === undefined ? {} : { revealedRole: player.revealedRole }),
     }])),
+    ...(G.publicCards === undefined ? {} : {
+      publicCards: Object.fromEntries(Object.keys(G.players).filter((id) =>
+        Object.prototype.hasOwnProperty.call(G.publicCards, id))
+        .map((id) => [id, [...G.publicCards![id]]])),
+    }),
+    ...(G.pendingReveal === undefined ? {} : {
+      pendingReveal: G.pendingReveal === null ? null : {
+        actorID: G.pendingReveal.actorID,
+        targetID: G.pendingReveal.targetID,
+        slot: G.pendingReveal.slot,
+        round: G.pendingReveal.round,
+        selectionID: G.pendingReveal.selectionID,
+      },
+    }),
+    ...(G.selectionSequence === undefined ? {} : { selectionSequence: G.selectionSequence }),
     round: G.round,
     revealsThisRound: G.revealsThisRound,
     repairsFound: G.repairsFound,
@@ -291,10 +387,14 @@ export const StationGame: Game<StationState, Record<string, unknown>, StationSet
       throw new RangeError('太空維修站需要 4～8 位玩家。');
     }
     const G: StationState = {
+      rulesVersion: 2,
       status: 'lobby',
       players: Object.fromEntries((setupData?.participantIDs ?? Array.from({ length: ctx.numPlayers }, (_, index) => String(index))).map((id: string) => [
-        id, { ready: setupData?.startImmediately === true, acknowledged: false, cardCount: 0 },
+        id, { ready: setupData?.startImmediately === true, acknowledged: false, cardCount: 0, claim: null },
       ])),
+      publicCards: {},
+      pendingReveal: null,
+      selectionSequence: 0,
       round: 0,
       revealsThisRound: 0,
       repairsFound: 0,
@@ -322,6 +422,14 @@ export const StationGame: Game<StationState, Record<string, unknown>, StationSet
     setReady: { move: setReady, client: false, undoable: false, redact: true },
     startGame: { move: startGame, client: false, undoable: false, redact: true },
     acknowledge: { move: acknowledge, client: false, undoable: false, redact: true },
+    // Each seat can declare once in this round. Other seats' concurrent
+    // declarations must not invalidate its state ID; the explicit round token
+    // rejects a delayed statement from an earlier round.
+    declareRepairs: {
+      move: declareRepairs, ignoreStaleStateID: true, client: false, undoable: false, redact: true,
+    },
+    selectCard: { move: selectCard, client: false, undoable: false, redact: true },
+    clearSelection: { move: clearSelection, client: false, undoable: false, redact: true },
     reveal: { move: reveal, client: false, undoable: false, redact: true },
   },
   disableUndo: true,

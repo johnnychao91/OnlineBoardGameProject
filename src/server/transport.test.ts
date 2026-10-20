@@ -109,6 +109,13 @@ async function fullGame() {
   return { room, seats, clients };
 }
 
+async function moveEach(room: Room, seats: Seat[], clients: Socket[], type: string, args: unknown[] = []) {
+  for (let index = 0; index < seats.length; index += 1) {
+    const state = await move(clients[index], room, seats[index], type, args);
+    await vi.waitFor(() => clients.forEach((socket) => expect(views.get(socket)!._stateID).toBe(state._stateID)));
+  }
+}
+
 beforeAll(async () => {
   directory = await mkdtemp(join(tmpdir(), 'boardgame-transport-'));
   app = await createApplication({
@@ -254,14 +261,14 @@ describe('Socket.IO 權限與資料邊界', () => {
   it('同版本重複送出的揭牌只生效一次', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
     const { room, seats, clients } = await fullGame();
-    for (let index = 0; index < seats.length; index += 1) {
-      const state = await move(clients[index], room, seats[index], 'acknowledge');
-      await vi.waitFor(() => clients.forEach((socket) => expect(views.get(socket)!._stateID).toBe(state._stateID)));
-    }
-    const { state } = await app.db.fetch(room.roomId, { state: true });
-    const G = state!.G as StationState;
+    await moveEach(room, seats, clients, 'acknowledge');
+    expect(views.get(clients[0])!.G.status).toBe('claiming');
+    await moveEach(room, seats, clients, 'declareRepairs', [0, 1]);
+    const G = (await app.db.fetch(room.roomId, { state: true })).state!.G as StationState;
     const entry = Object.entries(G.secret!.cards).find(([id, cards]) => id !== '0' && cards.includes('stable'))!;
-    const args = [entry[0], entry[1].indexOf('stable')];
+    const selected = await move(clients[0], room, seats[0], 'selectCard', [entry[0], entry[1].indexOf('stable')]);
+    const { state } = await app.db.fetch(room.roomId, { state: true });
+    const args = [entry[0], entry[1].indexOf('stable'), selected.G.pendingReveal!.selectionID];
     const action = movePacket(seats[0], 'reveal', args);
     clients[0].emit('update', action, state!._stateID, room.roomId, '0');
     clients[0].emit('update', action, state!._stateID, room.roomId, '0');
@@ -352,7 +359,8 @@ describe('Socket.IO 權限與資料邊界', () => {
     oldReconnect.on('sync', oldSynced);
     oldReconnect.emit('sync', room.roomId, '1', seats[1].credentials, 4);
     oldReconnect.emit('update', movePacket(seats[1], 'acknowledge'), initial._stateID, room.roomId, '1');
-    for (let index = 0; index < survivors.length; index++) await move(clients[index], room, survivors[index], 'acknowledge');
+    await moveEach(room, survivors, clients, 'acknowledge');
+    await moveEach(room, survivors, clients, 'declareRepairs', [0, 1]);
     // Avoid the hazard without depending on shuffled card order, and force the
     // last noncontiguous seat to act in this round.
     for (let reveal = 0; reveal < 4; reveal++) {
@@ -360,9 +368,15 @@ describe('Socket.IO 權限與資料邊界', () => {
       const actor = survivors.findIndex((seat) => seat.playerID === current.G.activePlayer);
       const entries = Object.entries(current.G.secret.cards) as [string, string[]][];
       const target = reveal === 0 ? entries.find(([id]) => id === '4')!
-        : entries.find(([id, cards]) => id !== current.G.activePlayer && cards.includes('stable'))!;
-      const slot = reveal === 0 ? target[1].findIndex((kind) => kind !== 'hazard') : target[1].indexOf('stable');
-      await move(clients[actor], room, survivors[actor], 'reveal', [target[0], slot]);
+        : entries.find(([id, cards]) => id !== current.G.activePlayer
+          && cards.some((kind, slot) => kind === 'stable' && current.G.publicCards[id][slot] === null))!;
+      const slot = target[1].findIndex((kind, slot) => current.G.publicCards[target[0]][slot] === null
+        && (reveal === 0 ? kind !== 'hazard' : kind === 'stable'));
+      const selected = await move(clients[actor], room, survivors[actor], 'selectCard', [target[0], slot]);
+      const revealed = await move(clients[actor], room, survivors[actor], 'reveal', [
+        target[0], slot, selected.G.pendingReveal!.selectionID,
+      ]);
+      await vi.waitFor(() => clients.forEach((socket) => expect(views.get(socket)!._stateID).toBe(revealed._stateID)));
     }
     const after = (await app.db.fetch(room.roomId, { state: true })).state!;
     expect(after.G).toMatchObject({ status: 'briefing', round: 2 });
@@ -370,7 +384,7 @@ describe('Socket.IO 權限與資料邊界', () => {
     expect(after.G.log.every((entry: any) => entry.actorID !== '1' && entry.targetID !== '1')).toBe(true);
     const replay = await app.db.fetchReplay(room.roomId);
     expect(replay.complete).toBe(true);
-    expect(replay.frames).toHaveLength(9);
+    expect(replay.frames).toHaveLength(17);
     for (const frame of replay.frames) expect(Object.keys(frame.G.players)).toEqual(['0', '2', '3', '4']);
     expect(oldUpdates).not.toHaveBeenCalled();
     expect(oldSynced).not.toHaveBeenCalled();

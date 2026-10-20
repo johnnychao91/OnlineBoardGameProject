@@ -3,7 +3,7 @@ export interface RoomInfo {
   roomId: string;
   matchID: string;
   gameName: string;
-  status: 'lobby' | 'briefing' | 'playing' | 'finished';
+  status: 'lobby' | 'briefing' | 'claiming' | 'playing' | 'finished';
   numPlayers: number;
   minPlayers: number;
   maxPlayers: number;

@@ -71,7 +71,7 @@ API 與網頁同源，正式環境使用 HTTPS；開發由 Vite 代理。POST �
 | `gameName` | 登錄的遊戲識別碼 |
 | `numPlayers` | 實際入座參與者數，開局後固定 |
 | `minPlayers`, `maxPlayers` | 遊戲人數範圍 |
-| `status` | `lobby`, `briefing`, `playing`, `finished` |
+| `status` | `lobby`, `briefing`, `claiming`, `playing`, `finished` |
 | `players` | 已入座者的 `id,name,isConnected,ready,membershipID`；無憑證，ID 可能缺號 |
 | `spectatorCount` | 已發行觀戰身份數，不代表在線人數 |
 | `godViewAllowed` | 本版 true；不授予進行中玩家觀戰權限 |
@@ -80,7 +80,7 @@ API 與網頁同源，正式環境使用 HTTPS；開發由 Vite 代理。POST �
 
 `perspective` 預設 `blind`，僅接受 `blind`、`god`。盲視角 `G.private` 為空且無 `secret`，角色在終局快照才公開。上帝視角有全部參與者的角色、設備組成與剩餘牌序；不含未發角色、亂數種子、metadata、plugins 或憑證。等待室尚未配發角色與設備，任何視角都沒有這些秘密。進行中的玩家以自己憑證呼叫 `/view` 回 403；本版無法阻止同一人持邀請另建觀戰身份，需依賴朋友間的信任約定。
 
-完整回放僅終局開放。`frames` 為 `{stateID:number,at:number,G:遊戲觀戰視角}` 陣列，含初始分配、確認、揭牌及各輪重新分配後的狀態。`at` 是伺服器記錄時間（毫秒），不是影片時間碼；無效操作、重複版本不新增一步。
+完整回放僅終局開放。`frames` 為 `{stateID:number,at:number,G:遊戲觀戰視角}` 陣列，含初始分配、確認、宣稱、預選／取消、揭牌及各輪重新分配後的狀態。`at` 是伺服器記錄時間（毫秒），不是影片時間碼；無效操作、重複版本不新增一步。
 
 `complete:false` 表示舊局缺歷史或正式對局版本不連續；終局 API 仍會回傳此標示與實際保存的片段，前端顯示無完整復盤，不能以片段假裝整局，也不能建立回放分享。既有 schema 1 對局及身份仍可載入，更新後從等待室開始的新局才重設為完整回放。
 
@@ -113,7 +113,23 @@ PNG 戰報由瀏覽器 canvas 產生，只取公開事件、暱稱與任務進�
 
 正式對局使用 boardgame.io client 的 `matchID,playerID,credentials`，同源 `/socket.io`、namespace `/space-station`。帶 Origin 時須符合允許來源；同源 polling 可不帶 Origin，仍須驗證席位。單一連線綁定一個席位。
 
-Socket 只接受白名單 `MAKE_MOVE`，強制拒絕 `startGame`（走 HTTP）、框架事件、聊天、undo、redo、reset、plugin。正式遊戲使用 `acknowledge` 與 `reveal`；保留 `setReady` 規則相容性，新等待室使用 HTTP。
+Socket 只接受白名單 `MAKE_MOVE`，強制拒絕 `startGame`（走 HTTP）、框架事件、聊天、undo、redo、reset、plugin。保留 `setReady` 規則相容性，新等待室使用 HTTP。
+
+太空維修站新局使用 `rulesVersion: 2`，正式操作如下：
+
+| 操作 | 參數與限制 |
+| --- | --- |
+| `acknowledge()` | `briefing` 階段確認自己的資訊；全員完成進入 `claiming` |
+| `declareRepairs(count, round)` | `claiming` 階段，整數 0～本輪起始手牌數，每人一次；必須帶當輪編號，允許同輪多人並行宣稱及與真實牌數不同，全員完成進入 `playing` |
+| `selectCard(targetID, slot)` | 目前剪線者預選別人的未翻牌，`slot` 為本輪固定的零起算牌位 |
+| `clearSelection()` | 目前剪線者取消公開預選 |
+| `reveal(targetID, slot, selectionID)` | 目前剪線者確認與伺服器 `pendingReveal` 完全一致的預選；過期／缺少識別值、已翻牌、自選均拒絕 |
+
+`G.publicCards[playerID]` 是本輪固定牌位的陣列，未翻為 `null`，已翻為設備種類；`cardCount` 只計剩餘暗牌。`G.players[playerID].claim` 是本輪起始時的公開宣稱，未提交為 `null`，不代表真實剩餘牌數。`G.pendingReveal` 包含 `actorID,targetID,slot,round,selectionID`，不帶暗牌種類；預選序號在同一局遞增，取消、換人、換輪或終局會清除預選。這些公開欄位會同步給其他玩家、觀戰及對應歷史步驟。
+
+玩家仍只收到自己的秘密陣營與剩餘組成。上帝視角的 `secret.cards` 在 v2 保留本輪完整固定牌序，配合 `publicCards` 區分已翻與未翻。舊局未帶 `rulesVersion` 時保留原本兩參數 `reveal`、緊縮牌列及確認後直接行動的流程；新版介面也能讀取其歷史，不會重寫舊回放。
+
+每個房間有自己的狀態、亂數種子、操作佇列與持久化檔案。玩家、觀戰及分享憑證都在指定房間內驗證，Socket 綁定一個房間的一個席位。全站戰績按設計彙整不同房間的已完成對局，各局只算一次。
 
 每 IP 的 `GET /api/rooms/:id` 與 `GET /api/rooms/:id/view` 共用獨立的 1200 次／分輪詢額度，其他 API 共用 240 次／分額度，避免同一 Wi-Fi 的房間輪詢占用操作額度。另有限制：統計 30 次／分、`join` 與 `watch` 合計 30 次／分、建房 12 次／10 分。這些請求頻率限制為單程序記憶體計數，重啟歸零。
 

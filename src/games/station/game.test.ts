@@ -5,6 +5,7 @@ import type { Game, State } from 'boardgame.io';
 import { StationGame, stationObserverView, stationPlayerView } from './game';
 import type { CardKind, Composition, StationSetupData, StationState } from './game';
 import { getGameDefinition, publicGameDefinitions } from '../registry';
+import { getCardSlots } from './view-model';
 
 function makeClient(numPlayers = 4, seed = 'station-test', game: Game<StationState> = StationGame) {
   // The non-networked reducer is the authoritative engine in these tests.
@@ -32,6 +33,10 @@ function acknowledgeAll(client: TestClient) {
   for (const id of Object.keys(raw(client).players)) {
     if (!raw(client).players[id].acknowledged) act(client, id, 'acknowledge');
   }
+  if (raw(client).rulesVersion === 2) {
+    expect(raw(client).status).toBe('claiming');
+    for (const id of Object.keys(raw(client).players)) act(client, id, 'declareRepairs', 0, raw(client).round);
+  }
   expect(raw(client).status).toBe('playing');
 }
 
@@ -46,7 +51,8 @@ function choose(client: TestClient, predicate: (kind: CardKind) => boolean) {
   const G = raw(client);
   for (const [targetID, cards] of Object.entries(G.secret!.cards)) {
     if (targetID === G.activePlayer) continue;
-    const slot = cards.findIndex(predicate);
+    const slot = cards.findIndex((kind, index) =>
+      (G.rulesVersion !== 2 || G.publicCards?.[targetID]?.[index] === null) && predicate(kind));
     if (slot >= 0) return { targetID, slot, kind: cards[slot] };
   }
   return undefined;
@@ -54,18 +60,38 @@ function choose(client: TestClient, predicate: (kind: CardKind) => boolean) {
 
 function revealChoice(client: TestClient, choice: ReturnType<typeof choose>) {
   if (!choice) throw new Error('Test could not find a legal target.');
-  act(client, raw(client).activePlayer!, 'reveal', choice.targetID, choice.slot);
+  const actorID = raw(client).activePlayer!;
+  if (raw(client).rulesVersion === 2) {
+    act(client, actorID, 'selectCard', choice.targetID, choice.slot);
+    act(client, actorID, 'reveal', choice.targetID, choice.slot, raw(client).pendingReveal?.selectionID);
+  } else {
+    act(client, actorID, 'reveal', choice.targetID, choice.slot);
+  }
 }
 
 function assertConservation(G: StationState, n: number) {
-  const remaining = Object.values(G.secret!.cards).flat();
+  const unexposed = Object.fromEntries(Object.entries(G.secret!.cards).map(([id, cards]) => [
+    id, G.rulesVersion === 2 ? cards.filter((_, slot) => G.publicCards?.[id]?.[slot] === null) : cards,
+  ]));
+  const remaining = Object.values(unexposed).flat();
   const all = counts([...remaining, ...G.log.map((entry) => entry.kind)]);
   expect(all).toEqual({ stable: 4 * n - 1, repair: n, hazard: 1 });
   expect(G.repairsFound).toBe(G.log.filter((entry) => entry.kind === 'repair').length);
-  for (const [id, cards] of Object.entries(G.secret!.cards)) {
+  for (const [id, cards] of Object.entries(unexposed)) {
     expect(G.players[id].cardCount).toBe(cards.length);
     expect(G.private[id].composition).toEqual(counts(cards));
   }
+}
+
+/** Simulates loading a persisted match written before the new rules existed. */
+function restoreLegacy(client: TestClient) {
+  const state = structuredClone(client.store.getState()) as State<StationState>;
+  delete state.G.rulesVersion;
+  delete state.G.publicCards;
+  delete state.G.pendingReveal;
+  delete state.G.selectionSequence;
+  for (const player of Object.values(state.G.players)) delete player.claim;
+  client.store.dispatch({ type: 'UPDATE', state, deltalog: [], clientOnly: true });
 }
 
 beforeEach(() => {
@@ -266,10 +292,12 @@ describe('操作驗證', () => {
     act(client, '2', 'acknowledge');
     expect(raw(client)).toEqual(partial);
     act(client, '3', 'acknowledge');
+    expect(raw(client).status).toBe('claiming');
+    for (const id of ['0', '1', '2', '3']) act(client, id, 'declareRepairs', 0, raw(client).round);
     expect(raw(client).status).toBe('playing');
   });
 
-  it('拒絕錯誤行動者、自己、非法座位與非法牌位置，合法揭牌只移除一張', () => {
+  it('拒絕錯誤行動者、自己、非法座位與非法牌位置，合法揭牌保留原位', () => {
     const client = makeClient();
     readyAndStart(client);
     acknowledgeAll(client);
@@ -287,6 +315,9 @@ describe('操作驗證', () => {
     expect(raw(client).log).toHaveLength(1);
     expect(raw(client).activePlayer).toBe(choice.targetID);
     expect(raw(client).players[choice.targetID].cardCount).toBe(4);
+    expect(raw(client).secret!.cards[choice.targetID]).toEqual(before.secret!.cards[choice.targetID]);
+    expect(raw(client).publicCards![choice.targetID]).toHaveLength(5);
+    expect(raw(client).publicCards![choice.targetID][choice.slot]).toBe(choice.kind);
     expect(raw(client).log[0]).toEqual({ round: 1, actorID: '0', ...choice });
     const after = structuredClone(raw(client));
     act(client, '0', 'reveal', choice.targetID, choice.slot);
@@ -337,6 +368,200 @@ describe('操作驗證', () => {
   });
 });
 
+describe('每輪公開宣稱與兩階段剪線', () => {
+  it.each([4, 5, 6, 7, 8])('%i 人必須全部確認並宣稱後才能選牌，宣稱可以說謊', (n) => {
+    const client = makeClient(n, `claim-${n}`);
+    readyAndStart(client);
+    expect(raw(client).rulesVersion).toBe(2);
+    const briefing = structuredClone(raw(client));
+    act(client, '0', 'declareRepairs', 0, raw(client).round);
+    act(client, '0', 'selectCard', '1', 0);
+    expect(raw(client)).toEqual(briefing);
+    for (const id of Object.keys(raw(client).players)) act(client, id, 'acknowledge');
+    expect(raw(client).status).toBe('claiming');
+    for (const id of Object.keys(raw(client).players)) {
+      const before = structuredClone(raw(client));
+      act(client, raw(client).activePlayer!, 'selectCard', '1', 0);
+      act(client, raw(client).activePlayer!, 'reveal', '1', 0, 1);
+      expect(raw(client)).toEqual(before);
+      // Every statement differs from the actual private repair-card count.
+      const claim = (raw(client).private[id].composition.repair + 1) % 6;
+      act(client, id, 'declareRepairs', claim, raw(client).round);
+      expect(raw(client).players[id].claim).toBe(claim);
+      expect(stationObserverView(raw(client), 'blind').players[id].claim).toBe(claim);
+      const after = structuredClone(raw(client));
+      act(client, id, 'declareRepairs', (claim + 1) % 6, raw(client).round);
+      expect(raw(client)).toEqual(after);
+    }
+    expect(raw(client).status).toBe('playing');
+    revealChoice(client, choose(client, (kind) => kind === 'stable'));
+    expect(raw(client).log).toHaveLength(1);
+  });
+
+  it('宣稱拒絕錯誤席位、非整數、負數與超過當輪手牌數，接受 0 與上限', () => {
+    const client = makeClient();
+    readyAndStart(client);
+    for (const id of Object.keys(raw(client).players)) act(client, id, 'acknowledge');
+    const before = structuredClone(raw(client));
+    for (const value of [-1, 6, 1.5, '2', null, undefined, NaN, Infinity, {}, true]) {
+      act(client, '0', 'declareRepairs', value, raw(client).round);
+    }
+    for (const id of ['99', '__proto__', 'constructor']) act(client, id, 'declareRepairs', 0, raw(client).round);
+    expect(raw(client)).toEqual(before);
+    act(client, '0', 'declareRepairs', 0, raw(client).round);
+    act(client, '1', 'declareRepairs', 5, raw(client).round);
+    expect(raw(client).players['0'].claim).toBe(0);
+    expect(raw(client).players['1'].claim).toBe(5);
+    expect(raw(client).status).toBe('claiming');
+  });
+
+  it('宣稱必須帶有效當輪編號，沒有編號或其他輪次不會消耗提交機會', () => {
+    const client = makeClient();
+    readyAndStart(client);
+    for (const id of Object.keys(raw(client).players)) act(client, id, 'acknowledge');
+    const before = structuredClone(raw(client));
+    for (const round of [undefined, null, '1', 0, 2, -1, 1.5, NaN, Infinity, {}, true]) {
+      act(client, '0', 'declareRepairs', 0, round);
+    }
+    expect(raw(client)).toEqual(before);
+    act(client, '0', 'declareRepairs', 0, 1);
+    expect(raw(client).players['0'].claim).toBe(0);
+  });
+
+  it('選牌公開給所有視角但不先翻牌；視圖拷貝不洩漏額外資料也不改伺服器', () => {
+    const client = makeClient();
+    readyAndStart(client);
+    acknowledgeAll(client);
+    const choice = choose(client, (kind) => kind === 'stable')!;
+    act(client, '0', 'selectCard', choice.targetID, choice.slot);
+    const G = structuredClone(raw(client));
+    Object.assign(G.pendingReveal!, { secretKind: choice.kind, credentials: 'hidden-selection' });
+    G.publicCards!.unseated = ['hazard'];
+    Object.assign(G.publicCards![choice.targetID], { privateSeed: 'hidden-array-field' });
+    Object.assign(G.players['0'], { hidden: 'hidden-claim-field' });
+    const before = structuredClone(G);
+    expect(G.log).toEqual([]);
+    expect(G.players[choice.targetID].cardCount).toBe(5);
+    for (const viewer of ['0', '1', '2', '3', null]) {
+      const view = stationPlayerView({ G, playerID: viewer });
+      expect(view.pendingReveal).toEqual({
+        actorID: '0', targetID: choice.targetID, slot: choice.slot, round: 1, selectionID: 1,
+      });
+      expect(view.publicCards![choice.targetID][choice.slot]).toBeNull();
+      expect(view).not.toHaveProperty('secret');
+      expect(JSON.stringify(view)).not.toMatch(/secretKind|credentials|hidden|unseated|privateSeed/);
+      view.publicCards![choice.targetID][choice.slot] = 'hazard';
+      view.pendingReveal!.slot = 99;
+      view.players['0'].claim = 99;
+      expect(G).toEqual(before);
+    }
+    expect(stationObserverView(G, 'god').secret!.cards[choice.targetID][choice.slot]).toBe(choice.kind);
+  });
+
+  it('只准剪線者選別人的暗牌，預選本身不能移走牌或改行動權', () => {
+    const client = makeClient();
+    readyAndStart(client);
+    acknowledgeAll(client);
+    const before = structuredClone(raw(client));
+    act(client, '1', 'selectCard', '2', 0);
+    for (const target of ['0', '99', '__proto__', 'constructor', 1, null]) {
+      act(client, '0', 'selectCard', target, 0);
+    }
+    for (const slot of [-1, 5, 0.5, NaN, Infinity, '0', null]) {
+      act(client, '0', 'selectCard', '1', slot);
+    }
+    act(client, '0', 'reveal', '1', 0);
+    act(client, '0', 'reveal', '1', 0, 1);
+    expect(raw(client)).toEqual(before);
+    act(client, '0', 'selectCard', '1', 0);
+    expect(raw(client)).toMatchObject({ activePlayer: '0', selectionSequence: 1, log: [],
+      pendingReveal: { actorID: '0', targetID: '1', slot: 0, round: 1, selectionID: 1 } });
+    expect(raw(client).secret).toEqual(before.secret);
+    expect(raw(client).publicCards).toEqual(before.publicCards);
+    expect(raw(client).players).toEqual(before.players);
+  });
+
+  it('重選與取消會使舊確認失效，只有當前剪線者能確認最新預選', () => {
+    const client = makeClient();
+    readyAndStart(client);
+    acknowledgeAll(client);
+    const choice = choose(client, (kind) => kind === 'stable')!;
+    act(client, '0', 'selectCard', choice.targetID, choice.slot);
+    const firstID = raw(client).pendingReveal!.selectionID;
+    const otherSlot = (choice.slot + 1) % 5;
+    act(client, '0', 'selectCard', choice.targetID, otherSlot);
+    const secondID = raw(client).pendingReveal!.selectionID;
+    expect(secondID).toBeGreaterThan(firstID);
+    act(client, '0', 'selectCard', choice.targetID, choice.slot);
+    const thirdID = raw(client).pendingReveal!.selectionID;
+    expect(thirdID).toBeGreaterThan(secondID);
+    const pending = structuredClone(raw(client));
+    for (const staleID of [undefined, firstID, secondID, 0, -1, '3', NaN, Infinity, 3.5]) {
+      act(client, '0', 'reveal', choice.targetID, choice.slot, staleID);
+    }
+    act(client, '0', 'reveal', choice.targetID, otherSlot, thirdID);
+    act(client, '0', 'reveal', '0', choice.slot, thirdID);
+    act(client, '1', 'reveal', choice.targetID, choice.slot, thirdID);
+    act(client, '1', 'clearSelection');
+    expect(raw(client)).toEqual(pending);
+    act(client, '0', 'clearSelection');
+    expect(raw(client).pendingReveal).toBeNull();
+    const canceled = structuredClone(raw(client));
+    act(client, '0', 'reveal', choice.targetID, choice.slot, thirdID);
+    expect(raw(client)).toEqual(canceled);
+    act(client, '0', 'selectCard', choice.targetID, choice.slot);
+    const finalID = raw(client).pendingReveal!.selectionID;
+    expect(finalID).toBeGreaterThan(thirdID);
+    act(client, '0', 'reveal', choice.targetID, choice.slot, finalID);
+    expect(raw(client).pendingReveal).toBeNull();
+    expect(raw(client).publicCards![choice.targetID][choice.slot]).toBe('stable');
+    const after = structuredClone(raw(client));
+    act(client, '0', 'reveal', choice.targetID, choice.slot, finalID);
+    expect(raw(client)).toEqual(after);
+    revealChoice(client, choose(client, (kind) => kind === 'stable'));
+    const next = structuredClone(raw(client));
+    act(client, raw(client).activePlayer!, 'selectCard', choice.targetID, choice.slot);
+    expect(raw(client)).toEqual(next);
+  });
+
+  it('下一輪只重發尚未揭牌，重設宣稱與公開牌位，跨輪舊確認無效', () => {
+    const client = makeClient();
+    readyAndStart(client);
+    acknowledgeAll(client);
+    const revealed: CardKind[] = [];
+    for (let i = 0; i < 4; i += 1) {
+      const choice = choose(client, (kind) => kind === 'stable')!;
+      revealed.push(choice.kind);
+      revealChoice(client, choice);
+    }
+    const G = raw(client);
+    expect(G).toMatchObject({ round: 2, status: 'briefing', pendingReveal: null, selectionSequence: 4 });
+    expect(Object.values(G.publicCards!).every((cards) =>
+      cards.length === 4 && cards.every((kind) => kind === null))).toBe(true);
+    expect(Object.values(G.players).every((player) => player.claim === null && player.cardCount === 4)).toBe(true);
+    expect(Object.values(G.secret!.cards).flat()).toHaveLength(16);
+    expect(counts([...Object.values(G.secret!.cards).flat(), ...revealed])).toEqual({
+      stable: 15, repair: 4, hazard: 1,
+    });
+    for (const id of Object.keys(G.players)) act(client, id, 'acknowledge');
+    const before = structuredClone(raw(client));
+    act(client, '0', 'declareRepairs', 5, raw(client).round);
+    act(client, '0', 'declareRepairs', 4, 1);
+    expect(raw(client)).toEqual(before);
+    for (const id of Object.keys(G.players)) act(client, id, 'declareRepairs', 4, raw(client).round);
+    const choice = choose(client, (kind) => kind === 'stable')!;
+    const actor = raw(client).activePlayer!;
+    act(client, actor, 'selectCard', choice.targetID, choice.slot);
+    expect(raw(client).pendingReveal).toMatchObject({ selectionID: 5, round: 2 });
+    const selected = structuredClone(raw(client));
+    act(client, actor, 'reveal', choice.targetID, choice.slot, 4);
+    expect(raw(client)).toEqual(selected);
+    act(client, actor, 'reveal', choice.targetID, choice.slot, 5);
+    expect(raw(client).log).toHaveLength(5);
+    assertConservation(raw(client), 4);
+  });
+});
+
 describe('輪次與勝負', () => {
   it.each([4, 5, 6, 7, 8])('%i 人局四輪分牌守恆，第四輪超時才判干擾者勝', (n) => {
     const client = makeClient(n, `rounds-${n}`);
@@ -346,6 +571,9 @@ describe('輪次與勝負', () => {
       expect(raw(client).status).toBe('briefing');
       expect(Object.values(raw(client).players).every((p) => p.cardCount === 6 - round)).toBe(true);
       expect(Object.values(raw(client).players).every((p) => !p.acknowledged)).toBe(true);
+      expect(Object.values(raw(client).players).every((p) => p.claim === null)).toBe(true);
+      expect(Object.values(raw(client).publicCards!).every((cards) =>
+        cards.length === 6 - round && cards.every((kind) => kind === null))).toBe(true);
       acknowledgeAll(client);
       for (let index = 0; index < n; index += 1) {
         const repairsFound = raw(client).repairsFound;
@@ -377,6 +605,9 @@ describe('輪次與勝負', () => {
     }
     revealChoice(client, choose(client, (kind) => kind === 'hazard'));
     expect(raw(client)).toMatchObject({ status: 'finished', winner: 'saboteur', winReason: 'hazard' });
+    expect(raw(client).pendingReveal).toBeNull();
+    const last = raw(client).log.at(-1)!;
+    expect(raw(client).publicCards![last.targetID][last.slot]).toBe('hazard');
     for (const [id, player] of Object.entries(raw(client).players)) {
       expect(player.revealedRole).toBe(raw(client).private[id].role);
     }
@@ -413,10 +644,66 @@ describe('輪次與勝負', () => {
     state.G.repairsFound = 3;
     state.G.activePlayer = '0';
     state.G.secret!.cards['1'] = ['repair'];
+    state.G.publicCards!['1'] = [null];
     state.G.players['1'].cardCount = 1;
     state.G.private['1'].composition = { stable: 0, repair: 1, hazard: 0 };
     client.store.dispatch({ type: 'UPDATE', state, deltalog: [], clientOnly: true });
-    act(client, '0', 'reveal', '1', 0);
+    revealChoice(client, { targetID: '1', slot: 0, kind: 'repair' });
     expect(raw(client)).toMatchObject({ status: 'finished', winner: 'engineer', winReason: 'all-repairs', repairsFound: 4 });
+  });
+});
+
+describe('既有房間與回放的規則相容', () => {
+  it.each([4, 5, 6, 7, 8])('載入舊 %i 人局仍使用確認後直接剪線與原 compact 牌位', (n) => {
+    const client = makeClient(n, `legacy-${n}`);
+    restoreLegacy(client);
+    readyAndStart(client);
+    for (let round = 1; round <= 4; round += 1) {
+      const briefing = structuredClone(raw(client));
+      act(client, '0', 'declareRepairs', 0, raw(client).round);
+      act(client, '0', 'selectCard', '1', 0);
+      expect(raw(client)).toEqual(briefing);
+      acknowledgeAll(client);
+      expect(raw(client).status).toBe('playing');
+      for (let i = 0; i < n; i += 1) {
+        const G = raw(client);
+        const choice = choose(client, (kind) => kind === 'stable')
+          ?? choose(client, (kind) => kind === 'repair' && G.repairsFound < n - 1);
+        if (!choice) throw new Error('Missing a legacy test target.');
+        const hand = [...G.secret!.cards[choice.targetID]];
+        revealChoice(client, choice);
+        if (raw(client).round === round) {
+          hand.splice(choice.slot, 1);
+          expect(raw(client).secret!.cards[choice.targetID]).toEqual(hand);
+          expect(getCardSlots(raw(client), choice.targetID)).toEqual(
+            hand.map((_, slot) => ({ slot, kind: null })),
+          );
+        }
+        assertConservation(raw(client), n);
+        const view = stationObserverView(raw(client), 'blind');
+        for (const key of ['rulesVersion', 'publicCards', 'pendingReveal', 'selectionSequence']) {
+          expect(raw(client)).not.toHaveProperty(key);
+          expect(view).not.toHaveProperty(key);
+        }
+        expect(Object.values(view.players).every((player) => !('claim' in player))).toBe(true);
+      }
+    }
+    expect(raw(client)).toMatchObject({ status: 'finished', winner: 'saboteur', winReason: 'round-limit' });
+  });
+
+  it('舊回放保留原狀且 blind 與 god 視角維持原本資訊邊界', () => {
+    const client = makeClient();
+    restoreLegacy(client);
+    readyAndStart(client);
+    acknowledgeAll(client);
+    revealChoice(client, choose(client, (kind) => kind === 'stable'));
+    const snapshot = structuredClone(raw(client));
+    const blind = stationObserverView(snapshot, 'blind');
+    const god = stationObserverView(snapshot, 'god');
+    expect(blind).not.toHaveProperty('secret');
+    expect(blind).not.toHaveProperty('publicCards');
+    expect(god.secret).toEqual({ cards: snapshot.secret!.cards });
+    expect(god.log).toEqual(snapshot.log);
+    expect(snapshot).toEqual(raw(client));
   });
 });

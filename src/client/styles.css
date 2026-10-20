@@ -12,3 +12,78 @@
 
 /* Room management and optional creation-password storage. */
 .key-details .remember-key{display:flex;align-items:center;gap:10px;min-height:44px;cursor:pointer}.remember-key input{width:20px;height:20px;min-height:20px;margin:0;padding:0;accent-color:var(--mint);flex-shrink:0}.remove-player{min-height:44px;min-width:44px;padding:8px;border:1px solid #795263;background:#392535;border-radius:9px;color:var(--danger);font-size:12px;flex-shrink:0}.remove-player:disabled{opacity:.45}.button.danger{background:#f3acb9;color:#3b1320}.roster-row>div:not(.avatar){min-width:0}.roster-row strong{overflow-wrap:anywhere}.roster-row .ready-pill{flex-shrink:0}@media(max-width:400px){.roster-row{gap:8px;flex-wrap:wrap}.roster-row .ready-pill{padding:4px 6px}.roster-row>div{flex:1}.roster-row .remove-player{margin-left:auto}}
+
+/* Keep the turn owner and chosen equipment legible on a narrow phone screen. */
+.station-turn-notice{position:sticky;top:8px;z-index:4;margin:18px 0;padding:18px 20px;border:2px solid #7a93b7;border-radius:15px;background:#192d49;box-shadow:0 8px 24px #02071266;align-items:center}
+.station-turn-notice.your-turn{background:#123b35;border-color:var(--mint);box-shadow:0 8px 24px #02071266,inset 4px 0 var(--mint)}
+.station-turn-notice strong{font-size:19px;line-height:1.5;overflow-wrap:anywhere}
+.station-turn-notice p{font-size:12px;margin:5px 0 0;line-height:1.7;color:#d2dfef}
+.station-turn-notice .turn-symbol{display:grid;place-items:center;flex-shrink:0;width:40px;height:40px;border:1px solid #91add3;border-radius:50%;color:#d4e4fc}
+.station-turn-notice.your-turn .turn-symbol{background:var(--mint);border-color:var(--mint);color:#0c2928}
+.station-table .player-modules.active-player{border:2px solid #85b2ee;background:#1b304c;box-shadow:inset 4px 0 #85b2ee}
+.station-table .active-player .avatar{border:2px solid #a8cafd}
+.station-table .actor-tag{display:inline-flex;align-items:center;gap:4px;background:#d6e7ff;color:#142a48;border-radius:5px;padding:3px 7px;font-size:11px;font-weight:750}
+.station-table .module-player{flex-wrap:wrap}
+.station-table .module-player>strong{min-width:0;overflow-wrap:anywhere}
+.station-table .remaining{white-space:nowrap}
+.station-table .module-cards{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
+.station-table .station-card{position:relative;width:auto;min-width:0;min-height:108px;padding:10px 4px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;border-radius:9px}
+.station-card .slot-number{position:static;line-height:1;font-size:10px;font-weight:700}
+.station-card strong{font-size:11px;font-weight:650;line-height:1.5;text-align:center;word-break:normal;overflow-wrap:anywhere}
+.station-card .card-state-label{position:static;font-size:10px;line-height:1.4;letter-spacing:0}
+.station-table .station-card:disabled{opacity:1;color:#b3c5df}
+.station-table .station-card:not(.readonly-card):not(:disabled):hover{border-color:var(--mint);background:#27463f}
+.station-table .station-card.face-stable{background:#2b3b53;border-color:#6b83a2;color:#e0eaf7}
+.station-table .station-card.face-repair{background:#194b40;border-color:#79d9b9;color:#b4ffe3}
+.station-table .station-card.face-hazard{background:#624225;border-color:#f1bd72;color:#ffe1af}
+.station-table .revealed-card{border-style:solid}
+.station-table .revealed-card .card-state-label{background:#06132670;padding:2px 5px;border-radius:4px;font-weight:700}
+.station-table .station-card.selected-card,.station-table .station-card.selected-card:disabled{border:3px solid #ffe09a;background:#594326;color:#ffe6ad;box-shadow:0 0 0 2px #c48e4233}
+.station-table .station-card.selected-card:not(:disabled):hover{border-color:#ffe09a;background:#594326;color:#ffe6ad}
+.station-table .selected-card .card-state-label{background:#ffe09a;color:#3d2b0d;font-weight:800;padding:2px 5px;border-radius:4px}
+.pending-announcement:empty{display:none}
+.pending-announcement>p{display:flex;align-items:flex-start;gap:9px;padding:13px 15px;margin:0 0 16px;background:#443822;border:1px solid #b28e54;border-radius:11px;font-size:13px;color:#ffe4b6}
+.pending-announcement>p>svg{margin-top:3px}
+.pending-announcement small{display:block;font-size:11px;color:#e4cfa9;margin-top:4px}
+.selection-feedback{font-size:12px;color:var(--amber);line-height:1.8}
+.selection-feedback:not(:empty){padding:0 1px 14px}
+.public-claim{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12px;margin:0 0 12px;color:#d9e5f5}
+.public-claim strong{color:var(--mint)}
+.public-claim small{font-size:10px;color:var(--muted)}
+.public-claim.unclaimed{color:var(--muted);font-size:11px}
+.possible-roles{border-top:1px solid #9fc2d340;border-bottom:1px solid #9fc2d340;padding:12px 0;margin:12px 0}
+.role-card .possible-roles>span{font-size:11px;display:block;margin-bottom:6px;color:#d2deed}
+.role-card .possible-roles p{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:13px;margin:3px 0;color:#ecf2fc}
+.possible-roles small{display:block;font-size:10px;line-height:1.7;color:#d2deed;margin-top:7px}
+.claim-options{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:20px 0 17px}
+.claim-options button{display:flex;align-items:baseline;justify-content:center;gap:6px;min-height:62px;padding:10px;border:1px solid #709688;border-radius:10px;background:#244239;font-size:26px;font-weight:750;color:#b5ffe4}
+.claim-options button:hover:not(:disabled){background:#345d50;border-color:var(--mint)}
+.claim-options button:disabled{opacity:.45}
+.claim-options small{font-size:11px;font-weight:500}
+.claim-dialog .claim-secret{display:flex;flex-wrap:wrap;align-items:center;gap:7px;background:#17332f;border:1px solid #456c60;border-radius:10px;padding:12px;color:#b5ead8;font-size:12px}
+.claim-submitted{display:flex;gap:9px;align-items:center;color:var(--mint);font-size:13px;line-height:1.8}
+.results>.station-table{text-align:left;margin:28px 0}
+.results>.station-table .observer-role{display:none}
+@media(max-width:700px){
+  .station-turn-notice{top:5px;padding:14px 12px;margin:16px 0;gap:10px}
+  .station-turn-notice strong{font-size:16px}
+  .station-turn-notice p{font-size:11px}
+  .station-turn-notice .turn-symbol{height:32px;width:32px}
+  .station-turn-notice .turn-symbol svg{width:20px}
+  .station-table .module-cards{gap:5px}
+  .station-table .station-card{min-height:100px;padding:8px 2px;gap:6px;border-radius:7px}
+  .station-card strong{font-size:10px;line-height:1.45}
+  .station-card .slot-number,.station-card .card-state-label{font-size:9px}
+  .station-table .station-card .card-state-label{white-space:nowrap;padding-left:2px;padding-right:2px}
+  .station-table .actor-tag{font-size:10px;padding:3px 6px}
+  .station-table .remaining{font-size:10px}
+  .station-table .section-heading{align-items:flex-start;gap:12px}
+  .station-table .section-heading>span{max-width:120px;text-align:right;line-height:1.6}
+  .pending-announcement>p{font-size:12px;padding:12px}
+  .public-claim{font-size:11px;gap:6px}
+  .claim-dialog{max-height:calc(100dvh - 32px);overflow:auto}
+  .claim-dialog .claim-secret{font-size:12px}
+  .claim-options{gap:8px}
+  .claim-options button{min-height:58px}
+}
+@media(prefers-reduced-motion:reduce){.station-turn-notice,.station-card{animation:none;transition:none}}

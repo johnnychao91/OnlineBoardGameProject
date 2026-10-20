@@ -166,7 +166,7 @@ export async function createReplayPoster({ G, players, step, totalSteps }: Repla
   text(ctx, '精彩操作', 72, 222, 28, COLORS.muted, 600);
   pill(ctx, round > 0 ? `第 ${round} 輪` : '任務準備', 72, 270, 155);
   pill(ctx, `復盤 ${String(position).padStart(2, '0')} / ${String(total).padStart(2, '0')} 步`, 243, 270, 304);
-  const status = G.status === 'finished' ? '任務結束' : G.status === 'briefing' ? '情報確認'
+  const status = G.status === 'finished' ? '任務結束' : G.status === 'claiming' ? '公開宣稱' : G.status === 'briefing' ? '情報確認'
     : G.status === 'playing' ? '行動中' : '等待出發';
   pill(ctx, status, 563, 270, 164, G.status === 'finished' ? COLORS.amber : COLORS.muted);
 
@@ -195,10 +195,13 @@ export async function createReplayPoster({ G, players, step, totalSteps }: Repla
     wrapped(ctx, card.detail, 220, 698, 720, 20, 27, 1, COLORS.muted);
   } else {
     text(ctx, '開局時刻', 100, 407, 21, COLORS.mint, 650);
-    const headline = G.status === 'briefing' ? '確認你的設備情報'
+    const headline = G.status === 'claiming' ? '這一輪，你會怎麼宣稱？'
+      : G.status === 'briefing' ? '確認你的設備情報'
       : G.status === 'playing' ? '全員就位，準備出發' : '任務即將展開';
     wrapped(ctx, headline, 100, 492, 840, 47, 62, 2, COLORS.ink, 700);
-    const introduction = G.status === 'briefing'
+    const introduction = G.status === 'claiming'
+      ? '每位隊員公開宣稱好引線數量。這是玩家的說法，並非已驗證的牌面。'
+      : G.status === 'briefing'
       ? '每個人都掌握一部分線索。確認資訊後，任務開始。'
       : G.status === 'playing' ? '第一位玩家即將選擇設備，讓這場太空任務開始。'
         : '等待夥伴就位，一起決定太空站的下一步。';
