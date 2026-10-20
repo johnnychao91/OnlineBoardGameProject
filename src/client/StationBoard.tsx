@@ -5,6 +5,7 @@ import { isPlayer } from './api';
 import { RoomContext } from './room-context';
 import { Icon } from './ui';
 import { BattleReport } from './BattleReport';
+import { StationSoundToggle, useStationSounds } from './station-sounds';
 import { cardNames, initials, MissionProgress, roleNames, RoundRevealList, StationTable, TurnNotice } from './StationTable';
 
 export { cardNames, initials, roleNames } from './StationTable';
@@ -40,6 +41,7 @@ export function StationBoard({ G, playerID, moves, isConnected }: BoardProps) {
   };
   const myTurn = G.status === 'playing' && G.activePlayer === id;
   const canAct = isConnected !== false;
+  const sounds = useStationSounds({ G, matchID: info.matchID, playerID: id, connected: canAct });
   const version2 = (G.rulesVersion ?? 1) >= 2;
   const pending = G.pendingReveal;
   const needsClaim = G.status === 'claiming' && !!own && own.claim == null;
@@ -158,7 +160,7 @@ export function StationBoard({ G, playerID, moves, isConnected }: BoardProps) {
       <section className="game-main">
         <div className="game-title">
           <div><div className="eyebrow">SPACE MAINTENANCE</div><h1>太空維修站</h1></div>
-          <span className="round-badge">第 <strong>{G.round}</strong> / 4 輪</span>
+          <div className="station-title-actions"><StationSoundToggle controls={sounds} /><span className="round-badge">第 <strong>{G.round}</strong> / 4 輪</span></div>
         </div>
         <MissionProgress G={G} numPlayers={info.numPlayers} />
         <TurnNotice G={G} nameOf={nameOf} ownID={id} />

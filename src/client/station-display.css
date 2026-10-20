@@ -39,6 +39,11 @@
 .station-room-menu { margin: 10px 0; }
 .station-room-menu > summary { min-height: 40px; padding: 8px 12px; border: 1px solid #4b637f; border-radius: 9px; font-size: 12px; cursor: pointer; color: #d5e4f5; }
 .station-room-menu-content { padding: 0 2px; }
+.station-title-actions, .observer-controls { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.station-live .game-title { flex-wrap: wrap; }
+.station-sound-toggle { border: 1px solid #4b637f; border-radius: 8px; background: #17243a; color: #d5e4f5; font-size: 11px; min-height: 44px; padding: 7px 10px; white-space: nowrap; }
+.station-sound-toggle[aria-pressed="true"] { border-color: #6aab9c; color: var(--mint); }
+.station-sound-toggle:disabled { color: var(--muted); }
 
 @media (max-width: 1099px), (max-height: 699px) {
   .game-layout.station-live { display: flex; flex-direction: column; gap: 0; }
@@ -88,6 +93,7 @@
   .station-active-room .station-live .game-aside,
   .station-active-room .station-snapshot-live > aside { min-height: 0; min-width: 0; padding: 0; display: flex; flex-direction: column; gap: 9px; }
   .station-active-room .game-title { min-height: 32px; margin: 0; }
+  .station-active-room .station-sound-toggle { min-height: 28px; padding: 4px 8px; font-size: 10px; }
   .station-active-room .game-title h1 { font-size: 22px; }
   .station-active-room .game-title .eyebrow { display: none; }
   .station-active-room .round-badge { padding: 3px 9px; font-size: 10px; }

@@ -155,7 +155,9 @@ function beginGame(G: StationState, random: RandomAPI): void {
     };
   });
   G.round = 1;
-  G.activePlayer = ids[0];
+  // Choose once from this match's actual seats using the persisted game RNG.
+  // Legacy rules keep their historical opener; later rounds keep the last target.
+  G.activePlayer = G.rulesVersion === 3 ? random.Shuffle(ids)[0] : ids[0];
   const deck: CardKind[] = [
     ...Array<CardKind>(4 * ids.length - 1).fill('stable'),
     ...Array<CardKind>(ids.length).fill('repair'),
