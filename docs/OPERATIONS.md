@@ -4,25 +4,27 @@
 
 本文 `example.com` 及其子網域都是示範值。執行時在私人終端機替換為自己的網址；不要把真實站點、私有設定、備份或操作紀錄寫回公開 Git。主機上的 `/etc` 配置與 `/var/lib` 資料獨立於版本庫。
 
+**本文件適用於 `boardgame.service` 與 `/opt/boardgame`。** 若主機仍使用舊平台名稱，先完成 [平台名稱遷移](MIGRATION.md)；一般更新腳本不會替你改名或搬移資料。
+
 | 項目 | 本文件使用的設定 |
 | --- | --- |
 | 遊戲網址 | `https://boardgame.example.com` |
 | 原有主網站 | `https://example.com`，保留原有設定 |
-| 程式與 Git 儲存庫 | `/opt/space-station`，由 SSH 部署帳號擁有 |
+| 程式與 Git 儲存庫 | `/opt/boardgame`，由 SSH 部署帳號擁有 |
 | Node.js 24 | `/opt/node24/bin/node` |
-| 私有環境設定 | `/etc/space-station.env` |
-| 正式遊戲資料 | `/var/lib/space-station` |
-| 服務設定 | `/etc/systemd/system/space-station.service` |
+| 私有環境設定 | `/etc/boardgame.env` |
+| 正式遊戲資料 | `/var/lib/boardgame` |
+| 服務設定 | `/etc/systemd/system/boardgame.service` |
 | Apache 遊戲站設定 | 以主機實際檔名為準；以下透過 `--apache-config` 指定 |
-| ACME 驗證目錄 | `/var/www/space-station-acme` |
-| 本機備份 | `/var/backups/space-station`，僅 root 可讀 |
+| ACME 驗證目錄 | `/var/www/boardgame-acme` |
+| 本機備份 | `/var/backups/boardgame`，僅 root 可讀 |
 
 日常執行 Git、npm、測試與建置時使用部署帳號，不要加 `sudo`。只有服務管理、私有資料、設定檔與備份需要 `sudo`。正式服務只執行一份，請勿再以 `npm start` 或其他工具啟動第二個程序共用資料目錄。
 
 ## 1. 先確認服務狀況
 
 ```bash
-sudo systemctl status space-station --no-pager
+sudo systemctl status boardgame --no-pager
 curl --fail --silent --show-error --retry 10 --retry-connrefused --retry-delay 1 --max-time 5 http://127.0.0.1:3001/api/health
 curl --fail --silent --show-error --retry 10 --retry-connrefused --retry-delay 1 --max-time 5 https://boardgame.example.com/api/health
 ```
@@ -33,27 +35,27 @@ curl --fail --silent --show-error --retry 10 --retry-connrefused --retry-delay 1
 
 先與朋友約定維護時間，最好等所有對局結束。備份期間遊戲會暫時無法連線。回放、全站統計與已發出的邀請／回放授權都來自遊戲資料，必須一起保存。
 
-先確認 Apache 遊戲站的實際檔名。它可以使用自訂檔名，不需要為了更新而改名；`space-station.conf` 只是初次部署文件的範例。以下設定只在私人 SSH 終端機輸入：
+先確認 Apache 遊戲站的實際檔名。它可以使用自訂檔名，不需要為了更新而改名；`boardgame.conf` 只是初次部署文件的範例。以下設定只在私人 SSH 終端機輸入：
 
 ```bash
-read -r -p 'Apache 遊戲站設定的完整路徑：' station_apache_config
-sudo test -s "$station_apache_config"
-cd /opt/space-station
-bash deploy/backup.sh --apache-config "$station_apache_config"
+read -r -p 'Apache 遊戲站設定的完整路徑：' boardgame_apache_config
+sudo test -s "$boardgame_apache_config"
+cd /opt/boardgame
+bash deploy/backup.sh --apache-config "$boardgame_apache_config"
 ```
 
 [備份腳本](../deploy/backup.sh) 在停服前先確認設定檔與資料存在、記錄 Git 版本及 Apache 實際路徑。通過乾淨停服檢查後，備份資料並驗證雜湊。**原本正在執行的服務，完成後會自動重新啟動；備份中途失敗也會嘗試恢復服務。** 原本已停止的服務則維持停止。更新腳本會使用 `--keep-stopped`，讓成功的備份接續啟用新版；一般備份不用加這個參數。
 
 請記下 `Backup verified` 後的完整備份路徑。時間戳記使用 UTC，與臺灣時間相差 8 小時。`SHA256SUMS` 用於偵測備份損壞；它不是來源簽章，只還原你自己管理、可信任的備份。
 
-任何步驟報錯都先停止後續更新。若停止服務逾時、`Result` 不是 `success`，查看 `sudo journalctl -u space-station -n 100 --no-pager`，不要把那次資料宣稱為乾淨的一致性備份。備份中途磁碟滿或壓縮失敗時，留下的目錄也不能當成成功備份；須有完整檔案且雜湊驗證通過。腳本無法保證在停電、磁碟故障或被強制終止時恢復服務；中斷後請檢查：
+任何步驟報錯都先停止後續更新。若停止服務逾時、`Result` 不是 `success`，查看 `sudo journalctl -u boardgame -n 100 --no-pager`，不要把那次資料宣稱為乾淨的一致性備份。備份中途磁碟滿或壓縮失敗時，留下的目錄也不能當成成功備份；須有完整檔案且雜湊驗證通過。腳本無法保證在停電、磁碟故障或被強制終止時恢復服務；中斷後請檢查：
 
 ```bash
-sudo systemctl status space-station --no-pager
+sudo systemctl status boardgame --no-pager
 curl --fail --silent --show-error --retry 10 --retry-connrefused --retry-delay 1 --max-time 5 http://127.0.0.1:3001/api/health
 ```
 
-備份會包含已存在的 `space-station-reload-apache`／`space-station-apache` 憑證續期 hook。自訂其他名稱的 hook、憑證與其他主機設定請另外納入你原有的系統備份。備份不包含 Node 安裝檔、`node_modules`、建置產物或 HTTPS 私鑰；程式可按記錄的提交版本重新取得及建置。ACME 驗證目錄不是遊戲資料。
+備份會包含已存在的 `boardgame-reload-apache`／`boardgame-apache` 憑證續期 hook。自訂其他名稱的 hook、憑證與其他主機設定請另外納入你原有的系統備份。備份不包含 Node 安裝檔、`node_modules`、建置產物或 HTTPS 私鑰；程式可按記錄的提交版本重新取得及建置。ACME 驗證目錄不是遊戲資料。
 
 ### 備份保存方式
 
@@ -67,27 +69,27 @@ curl --fail --silent --show-error --retry 10 --retry-connrefused --retry-delay 1
 
 先等所有對局結束，保留足夠磁碟空間容納一份新程式、套件、舊建置與資料備份。下列流程適用本文件的標準目錄、Node 24 與 systemd 服務，使用既有 `origin/main`，只接受 fast-forward 更新。執行前應確認要部署的提交已推上 GitHub 且 CI 通過。
 
-第一次升級到提供此腳本的版本時，舊 clone 還沒有 `deploy/update.sh`。以下先 fetch，再從該提交讀取腳本執行；不需要先更動正在使用的程式、依賴或私有設定：
+以下先 fetch，再從要更新的提交讀取腳本執行；不需要先更動正在使用的程式、依賴或私有設定。尚未完成平台改名的舊部署應先走 [遷移流程](MIGRATION.md)，不能把這段的工作目錄改回舊名稱直接執行：
 
 ```bash
 (
   set -euo pipefail
   export PATH="/opt/node24/bin:$PATH"
-  cd /opt/space-station
+  cd /opt/boardgame
   test -z "$(git status --porcelain)"
   test "$(git branch --show-current)" = 'main'
   git fetch origin
   git log -1 --format='%h %s' origin/main
-  read -r -p 'Apache 遊戲站設定的完整路徑：' station_apache_config
-  sudo test -s "$station_apache_config"
+  read -r -p 'Apache 遊戲站設定的完整路徑：' boardgame_apache_config
+  sudo test -s "$boardgame_apache_config"
   git show origin/main:deploy/update.sh |
-    bash -s -- --apache-config "$station_apache_config"
+    bash -s -- --apache-config "$boardgame_apache_config"
 )
 ```
 
 [更新腳本](../deploy/update.sh) 會：
 
-1. 在獨立的 `/opt/space-station-update.*` 目錄取得新版來源，完成 `npm ci --include=dev`、測試及建置。此時舊服務繼續運作，舊 `node_modules` 與 `dist` 都不會改動。
+1. 在獨立的 `/opt/boardgame-update.*` 目錄取得新版來源，完成 `npm ci --include=dev`、測試及建置。此時舊服務繼續運作，舊 `node_modules` 與 `dist` 都不會改動。
 2. 停止遊戲，執行第 2 節的完整備份。只有備份成功才更新 Git，並換上預先建好的套件和前後端。
 3. 啟動新版並檢查本機健康狀態。Apache、憑證、私有 env 及資料目錄的設定維持原狀。
 
@@ -96,17 +98,19 @@ curl --fail --silent --show-error --retry 10 --retry-connrefused --retry-delay 1
 完成後，另外確認公開入口，並保留腳本印出的備份與暫存路徑：
 
 ```bash
-sudo systemctl status space-station --no-pager
+sudo systemctl status boardgame --no-pager
 curl --fail --silent --show-error --max-time 10 https://boardgame.example.com/api/health
 ```
 
-`/opt/space-station-update.*` 會保留上一版建置及套件，便於排錯；不是正式資料備份。確認新版與備份正常後，可以刪除當次印出的完整暫存目錄來釋放空間，勿用不確定的路徑或萬用字元批次刪除。不要同時執行更新、還原或另一份維護程序。
+`/opt/boardgame-update.*` 會保留上一版建置及套件，便於排錯；不是正式資料備份。確認新版與備份正常後，可以刪除當次印出的完整暫存目錄來釋放空間，勿用不確定的路徑或萬用字元批次刪除。不要同時執行更新、還原或另一份維護程序。
 
 更新成功後，請所有玩家重新整理頁面。再開一個測試房，確認加入、4 人開始、斷線重連、觀戰、賽後回放及圖片下載。GitHub 的 Windows／Linux CI 成功，仍不等於這部 ARM64 Pi 與 Apache 的驗收已通過。
 
 通常應用程式更新不需要修改或重新載入 Apache。若新版明確要求更新 `deploy/` 範本，先比對差異，再保留本機網域、Node 路徑與憑證路徑套用；不要直接覆蓋現有設定。變更 systemd 後需 `sudo systemctl daemon-reload`，變更 Apache 後須先 `sudo apachectl configtest`，通過才 `sudo systemctl reload apache2`。
 
 ## 4. 失敗回退與還原
+
+**本節完整命令只用於改名後產生、封存內資料根目錄為 `boardgame/` 的備份。** 改名前的舊備份即使已搬到 `/var/backups/boardgame`，壓縮檔內容仍保留原本的路徑與服務設定。先依 [遷移手冊的舊備份說明](MIGRATION.md#舊備份與回復) 檢查；不要直接把舊 env、舊 service 或舊資料目錄解壓到正式位置。
 
 有兩種情況：
 
@@ -120,13 +124,13 @@ curl --fail --silent --show-error --max-time 10 https://boardgame.example.com/ap
 列出備份，選擇已成功完成的那一份：
 
 ```bash
-sudo ls -1 /var/backups/space-station
+sudo ls -1 /var/backups/boardgame
 ```
 
-把下一段第一行換成實際備份路徑。預備目錄 `/var/lib/space-station-restore` 必須尚不存在；若以前做過還原，先確認並保存它，或在整份程序一致使用另一個新的預備目錄，不要直接刪除舊目錄。
+把下一段第一行換成實際備份路徑。預備目錄 `/var/lib/boardgame-restore` 必須尚不存在；若以前做過還原，先確認並保存它，或在整份程序一致使用另一個新的預備目錄，不要直接刪除舊目錄。
 
 ```bash
-restore_backup='/var/backups/space-station/請替換成實際備份目錄'
+restore_backup='/var/backups/boardgame/請替換成實際備份目錄'
 
 sudo bash -s -- "$restore_backup" <<'PREPARE'
 set -euo pipefail
@@ -134,25 +138,27 @@ umask 077
 test -d "$1"
 cd "$1"
 sha256sum --check SHA256SUMS
-test ! -e /var/lib/space-station-restore
-mkdir -m 0700 /var/lib/space-station-restore
-mkdir -m 0700 /var/lib/space-station-restore/config
-tar -xzf data.tar.gz -C /var/lib/space-station-restore
-tar -xzf config.tar.gz -C /var/lib/space-station-restore/config
-install -m 0600 source-commit.txt /var/lib/space-station-restore/source-commit.txt
-install -m 0600 runtime.txt /var/lib/space-station-restore/runtime.txt
+tar -tzf data.tar.gz |
+  awk '$0 !~ /^boardgame\// { invalid = 1 } END { exit invalid || NR == 0 }'
+test ! -e /var/lib/boardgame-restore
+mkdir -m 0700 /var/lib/boardgame-restore
+mkdir -m 0700 /var/lib/boardgame-restore/config
+tar -xzf data.tar.gz -C /var/lib/boardgame-restore
+tar -xzf config.tar.gz -C /var/lib/boardgame-restore/config
+install -m 0600 source-commit.txt /var/lib/boardgame-restore/source-commit.txt
+install -m 0600 runtime.txt /var/lib/boardgame-restore/runtime.txt
 if [ -s apache-config-path.txt ]; then
-  install -m 0600 apache-config-path.txt /var/lib/space-station-restore/apache-config-path.txt
+  install -m 0600 apache-config-path.txt /var/lib/boardgame-restore/apache-config-path.txt
 fi
 PREPARE
 ```
 
-新版備份會記錄 Apache 實際路徑。較早的備份若沒有 `apache-config-path.txt`，先檢查 `tar -tzf config.tar.gz` 中的 Apache 路徑，在私有還原目錄補上對應的絕對路徑，再進行設定還原；不要假設檔名一定是 `space-station.conf`。
+若封存目錄檢查失敗，先查看 [舊備份說明](MIGRATION.md#舊備份與回復)，不要略過檢查。新版備份會記錄 Apache 實際路徑。較早的備份若沒有 `apache-config-path.txt`，先檢查 `tar -tzf config.tar.gz` 中的 Apache 路徑，在私有還原目錄補上對應的絕對路徑，再進行設定還原；不要假設檔名一定是 `boardgame.conf`。
 
 這一步尚未變更正式資料或正式設定。接著檢查資料能解析，且房間索引對應的對局檔存在；不印出牌面或憑證：
 
 ```bash
-sudo /opt/node24/bin/node - /var/lib/space-station-restore/space-station <<'CHECK'
+sudo /opt/node24/bin/node - /var/lib/boardgame-restore/boardgame <<'CHECK'
 const fs = require('node:fs');
 const path = require('node:path');
 const root = process.argv[2];
@@ -189,8 +195,8 @@ CHECK
 下段會把目前整個資料目錄改名保留，再把已驗證的隔離資料放到正式位置。正式 `DATA_DIR` 路徑不變，因此不需變動 service 的 `ReadWritePaths`。
 
 ```bash
-read -r -p '目前 Apache 遊戲站設定的完整路徑：' station_current_apache
-sudo bash -s -- "$station_current_apache" <<'RESTORE_DATA'
+read -r -p '目前 Apache 遊戲站設定的完整路徑：' boardgame_current_apache
+sudo bash -s -- "$boardgame_current_apache" <<'RESTORE_DATA'
 set -euo pipefail
 umask 077
 current_apache=$(realpath -e -- "$1")
@@ -199,34 +205,34 @@ case "$current_apache" in
   *) echo 'Apache 設定路徑不正確。' >&2; exit 1 ;;
 esac
 test -s "$current_apache"
-test -d /var/lib/space-station-restore/space-station
-test ! -L /var/lib/space-station
-test ! -L /var/lib/space-station-restore/space-station
-systemctl stop space-station
-test "$(systemctl show space-station --property=MainPID --value)" = '0'
-case "$(systemctl show space-station --property=ActiveState --value)" in
+test -d /var/lib/boardgame-restore/boardgame
+test ! -L /var/lib/boardgame
+test ! -L /var/lib/boardgame-restore/boardgame
+systemctl stop boardgame
+test "$(systemctl show boardgame --property=MainPID --value)" = '0'
+case "$(systemctl show boardgame --property=ActiveState --value)" in
   inactive|failed) ;;
   *) echo '服務尚未停止，不能替換資料。' >&2; exit 1 ;;
 esac
-previous_data="/var/lib/space-station-before-restore-$(date -u +%Y%m%dT%H%M%SZ)"
+previous_data="/var/lib/boardgame-before-restore-$(date -u +%Y%m%dT%H%M%SZ)"
 test ! -e "$previous_data"
 mkdir -m 0700 "${previous_data}-config"
-cp -a /etc/space-station.env "${previous_data}-config/space-station.env"
-cp -a /etc/systemd/system/space-station.service "${previous_data}-config/space-station.service"
+cp -a /etc/boardgame.env "${previous_data}-config/boardgame.env"
+cp -a /etc/systemd/system/boardgame.service "${previous_data}-config/boardgame.service"
 cp -a "$current_apache" "${previous_data}-config/apache.conf"
 printf '%s\n' "$current_apache" > "${previous_data}-config/apache-config-path.txt"
-systemctl show space-station --property=MainPID,ActiveState,Result \
+systemctl show boardgame --property=MainPID,ActiveState,Result \
   > "${previous_data}-config/stopped-status.txt"
-mv -T /var/lib/space-station "$previous_data"
-mv -T /var/lib/space-station-restore/space-station /var/lib/space-station
-chown -R space-station:space-station /var/lib/space-station
-find /var/lib/space-station -type d -exec chmod 0700 {} +
-find /var/lib/space-station -type f -exec chmod 0600 {} +
+mv -T /var/lib/boardgame "$previous_data"
+mv -T /var/lib/boardgame-restore/boardgame /var/lib/boardgame
+chown -R boardgame:boardgame /var/lib/boardgame
+find /var/lib/boardgame -type d -exec chmod 0700 {} +
+find /var/lib/boardgame -type f -exec chmod 0600 {} +
 printf '原資料完整保留在：%s\n服務仍停止，請繼續恢復程式及設定。\n' "$previous_data"
 RESTORE_DATA
 ```
 
-原設定另外保存在同名加上 `-config` 的 root 私有目錄。若其中 `stopped-status.txt` 的 `Result` 不是 `success`，這是故障現況保存，不能視為乾淨備份。如果第二個 `mv` 失敗，立即停止後續步驟；原資料仍保存在印出或可由目錄名稱找到的 `space-station-before-restore-*` 位置。不要建立空資料目錄後貿然啟動服務。
+原設定另外保存在同名加上 `-config` 的 root 私有目錄。若其中 `stopped-status.txt` 的 `Result` 不是 `success`，這是故障現況保存，不能視為乾淨備份。如果第二個 `mv` 失敗，立即停止後續步驟；原資料仍保存在印出或可由目錄名稱找到的 `boardgame-before-restore-*` 位置。不要建立空資料目錄後貿然啟動服務。
 
 ### 4.3 回到備份配對的程式版本
 
@@ -238,10 +244,10 @@ RESTORE_DATA
 (
   set -euo pipefail
   export PATH="/opt/node24/bin:$PATH"
-  cd /opt/space-station
-  test "$(sudo systemctl show space-station --property=MainPID --value)" = '0'
+  cd /opt/boardgame
+  test "$(sudo systemctl show boardgame --property=MainPID --value)" = '0'
   test -z "$(git status --porcelain)"
-  rollback_commit=$(sudo cat /var/lib/space-station-restore/source-commit.txt)
+  rollback_commit=$(sudo cat /var/lib/boardgame-restore/source-commit.txt)
   git cat-file -e "${rollback_commit}^{commit}"
   git switch --detach "$rollback_commit"
   npm ci --include=dev
@@ -250,7 +256,7 @@ RESTORE_DATA
 )
 ```
 
-若只回退程式、沒有執行 4.1，請將 `rollback_commit` 那一行改為讀取選定備份的 `/var/backups/space-station/實際備份目錄/source-commit.txt`。若提交物件不存在，先確認 remote，再以一般部署帳號 `git fetch origin`，不要換成不相關版本。
+若只回退程式、沒有執行 4.1，請將 `rollback_commit` 那一行改為讀取選定備份的 `/var/backups/boardgame/實際備份目錄/source-commit.txt`。若提交物件不存在，先確認 remote，再以一般部署帳號 `git fetch origin`，不要換成不相關版本。
 
 建置失敗就保持停服。另比對 `runtime.txt`：本專案要求 Node 24.x；若同時更動過 Node，應依 [部署文件](DEPLOYMENT.md) 重新準備相容版本。不要用其他主版本勉強啟動。
 
@@ -261,20 +267,20 @@ RESTORE_DATA
 ```bash
 sudo bash <<'RESTORE_CONFIG'
 set -euo pipefail
-restore_apache=$(cat /var/lib/space-station-restore/apache-config-path.txt)
+restore_apache=$(cat /var/lib/boardgame-restore/apache-config-path.txt)
 case "$restore_apache" in
   /etc/apache2/sites-available/*.conf) ;;
   *) echo '備份的 Apache 設定路徑不正確。' >&2; exit 1 ;;
 esac
-test -s "/var/lib/space-station-restore/config$restore_apache"
+test -s "/var/lib/boardgame-restore/config$restore_apache"
 test -s "$restore_apache"
-install -m 0600 /var/lib/space-station-restore/config/etc/space-station.env \
-  /etc/space-station.env
-install -m 0644 /var/lib/space-station-restore/config/etc/systemd/system/space-station.service \
-  /etc/systemd/system/space-station.service
-install -m 0644 "/var/lib/space-station-restore/config$restore_apache" "$restore_apache"
-for restore_hook in space-station-reload-apache space-station-apache; do
-  restore_hook_source="/var/lib/space-station-restore/config/etc/letsencrypt/renewal-hooks/deploy/$restore_hook"
+install -m 0600 /var/lib/boardgame-restore/config/etc/boardgame.env \
+  /etc/boardgame.env
+install -m 0644 /var/lib/boardgame-restore/config/etc/systemd/system/boardgame.service \
+  /etc/systemd/system/boardgame.service
+install -m 0644 "/var/lib/boardgame-restore/config$restore_apache" "$restore_apache"
+for restore_hook in boardgame-reload-apache boardgame-apache; do
+  restore_hook_source="/var/lib/boardgame-restore/config/etc/letsencrypt/renewal-hooks/deploy/$restore_hook"
   if [ -f "$restore_hook_source" ]; then
     install -d -m 0755 /etc/letsencrypt/renewal-hooks/deploy
     install -m 0755 "$restore_hook_source" "/etc/letsencrypt/renewal-hooks/deploy/$restore_hook"
@@ -290,7 +296,7 @@ RESTORE_CONFIG
   set -euo pipefail
   sudo apachectl configtest
   sudo systemctl daemon-reload
-  sudo systemctl start space-station
+  sudo systemctl start boardgame
   curl --fail --silent --show-error --retry 10 --retry-connrefused --retry-delay 1 --max-time 5 http://127.0.0.1:3001/api/health
   sudo systemctl reload apache2
   curl --fail --silent --show-error --retry 10 --retry-connrefused --retry-delay 1 --max-time 5 https://boardgame.example.com/api/health
@@ -299,7 +305,7 @@ RESTORE_CONFIG
 
 確認原有房主與玩家使用原瀏覽器能回到備份當時的座位、角色與進度，並檢查觀戰、回放及全站統計。資料還原不會復原已過期的邀請或分享期限，也不能召回已下載的戰報圖。玩家在瀏覽器內的身份憑證不會因伺服器備份而移到另一個裝置，請不要清除網站儲存空間來測試還原。
 
-驗收失敗先停服，保留目前還原資料和日誌。先前 `space-station-before-restore-*` 的整份資料與第 4.2 節的備份都還在；依同樣的停服、隔離驗證、配對程式與設定程序回復，勿將兩套 `rooms.json`／`matches` 混在一起。
+驗收失敗先停服，保留目前還原資料和日誌。先前 `boardgame-before-restore-*` 的整份資料與第 4.2 節的備份都還在；依同樣的停服、隔離驗證、配對程式與設定程序回復，勿將兩套 `rooms.json`／`matches` 混在一起。
 
 回退後 Git 會停在 detached HEAD。確認後續新版可用時，先做停服備份，再以部署帳號 `git switch main`，接續第 3 節的更新、測試與建置程序。
 
@@ -308,23 +314,23 @@ RESTORE_CONFIG
 常用檢查指令：
 
 ```bash
-sudo journalctl -u space-station -n 100 --no-pager
-sudo journalctl -u space-station --since '30 minutes ago' --no-pager
-sudo tail -n 100 /var/log/apache2/space-station-error.log
+sudo journalctl -u boardgame -n 100 --no-pager
+sudo journalctl -u boardgame --since '30 minutes ago' --no-pager
+sudo tail -n 100 /var/log/apache2/boardgame-error.log
 sudo apachectl configtest
 sudo apachectl -S
 sudo ss -ltnp 'sport = :3001'
-df -h /var/lib/space-station /var/backups/space-station
-sudo du -sh /var/lib/space-station /var/backups/space-station
+df -h /var/lib/boardgame /var/backups/boardgame
+sudo du -sh /var/lib/boardgame /var/backups/boardgame
 ```
 
-需要即時跟隨應用程式日誌可用 `sudo journalctl -u space-station -f`，按 `Ctrl+C` 結束觀看；這不會停止服務。對外求助前先移除密鑰、憑證、邀請及分享內容，不要張貼完整環境設定或資料 JSON。
+需要即時跟隨應用程式日誌可用 `sudo journalctl -u boardgame -f`，按 `Ctrl+C` 結束觀看；這不會停止服務。對外求助前先移除密鑰、憑證、邀請及分享內容，不要張貼完整環境設定或資料 JSON。
 
 | 現象 | 檢查與處理 |
 | --- | --- |
 | Apache 回傳 502／503 | 先查 service 狀態與本機健康檢查；確認 Node 只監聽 `127.0.0.1:3001`，Apache 指向相同埠。 |
 | `203/EXEC` 或 Node 找不到 | 檢查 `/opt/node24/bin/node --version` 與 unit 的 `ExecStart`；服務有 `ProtectHome=true`，不能改用家目錄的 nvm。 |
-| `EACCES`／唯讀檔案系統 | 核對資料目錄擁有者、`DATA_DIR=/var/lib/space-station` 及 unit 的 `ReadWritePaths=/var/lib/space-station`；勿以關閉全部隔離權限代替修正路徑。 |
+| `EACCES`／唯讀檔案系統 | 核對資料目錄擁有者、`DATA_DIR=/var/lib/boardgame` 及 unit 的 `ReadWritePaths=/var/lib/boardgame`；勿以關閉全部隔離權限代替修正路徑。 |
 | API 403「來源不被允許」 | 核對 `PUBLIC_ORIGIN=https://boardgame.example.com`，不能有尾斜線，也不要從 IP、http 或其他子網域玩；Apache 應保留原來的 `Origin`。 |
 | 網頁可開啟，遊戲無法同步 | 檢查 Apache 的 `proxy`／`proxy_http`、`upgrade=websocket` 及 `ProxyTimeout 90`；瀏覽器網路工具應能看到 Socket.IO polling 或 WebSocket 正常連線。 |
 | npm 找不到／缺少 Vite、TypeScript | 先 `export PATH="/opt/node24/bin:$PATH"`，使用 `npm ci --include=dev`；不要以 root 執行 npm。 |
@@ -352,7 +358,7 @@ sudo certbot renew --dry-run
 開房密碼只控制「建立新房間」，朋友透過邀請加入不需要它。可以保留目前的隨機密碼，在建立房間頁選擇記住密碼；只在自己的裝置使用此功能。也可以在 Pi 私有設定換成自訂密碼：
 
 ```bash
-sudo nano /etc/space-station.env
+sudo nano /etc/boardgame.env
 ```
 
 只修改 `CREATE_ROOM_KEY=` 後面的值。建議用至少 16 個 ASCII 字元、由 4 個彼此無關的單字搭配連字號或數字組成的密語；不要用姓名、網域、生日或本文示例當成實際密碼，也不要留空。不要變更其他設定或把這個檔案放進 Git。
@@ -360,7 +366,7 @@ sudo nano /etc/space-station.env
 按 `Ctrl+O`、Enter 儲存，再按 `Ctrl+X` 離開。等對局結束後，讓遊戲服務讀取新設定：
 
 ```bash
-sudo systemctl restart space-station
+sudo systemctl restart boardgame
 curl --fail --silent --show-error --retry 10 --retry-connrefused --retry-delay 1 --max-time 5 \
   http://127.0.0.1:3001/api/health
 ```

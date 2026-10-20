@@ -20,7 +20,7 @@ export function Icon({ type, size = 20 }: { type: 'orbit' | 'link' | 'arrow' | '
 }
 
 export function Header({ room }: { room?: string }) {
-  return <header className="site-header"><button className="brand" onClick={() => navigate('/')} aria-label="回朋友桌遊室首頁"><span className="brand-symbol"><Icon type="orbit" size={25} /></span><span>朋友桌遊室<small>FRIENDS IN ORBIT</small></span></button>{room ? <span className="room-tag">私人房間</span> : <span className="beta-tag">初航版</span>}</header>;
+  return <header className="site-header"><button className="brand" onClick={() => navigate('/')} aria-label="回朋友桌遊室首頁"><span className="brand-symbol"><Icon type="orbit" size={25} /></span><span>朋友桌遊室<small>BOARDGAME</small></span></button>{room ? <span className="room-tag">私人房間</span> : <span className="beta-tag">試玩版</span>}</header>;
 }
 
 export function ErrorMessage({ children }: { children: ReactNode }) { return children ? <p className="error-message" role="alert">{children}</p> : null; }

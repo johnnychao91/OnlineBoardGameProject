@@ -3,12 +3,12 @@
 # example.com 是示範值。複製到 /etc 後再改成實際站點，不要提交正式配置。
 <VirtualHost *:80>
     ServerName boardgame.example.com
-    DocumentRoot /var/www/space-station-acme
-    <Directory /var/www/space-station-acme>
+    DocumentRoot /var/www/boardgame-acme
+    <Directory /var/www/boardgame-acme>
         Options None
         AllowOverride None
         Require all granted
     </Directory>
-    ErrorLog /var/log/apache2/space-station-error.log
-    CustomLog /var/log/apache2/space-station-access.log combined
+    ErrorLog /var/log/apache2/boardgame-error.log
+    CustomLog /var/log/apache2/boardgame-access.log combined
 </VirtualHost>

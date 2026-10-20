@@ -2,17 +2,17 @@
 # Run as the deployment user; sudo is used only for private data and systemd.
 set -euo pipefail
 
-station_apache_config=''
-station_keep_stopped=0
+boardgame_apache_config=''
+boardgame_keep_stopped=0
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --apache-config)
       [ "$#" -ge 2 ] || { echo 'Missing --apache-config path.' >&2; exit 2; }
-      station_apache_config=$2
+      boardgame_apache_config=$2
       shift 2
       ;;
     --keep-stopped)
-      station_keep_stopped=1
+      boardgame_keep_stopped=1
       shift
       ;;
     *)
@@ -22,101 +22,101 @@ while [ "$#" -gt 0 ]; do
   esac
 done
 
-[ -n "$station_apache_config" ] || { echo 'Specify the actual Apache configuration file with --apache-config.' >&2; exit 2; }
+[ -n "$boardgame_apache_config" ] || { echo 'Specify the actual Apache configuration file with --apache-config.' >&2; exit 2; }
 [ "$(id -u)" -ne 0 ] || { echo 'Run this script as the deployment user, without sudo.' >&2; exit 2; }
-station_repo=$(git rev-parse --show-toplevel)
-cd "$station_repo"
-station_lock=$(realpath -m "$(git rev-parse --git-path space-station-maintenance.lock)")
-if [ "$(readlink "/proc/$$/fd/9" 2>/dev/null || true)" != "$station_lock" ]; then
-  exec 9>"$station_lock"
+boardgame_repo=$(git rev-parse --show-toplevel)
+cd "$boardgame_repo"
+boardgame_lock=$(realpath -m "$(git rev-parse --git-path boardgame-maintenance.lock)")
+if [ "$(readlink "/proc/$$/fd/9" 2>/dev/null || true)" != "$boardgame_lock" ]; then
+  exec 9>"$boardgame_lock"
 fi
 flock -n 9 || { echo 'Another backup or update is already running.' >&2; exit 1; }
 test -z "$(git status --porcelain)" || { echo 'Save local repository changes before backing up.' >&2; exit 1; }
 export PATH="/opt/node24/bin:$PATH"
-station_commit=$(git rev-parse HEAD)
-station_node=$(node --version)
-station_npm=$(npm --version)
+boardgame_commit=$(git rev-parse HEAD)
+boardgame_node=$(node --version)
+boardgame_npm=$(npm --version)
 
-sudo bash -s -- "$station_commit" "$station_node" "$station_npm" \
-  "$station_apache_config" "$station_keep_stopped" <<'BACKUP'
+sudo bash -s -- "$boardgame_commit" "$boardgame_node" "$boardgame_npm" \
+  "$boardgame_apache_config" "$boardgame_keep_stopped" <<'BACKUP'
 set -euo pipefail
 umask 077
-station_apache=$(realpath -e -- "$4")
-case "$station_apache" in
+boardgame_apache=$(realpath -e -- "$4")
+case "$boardgame_apache" in
   /etc/apache2/sites-available/*.conf) ;;
   *) echo 'Apache configuration must be inside /etc/apache2/sites-available.' >&2; exit 1 ;;
 esac
-test -s "$station_apache"
-test -s /etc/space-station.env
-test -s /etc/systemd/system/space-station.service
-test -d /var/lib/space-station
-test ! -L /var/lib/space-station
-station_prior_state=$(systemctl show space-station --property=ActiveState --value)
-case "$station_prior_state" in
+test -s "$boardgame_apache"
+test -s /etc/boardgame.env
+test -s /etc/systemd/system/boardgame.service
+test -d /var/lib/boardgame
+test ! -L /var/lib/boardgame
+boardgame_prior_state=$(systemctl show boardgame --property=ActiveState --value)
+case "$boardgame_prior_state" in
   active|inactive) ;;
   *) echo 'Service is not in a stable active/inactive state; inspect its logs first.' >&2; exit 1 ;;
 esac
 
-install -d -o root -g root -m 0700 /var/backups/space-station
-station_backup=$(mktemp -d "/var/backups/space-station/$(date -u +%Y%m%dT%H%M%SZ)-${1:0:12}.XXXXXX")
-station_stopped=0
-station_complete=0
-station_keep_stopped=$5
-station_finish() {
-  station_result=$?
+install -d -o root -g root -m 0700 /var/backups/boardgame
+boardgame_backup=$(mktemp -d "/var/backups/boardgame/$(date -u +%Y%m%dT%H%M%SZ)-${1:0:12}.XXXXXX")
+boardgame_stopped=0
+boardgame_complete=0
+boardgame_keep_stopped=$5
+boardgame_finish() {
+  boardgame_result=$?
   trap - EXIT
-  if [ "$station_stopped" = 1 ] && [ "$station_prior_state" = active ] &&
-     { [ "$station_complete" != 1 ] || [ "$station_keep_stopped" != 1 ]; }; then
-    if ! systemctl start space-station; then
-      echo 'Could not restart the original service; inspect systemctl status space-station.' >&2
-      station_result=1
+  if [ "$boardgame_stopped" = 1 ] && [ "$boardgame_prior_state" = active ] &&
+     { [ "$boardgame_complete" != 1 ] || [ "$boardgame_keep_stopped" != 1 ]; }; then
+    if ! systemctl start boardgame; then
+      echo 'Could not restart the original service; inspect systemctl status boardgame.' >&2
+      boardgame_result=1
     elif ! curl --fail --silent --show-error --retry 10 --retry-connrefused \
       --retry-delay 1 --max-time 5 http://127.0.0.1:3001/api/health >/dev/null; then
       echo 'The restarted service did not pass its health check.' >&2
-      station_result=1
+      boardgame_result=1
     fi
   fi
-  if [ "$station_complete" != 1 ]; then
-    printf 'Backup incomplete; do not restore from: %s\n' "$station_backup" >&2
+  if [ "$boardgame_complete" != 1 ]; then
+    printf 'Backup incomplete; do not restore from: %s\n' "$boardgame_backup" >&2
   fi
-  exit "$station_result"
+  exit "$boardgame_result"
 }
-trap station_finish EXIT
+trap boardgame_finish EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
 
-printf '%s\n' "$1" > "$station_backup/source-commit.txt"
-printf 'Node=%s\nnpm=%s\nCreatedUTC=%s\n' "$2" "$3" "$(date -u +%FT%TZ)" > "$station_backup/runtime.txt"
-printf '%s\n' "$station_apache" > "$station_backup/apache-config-path.txt"
-station_config_files=(
-  etc/space-station.env \
-  etc/systemd/system/space-station.service \
-  "${station_apache#/}"
+printf '%s\n' "$1" > "$boardgame_backup/source-commit.txt"
+printf 'Node=%s\nnpm=%s\nCreatedUTC=%s\n' "$2" "$3" "$(date -u +%FT%TZ)" > "$boardgame_backup/runtime.txt"
+printf '%s\n' "$boardgame_apache" > "$boardgame_backup/apache-config-path.txt"
+boardgame_config_files=(
+  etc/boardgame.env \
+  etc/systemd/system/boardgame.service \
+  "${boardgame_apache#/}"
 )
-for station_hook in \
-  /etc/letsencrypt/renewal-hooks/deploy/space-station-reload-apache \
-  /etc/letsencrypt/renewal-hooks/deploy/space-station-apache; do
-  if [ -f "$station_hook" ]; then
-    station_config_files+=("${station_hook#/}")
+for boardgame_hook in \
+  /etc/letsencrypt/renewal-hooks/deploy/boardgame-reload-apache \
+  /etc/letsencrypt/renewal-hooks/deploy/boardgame-apache; do
+  if [ -f "$boardgame_hook" ]; then
+    boardgame_config_files+=("${boardgame_hook#/}")
   fi
 done
-tar -czf "$station_backup/config.tar.gz" -C / "${station_config_files[@]}"
+tar -czf "$boardgame_backup/config.tar.gz" -C / "${boardgame_config_files[@]}"
 
 # Mark this before stop so even a failed/partial stop attempts recovery.
-station_stopped=1
-systemctl stop space-station
-test "$(systemctl show space-station --property=MainPID --value)" = 0
-test "$(systemctl show space-station --property=ActiveState --value)" = inactive
-test "$(systemctl show space-station --property=Result --value)" = success
-tar -czf "$station_backup/data.tar.gz" -C /var/lib space-station
+boardgame_stopped=1
+systemctl stop boardgame
+test "$(systemctl show boardgame --property=MainPID --value)" = 0
+test "$(systemctl show boardgame --property=ActiveState --value)" = inactive
+test "$(systemctl show boardgame --property=Result --value)" = success
+tar -czf "$boardgame_backup/data.tar.gz" -C /var/lib boardgame
 (
-  cd "$station_backup"
+  cd "$boardgame_backup"
   sha256sum data.tar.gz config.tar.gz source-commit.txt runtime.txt apache-config-path.txt > SHA256SUMS
   sha256sum --check SHA256SUMS
 )
-station_complete=1
-printf '\nBackup verified: %s\n' "$station_backup"
-if [ "$station_keep_stopped" = 1 ] || [ "$station_prior_state" = inactive ]; then
+boardgame_complete=1
+printf '\nBackup verified: %s\n' "$boardgame_backup"
+if [ "$boardgame_keep_stopped" = 1 ] || [ "$boardgame_prior_state" = inactive ]; then
   printf '%s\n' 'Service remains stopped.'
 else
   printf '%s\n' 'Restarting the original service.'

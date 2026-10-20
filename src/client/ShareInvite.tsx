@@ -16,7 +16,7 @@ export function ShareInvite({ active }: { active: boolean }) {
   }
   async function share() {
     if (!navigator.share) return copy();
-    try { await navigator.share({ title: '一起來玩太空維修站', text: '一起來我們的私人桌遊室，參與遊戲或旁觀任務。', url: inviteUrl }); }
+    try { await navigator.share({ title: '一起來朋友桌遊室', text: '一起來我們的私人桌遊室，參與遊戲或觀戰。', url: inviteUrl }); }
     catch (e) { if ((e as Error).name !== 'AbortError') setError('分享沒有完成，可以改用複製連結。'); }
   }
   async function rotate() {

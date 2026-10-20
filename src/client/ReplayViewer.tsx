@@ -90,7 +90,7 @@ function ShareReplay({ seat, info, frameIndex, perspective, beforeShare }: { sea
       if (!isCurrent()) return;
       setLink(result.url);
       if (navigator.share) {
-        try { await navigator.share({ title: '太空維修站 · 這一步你怎麼看？', text: `第 ${frameIndex + 1} 步的${perspective === 'god' ? '上帝' : '盲'}視角復盤`, url: result.url }); if (isCurrent()) setMessage('復盤連結已準備好，有效 7 天。'); return; }
+        try { await navigator.share({ title: '朋友桌遊室 · 這一步你怎麼看？', text: `第 ${frameIndex + 1} 步的${perspective === 'god' ? '上帝' : '盲'}視角復盤`, url: result.url }); if (isCurrent()) setMessage('復盤連結已準備好，有效 7 天。'); return; }
         catch (e) { if (!isCurrent()) return; if ((e as Error).name === 'AbortError') { setMessage('分享已取消，仍可複製下方連結。'); return; } }
       }
       if (isCurrent()) await copy(result.url, requestGeneration);

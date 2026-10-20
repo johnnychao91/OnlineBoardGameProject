@@ -22,7 +22,7 @@ test('permits reserved examples, loopback and narrowly scoped public sources', (
 });
 
 test('rejects private filenames even when empty or binary', () => {
-  for (const name of ['.env', '.env.production', 'deploy/site.local.conf', 'config/space-station.env', 'backups/save.tar.gz', 'data/match.json', 'credentials/service.json', '.ssh/id_ed25519', 'server.key']) {
+  for (const name of ['.env', '.env.production', 'deploy/site.local.conf', 'config/boardgame.env', 'backups/save.tar.gz', 'data/match.json', 'credentials/service.json', '.ssh/id_ed25519', 'server.key']) {
     assert.ok(inspect(name, '').problems.includes('private/runtime file must not be tracked'), name);
   }
   assert.deepEqual(inspect('.env.example', 'PUBLIC_ORIGIN=http://localhost:5173').problems, []);

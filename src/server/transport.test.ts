@@ -110,7 +110,7 @@ async function fullGame() {
 }
 
 beforeAll(async () => {
-  directory = await mkdtemp(join(tmpdir(), 'station-transport-'));
+  directory = await mkdtemp(join(tmpdir(), 'boardgame-transport-'));
   app = await createApplication({
     dataDir: directory, publicOrigin: origin, host: '127.0.0.1', port: 0,
     production: false, createRoomKey: '',
@@ -128,7 +128,7 @@ afterEach(async () => {
 afterAll(async () => {
   if (running) await running.close();
   const target = resolve(directory);
-  if (!target.startsWith(resolve(tmpdir()) + sep) || !basename(target).startsWith('station-transport-')) {
+  if (!target.startsWith(resolve(tmpdir()) + sep) || !basename(target).startsWith('boardgame-transport-')) {
     throw new Error('Refusing cleanup outside this test temporary directory.');
   }
   await rm(target, { recursive: true, force: true });

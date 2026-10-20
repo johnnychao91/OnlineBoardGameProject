@@ -1,6 +1,6 @@
-# 太空維修站
+# Boardgame · 朋友桌遊室
 
-供朋友透過瀏覽器一起遊玩的線上桌遊專案。第一款遊戲以太空維修站為原創主題，支援 4～8 人，使用 boardgame.io 管理回合與多人狀態。名稱、介面文案與視覺素材均以本專案自己的設計為準。
+供朋友透過瀏覽器一起遊玩的線上桌遊平台，程式與部署服務統一命名為 `boardgame`，透過遊戲註冊介面加入不同遊戲。第一款遊戲「太空維修站」支援 4～8 人，使用 boardgame.io 管理回合與多人狀態。名稱、介面文案與視覺素材均以本專案自己的設計為準。
 
 前端使用 React，遊戲由 Node.js 伺服器裁定；開發環境支援 Windows 與 Linux。正式環境可部署到 Raspberry Pi 5，沿用 Apache 提供 HTTPS 反向代理。
 
@@ -23,8 +23,8 @@
 需要 Node.js 24 LTS、npm 與 Git。先取得專案並安裝相依套件：
 
 ```sh
-git clone https://github.com/johnnychao91/OnlineBoardGameProject.git
-cd OnlineBoardGameProject
+git clone https://github.com/johnnychao91/OnlineBoardGameProject.git boardgame
+cd boardgame
 npm ci
 ```
 
@@ -61,7 +61,7 @@ npm run dev
 | `npm run build` | 建置前端與伺服器 |
 | `npm start` | 啟動建置後的服務；`NODE_ENV=production` 時另提供 `dist/client` 前端檔案 |
 
-正式環境必須設定 `NODE_ENV=production`、HTTPS 的 `PUBLIC_ORIGIN`，以及至少 16 字元的 `CREATE_ROOM_KEY`。`PUBLIC_ORIGIN` 只能包含協定、主機與選填埠號，不能有路徑、查詢字串或結尾斜線；例如 `https://boardgame.example.com`。設定不符時伺服器會拒絕啟動。可使用隨機長密鑰，或以多個隨機挑選、彼此無關的單字組成長密碼；不要使用公開示範值或可猜出的個人資料。`CREATE_ROOM_KEY` 只限制建立新房間；朋友透過房間邀請加入。正式密碼只修改 Git 外的 `/etc/space-station.env`，方法見維運手冊。
+正式環境必須設定 `NODE_ENV=production`、HTTPS 的 `PUBLIC_ORIGIN`，以及至少 16 字元的 `CREATE_ROOM_KEY`。`PUBLIC_ORIGIN` 只能包含協定、主機與選填埠號，不能有路徑、查詢字串或結尾斜線；例如 `https://boardgame.example.com`。設定不符時伺服器會拒絕啟動。可使用隨機長密鑰，或以多個隨機挑選、彼此無關的單字組成長密碼；不要使用公開示範值或可猜出的個人資料。`CREATE_ROOM_KEY` 只限制建立新房間；朋友透過房間邀請加入。正式密碼只修改 Git 外的 `/etc/boardgame.env`，方法見維運手冊。
 
 `HOST` 預設為 `127.0.0.1`，`PORT` 預設為 `3001`。Apache 反向代理部署請保留本機監聽。開發環境若變更服務埠號，需同時調整 Vite 的代理目標。
 
@@ -78,6 +78,7 @@ npm run dev
 
 ## 文件
 
+- [既有 Pi 改名為 boardgame](docs/MIGRATION.md)：已用舊服務名稱上線的主機，先做一次保留密碼、房間與回放的遷移，再使用一般更新流程。
 - [Pi 5 完整部署](docs/DEPLOYMENT.md)：從 GitHub clone 開始，以 `boardgame.example.com`、Apache、HTTPS、systemd 上線，保留主網站。
 - [更新、備份與還原](docs/OPERATIONS.md)：停止服務的一致性備份、更新失敗處理、隔離還原、日誌與排錯。
 - [架構與新增遊戲](docs/ARCHITECTURE.md)：遊戲模組、伺服器裁定、資料流與持久化。

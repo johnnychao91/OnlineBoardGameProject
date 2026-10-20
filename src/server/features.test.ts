@@ -10,9 +10,9 @@ const cleanups: (() => Promise<void>)[] = [];
 afterEach(async () => { for (const clean of cleanups.splice(0).reverse()) await clean(); });
 
 async function fixture() {
-  const dataDir = await mkdtemp(join(tmpdir(), 'station-features-test-'));
+  const dataDir = await mkdtemp(join(tmpdir(), 'boardgame-features-test-'));
   cleanups.push(async () => {
-    if (dirname(resolve(dataDir)) !== resolve(tmpdir()) || !basename(dataDir).startsWith('station-features-test-')) {
+    if (dirname(resolve(dataDir)) !== resolve(tmpdir()) || !basename(dataDir).startsWith('boardgame-features-test-')) {
       throw new Error('Unexpected test directory');
     }
     await rm(dataDir, { recursive: true, force: true });

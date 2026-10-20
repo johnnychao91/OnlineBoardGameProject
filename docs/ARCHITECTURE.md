@@ -2,6 +2,8 @@
 
 專案將共用的房間功能與個別遊戲規則分開。第一款遊戲是 4～8 人的「太空維修站」；日後增加其他遊戲時，沿用邀請、座位、連線與部署方式，另加入規則與畫面模組。
 
+平台程式、Linux 服務、帳號及部署路徑統一使用 `boardgame`，例如 `boardgame.service`、`/opt/boardgame`、`/etc/boardgame.env` 與 `/var/lib/boardgame`。`space-station` 只作為第一款遊戲的穩定識別碼及 Socket.IO namespace；`src/games/station` 仍是這款遊戲的模組。既有房間、回放、瀏覽器儲存鍵及加入憑證的計算規約維持相容，新增遊戲使用自己的識別碼，不共用第一款遊戲的 namespace。
+
 ## 組成
 
 ```text

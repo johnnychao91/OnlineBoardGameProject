@@ -1,14 +1,16 @@
 # Pi 5 完整部署（範例網域）
 
-**所有 `example.com` 網址皆為保留示範值，不是本專案的正式站點。** 執行命令時以自己的網域替換；實際值只寫入 Pi 上的 `/etc/space-station.env` 和 `/etc/apache2/sites-available/space-station.conf`。不要為了部署而修改、提交 Git 裡的 `.env.example`、`deploy/` 範本或這份文件。先將範本複製到 `/etc`，再用 `sudoedit` 修改那份私有配置。網址、DNS 與憑證名稱必須一致。
+**所有 `example.com` 網址皆為保留示範值，不是本專案的正式站點。** 執行命令時以自己的網域替換；實際值只寫入 Pi 上的 `/etc/boardgame.env` 和 `/etc/apache2/sites-available/boardgame.conf`。不要為了部署而修改、提交 Git 裡的 `.env.example`、`deploy/` 範本或這份文件。先將範本複製到 `/etc`，再用 `sudoedit` 修改那份私有配置。網址、DNS 與憑證名稱必須一致。
 
 本指南把遊戲部署到 **https://boardgame.example.com**，沿用 Pi 5 上既有的 Apache，保留 **https://example.com** 主網站。所有 `bash` 指令都在 SSH 登入 Pi 後執行，不是在 Windows PowerShell 執行。使用具有 sudo 權限的一般帳號，只有標示 `sudo` 的管理步驟使用 root。
 
 這是操作指南，尚未替你的 Pi、DNS、路由器或憑證做任何變更。前提為仍受安全更新支援的 Raspberry Pi OS／Debian **64 位元**、systemd、Apache 2.4.47 以上；32 位元系統不能直接使用下方 ARM64 Node 安裝包。每個程式區塊成功後再往下做，遇到錯誤先修正。
 
-首次上線依序完成第 1～9 節；之後使用 [更新、備份與還原手冊](OPERATIONS.md)。已使用目前這個新儲存庫部署的機器應走更新流程，不要重新建立私有設定或套用初次安裝指令。
+首次上線依序完成第 1～9 節；之後使用 [更新、備份與還原手冊](OPERATIONS.md)。整個桌遊平台的服務、帳號及正式目錄統一稱為 `boardgame`；「太空維修站」是其中一款遊戲，其既有遊戲 ID 保留以相容對局及回放。
 
-**若 Pi 留有刪除、重建 GitHub 儲存庫之前的舊 clone，不能直接套用一般更新流程。** 新舊提交歷史不同，不要合併無關歷史，也不要使用 `--allow-unrelated-histories`。先依維運手冊完成停服備份，保留舊程式目錄作為回復來源，再從新的 GitHub 儲存庫 clone 到新的空目錄；若仍要使用下方固定的 `/opt/space-station` 路徑，先將已確認的舊程式目錄另名保留。沿用 Git 外既有的 `/etc/space-station.env`、Apache／憑證設定與 `/var/lib/space-station` 資料，不要重建密鑰、覆蓋設定或把舊 `.git` 搬進新 clone。新程式建置成功、服務路徑確認無誤後，再啟動並驗收。
+**已使用 `/opt/space-station` 與 `space-station.service` 上線的機器，先執行一次 [平台名稱遷移](MIGRATION.md)。** 不要直接在舊目錄套用新版一般更新腳本，也不要重新建立私有設定。遷移完成後才使用本文件的 `boardgame` 路徑與維運命令。
+
+**若 Pi 留有刪除、重建 GitHub 儲存庫之前的舊 clone，不能直接套用一般更新流程。** 新舊提交歷史不同，不要合併無關歷史，也不要使用 `--allow-unrelated-histories`。先依維運手冊完成停服備份，保留舊程式目錄作為回復來源，再從新的 GitHub 儲存庫 clone 到新的空目錄；若仍要使用下方固定的 `/opt/boardgame` 路徑，先將已確認的舊程式目錄另名保留。沿用 Git 外既有的 `/etc/boardgame.env`、Apache／憑證設定與 `/var/lib/boardgame` 資料，不要重建密鑰、覆蓋設定或把舊 `.git` 搬進新 clone。新程式建置成功、服務路徑確認無誤後，再啟動並驗收。
 
 ```text
 朋友手機／電腦 → HTTPS/WSS :443 → Pi 的 Apache
@@ -17,7 +19,7 @@
                                             ↓ 僅本機代理
                                       127.0.0.1:3001 Node.js
                                             ↓
-                                      /var/lib/space-station
+                                      /var/lib/boardgame
                                       房間、對局、回放、統計來源
 ```
 
@@ -37,7 +39,7 @@ sudo ss -ltnp
 
 預期架構為 `aarch64`、位元數為 `64`。確認 3001 尚未被其他服務占用，記下主網站所用的 Apache 設定檔；不要停用它。若現有網站經由 Cloudflare Tunnel、CDN 或外部代理，先閱讀第 6 節的入口說明。
 
-安裝基本工具並 clone。`/opt/space-station` 必須是尚不存在的新目錄；若已存在，先確認是目前儲存庫的部署，還是上面所述的舊 clone，再選擇更新或重新 clone，不能覆蓋既有目錄。
+安裝基本工具並 clone。`/opt/boardgame` 必須是尚不存在的新目錄；若已存在，先確認是目前儲存庫的部署，還是上面所述的舊 clone，再選擇更新或重新 clone，不能覆蓋既有目錄。
 
 ```bash
 sudo apt update
@@ -47,16 +49,16 @@ sudo apt install -y git curl ca-certificates xz-utils openssl dnsutils
 ```bash
 (
   set -eu
-  test ! -e /opt/space-station
-  sudo install -d -o "$(id -un)" -g "$(id -gn)" -m 0755 /opt/space-station
-  git clone https://github.com/johnnychao91/OnlineBoardGameProject.git /opt/space-station
+  test ! -e /opt/boardgame
+  sudo install -d -o "$(id -un)" -g "$(id -gn)" -m 0755 /opt/boardgame
+  git clone https://github.com/johnnychao91/OnlineBoardGameProject.git /opt/boardgame
 )
-cd /opt/space-station
+cd /opt/boardgame
 git status --short
 git log -1 --oneline
 ```
 
-GitHub 公開儲存庫不需要填入 token。程式由登入的部署帳號維護，遊戲執行時另外使用無法登入的服務帳號。不要在 Pi 修改已追蹤的程式檔；私有設定放在 `/etc`，這樣之後 `git pull --ff-only` 才容易更新。
+GitHub 公開儲存庫不需要填入 token。程式由登入的部署帳號維護，遊戲執行時另外使用無法登入的服務帳號。不要在 Pi 修改已追蹤的程式檔；私有設定放在 `/etc`，之後依維運手冊使用更新腳本，先在獨立目錄建置成功再切換版本。
 
 ## 2. 安裝 Node.js 24 ARM64
 
@@ -70,19 +72,19 @@ GitHub 公開儲存庫不需要填入 token。程式由登入的部署帳號維�
   test "$(uname -m)" = aarch64
   test "$(getconf LONG_BIT)" = 64
   test ! -e /opt/node24
-  station_tmp=$(mktemp -d)
-  cd "$station_tmp"
+  boardgame_tmp=$(mktemp -d)
+  cd "$boardgame_tmp"
   curl --fail --silent --show-error --location \
     https://nodejs.org/download/release/latest-v24.x/SHASUMS256.txt -o SHASUMS256.txt
-  station_archive=$(awk '$2 ~ /^node-v24\.[0-9]+\.[0-9]+-linux-arm64\.tar\.xz$/ { print $2 }' SHASUMS256.txt)
-  test -n "$station_archive"
-  station_version=${station_archive#node-}
-  station_version=${station_version%-linux-arm64.tar.xz}
+  boardgame_archive=$(awk '$2 ~ /^node-v24\.[0-9]+\.[0-9]+-linux-arm64\.tar\.xz$/ { print $2 }' SHASUMS256.txt)
+  test -n "$boardgame_archive"
+  boardgame_version=${boardgame_archive#node-}
+  boardgame_version=${boardgame_version%-linux-arm64.tar.xz}
   curl --fail --silent --show-error --location \
-    "https://nodejs.org/download/release/$station_version/$station_archive" -o "$station_archive"
-  awk -v target="$station_archive" '$2 == target' SHASUMS256.txt | sha256sum --check -
+    "https://nodejs.org/download/release/$boardgame_version/$boardgame_archive" -o "$boardgame_archive"
+  awk -v target="$boardgame_archive" '$2 == target' SHASUMS256.txt | sha256sum --check -
   sudo install -d -m 0755 /opt/node24
-  sudo tar -xJf "$station_archive" -C /opt/node24 --strip-components=1 --no-same-owner
+  sudo tar -xJf "$boardgame_archive" -C /opt/node24 --strip-components=1 --no-same-owner
   /opt/node24/bin/node --version
 )
 ```
@@ -102,7 +104,7 @@ npm --version
 ## 3. 安裝套件、測試與建置
 
 ```bash
-cd /opt/space-station
+cd /opt/boardgame
 export PATH="/opt/node24/bin:$PATH"
 npm ci --include=dev
 npm run check:public
@@ -119,22 +121,22 @@ test -f dist/client/index.html
 
 | 路徑 | 用途／權限 |
 | --- | --- |
-| `/opt/space-station` | 程式與建置；部署帳號可寫，服務帳號只讀 |
+| `/opt/boardgame` | 程式與建置；部署帳號可寫，服務帳號只讀 |
 | `/opt/node24` | Node 24；root 管理，服務帳號只讀 |
-| `/etc/space-station.env` | 正式設定與建房密鑰；root、0600 |
-| `/etc/apache2/sites-available/space-station.conf`、`/etc/letsencrypt` | 實際網域、Apache 配置及憑證；由 root／Certbot 管理，保留私鑰權限 |
-| `/var/lib/space-station` | 房間、玩家憑證及完整回放；服務帳號、0700 |
-| `/var/backups/space-station` | 私有備份；root、0700 |
-| `/var/www/space-station-acme` | 僅供憑證驗證；不放程式或對局資料 |
+| `/etc/boardgame.env` | 正式設定與建房密鑰；root、0600 |
+| `/etc/apache2/sites-available/boardgame.conf`、`/etc/letsencrypt` | 實際網域、Apache 配置及憑證；由 root／Certbot 管理，保留私鑰權限 |
+| `/var/lib/boardgame` | 房間、玩家憑證及完整回放；服務帳號、0700 |
+| `/var/backups/boardgame` | 私有備份；root、0700 |
+| `/var/www/boardgame-acme` | 僅供憑證驗證；不放程式或對局資料 |
 
 建立服務帳號與資料目錄：
 
 ```bash
-if ! id space-station >/dev/null 2>&1; then
-  sudo useradd --system --user-group --home-dir /var/lib/space-station \
-    --no-create-home --shell /usr/sbin/nologin space-station
+if ! id boardgame >/dev/null 2>&1; then
+  sudo useradd --system --user-group --home-dir /var/lib/boardgame \
+    --no-create-home --shell /usr/sbin/nologin boardgame
 fi
-sudo install -d -o space-station -g space-station -m 0700 /var/lib/space-station
+sudo install -d -o boardgame -g boardgame -m 0700 /var/lib/boardgame
 ```
 
 首次建立設定。以下在 Pi 本機產生隨機建房密鑰，直接寫入 0600 私有檔；已有設定時拒絕覆蓋：
@@ -142,7 +144,7 @@ sudo install -d -o space-station -g space-station -m 0700 /var/lib/space-station
 ```bash
 sudo bash <<'SH'
 set -eu
-test ! -e /etc/space-station.env
+test ! -e /etc/boardgame.env
 umask 077
 {
   printf '%s\n' \
@@ -150,45 +152,45 @@ umask 077
     'HOST=127.0.0.1' \
     'PORT=3001' \
     'PUBLIC_ORIGIN=https://boardgame.example.com' \
-    'DATA_DIR=/var/lib/space-station'
+    'DATA_DIR=/var/lib/boardgame'
   printf 'CREATE_ROOM_KEY=%s\n' "$(openssl rand -hex 32)"
-} > /etc/space-station.env
-chmod 0600 /etc/space-station.env
+} > /etc/boardgame.env
+chmod 0600 /etc/boardgame.env
 SH
 ```
 
 **啟動服務之前，必須修改剛建立的私有設定：**
 
 ```bash
-sudoedit /etc/space-station.env
+sudoedit /etc/boardgame.env
 ```
 
 把 `PUBLIC_ORIGIN` 的示範值改成你自己的實際遊戲 HTTPS origin，格式為 `https://你的遊戲主機名稱`，不能有結尾 `/`、子路徑或查詢字串。`boardgame.example.com` 只是示範，不能照填作為正式網址。實際值只改在這份 `/etc` 檔案，後續 Apache 與憑證也只設定在 `/etc`；不要修改 Git 裡的 `.env.example`、`deploy/` 範本或文件。
 
-需要建房密鑰時，在自己的私人 SSH 終端機用 `sudo nano /etc/space-station.env` 查看，保存到密碼管理器。不要將檔案、畫面或密鑰上傳 GitHub。只有建立房間的人需要密鑰，朋友只要邀請連結。
+需要建房密鑰時，在自己的私人 SSH 終端機用 `sudo nano /etc/boardgame.env` 查看，保存到密碼管理器。不要將檔案、畫面或密鑰上傳 GitHub。只有建立房間的人需要密鑰，朋友只要邀請連結。
 
 `PUBLIC_ORIGIN` 必須與朋友實際開啟的遊戲網址一致。保留 `HOST=127.0.0.1`，對外只開 Apache 的 80／443，不開 3001。不要啟動兩個程序共用同一個 `DATA_DIR`。
 
 ## 5. 讓 systemd 自動啟動遊戲
 
-確認服務帳號可讀取建置與 Node，再安裝 [service 範本](../deploy/space-station.service)：
+確認服務帳號可讀取建置與 Node，再安裝 [service 範本](../deploy/boardgame.service)：
 
 ```bash
-cd /opt/space-station
-sudo -u space-station test -r /opt/space-station/dist/server/index.cjs
-sudo -u space-station /opt/node24/bin/node --version
-sudo install -o root -g root -m 0644 deploy/space-station.service \
-  /etc/systemd/system/space-station.service
+cd /opt/boardgame
+sudo -u boardgame test -r /opt/boardgame/dist/server/index.cjs
+sudo -u boardgame /opt/node24/bin/node --version
+sudo install -o root -g root -m 0644 deploy/boardgame.service \
+  /etc/systemd/system/boardgame.service
 sudo systemctl daemon-reload
-sudo systemctl enable --now space-station
-sudo systemctl status space-station --no-pager
-sudo journalctl -u space-station -n 50 --no-pager
+sudo systemctl enable --now boardgame
+sudo systemctl status boardgame --no-pager
+sudo journalctl -u boardgame -n 50 --no-pager
 curl --fail --silent --show-error --retry 10 --retry-connrefused --retry-delay 1 --max-time 5 http://127.0.0.1:3001/api/health
 ```
 
 預期服務為 `active (running)`，健康檢查回傳 `{"status":"ok"}`。若失敗，先看日誌再配置代理。systemd 會在 Pi 開機時啟動，服務意外結束時嘗試重啟；關閉 SSH 不會停止遊戲。
 
-若嚴格的 shell umask 導致程式不可讀，用 `namei -l /opt/space-station/dist/server/index.cjs` 找出目錄權限；調整僅限不含秘密的程式目錄，不要放寬 env 或資料目錄權限。
+若嚴格的 shell umask 導致程式不可讀，用 `namei -l /opt/boardgame/dist/server/index.cjs` 找出目錄權限；調整僅限不含秘密的程式目錄，不要放寬 env 或資料目錄權限。
 
 ## 6. 新增 DNS，沿用原本的網路入口
 
@@ -220,36 +222,36 @@ DNS 變更需傳播時間；主網站憑證不一定涵蓋子網域，接著為�
 sudo bash <<'SH'
 set -eu
 umask 077
-install -d -o root -g root -m 0700 /var/backups/space-station
-tar -czf "/var/backups/space-station/apache-before-$(date -u +%Y%m%dT%H%M%SZ).tar.gz" \
+install -d -o root -g root -m 0700 /var/backups/boardgame
+tar -czf "/var/backups/boardgame/apache-before-$(date -u +%Y%m%dT%H%M%SZ).tar.gz" \
   -C / etc/apache2
 SH
 sudo a2enmod proxy proxy_http headers ssl alias
-sudo install -d -o root -g root -m 0755 /var/www/space-station-acme/.well-known/acme-challenge
+sudo install -d -o root -g root -m 0755 /var/www/boardgame-acme/.well-known/acme-challenge
 ```
 
-先安裝 [只有 HTTP 的範本](../deploy/apache-http.conf.example)，此階段尚不對外提供遊戲。如果 `space-station.conf` 已存在，先檢查，不要覆蓋其他站台：
+先安裝 [只有 HTTP 的範本](../deploy/apache-http.conf.example)，此階段尚不對外提供遊戲。如果 `boardgame.conf` 已存在，先檢查，不要覆蓋其他站台：
 
 ```bash
-cd /opt/space-station
+cd /opt/boardgame
 (
   set -eu
-  test ! -e /etc/apache2/sites-available/space-station.conf
+  test ! -e /etc/apache2/sites-available/boardgame.conf
   sudo install -o root -g root -m 0644 deploy/apache-http.conf.example \
-    /etc/apache2/sites-available/space-station.conf
-  sudoedit /etc/apache2/sites-available/space-station.conf
-  sudo a2ensite space-station.conf
+    /etc/apache2/sites-available/boardgame.conf
+  sudoedit /etc/apache2/sites-available/boardgame.conf
+  sudo a2ensite boardgame.conf
   sudo apachectl configtest
   sudo systemctl reload apache2
 )
 ```
 
-應顯示 `Syntax OK`。確認 `apachectl -S` 的新網域對應到 `space-station.conf`，主網站仍對應原設定。不要同時啟用兩份相同 `ServerName` 的設定。
+應顯示 `Syntax OK`。確認 `apachectl -S` 的新網域對應到 `boardgame.conf`，主網站仍對應原設定。不要同時啟用兩份相同 `ServerName` 的設定。
 
 建立不含秘密的驗證檔：
 
 ```bash
-printf 'acme-ok\n' | sudo tee /var/www/space-station-acme/.well-known/acme-challenge/check.txt >/dev/null
+printf 'acme-ok\n' | sudo tee /var/www/boardgame-acme/.well-known/acme-challenge/check.txt >/dev/null
 curl --fail http://boardgame.example.com/.well-known/acme-challenge/check.txt
 ```
 
@@ -270,7 +272,7 @@ sudo apt install -y certbot
 使用 webroot 取得憑證，不讓 Certbot 改原本主站 vhost。依互動提示填通知用 Email，閱讀並自行接受服務條款：
 
 ```bash
-sudo certbot certonly --webroot -w /var/www/space-station-acme \
+sudo certbot certonly --webroot -w /var/www/boardgame-acme \
   --cert-name boardgame.example.com -d boardgame.example.com
 sudo certbot certificates
 ```
@@ -284,14 +286,14 @@ Webroot 使用 `/.well-known/acme-challenge/`，HTTP-01 需要外部 TCP 80 可�
 以 [完整 Apache 範本](../deploy/apache.conf.example) 取代剛才同一個設定檔。範本只服務 `boardgame.example.com`；保留主網站檔案與啟用狀態。
 
 ```bash
-cd /opt/space-station
+cd /opt/boardgame
 (
   set -eu
   sudo test -s /etc/letsencrypt/live/boardgame.example.com/fullchain.pem
   sudo test -s /etc/letsencrypt/live/boardgame.example.com/privkey.pem
   sudo install -o root -g root -m 0644 deploy/apache.conf.example \
-    /etc/apache2/sites-available/space-station.conf
-  sudoedit /etc/apache2/sites-available/space-station.conf
+    /etc/apache2/sites-available/boardgame.conf
+  sudoedit /etc/apache2/sites-available/boardgame.conf
   sudo apachectl configtest
   sudo systemctl reload apache2
 )
@@ -300,7 +302,7 @@ curl --fail --silent --show-error https://boardgame.example.com/api/health
 
 應回傳 `{"status":"ok"}`，瀏覽器開啟 **https://boardgame.example.com** 應顯示首頁。HTTP 一般網址轉 HTTPS；憑證驗證路徑仍留在 HTTP，供後續續期使用。
 
-若 `configtest` 失敗，不要 reload 或重新啟動 Apache。首次安裝可把第 7 節的 `deploy/apache-http.conf.example` 放回同一個 `space-station.conf`，通過 `configtest` 後 reload，保留 HTTP 驗證入口，再修正憑證路徑或模組。既有主站仍使用原設定；不要為了修遊戲而停用它。
+若 `configtest` 失敗，不要 reload 或重新啟動 Apache。首次安裝可把第 7 節的 `deploy/apache-http.conf.example` 放回同一個 `boardgame.conf`，通過 `configtest` 後 reload，保留 HTTP 驗證入口，再修正憑證路徑或模組。既有主站仍使用原設定；不要為了修遊戲而停用它。
 
 範本以 `ProxyPass / http://127.0.0.1:3001/ upgrade=websocket` 處理前端、API、Socket.IO polling 與 WebSocket，使用 Apache 2.4.47 以上的 `mod_proxy_http`。`ProxyTimeout 90` 須大於 Socket.IO 心跳與逾時總和。不要改寫瀏覽器 `Origin`，也不要改掛 `/boardgame/` 子路徑，目前前端與路由以完整 origin 運作。[Apache 官方說明](https://httpd.apache.org/docs/2.4/mod/mod_proxy.html#protoupgrade)、[Socket.IO 代理說明](https://socket.io/docs/v4/reverse-proxy/)。
 
@@ -308,18 +310,18 @@ curl --fail --silent --show-error https://boardgame.example.com/api/health
 
 ```bash
 sudo install -d -o root -g root -m 0755 /etc/letsencrypt/renewal-hooks/deploy
-sudo tee /etc/letsencrypt/renewal-hooks/deploy/space-station-apache >/dev/null <<'SH'
+sudo tee /etc/letsencrypt/renewal-hooks/deploy/boardgame-apache >/dev/null <<'SH'
 #!/bin/sh
 set -eu
 /usr/sbin/apachectl configtest
 /usr/bin/systemctl reload apache2
 SH
-sudo chmod 0755 /etc/letsencrypt/renewal-hooks/deploy/space-station-apache
+sudo chmod 0755 /etc/letsencrypt/renewal-hooks/deploy/boardgame-apache
 sudo certbot renew --cert-name boardgame.example.com --dry-run
 systemctl list-timers --all | grep -i certbot
 ```
 
-apt 安裝且尚未啟用 timer 時，執行 `sudo systemctl enable --now certbot.timer`。其他安裝方式確認原本排程，不要再開重複排程。`--dry-run` 通常不執行 deploy hook，可另執行 `sudo /etc/letsencrypt/renewal-hooks/deploy/space-station-apache` 檢查。這些排程需由你在 Pi 執行指令，本文件尚未替你啟用。
+apt 安裝且尚未啟用 timer 時，執行 `sudo systemctl enable --now certbot.timer`。其他安裝方式確認原本排程，不要再開重複排程。`--dry-run` 通常不執行 deploy hook，可另執行 `sudo /etc/letsencrypt/renewal-hooks/deploy/boardgame-apache` 檢查。這些排程需由你在 Pi 執行指令，本文件尚未替你啟用。
 
 ## 9. 朋友如何加入，以及首次驗收
 
@@ -337,7 +339,7 @@ apt 安裝且尚未啟用 timer 時，執行 `sudo systemctl enable --now certbo
 - 錯誤建房密鑰被拒、邀請可入房；至少 4 個隔離瀏覽器／裝置完成準備、開局與一整局。
 - 重新整理、短暫斷線、閒置數分鐘後可繼續；開發工具能看到 Socket.IO 及 WebSocket `101` 升級。
 - 觀戰盲／上帝視角、回放、固定視角分享、撤銷、PNG 下載正常；重複觀看不增加戰績。
-- 測試局中做一次 `sudo systemctl restart space-station`，確認角色、牌面、進度、身份及統計保持，再依 [維運手冊](OPERATIONS.md) 實際備份與隔離還原。
+- 測試局中做一次 `sudo systemctl restart boardgame`，確認角色、牌面、進度、身份及統計保持，再依 [維運手冊](OPERATIONS.md) 實際備份與隔離還原。
 
 Windows／Ubuntu CI 驗證的是安裝、型別、測試、建置；Pi ARM64、Apache、DNS、TLS 與磁碟恢復仍需以上實機驗收。
 
@@ -345,7 +347,7 @@ Windows／Ubuntu CI 驗證的是安裝、型別、測試、建置；Pi ARM64、A
 
 完整命令集中在 [更新、備份與還原手冊](OPERATIONS.md)：
 
-- 更新：結束對局、停服、備份，取得 GitHub 更新，重新安裝／測試／建置，成功後啟動。
+- 更新：取得 GitHub 更新，在獨立目錄安裝、測試與建置成功後，短暫停服、備份並切換新版。
 - 備份：整份資料目錄，加上私有設定、service、Apache、程式版本與 checksum；另留一份加密的異機備份。
 - 還原：先隔離驗證，再停服、保留目前資料、切換配對版本，不要覆寫正在使用的資料。
 

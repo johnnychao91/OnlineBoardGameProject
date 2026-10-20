@@ -6,8 +6,8 @@
 
 <VirtualHost *:80>
     ServerName boardgame.example.com
-    DocumentRoot /var/www/space-station-acme
-    <Directory /var/www/space-station-acme>
+    DocumentRoot /var/www/boardgame-acme
+    <Directory /var/www/boardgame-acme>
         Options None
         AllowOverride None
         Require all granted
@@ -38,6 +38,6 @@
     ProxyPassReverse / http://127.0.0.1:3001/
 
     # Debian／Raspberry Pi OS 路徑；其他發行版請依實際日誌目錄調整。
-    ErrorLog /var/log/apache2/space-station-error.log
-    CustomLog /var/log/apache2/space-station-access.log combined
+    ErrorLog /var/log/apache2/boardgame-error.log
+    CustomLog /var/log/apache2/boardgame-access.log combined
 </VirtualHost>

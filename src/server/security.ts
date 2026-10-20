@@ -3,6 +3,7 @@ import { createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypt
 export const randomToken = (bytes = 32) => randomBytes(bytes).toString('base64url');
 export const hashToken = (token: string) => createHash('sha256').update(token).digest('hex');
 /** A browser's unguessable request nonce plus its invite is a recoverable admission. */
+// Keep this protocol label stable across platform/service renames so pending joins recover the same identity.
 export const admissionCredential = (roomId: string, invite: string, requestID: string) =>
   createHmac('sha256', invite).update(`station-admission-v1:${roomId}:${requestID}`).digest('base64url');
 export function safeEqual(a: unknown, b: unknown): boolean {

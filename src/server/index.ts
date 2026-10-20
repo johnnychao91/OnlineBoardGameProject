@@ -13,7 +13,7 @@ async function main() {
     clientDir: production ? './dist/client' : undefined,
   });
   const running = await app.listen();
-  console.log(`太空維修站 API：http://${app.config.host}:${running.port}`);
+  console.log(`Boardgame API：http://${app.config.host}:${running.port}`);
   const stop = async () => { await running.close(); process.exit(0); };
   process.once('SIGINT', stop);
   process.once('SIGTERM', stop);

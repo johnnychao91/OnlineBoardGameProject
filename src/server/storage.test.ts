@@ -14,7 +14,7 @@ const THIRD_ID = 'QqWwEeRr1122_-33';
 afterEach(async () => {
   for (const directory of directories.splice(0)) {
     const target = resolve(directory);
-    if (dirname(target) !== resolve(tmpdir()) || !basename(target).startsWith('station-storage-test-')) {
+    if (dirname(target) !== resolve(tmpdir()) || !basename(target).startsWith('boardgame-storage-test-')) {
       throw new Error('測試清理路徑不在預期暫存目錄內');
     }
     await rm(target, { recursive: true, force: true });
@@ -22,7 +22,7 @@ afterEach(async () => {
 });
 
 async function fixture() {
-  const dir = await mkdtemp(join(tmpdir(), 'station-storage-test-'));
+  const dir = await mkdtemp(join(tmpdir(), 'boardgame-storage-test-'));
   directories.push(dir);
   const storage = new FileStorage({ dir });
   await storage.connect();
