@@ -7,7 +7,8 @@ import { Server } from 'boardgame.io/server';
 import { createMatch } from 'boardgame.io/internal';
 import { gameDefinitions, getGameDefinition, publicGameDefinitions } from '../games/registry';
 import { GuardedTransport } from './transport';
-import { RoomStore, type RoomRecord } from './rooms';
+import { RoomStore, currentMatchID, hostPlayerID, roomMatchIDs, type RoomRecord, type RoomHistory } from './rooms';
+import { RoomPresence } from './presence';
 import { FileStorage } from './storage';
 import { collectStatistics } from './statistics';
 import { admissionCredential, hashToken, randomToken, RateLimiter, safeEqual, validCredential, validRoomID } from './security';
@@ -20,6 +21,8 @@ export interface AppConfig {
   production: boolean;
   createRoomKey: string;
   clientDir?: string;
+  presenceLeaseMs?: number;
+  lifecycleSweepMs?: number;
 }
 const INVITE_TTL = 24 * 60 * 60 * 1000;
 const REPLAY_SHARE_TTL = 7 * 24 * 60 * 60 * 1000;
@@ -64,7 +67,12 @@ export async function createApplication(config: AppConfig) {
   await rooms.load();
   const db = new FileStorage({ dir: join(dataDir, 'matches') });
   await db.connect();
-  const transport = new GuardedTransport(rooms, origins);
+  const presence = new RoomPresence(config.presenceLeaseMs ?? 60000);
+  const transport = new GuardedTransport(rooms, origins, presence);
+  db.isMatchActive = (matchID) => {
+    const room = rooms.findByMatch(matchID);
+    return !!room && currentMatchID(room) === matchID;
+  };
   const server = Server({ games: gameDefinitions.map((g) => g.game), db, transport, origins });
   const limiter = new RateLimiter();
   // Trust the one local reverse proxy only when we are bound exclusively to loopback.
@@ -74,21 +82,23 @@ export async function createApplication(config: AppConfig) {
     if (!validRoomID(id)) return fail(404, '房間不存在');
     return rooms.rooms.get(id) || fail(404, '房間不存在');
   };
-  const snapshot = async (room: RoomRecord) => {
-    const { metadata, state } = await db.fetch(room.roomId, { metadata: true, state: true });
+  const snapshot = async (room: RoomRecord, matchID = currentMatchID(room)) => {
+    const { metadata, state } = await db.fetch(matchID, { metadata: true, state: true });
     if (!metadata || !state) fail(410, '房間資料無法載入，請重新建立房間');
     return { metadata, state };
   };
-  const publicRoom = (room: RoomRecord, metadata: any, state: any) => ({
-    roomId: room.roomId, matchID: room.roomId, gameName: room.gameId,
-    numPlayers: Object.values(metadata.players).filter((p: any) => p.credentials).length,
+  const publicRoom = (room: RoomRecord, metadata: any, state: any, matchID = currentMatchID(room), historical = false) => ({
+    roomId: room.roomId, matchID, gameName: room.gameId, hostPlayerID: historical ? null : hostPlayerID(room),
+    history: historical ? [] : room.history || [],
+    numPlayers: state.G.status === 'lobby' ? Object.values(metadata.players).filter((p: any) => p.credentials).length : state.ctx.numPlayers,
     minPlayers: getGameDefinition(room.gameId)!.minPlayers, maxPlayers: getGameDefinition(room.gameId)!.maxPlayers,
     status: state.G.status,
-    players: Object.values(metadata.players).filter((p: any) => p.credentials).map((p: any) => ({
-      id: String(p.id), name: p.name || '', isConnected: !!p.isConnected, ready: !!state.G.players?.[p.id]?.ready,
-      membershipID: hashToken(`${room.roomId}:${p.credentials}`).slice(0, 16),
+    players: Object.values(metadata.players).filter((p: any) => state.G.status === 'lobby' ? p.credentials : state.G.players?.[p.id]).map((p: any) => ({
+      id: String(p.id), name: p.name || '', isConnected: historical ? false : !!p.isConnected, ready: historical ? false : !!state.G.players?.[p.id]?.ready,
+      ...(!historical && p.credentials ? { membershipID: hashToken(`${room.roomId}:${p.credentials}`).slice(0, 16) } : {}),
+      ...(!historical ? { departed: !p.credentials } : {}),
     })),
-    spectatorCount: Object.keys(room.spectators || {}).length, godViewAllowed: true,
+    spectatorCount: historical ? 0 : Object.keys(room.spectators || {}).length, godViewAllowed: true,
   });
   const authenticate = (ctx: Context, metadata: any) => {
     if (ctx.get('X-Observer-ID')) fail(401, '觀戰憑證不能用於玩家操作');
@@ -110,13 +120,57 @@ export async function createApplication(config: AppConfig) {
     if (value === 'god') return 'god' as const;
     return fail(400, '觀看視角不正確');
   };
-  const replayPayload = async (room: RoomRecord, perspective: 'blind' | 'god') => {
-    const replay = await db.fetchReplay(room.roomId);
+  const replayPayload = async (room: RoomRecord, perspective: 'blind' | 'god', matchID = currentMatchID(room)) => {
+    const replay = await db.fetchReplay(matchID);
     const definition = getGameDefinition(room.gameId)!;
     return { complete: replay.complete, frames: replay.frames.map((frame) => ({
       stateID: frame.stateID, at: frame.at, G: definition.observerView(frame.G, perspective),
     })) };
   };
+  const requestedMatch = (room: RoomRecord, value: unknown) => {
+    if (value === undefined) return currentMatchID(room);
+    if (!validRoomID(value) || !roomMatchIDs(room).includes(value)) fail(404, '找不到這場對局');
+    return value;
+  };
+  const returnToLobby = async (room: RoomRecord, ending: RoomHistory['ending']) => {
+    const previousID = currentMatchID(room);
+    const { metadata, state } = await snapshot(room);
+    const definition = getGameDefinition(room.gameId)!;
+    if (definition.isJoinable(state.G)) return room;
+    const outcome = definition.getOutcome(state.G);
+    if (ending === 'completed' && !outcome) fail(409, '對局尚未結束');
+    const matchID = randomToken(12);
+    const match = createMatch({ game: { ...definition.game, seed: randomToken() }, numPlayers: definition.maxPlayers, setupData: undefined, unlisted: true });
+    if ('setupDataError' in match) fail(500, '無法返回等待室');
+    for (const player of Object.values(metadata.players)) {
+      if (player.credentials) match.metadata.players[player.id] = { ...player, isConnected: false };
+    }
+    const participants = Object.values(match.metadata.players).filter((player) => player.credentials);
+    const previousHost = hostPlayerID(room);
+    const nextHost = participants.some((player) => String(player.id) === previousHost)
+      ? previousHost : participants.length ? String(participants[0].id) : null;
+    const history: RoomHistory = { matchID: previousID, endedAt: Date.now(), ending,
+      numPlayers: state.ctx.numPlayers, ...(outcome && ending === 'completed' ? { winner: outcome.winner, reason: outcome.reason } : {}) };
+    const next: RoomRecord = { ...room, currentMatchID: matchID, hostPlayerID: nextHost,
+      departedPlayerIDs: [], history: [...(room.history || []), history] };
+    // Create first, then atomically publish the new room pointer. A failed index
+    // write leaves an unused file, never an overwritten completed game.
+    await db.createNextMatch(previousID, matchID, match);
+    await rooms.save(next);
+    transport.closeMatch(previousID);
+    return next;
+  };
+  const reconcileRoom = async (room: RoomRecord) => {
+    const { state } = await snapshot(room);
+    const definition = getGameDefinition(room.gameId)!;
+    if (definition.getOutcome(state.G)) return returnToLobby(room, 'completed');
+    if (!definition.isJoinable(state.G) && !presence.hasAnyone(room.roomId)) return returnToLobby(room, 'empty');
+    return room;
+  };
+  let sweepInFlight: Promise<void> | undefined;
+  const sweep = () => sweepInFlight ??= Promise.all([...rooms.rooms.keys()].map((roomId) =>
+    transport.getRoomQueue(roomId).add(async () => { await reconcileRoom(getRoom(roomId)); })
+  )).then(() => undefined).finally(() => { sweepInFlight = undefined; });
   let statisticsInFlight: ReturnType<typeof collectStatistics> | undefined;
 
   server.app.use(async (ctx, next) => {
@@ -163,10 +217,12 @@ export async function createApplication(config: AppConfig) {
       if (!validCredential(token)) fail(403, '回放分享已失效');
       const share = room.replayShares?.find((entry) => entry.expiresAt > Date.now() && safeEqual(entry.tokenHash, hashToken(token)));
       if (!share) fail(403, '回放分享已失效');
-      const { metadata, state } = await snapshot(room);
+      const matchID = share.matchID ?? room.roomId;
+      if (!roomMatchIDs(room).includes(matchID)) fail(403, '回放分享已失效');
+      const { metadata, state } = await snapshot(room, matchID);
       if (!getGameDefinition(room.gameId)!.getOutcome(state.G)) fail(409, '對局尚未結束');
-      ctx.body = { room: publicRoom(room, metadata, state), perspective: share.perspective, frameIndex: share.frameIndex,
-        ...await replayPayload(room, share.perspective) };
+      ctx.body = { room: publicRoom(room, metadata, state, matchID, true), perspective: share.perspective, frameIndex: share.frameIndex,
+        ...await replayPayload(room, share.perspective, matchID) };
       return;
     }
     if (ctx.method === 'POST' && ctx.path === '/api/rooms') {
@@ -186,33 +242,42 @@ export async function createApplication(config: AppConfig) {
       if ('setupDataError' in match) fail(400, '無法使用這組遊戲設定');
       match.metadata.players['0'].name = name;
       match.metadata.players['0'].credentials = credentials;
-      const room: RoomRecord = { roomId, gameId: definition.id, numPlayers: definition.maxPlayers, inviteHash: hashToken(invite), inviteExpiresAt: Date.now() + INVITE_TTL, createdAt: Date.now() };
+      const room: RoomRecord = { roomId, currentMatchID: roomId, hostPlayerID: '0', gameId: definition.id, numPlayers: definition.maxPlayers, inviteHash: hashToken(invite), inviteExpiresAt: Date.now() + INVITE_TTL, createdAt: Date.now() };
       await db.createMatch(roomId, match);
       await rooms.save(room);
+      presence.touch(roomId, 'player:0', 'admission');
       ctx.status = 201;
       ctx.body = { ...publicRoom(room, match.metadata, match.initialState), access: 'player', playerID: '0', credentials,
         inviteUrl: `${origin}/join/${roomId}#invite=${invite}`, expiresAt: room.inviteExpiresAt };
       return;
     }
-    const route = /^\/api\/rooms\/([A-Za-z0-9_-]+)(?:\/(join|watch|invite|ready|remove|start|view|replay|share|revoke-shares))?$/.exec(ctx.path);
+    const route = /^\/api\/rooms\/([A-Za-z0-9_-]+)(?:\/(join|watch|invite|ready|remove|start|view|replay|share|revoke-shares|return|abort|leave|heartbeat))?$/.exec(ctx.path);
     if (!route) fail(404, '找不到此功能');
     const room = getRoom(route[1]);
     const operation = route[2];
     if (ctx.method === 'GET' && !operation) {
-      const { metadata, state } = await snapshot(room);
-      authenticateViewer(ctx, room, metadata);
-      ctx.body = publicRoom(room, metadata, state);
+      await transport.getRoomQueue(room.roomId).add(async () => {
+        const current = getRoom(room.roomId);
+        const { metadata } = await snapshot(current);
+        authenticateViewer(ctx, current, metadata);
+        const latest = await reconcileRoom(current);
+        const result = await snapshot(latest);
+        ctx.body = publicRoom(latest, result.metadata, result.state);
+      });
       return;
     }
     if (ctx.method === 'GET' && (operation === 'view' || operation === 'replay')) {
-      const { metadata, state } = await snapshot(room);
+      const { metadata } = await snapshot(room);
       const viewer = authenticateViewer(ctx, room, metadata);
       const definition = getGameDefinition(room.gameId)!;
+      const matchID = operation === 'replay' ? requestedMatch(room, ctx.query.matchID) : currentMatchID(room);
+      const selected = await snapshot(room, matchID);
+      const state = selected.state;
       const finished = !!definition.getOutcome(state.G);
       const perspective = perspectiveOf(ctx.query.perspective);
       if (operation === 'replay') {
         if (!finished) fail(409, '完整復盤於對局結束後開放');
-        ctx.body = await replayPayload(room, perspective);
+        ctx.body = { room: publicRoom(room, selected.metadata, state, matchID, true), ...await replayPayload(room, perspective, matchID) };
       } else {
         if (viewer.access !== 'spectator' && !finished) fail(403, '玩家不能取得觀戰視角');
         ctx.body = { G: definition.observerView(state.G, perspective), stateID: state._stateID, perspective };
@@ -222,28 +287,34 @@ export async function createApplication(config: AppConfig) {
     if (ctx.method !== 'POST' || !operation) fail(405, '不支援的請求');
     const body = await jsonBody(ctx);
     // Use the same match queue as moves, so joining and starting cannot race.
-    await transport.getMatchQueue(room.roomId).add(async () => {
+    await transport.getRoomQueue(room.roomId).add(async () => {
       const current = getRoom(room.roomId);
+      const matchID = currentMatchID(current);
       const { metadata, state } = await snapshot(current);
       const definition = getGameDefinition(current.gameId)!;
+      if (['ready', 'remove', 'start', 'return', 'abort'].includes(operation)
+        && body.matchID !== undefined && body.matchID !== matchID) fail(409, '對局已更新，請重新確認房間狀態');
       if (operation === 'join' || operation === 'watch') {
         if (!limiter.allow(`join:${ctx.ip}`, 30, 60000)) fail(429, '加入嘗試太頻繁');
         if (typeof body.inviteToken !== 'string' || !/^[A-Za-z0-9_-]{43}$/.test(body.inviteToken)) fail(403, '邀請已失效，請向房主索取新連結');
         if (body.requestID !== undefined && (typeof body.requestID !== 'string' || !/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(body.requestID))) fail(400, '加入請求識別碼不正確');
         const watching = operation === 'watch';
         const credentials = body.requestID ? admissionCredential(watching ? `${current.roomId}:observer` : current.roomId, body.inviteToken, body.requestID) : randomToken();
-        if (!watching && body.requestID && await db.isAdmissionRevoked(current.roomId, credentials)) {
+        if (!watching && body.requestID && await db.isAdmissionRevoked(matchID, credentials)) {
           fail(403, '這次入座已被房主移出，請重新開啟有效邀請加入', 'ADMISSION_REMOVED');
         }
+        if (watching && body.requestID && current.revokedObserverAdmissions?.includes(hashToken(credentials))) fail(403, '這次觀戰憑證已離開，請重新透過邀請加入', 'ADMISSION_REMOVED');
         // A response lost on a mobile connection can be retried without claiming a
         // second seat. Possessing both secrets is equivalent to the issued seat key.
         const previous = !watching && body.requestID && Object.values(metadata.players).find((player) => safeEqual(player.credentials, credentials));
         if (previous) {
+          presence.touch(current.roomId, `player:${previous.id}`, 'admission');
           ctx.body = { ...publicRoom(current, metadata, state), access: 'player', playerID: String(previous.id), credentials };
           return;
         }
         const previousObserver = watching && body.requestID && Object.entries(current.spectators || {}).find(([, observer]) => safeEqual(observer.credentialHash, hashToken(credentials)));
         if (previousObserver) {
+          presence.touch(current.roomId, `spectator:${previousObserver[0]}`, 'admission');
           ctx.body = { ...publicRoom(current, metadata, state), access: 'spectator', observerID: previousObserver[0], credentials };
           return;
         }
@@ -255,6 +326,7 @@ export async function createApplication(config: AppConfig) {
           spectators[observerID] = { name: displayName(body.displayName), credentialHash: hashToken(credentials) };
           const updated = { ...current, spectators };
           await rooms.save(updated);
+          presence.touch(current.roomId, `spectator:${observerID}`, 'admission');
           ctx.body = { ...publicRoom(updated, metadata, state), access: 'spectator', observerID, credentials };
           return;
         }
@@ -270,8 +342,11 @@ export async function createApplication(config: AppConfig) {
         seat.name = name;
         seat.credentials = credentials;
         metadata.updatedAt = Date.now();
-        await db.setMetadata(current.roomId, metadata);
-        ctx.body = { ...publicRoom(current, metadata, state), access: 'player', playerID: String(seat.id), credentials: seat.credentials };
+        await db.setMetadata(matchID, metadata);
+        const updated = hostPlayerID(current) === null ? { ...current, hostPlayerID: String(seat.id) } : current;
+        if (updated !== current) await rooms.save(updated);
+        presence.touch(current.roomId, `player:${seat.id}`, 'admission');
+        ctx.body = { ...publicRoom(updated, metadata, state), access: 'player', playerID: String(seat.id), credentials: seat.credentials };
       } else if (operation === 'ready') {
         const playerID = authenticate(ctx, metadata);
         if (!definition.isJoinable(state.G)) fail(409, '遊戲已開始');
@@ -279,12 +354,12 @@ export async function createApplication(config: AppConfig) {
         state.G.players[playerID] ??= { ready: false, acknowledged: false, cardCount: 0 };
         state.G.players[playerID].ready = body.ready;
         state._stateID += 1;
-        await db.setState(current.roomId, state);
+        await db.setState(matchID, state);
         ctx.body = publicRoom(current, metadata, state);
       } else if (operation === 'remove') {
-        if (authenticate(ctx, metadata) !== '0') fail(403, '只有房主可以移出玩家');
+        if (authenticate(ctx, metadata) !== hostPlayerID(current)) fail(403, '只有房主可以移出玩家');
         if (!definition.isJoinable(state.G)) fail(409, '遊戲開始後不能移出玩家');
-        if (typeof body.playerID !== 'string' || !/^[1-9]$/.test(body.playerID)
+        if (typeof body.playerID !== 'string' || !/^\d$/.test(body.playerID) || body.playerID === hostPlayerID(current)
           || typeof body.membershipID !== 'string' || !/^[a-f0-9]{16}$/.test(body.membershipID)) {
           fail(400, '請選擇房主以外的玩家');
         }
@@ -295,12 +370,13 @@ export async function createApplication(config: AppConfig) {
         }
         state.G.players[body.playerID] = { ready: false, acknowledged: false, cardCount: 0 };
         state._stateID += 1;
-        await db.removePlayer(current.roomId, body.playerID, target.credentials, state);
-        transport.removePlayer(current.roomId, body.playerID, target.credentials);
+        await db.removePlayer(matchID, body.playerID, target.credentials, state);
+        presence.remove(current.roomId, `player:${body.playerID}`);
+        transport.removePlayer(matchID, body.playerID, target.credentials);
         const updated = await snapshot(current);
         ctx.body = publicRoom(current, updated.metadata, updated.state);
       } else if (operation === 'start') {
-        if (authenticate(ctx, metadata) !== '0') fail(403, '只有房主可以開始');
+        if (authenticate(ctx, metadata) !== hostPlayerID(current)) fail(403, '只有房主可以開始');
         if (!definition.isJoinable(state.G)) fail(409, '遊戲已開始');
         const participants = Object.values(metadata.players).filter((player) => player.credentials);
         const count = participants.length;
@@ -313,27 +389,80 @@ export async function createApplication(config: AppConfig) {
         match.metadata.createdAt = metadata.createdAt;
         // Preserve increasing versions if an older lobby tab still has a socket.
         match.initialState._stateID = state._stateID + 1;
-        await db.startMatch(current.roomId, match);
+        await db.startMatch(matchID, match);
         ctx.body = publicRoom(current, match.metadata, match.initialState);
+      } else if (operation === 'heartbeat') {
+        const viewer = authenticateViewer(ctx, current, metadata);
+        if (typeof body.sessionID !== 'string' || !/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(body.sessionID)) fail(400, '連線識別碼不正確');
+        presence.touch(current.roomId, `${viewer.access === 'player' ? 'player' : 'spectator'}:${viewer.id}`, body.sessionID);
+        ctx.body = { ok: true };
+      } else if (operation === 'return' || operation === 'abort') {
+        if (authenticate(ctx, metadata) !== hostPlayerID(current)) fail(403, '只有房主可以結束本局');
+        if (body.matchID !== matchID) fail(409, '對局已更新，請重新確認房間狀態');
+        if (definition.isJoinable(state.G)) fail(409, '目前已在等待室');
+        const finished = !!definition.getOutcome(state.G);
+        if (operation === 'return' && !finished) fail(409, '對局尚未結束');
+        if (operation === 'abort' && finished) fail(409, '對局已結束，請返回等待室');
+        const next = await returnToLobby(current, finished ? 'completed' : 'host-ended');
+        const nextState = await snapshot(next);
+        ctx.body = publicRoom(next, nextState.metadata, nextState.state);
+      } else if (operation === 'leave') {
+        const viewer = authenticateViewer(ctx, current, metadata);
+        let updated = current;
+        if (viewer.access === 'spectator') {
+          const spectators = { ...current.spectators };
+          const revoked = spectators[viewer.id].credentialHash;
+          delete spectators[viewer.id];
+          updated = { ...current, spectators,
+            revokedObserverAdmissions: [...new Set([...(current.revokedObserverAdmissions || []), revoked])] };
+        } else {
+          const player = metadata.players[Number(viewer.id)];
+          const credentials = player.credentials!;
+          await db.revokeAdmission(matchID, credentials);
+          // Retain the original name for this game's final table / replay.
+          delete player.credentials;
+          player.isConnected = false;
+          metadata.updatedAt = Date.now();
+          await db.setMetadata(matchID, metadata);
+          if (definition.isJoinable(state.G)) {
+            state.G.players[viewer.id] = { ready: false, acknowledged: false, cardCount: 0 };
+            state._stateID += 1;
+            await db.setState(matchID, state);
+          }
+          const remaining = Object.values(metadata.players).filter((entry) => entry.credentials);
+          updated = { ...current,
+            hostPlayerID: hostPlayerID(current) === viewer.id ? (remaining.length ? String(remaining[0].id) : null) : hostPlayerID(current),
+            departedPlayerIDs: [...new Set([...(current.departedPlayerIDs || []), viewer.id])] };
+          transport.removePlayer(matchID, viewer.id, credentials);
+        }
+        await rooms.save(updated);
+        presence.remove(current.roomId, `${viewer.access === 'player' ? 'player' : 'spectator'}:${viewer.id}`);
+        const anyoneAdmitted = Object.values(metadata.players).some((entry) => entry.credentials) || Object.keys(updated.spectators || {}).length > 0;
+        if (!definition.isJoinable(state.G) && (!anyoneAdmitted || !presence.hasAnyone(current.roomId))) {
+          await returnToLobby(updated, definition.getOutcome(state.G) ? 'completed' : 'empty');
+        }
+        ctx.body = { left: true };
       } else if (operation === 'share') {
         authenticateViewer(ctx, current, metadata);
-        if (!definition.getOutcome(state.G)) fail(409, '對局結束後才能分享復盤');
+        const replayMatchID = requestedMatch(current, body.matchID);
+        const selected = await snapshot(current, replayMatchID);
+        if (!definition.getOutcome(selected.state.G)) fail(409, '對局結束後才能分享復盤');
         const perspective = perspectiveOf(body.perspective);
-        const replay = await db.fetchReplay(current.roomId);
+        const replay = await db.fetchReplay(replayMatchID);
         if (!replay.complete) fail(409, '這場對局沒有完整回放');
         if (!Number.isSafeInteger(body.frameIndex) || body.frameIndex < 0 || body.frameIndex >= replay.frames.length) fail(400, '回放步驟不正確');
         const shares = (current.replayShares || []).filter((entry) => entry.expiresAt > Date.now());
         if (shares.length >= 64) fail(409, '分享數已達上限，請房主先撤銷舊分享');
         const token = randomToken();
         const expiresAt = Date.now() + REPLAY_SHARE_TTL;
-        await rooms.save({ ...current, replayShares: [...shares, { tokenHash: hashToken(token), expiresAt, frameIndex: body.frameIndex, perspective }] });
+        await rooms.save({ ...current, replayShares: [...shares, { matchID: replayMatchID, tokenHash: hashToken(token), expiresAt, frameIndex: body.frameIndex, perspective }] });
         ctx.body = { url: `${origin}/replay/${current.roomId}#share=${token}`, expiresAt };
       } else if (operation === 'revoke-shares') {
-        if (authenticate(ctx, metadata) !== '0') fail(403, '只有房主可以撤銷分享');
+        if (authenticate(ctx, metadata) !== hostPlayerID(current)) fail(403, '只有房主可以撤銷分享');
         await rooms.save({ ...current, replayShares: [] });
         ctx.body = { revoked: true };
       } else if (operation === 'invite') {
-        if (authenticate(ctx, metadata) !== '0') fail(403, '只有房主可以重設邀請');
+        if (authenticate(ctx, metadata) !== hostPlayerID(current)) fail(403, '只有房主可以重設邀請');
         const invite = randomToken();
         const updated = { ...current, inviteHash: hashToken(invite), inviteExpiresAt: Date.now() + INVITE_TTL };
         await rooms.save(updated);
@@ -360,7 +489,13 @@ export async function createApplication(config: AppConfig) {
       const httpServer = server.app.listen(config.port, config.host);
       await new Promise<void>((ok, reject) => { httpServer.once('listening', ok); httpServer.once('error', reject); });
       const port = (httpServer.address() as AddressInfo).port;
+      const timer = setInterval(() => {
+        void sweep().catch(() => { console.error('Room lifecycle reconciliation failed'); });
+      }, config.lifecycleSweepMs ?? 5000);
+      timer.unref();
       return { port, async close() {
+        clearInterval(timer);
+        if (sweepInFlight) await sweepInFlight;
         await new Promise<void>((done) => (server.app as any)._io.close(() => done()));
         if (httpServer.listening) await new Promise<void>((done) => httpServer.close(() => done()));
         await transport.drain();

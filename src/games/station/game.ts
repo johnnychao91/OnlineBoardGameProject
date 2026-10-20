@@ -152,7 +152,7 @@ function beginGame(G: StationState, random: RandomAPI): void {
     };
   });
   G.round = 1;
-  G.activePlayer = '0';
+  G.activePlayer = ids[0];
   const deck: CardKind[] = [
     ...Array<CardKind>(4 * ids.length - 1).fill('stable'),
     ...Array<CardKind>(ids.length).fill('repair'),
@@ -374,7 +374,6 @@ export const StationGame: Game<StationState, Record<string, unknown>, StationSet
     }
     if (setupData?.participantIDs !== undefined && (!Array.isArray(setupData.participantIDs)
       || setupData.participantIDs.length !== numPlayers
-      || setupData.participantIDs[0] !== '0'
       || setupData.participantIDs.some((id: unknown) => typeof id !== 'string' || !/^[0-7]$/.test(id))
       || new Set(setupData.participantIDs).size !== numPlayers)) {
       return '參與玩家席位不正確。';
@@ -444,7 +443,7 @@ export const StationGame: Game<StationState, Record<string, unknown>, StationSet
         return ctx.gameover?.winner === G.winner && ctx.gameover?.reason === G.winReason
           ? false : 'Game completion must follow the station rules.';
       }
-      if (ctx.gameover !== undefined || ctx.turn !== 1 || ctx.currentPlayer !== '0'
+      if (ctx.gameover !== undefined || ctx.turn !== 1 || ctx.currentPlayer !== Object.keys(G.players)[0]
         || ctx.phase !== null || !ctx.activePlayers
         || Object.keys(ctx.activePlayers).length !== Object.keys(G.players).length
         || Object.keys(G.players).some((id) => ctx.activePlayers![id] !== null)

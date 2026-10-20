@@ -3,7 +3,7 @@ import type { StationState } from '../games/station/game';
 import { getCardSlots, possibleRoleCounts } from '../games/station/view-model';
 import { isPlayer } from './api';
 import { RoomContext } from './room-context';
-import { Icon, navigate } from './ui';
+import { Icon } from './ui';
 import { BattleReport } from './BattleReport';
 import { cardNames, initials, MissionProgress, roleNames, StationTable, TurnNotice } from './StationTable';
 
@@ -34,7 +34,10 @@ export function StationBoard({ G, playerID, moves, isConnected }: BoardProps) {
   const id = playerID || (isPlayer(seat) ? seat.playerID : '');
   const mine = G.private?.[id];
   const own = G.players[id];
-  const nameOf = (target: string) => info.players.find(p => String(p.id) === target)?.name || `隊員 ${Number(target) + 1}`;
+  const nameOf = (target: string) => {
+    const player = info.players.find(p => String(p.id) === target);
+    return `${player?.name || `隊員 ${Number(target) + 1}`}${player?.departed ? '（已離開）' : ''}`;
+  };
   const myTurn = G.status === 'playing' && G.activePlayer === id;
   const canAct = isConnected !== false;
   const version2 = G.rulesVersion === 2;
@@ -172,8 +175,7 @@ export function StationBoard({ G, playerID, moves, isConnected }: BoardProps) {
         </div>)}</div>
       </section>
       <StationTable G={G} nameOf={nameOf} ownID={id} />
-      <button className="button primary full" onClick={() => navigate('/')}>回到大廳，開新的一桌<Icon type="arrow" /></button>
-      <p className="small muted">下一局使用全新房間與邀請，重新集合即可。</p>
+      <p className="small muted" role="status">本局已完成，正在返回原房間。結果與復盤會保留，準備好就能接著玩。</p>
       <BattleReport G={G} info={info} perspective="blind" label="製作本局戰報圖" />
       <Log G={G} nameOf={nameOf} />
     </main> : <main className="game-layout">
@@ -191,10 +193,10 @@ export function StationBoard({ G, playerID, moves, isConnected }: BoardProps) {
           </button>
           {privateVisible && mine && <div className="private-content">
             <div className={`role-card ${mine.role}`}>
-              <span>你的身份</span><strong>{roleNames[mine.role]}{mine.role === 'engineer' ? '（好人）' : '（壞人）'}</strong>
+              <span>你的身份</span><strong>{roleNames[mine.role]}</strong>
               <div className="possible-roles"><span>本局可能的全場人數（包含你）</span>
                 {roles.map(({ engineer, saboteur }) => <p key={`${engineer}-${saboteur}`}>
-                  <b>好人 {engineer} 位</b><span>／</span><b>壞人 {saboteur} 位</b>
+                  <b>維修員 {engineer} 位</b><span>／</span><b>干擾者 {saboteur} 位</b>
                 </p>)}
                 {roles.length > 1 && <small>以上是可能組合，實際陣營人數不公開。</small>}
               </div>
@@ -217,15 +219,15 @@ export function StationBoard({ G, playerID, moves, isConnected }: BoardProps) {
           </div>}
           {G.status === 'claiming' && <div className="briefing-action claim-action">
             {needsClaim ? <button className="button primary full" onClick={() => setClaimDismissed(false)}>
-              宣稱我的好引線數量<Icon type="arrow" />
-            </button> : <p className="claim-submitted"><Icon type="check" />你宣稱了 {own?.claim} 張好引線，等待其他隊員。</p>}
+              宣稱我的維修模組數量<Icon type="arrow" />
+            </button> : <p className="claim-submitted"><Icon type="check" />你宣稱了 {own?.claim} 張維修模組，等待其他隊員。</p>}
             <p className="small muted center" role="status">
               {Object.values(G.players).filter(p => p.claim != null).length} / {info.numPlayers} 位已宣稱
             </p>
           </div>}
         </section>
         <div className="selection-feedback" role="status">
-          {request ? '正在向全桌同步你的預選…' : notice || (myTurn && pending?.actorID === id ? '大家已看見你的預選。再點同一張牌，開啟剪線確認。' : '')}
+          {request ? '正在向全桌同步你的預選…' : notice || (myTurn && pending?.actorID === id ? '大家已看見你的預選。再點同一張牌，開啟檢修確認。' : '')}
         </div>
         <StationTable G={G} nameOf={nameOf} ownID={id} canSelect={canAct && myTurn && !request} onCardClick={chooseCard} />
       </section>
@@ -237,27 +239,27 @@ export function StationBoard({ G, playerID, moves, isConnected }: BoardProps) {
     <dialog ref={modal} onCancel={event => { event.preventDefault(); cancelSelection(); }}
       onClose={() => setSelection(null)} className="confirm-dialog" aria-labelledby="station-confirm-title">
       <div className="eyebrow">CONFIRM YOUR CHOICE</div>
-      <h2 id="station-confirm-title">確定剪開這條線？</h2>
-      <p>揭開 <strong>{selection ? nameOf(selection.targetID) : ''}</strong> 的第 <strong>{(selection?.slot ?? 0) + 1}</strong> 張暗牌。</p>
-      <p className="muted small">確認後才會公開牌面，並由對方接手下一次剪線。</p>
+      <h2 id="station-confirm-title">確定檢修這項設備？</h2>
+      <p>揭開 <strong>{selection ? nameOf(selection.targetID) : ''}</strong> 的第 <strong>{(selection?.slot ?? 0) + 1}</strong> 張設備牌。</p>
+      <p className="muted small">確認後才會公開牌面，並由對方接手下一次檢修。</p>
       <div className="button-row">
         <button className="button secondary" autoFocus onClick={cancelSelection}>取消預選</button>
-        <button className="button primary" disabled={!validSelection} onClick={confirmSelection}>確認剪線</button>
+        <button className="button primary" disabled={!validSelection} onClick={confirmSelection}>確認檢修</button>
       </div>
     </dialog>
     <dialog ref={claimModal} className="confirm-dialog claim-dialog" aria-labelledby="station-claim-title"
       onCancel={event => { event.preventDefault(); setClaimDismissed(true); }}>
       <div className="eyebrow">ROUND {G.round} · YOUR DECLARATION</div>
-      <h2 id="station-claim-title">你要宣稱幾張好引線？</h2>
-      <p>選擇你要公開宣稱的<strong>好引線（維修模組）數量</strong>。</p>
+      <h2 id="station-claim-title">你要宣稱幾張維修模組？</h2>
+      <p>選擇你要公開宣稱的<strong>維修模組數量</strong>。</p>
       <p className="claim-secret"><Icon type="shield" size={17} />只有你知道：實際有 <strong>{mine?.composition.repair ?? '—'} 張</strong></p>
       <p className="muted small">可以說實話，也可以說謊。點選數字就會公開提交，本輪不能修改。</p>
-      <div className="claim-options" aria-label="宣稱好引線數量">
+      <div className="claim-options" aria-label="宣稱維修模組數量">
         {Array.from({ length: claimMaximum + 1 }, (_, amount) => <button key={amount} type="button"
-          disabled={!canAct || !needsClaim || claimSending} aria-label={`宣稱 ${amount} 張好引線`}
+          disabled={!canAct || !needsClaim || claimSending} aria-label={`宣稱 ${amount} 張維修模組`}
           onClick={() => declareClaim(amount)}>{amount}<small>張</small></button>)}
       </div>
-      <p className="small muted center" role="status">{claimSending ? '正在提交宣稱…' : !canAct ? '重新連線後即可提交。' : '全員宣稱完成後開始剪線。'}</p>
+      <p className="small muted center" role="status">{claimSending ? '正在提交宣稱…' : !canAct ? '重新連線後即可提交。' : '全員宣稱完成後開始檢修。'}</p>
       <button className="button secondary full" onClick={() => setClaimDismissed(true)}>先看牌桌</button>
     </dialog>
   </>;
@@ -269,11 +271,11 @@ export function Log({ G, nameOf }: { G: StationState; nameOf: (id: string) => st
     {G.log.length ? <ol>{[...G.log].reverse().slice(0, 32).map((entry, index) => <li key={`${G.log.length - index}`}>
       <span className={`log-dot ${entry.kind}`} />
       <div>
-        <p><strong>{nameOf(entry.actorID)}</strong> 剪開了 {nameOf(entry.targetID)} 的第 {entry.slot + 1} 張設備</p>
+        <p><strong>{nameOf(entry.actorID)}</strong> 檢修了 {nameOf(entry.targetID)} 的第 {entry.slot + 1} 張設備牌</p>
         <span className={entry.kind === 'repair' ? 'mint' : entry.kind === 'hazard' ? 'amber' : 'muted'}>{cardNames[entry.kind]}</span>
         <small>第 {entry.round} 輪</small>
       </div>
-    </li>)}</ol> : <p className="muted small">第一次剪線後，結果會出現在這裡。</p>}
+    </li>)}</ol> : <p className="muted small">第一次檢修後，結果會出現在這裡。</p>}
   </section>;
 }
 
@@ -281,11 +283,11 @@ export function RuleSummary({ legacy = false }: { legacy?: boolean } = {}) {
   return <div className="rule-summary">
     <p>每位隊員有秘密陣營。維修員要找齊所有維修模組；干擾者要讓反應爐危機被揭開，或讓維修拖過第四輪。</p>
     {legacy ? <>
-      <p>每輪先查看自己的設備組成，全員確認後開始剪線。暗牌會洗亂，連本人也不知道位置。大家可以自由討論，說實話、保留資訊或說謊。</p>
-      <p>輪到你剪線時，選擇其他隊員的一張暗牌，在確認視窗按下「確認剪線」後翻開，再由對方接手。這局沿用舊版規則，翻開的牌移入紀錄，剩餘暗牌往前排列。</p>
+      <p>每輪先查看自己的設備組成，全員確認後開始檢修。暗牌會洗亂，連本人也不知道位置。大家可以自由討論，說實話、保留資訊或說謊。</p>
+      <p>輪到你檢修時，選擇其他隊員的一張暗牌，在確認視窗按下「確認檢修」後翻開，再由對方接手。這局翻開的牌移入紀錄，剩餘暗牌往前排列。</p>
     </> : <>
-      <p>每輪先查看設備組成，確認後宣稱自己有幾張好引線（維修模組）。宣稱可以說謊，並不代表實際牌數。暗牌會洗亂，連本人也不知道位置。</p>
-      <p>輪到你剪線時，先點別人的一張暗牌，全桌都會看見預選；再點同一張牌並確認才翻開。翻開的牌留在原位，由對方接手下一次剪線。</p>
+      <p>每輪先查看設備組成，確認後宣稱自己有幾張維修模組。宣稱可以說謊，並不代表實際牌數。暗牌會洗亂，連本人也不知道位置。</p>
+      <p>輪到你檢修時，先點別人的一張暗牌，全桌都會看見預選；再點同一張牌並確認才翻開。翻開的牌留在原位，由對方接手下一次檢修。</p>
     </>}
     <p>每輪共揭開等同玩家人數的牌；剩餘暗牌重新混洗與分配，進入下一輪。穩定設備沒有特殊效果；維修模組累計維修進度。</p>
     <p>反應爐危機一揭開，干擾者立刻獲勝。所有維修模組都找到，維修員立刻獲勝。</p>

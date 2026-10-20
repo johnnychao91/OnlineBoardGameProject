@@ -23,17 +23,17 @@ export function TurnNotice({ G, nameOf, ownID }: {
   const playing = G.status === 'playing';
   const myTurn = playing && G.activePlayer === ownID;
   const heading = G.status === 'briefing' ? '先確認你的任務資訊'
-    : G.status === 'claiming' ? '宣稱階段 · 每人說出好引線數量'
-      : playing ? myTurn ? '輪到你剪線！' : `現在由 ${nameOf(G.activePlayer!)} 剪線`
+    : G.status === 'claiming' ? '宣稱階段 · 每人說出維修模組數量'
+      : playing ? myTurn ? '輪到你檢修設備！' : `現在由 ${nameOf(G.activePlayer!)} 檢修設備`
         : G.status === 'finished' ? '本局已結束' : '等待隊員集合';
   return <section className={`turn-notice station-turn-notice ${myTurn ? 'your-turn' : ''}`}
     role="status" aria-live="polite" aria-atomic="true">
     <span className="turn-symbol"><Icon type={playing ? 'arrow' : 'signal'} size={24} /></span>
     <div>
       <strong>{heading}</strong>
-      <p>{G.status === 'briefing' ? G.rulesVersion === 2 ? '每輪重新洗牌，全員確認後進入宣稱階段。' : '每輪重新洗牌，全員確認後開始剪線。'
-        : G.status === 'claiming' ? '宣稱可以說謊。所有人提交後，才開始剪線。'
-          : playing ? myTurn ? G.rulesVersion === 2 ? '先點一張暗牌讓大家看到，再點同一張確認剪線。' : '討論後，選擇其他隊員的一張暗牌。' : '請一起討論，只有目前的剪線玩家能翻牌。'
+      <p>{G.status === 'briefing' ? G.rulesVersion === 2 ? '每輪重新洗牌，全員確認後進入宣稱階段。' : '每輪重新洗牌，全員確認後開始檢修。'
+        : G.status === 'claiming' ? '宣稱可以說謊。所有人提交後，才開始檢修。'
+          : playing ? myTurn ? G.rulesVersion === 2 ? '先點一張暗牌讓大家看到，再點同一張確認檢修。' : '討論後，選擇其他隊員的一張暗牌。' : '請一起討論，只有目前負責檢修的隊員能翻牌。'
             : G.status === 'finished' ? '最後一輪牌桌保留在下方，可繼續復盤。' : '集合完成後即可開始。'}</p>
     </div>
   </section>;
@@ -44,7 +44,7 @@ export function PendingRevealNotice({ G, nameOf }: { G: StationState; nameOf: (i
   return <div className="pending-announcement" role="status" aria-live="polite" aria-atomic="true">
     {pending && <p><Icon type="arrow" size={18} /><span>
       <strong>{nameOf(pending.actorID)}</strong> 預選了 <strong>{nameOf(pending.targetID)}</strong> 的
-      <strong> 第 {pending.slot + 1} 張</strong><small>尚未剪線，仍可更換</small>
+      <strong> 第 {pending.slot + 1} 張設備牌</strong><small>尚未檢修，仍可更換</small>
     </span></p>}
   </div>;
 }
@@ -85,13 +85,13 @@ export function StationTable({ G, nameOf, ownID, god = false, canSelect = false,
         <div className="module-player">
           <span className={`avatar ${id === ownID ? 'mine' : ''}`}>{initials(nameOf(id))}</span>
           <strong>{nameOf(id)}{id === ownID && <small className="you-label">你</small>}</strong>
-          {active && <span className="actor-tag"><Icon type="arrow" size={13} />正在剪線</span>}
+          {active && <span className="actor-tag"><Icon type="arrow" size={13} />正在檢修</span>}
           {role && <span className={`observer-role ${role === 'engineer' ? 'mint' : 'amber'}`}>{roleNames[role]}</span>}
           <span className="remaining">暗牌 {player.cardCount} 張</span>
         </div>
         {G.rulesVersion === 2 && <p className={`public-claim ${player.claim == null ? 'unclaimed' : ''}`}>
           {player.claim == null ? G.status === 'briefing' ? '確認資訊後宣稱' : '尚未宣稱'
-            : <><span>宣稱好引線</span><strong>{player.claim} 張</strong><small>玩家自述，未經驗證</small></>}
+            : <><span>宣稱維修模組</span><strong>{player.claim} 張</strong><small>玩家自述，未經驗證</small></>}
         </p>}
         {god && privateInfo && <p className="small muted observer-composition">
           剩餘：穩定 {privateInfo.composition.stable} · 維修 {privateInfo.composition.repair} · 危機 {privateInfo.composition.hazard}
@@ -105,12 +105,12 @@ export function StationTable({ G, nameOf, ownID, god = false, canSelect = false,
             const className = `module-card station-card ${kind ? `face-${kind}` : ''} ${revealed ? 'revealed-card' : ''} ${selected ? 'selected-card' : ''}`;
             const contents = <CardContents slot={slot} kind={kind} revealed={revealed} selected={selected} />;
             if (!onCardClick || revealed) return <div key={slot} className={`${className} readonly-card`}
-              aria-label={`${nameOf(id)}的第 ${slot + 1} 張，${revealed ? '已翻開：' : ''}${kind ? cardNames[kind] : '暗牌'}${selected ? '，預選中' : ''}`}>
+              aria-label={`${nameOf(id)}的第 ${slot + 1} 張設備牌，${revealed ? '已翻開：' : ''}${kind ? cardNames[kind] : '暗牌'}${selected ? '，預選中' : ''}`}>
               {contents}
             </div>;
             return <button key={slot} type="button" className={className}
               disabled={!canSelect || id === ownID} aria-pressed={selected}
-              aria-label={`${selected ? '再次點選確認剪線：' : '預選'}${nameOf(id)}的第 ${slot + 1} 張暗牌`}
+              aria-label={`${selected ? '再次點選確認檢修：' : '預選'}${nameOf(id)}的第 ${slot + 1} 張設備牌`}
               onClick={() => onCardClick(id, slot)}>
               {contents}
             </button>;

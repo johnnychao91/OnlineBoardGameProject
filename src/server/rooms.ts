@@ -4,14 +4,30 @@ import { validRoomID } from './security';
 
 export interface RoomRecord {
   roomId: string;
+  currentMatchID?: string;
+  hostPlayerID?: string | null;
+  departedPlayerIDs?: string[];
+  history?: RoomHistory[];
   gameId: string;
   numPlayers: number;
   inviteHash: string;
   inviteExpiresAt: number;
   createdAt: number;
   spectators?: Record<string, { name: string; credentialHash: string }>;
-  replayShares?: { tokenHash: string; expiresAt: number; frameIndex: number; perspective: 'blind' | 'god' }[];
+  revokedObserverAdmissions?: string[];
+  replayShares?: { matchID?: string; tokenHash: string; expiresAt: number; frameIndex: number; perspective: 'blind' | 'god' }[];
 }
+export interface RoomHistory {
+  matchID: string;
+  endedAt: number;
+  ending: 'completed' | 'host-ended' | 'empty';
+  numPlayers: number;
+  winner?: string;
+  reason?: string;
+}
+export const currentMatchID = (room: RoomRecord) => room.currentMatchID ?? room.roomId;
+export const hostPlayerID = (room: RoomRecord) => room.hostPlayerID === undefined ? '0' : room.hostPlayerID;
+export const roomMatchIDs = (room: RoomRecord) => [...new Set([...(room.history || []).map((entry) => entry.matchID), currentMatchID(room)])];
 export class RoomStore {
   readonly rooms = new Map<string, RoomRecord>();
   private file: string;
@@ -23,19 +39,27 @@ export class RoomStore {
       const records: RoomRecord[] = JSON.parse(await readFile(this.file, 'utf8'));
       if (!Array.isArray(records)) throw new Error('房間索引格式錯誤');
       for (const room of records) {
-        if (!validRoomID(room.roomId) || typeof room.inviteHash !== 'string') throw new Error('房間索引格式錯誤');
+        if (!validRoomID(room.roomId) || typeof room.inviteHash !== 'string'
+          || (room.currentMatchID !== undefined && !validRoomID(room.currentMatchID))
+          || (room.history !== undefined && (!Array.isArray(room.history) || room.history.some((entry) => !validRoomID(entry.matchID))))) throw new Error('房間索引格式錯誤');
         this.rooms.set(room.roomId, room);
       }
     } catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error; }
   }
   async save(room: RoomRecord) {
-    this.rooms.set(room.roomId, room);
-    const snapshot = JSON.stringify([...this.rooms.values()]);
+    const incoming: RoomRecord = JSON.parse(JSON.stringify(room));
     const job = this.writes.then(async () => {
+      const records = new Map(this.rooms);
+      records.set(incoming.roomId, incoming);
+      const snapshot = JSON.stringify([...records.values()]);
       await writeFile(this.file + '.tmp', snapshot, { mode: 0o600 });
       await rename(this.file + '.tmp', this.file);
+      this.rooms.set(incoming.roomId, incoming);
     });
     this.writes = job.catch(() => {});
     return job;
+  }
+  findByMatch(matchID: string) {
+    return [...this.rooms.values()].find((room) => roomMatchIDs(room).includes(matchID));
   }
 }

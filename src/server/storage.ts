@@ -59,6 +59,8 @@ function isReplayFrame(value: unknown): value is ReplayFrame {
  * 目錄必須位於靜態網站之外，且僅允許服務帳號與管理者存取。
  */
 export class FileStorage extends Async {
+  /** Application lifecycle guard; standalone storage remains usable without it. */
+  isMatchActive?: (matchID: string) => boolean;
   private readonly directory: string;
   private readonly queues = new Map<string, Promise<void>>();
 
@@ -150,6 +152,27 @@ export class FileStorage extends Async {
     });
   }
 
+  /** A fresh lobby inherits revoked admission retries, while old match files stay intact. */
+  async createNextMatch(previousMatchID: string, matchID: string, options: StorageAPI.CreateMatchOpts): Promise<void> {
+    const previous = await this.enqueue(previousMatchID, () => this.readMatch(previousMatchID));
+    if (!previous) throw new Error('對局不存在');
+    const record = newRecord(matchID, options);
+    record.revokedAdmissions = previous.revokedAdmissions;
+    await this.enqueue(matchID, async () => {
+      if (await this.readMatch(matchID)) throw new Error('對局已存在');
+      await this.writeMatch(matchID, record);
+    });
+  }
+
+  async revokeAdmission(matchID: string, credentials: string): Promise<void> {
+    await this.enqueue(matchID, async () => {
+      const record = await this.readMatch(matchID);
+      if (!record) throw new Error('對局不存在');
+      record.revokedAdmissions = [...new Set([...(record.revokedAdmissions || []), hashToken(credentials)])];
+      await this.writeMatch(matchID, record);
+    });
+  }
+
   /** 等待室的人數確定後，以呼叫者提供的完整狀態與已入座 metadata 原子開局。 */
   async startMatch(matchID: string, options: StorageAPI.CreateMatchOpts): Promise<void> {
     const replacement = newRecord(matchID, options);
@@ -169,7 +192,7 @@ export class FileStorage extends Async {
     return this.enqueue(matchID, async () => {
       const record = await this.readMatch(matchID);
       if (!record) throw new Error('對局不存在');
-      if (playerID === '0' || record.state.G?.status !== 'lobby' || incoming.G?.status !== 'lobby'
+      if (record.state.G?.status !== 'lobby' || incoming.G?.status !== 'lobby'
         || incoming._stateID !== record.state._stateID + 1
         || !safeEqual(record.metadata.players[Number(playerID)]?.credentials, credentials)) {
         throw new Error('無法移出此席位');
@@ -194,6 +217,7 @@ export class FileStorage extends Async {
     validateStateID(state);
     const incoming = jsonCopy({ state, deltalog: deltalog || [] });
     return this.enqueue(matchID, async () => {
+      if (this.isMatchActive && !this.isMatchActive(matchID)) return;
       const record = await this.readMatch(matchID);
       if (!record) throw new Error('對局不存在');
       // 同版本重送與較舊的更新不得覆寫現況，也不重複追加操作或回放紀錄。
@@ -228,6 +252,7 @@ export class FileStorage extends Async {
   override async setMetadata(matchID: string, metadata: Server.MatchData): Promise<void> {
     const incoming = jsonCopy(metadata);
     return this.enqueue(matchID, async () => {
+      if (this.isMatchActive && !this.isMatchActive(matchID)) return;
       const record = await this.readMatch(matchID);
       if (!record) throw new Error('對局不存在');
       record.metadata = incoming;

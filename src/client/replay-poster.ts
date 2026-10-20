@@ -174,18 +174,18 @@ export async function createReplayPoster({ G, players, step, totalSteps }: Repla
   const latest = G.log.length ? G.log[G.log.length - 1] : undefined;
   if (latest) {
     const card = CARDS[latest.kind] ?? CARDS.stable;
-    text(ctx, '最近揭牌', 100, 407, 21, COLORS.mint, 650);
+    text(ctx, '最近檢修', 100, 407, 21, COLORS.mint, 650);
     ctx.save(); ctx.textAlign = 'right';
     text(ctx, `公開紀錄 · 第 ${positiveInteger(latest.round)} 輪`, 980, 407, 18, COLORS.faint);
     ctx.restore();
-    text(ctx, '行動者', 100, 450, 17, COLORS.faint, 600);
+    text(ctx, '檢修隊員', 100, 450, 17, COLORS.faint, 600);
     text(ctx, '設備持有者', 624, 450, 17, COLORS.faint, 600);
     wrapped(ctx, playerName(players, latest.actorID), 100, 494, 340, 36, 45, 2, COLORS.ink, 700);
     wrapped(ctx, playerName(players, latest.targetID), 624, 494, 350, 36, 45, 2, COLORS.ink, 700);
     ctx.strokeStyle = COLORS.mint; ctx.lineWidth = 3;
     ctx.beginPath(); ctx.moveTo(482, 494); ctx.lineTo(572, 494);
     ctx.moveTo(559, 483); ctx.lineTo(572, 494); ctx.lineTo(559, 505); ctx.stroke();
-    text(ctx, `選擇第 ${positiveInteger(latest.slot + 1)} 張設備`, 100, 580, 23, COLORS.muted);
+    text(ctx, `檢修第 ${positiveInteger(latest.slot + 1)} 張設備牌`, 100, 580, 23, COLORS.muted);
     box(ctx, 100, 609, 880, 121, 22, '#0b222c', '#24454f');
     box(ctx, 122, 632, 70, 70, 20, '#183d45', card.color);
     ctx.save(); ctx.textAlign = 'center';
@@ -200,7 +200,7 @@ export async function createReplayPoster({ G, players, step, totalSteps }: Repla
       : G.status === 'playing' ? '全員就位，準備出發' : '任務即將展開';
     wrapped(ctx, headline, 100, 492, 840, 47, 62, 2, COLORS.ink, 700);
     const introduction = G.status === 'claiming'
-      ? '每位隊員公開宣稱好引線數量。這是玩家的說法，並非已驗證的牌面。'
+      ? '每位隊員公開宣稱維修模組數量。這是玩家的說法，並非已驗證的牌面。'
       : G.status === 'briefing'
       ? '每個人都掌握一部分線索。確認資訊後，任務開始。'
       : G.status === 'playing' ? '第一位玩家即將選擇設備，讓這場太空任務開始。'

@@ -10,7 +10,7 @@ API 與網頁同源，正式環境使用 HTTPS；開發由 Vite 代理。POST �
 | 觀戰 | `Authorization: Bearer <credentials>`、`X-Observer-ID: <observerID>` | 房間資訊、唯讀觀戰、賽後復盤 |
 | 回放收件者 | `X-Replay-Token: <token>` | 指定終局歷史及發行者選定視角 |
 
-不能同時傳玩家與觀戰身份標頭。房主是玩家 `"0"`，使用自己的玩家憑證；觀戰者沒有玩家席位。知道房號不等於授權。token 不能寫入日誌或分析服務。
+不能同時傳玩家與觀戰身份標頭。房主由 `RoomInfo.hostPlayerID` 指定，第一任為 `"0"`，使用自己的玩家憑證；觀戰者沒有玩家席位。知道房號不等於授權。token 不能寫入日誌或分析服務。
 
 ## 端點
 
@@ -23,14 +23,18 @@ API 與網頁同源，正式環境使用 HTTPS；開發由 Vite 代理。POST �
 | `POST /api/rooms/:id/join` | body 邀請 | 玩家 session；開始後拒絕新玩家 |
 | `POST /api/rooms/:id/watch` | body 邀請 | 觀戰 session；任何階段都可加入 |
 | `GET /api/rooms/:id` | 玩家／觀戰 | `RoomInfo` |
-| `POST /api/rooms/:id/ready` | 玩家 | `{ready:boolean}`，只在等待室；回 `RoomInfo` |
+| `POST /api/rooms/:id/ready` | 玩家 | `{ready:boolean,matchID}`，只在等待室；回 `RoomInfo` |
 | `POST /api/rooms/:id/remove` | 房主 | `{playerID,membershipID}`，只在等待室單次移出其他玩家；回 `RoomInfo` |
-| `POST /api/rooms/:id/start` | 房主 | `{}`，實際 4～8 人全準備後開始；回 `RoomInfo` |
+| `POST /api/rooms/:id/start` | 房主 | `{matchID}`，實際 4～8 人全準備後開始；回 `RoomInfo` |
+| `POST /api/rooms/:id/return` | 房主 | `{matchID}`，正常終局後返回等待室；通常由伺服器自動處理 |
+| `POST /api/rooms/:id/abort` | 房主 | `{matchID}`，提前結束目前局，不計勝敗；回新等待室的 `RoomInfo` |
+| `POST /api/rooms/:id/leave` | 玩家／觀戰 | `{}`，撤銷自己的身份，房主必要時交接；回 `{left:true}` |
+| `POST /api/rooms/:id/heartbeat` | 玩家／觀戰 | `{sessionID:UUIDv4}`，更新目前分頁的在線期限；回 `{ok:true}` |
 | `POST /api/rooms/:id/invite` | 房主 | `{}`，輪替入房邀請；回 `inviteUrl,expiresAt` |
 | `GET /api/rooms/:id/view?perspective=blind` | 觀戰；終局亦可玩家 | `{G,stateID,perspective}`；視角也可為 `god` |
-| `GET /api/rooms/:id/replay?perspective=blind` | 玩家／觀戰 | 終局限定 `{complete,frames}`；亦可 `god` |
-| `POST /api/rooms/:id/share` | 玩家／觀戰 | 完整終局歷史限定，`{frameIndex,perspective}` → `{url,expiresAt}` |
-| `POST /api/rooms/:id/revoke-shares` | 房主 | `{}` → `{revoked:true}`，撤銷全部回放連結 |
+| `GET /api/rooms/:id/replay?perspective=blind&matchID=對局ID` | 玩家／觀戰 | 正常終局限定 `{room,complete,frames}`；亦可 `god`；`room` 是該歷史局的名單 |
+| `POST /api/rooms/:id/share` | 玩家／觀戰 | 完整終局歷史限定，`{matchID,frameIndex,perspective}` → `{url,expiresAt}` |
+| `POST /api/rooms/:id/revoke-shares` | 房主 | `{}` → `{revoked:true}`，撤銷這個房間全部局的回放連結 |
 | `GET /api/replays/:id` | 回放 token | `{room,perspective,frameIndex,complete,frames}` |
 
 沒有公開房間清單。boardgame.io 原始 Lobby／`games` 端點未掛載。
@@ -53,6 +57,16 @@ API 與網頁同源，正式環境使用 HTTPS；開發由 Vite 代理。POST �
 
 這是單次移出，沒有封鎖名單。同一人可重新開啟仍有效的邀請，以新的加入請求重新入座，取得全新憑證並重新準備。房主若不希望舊邀請繼續使用，可另外輪替邀請；其他已入座玩家不受影響。
 
+## 同房再開局、離開與空房
+
+`roomId` 是穩定的邀請／房間識別碼，`matchID` 是目前等待室或對局識別碼，不能假定兩者永遠相等。正常終局會自動封存並回到原房間；房主可提前 `abort`。兩者都建立新的 `matchID`、清除準備狀態，保留仍有效的成員與邀請。舊對局不會被新局覆蓋，舊 Socket 及操作也不能切換到新局。
+
+`return` 與 `abort` 必須指定畫面確認時的 `matchID`，過期值回 409；`ready`、`start` 亦傳目前 ID，避免舊畫面操作新等待室。房主資格由伺服器重新檢查。`abort` 不產生勝方或戰績，只保存中止摘要，不開放未完成對局的回放。
+
+`leave` 撤銷整個玩家／觀戰身份，包括該身份的其他分頁；原加入重試不能恢復已離席的憑證。房主離開後交接給剩餘玩家。對局中離席不把角色和設備交給新人，原參與者暱稱仍保留在歷史。新玩家只在等待室加入。
+
+前端每個分頁使用自己的隨機 `sessionID`，每 20 秒送出已認證的心跳，期限為 60 秒；玩家 Socket 連線也納入在線判斷。關閉分頁不呼叫 `leave`，單一分頁關閉不會撤銷其他分頁。所有玩家與觀戰者都逾重連期限後，伺服器自動中止進行中的對局；最後一位成員明確離席則可立即中止。服務重啟先保留同等重連寬限。公開分享的收件者不屬於房間在線成員，觀看分享不會延長對局。
+
 ## 入座與觀戰
 
 `join`、`watch` 接受 `{inviteToken,displayName,requestID?}`。邀請 token 是網址 `#invite=` 後的 43 字元值，有效 24 小時，房主可隨時輪替。開局後只能新增觀戰者。
@@ -67,14 +81,16 @@ API 與網頁同源，正式環境使用 HTTPS；開發由 Vite 代理。POST �
 
 | 欄位 | 說明 |
 | --- | --- |
-| `roomId`, `matchID` | 16 字元 base64url 識別碼，兩者目前相同 |
+| `roomId`, `matchID` | 16 字元 base64url 識別碼；房號穩定，返回等待室時目前對局 ID 更新 |
 | `gameName` | 登錄的遊戲識別碼 |
 | `numPlayers` | 實際入座參與者數，開局後固定 |
 | `minPlayers`, `maxPlayers` | 遊戲人數範圍 |
 | `status` | `lobby`, `briefing`, `claiming`, `playing`, `finished` |
-| `players` | 已入座者的 `id,name,isConnected,ready,membershipID`；無憑證，ID 可能缺號 |
+| `players` | 等待室為有效入座者；對局中保留原參與者的 `id,name,isConnected,ready,departed,membershipID?`，無憑證，ID 可能缺號；歷史投影不含目前連線／管理識別值 |
 | `spectatorCount` | 已發行觀戰身份數，不代表在線人數 |
 | `godViewAllowed` | 本版 true；不授予進行中玩家觀戰權限 |
+| `hostPlayerID` | 目前房主座位字串；沒有玩家時為 `null` |
+| `history` | 依結束順序的 `{matchID,endedAt,ending,numPlayers,winner?,reason?}`；`ending` 為 `completed`、`host-ended` 或 `empty`，沒有秘密牌面 |
 
 ## 視角與回放
 
@@ -84,9 +100,11 @@ API 與網頁同源，正式環境使用 HTTPS；開發由 Vite 代理。POST �
 
 `complete:false` 表示舊局缺歷史或正式對局版本不連續；終局 API 仍會回傳此標示與實際保存的片段，前端顯示無完整復盤，不能以片段假裝整局，也不能建立回放分享。既有 schema 1 對局及身份仍可載入，更新後從等待室開始的新局才重設為完整回放。
 
+返回等待室後，讀取歷史必須帶 `history` 中的 `matchID`；省略時仍選目前對局，等待室沒有終局回放，會回 409。任何歷史 ID 都必須屬於已認證的同一房間，不能藉由改參數跨房。分享回應的歷史 `room` 只含原局名單，`history` 為空、`hostPlayerID` 為 `null`、`spectatorCount` 為 0，不透露後來的房間活動。
+
 ## 分享精彩操作
 
-`POST .../share` 傳零起算 `frameIndex`、`perspective`。限已結束、完整歷史、有效步驟。回傳 `url`（`https://game.example.com/replay/房號#share=token`）與 `expiresAt`（發行後 7 天的 Unix 毫秒）。獨立 32-byte token 只存雜湊，頁面立即清除 fragment 並使用 `X-Replay-Token` 讀取。
+`POST .../share` 傳歷史 `matchID`、零起算 `frameIndex`、`perspective`。限正常結束、完整歷史、有效步驟。回傳 `url`（`https://game.example.com/replay/房號#share=token`）與 `expiresAt`（發行後 7 天的 Unix 毫秒）。獨立 32-byte token 只存雜湊，並綁定原對局、步驟及視角；頁面立即清除 fragment 並使用 `X-Replay-Token` 讀取。下一局不會改變舊連結的內容。
 
 收件者從指定步驟觀看整局，`frameIndex` 是初始播放位置，不是裁切片段；但只能看發行者選定的視角，不能升級、入座或操作。API 使用儲存的視角與步驟，忽略收件者附加的視角或步驟參數。房主可撤銷所有回放分享，不影響入房邀請或既有身份。每房最多 64 個未過期分享，失效回 403。
 
@@ -107,7 +125,7 @@ PNG 戰報由瀏覽器 canvas 產生，只取公開事件、暱稱與任務進�
 }
 ```
 
-只依持久化且有合法終局結果的對局計算，每個房號一次。未完成、觀戰、回放及重新整理不增加勝敗。`totalPlayerParticipations` 是參與人次，不是獨立人數；沒有個人戰績或暱稱排名。
+只依持久化且有合法終局結果的對局計算，每個對局 ID 一次；同一房間完成兩局就計兩局。中止、未完成、觀戰、回放及重新整理不增加勝敗。`totalPlayerParticipations` 是參與人次，不是獨立人數；沒有個人戰績或暱稱排名。
 
 ## Socket.IO 與限制
 
@@ -121,9 +139,9 @@ Socket 只接受白名單 `MAKE_MOVE`，強制拒絕 `startGame`（走 HTTP）�
 | --- | --- |
 | `acknowledge()` | `briefing` 階段確認自己的資訊；全員完成進入 `claiming` |
 | `declareRepairs(count, round)` | `claiming` 階段，整數 0～本輪起始手牌數，每人一次；必須帶當輪編號，允許同輪多人並行宣稱及與真實牌數不同，全員完成進入 `playing` |
-| `selectCard(targetID, slot)` | 目前剪線者預選別人的未翻牌，`slot` 為本輪固定的零起算牌位 |
-| `clearSelection()` | 目前剪線者取消公開預選 |
-| `reveal(targetID, slot, selectionID)` | 目前剪線者確認與伺服器 `pendingReveal` 完全一致的預選；過期／缺少識別值、已翻牌、自選均拒絕 |
+| `selectCard(targetID, slot)` | 目前檢修者預選別人的未翻牌，`slot` 為本輪固定的零起算牌位 |
+| `clearSelection()` | 目前檢修者取消公開預選 |
+| `reveal(targetID, slot, selectionID)` | 目前檢修者確認與伺服器 `pendingReveal` 完全一致的預選；過期／缺少識別值、已翻牌、自選均拒絕 |
 
 `G.publicCards[playerID]` 是本輪固定牌位的陣列，未翻為 `null`，已翻為設備種類；`cardCount` 只計剩餘暗牌。`G.players[playerID].claim` 是本輪起始時的公開宣稱，未提交為 `null`，不代表真實剩餘牌數。`G.pendingReveal` 包含 `actorID,targetID,slot,round,selectionID`，不帶暗牌種類；預選序號在同一局遞增，取消、換人、換輪或終局會清除預選。這些公開欄位會同步給其他玩家、觀戰及對應歷史步驟。
 
@@ -137,4 +155,4 @@ Socket 每連線 180 包／分、單包 16 KiB。每房最多 128 份觀戰身�
 
 400 格式錯誤；401 身份無效；403 權限／邀請／分享失效；404 未知端點／房號；409 狀態／人數／準備衝突；410 缺對局；413 過大；415 非 JSON；429 過頻；500 未公開的內部錯誤。
 
-尚無原房再開局、自行離席、進行中移出、觀戰者移出、席位轉移、身份找回、刪除房間、自動清理 API；下一局新建房間。
+尚無房主在進行中移出玩家、移出觀戰者、將角色交接給新人、身份找回、刪除房間或自動清理歷史 API。全員離線中止只結束當前局，不刪除房間與回放。

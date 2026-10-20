@@ -87,3 +87,32 @@
   .claim-options button{min-height:58px}
 }
 @media(prefers-reduced-motion:reduce){.station-turn-notice,.station-card{animation:none;transition:none}}
+
+/* Persistent rooms keep results, invitations and the next game's preparation together. */
+.room-actions{margin:14px 0 0}
+.room-action-buttons{display:flex;flex-wrap:wrap;gap:9px;justify-content:flex-end}
+.room-action-buttons .button{min-height:44px;font-size:12px;padding:9px 14px}
+.room-actions>p{margin:9px 0 0;max-width:680px}
+.room-history{max-width:1100px;margin:28px auto 0;padding:0 28px}
+.previous-result{border-color:#538474;background:linear-gradient(135deg,#16362f,#142438)}
+.previous-result .eyebrow{margin-bottom:10px}
+.previous-result h2{color:var(--mint);font-size:23px;margin-bottom:8px}
+.previous-result>p{margin-bottom:12px}
+.previous-result>.button{margin-top:14px}
+.history-list{margin-top:18px;border-top:1px solid #456553;padding-top:15px}
+.history-list summary{cursor:pointer;font-size:13px;min-height:40px}
+.history-list>.text-button{display:block;min-height:44px}
+.room-history-replay{border:1px solid var(--line);border-radius:20px;margin-top:18px;padding:20px;background:#0b1629}
+.room-history-replay>.replay-panel{margin:25px auto 15px;padding:0;max-width:none}
+.room-history-replay .close-history{margin-left:auto}
+@media(max-width:700px){
+  .room-history{padding:0 18px;max-width:520px;margin-top:20px}
+  .room-actions>p{font-size:10px}
+  .room-action-buttons{justify-content:flex-start}
+  .room-action-buttons>.button{flex:1}
+  .previous-result{padding:20px}
+  .previous-result h2{font-size:20px}
+  .room-history-replay{padding:14px}
+  .room-history-replay>.replay-panel{padding:0}
+  .room-history-replay .close-history{width:100%}
+}

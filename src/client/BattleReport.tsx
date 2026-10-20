@@ -19,7 +19,7 @@ export function BattleReport({ G, info, frameIndex = 0, totalFrames = 1, perspec
   const generation = useRef(0);
   const render = posterRenderers[info.gameName];
   useEffect(() => () => { if (currentUrl.current) URL.revokeObjectURL(currentUrl.current); }, []);
-  useEffect(() => { generation.current += 1; setPreview(null); setError(''); setMessage(''); if (currentUrl.current) { URL.revokeObjectURL(currentUrl.current); currentUrl.current = null; } }, [info.roomId, frameIndex, perspective, totalFrames]);
+  useEffect(() => { generation.current += 1; setPreview(null); setError(''); setMessage(''); if (currentUrl.current) { URL.revokeObjectURL(currentUrl.current); currentUrl.current = null; } }, [info.roomId, info.matchID, frameIndex, perspective, totalFrames]);
   if (!render) return null;
   async function makeReport() {
     beforeCreate?.();

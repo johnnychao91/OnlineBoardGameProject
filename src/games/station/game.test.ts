@@ -141,6 +141,26 @@ describe('太空維修站設定與資訊邊界', () => {
     }
   });
 
+  it('原房主離席後，以實際入座者開始新局，不依賴座位 0', () => {
+    const match = createMatch({
+      game: { ...StationGame, seed: 'rematch-without-zero' }, numPlayers: 4,
+      setupData: { startImmediately: true, participantIDs: ['1', '3', '4', '7'] },
+      unlisted: true,
+    });
+    if ('setupDataError' in match) throw new Error(match.setupDataError);
+    const client = makeClient();
+    client.store.dispatch({ type: 'UPDATE', state: match.initialState, deltalog: [], clientOnly: true });
+    expect(Object.keys(raw(client).players)).toEqual(['1', '3', '4', '7']);
+    expect(raw(client).activePlayer).toBe('1');
+    acknowledgeAll(client);
+    revealChoice(client, choose(client, kind => kind === 'stable'));
+    expect(raw(client).log).toHaveLength(1);
+    assertConservation(raw(client), 4);
+    for (const ids of [['1', '1', '3', '4'], ['1', '3', '4', '8'], ['1', '3', '4']]) {
+      expect(StationGame.validateSetupData!({ startImmediately: true, participantIDs: ids }, 4)).toBeTypeOf('string');
+    }
+  });
+
   it.each([4, 5, 6, 7, 8])('正確建立 %i 人局、牌組與隨機身份池', (n) => {
     const client = makeClient(n);
     expect(raw(client)).toMatchObject({ status: 'lobby', round: 0, private: {}, activePlayer: null });

@@ -1,4 +1,12 @@
-export interface RoomPlayer { id: number | string; name?: string; isConnected: boolean; ready: boolean; membershipID?: string; }
+export interface RoomPlayer { id: number | string; name?: string; isConnected: boolean; ready: boolean; membershipID?: string; departed?: boolean; }
+export interface RoomHistoryEntry {
+  matchID: string;
+  endedAt: number;
+  ending: 'completed' | 'host-ended' | 'empty';
+  numPlayers: number;
+  winner?: string;
+  reason?: string;
+}
 export interface RoomInfo {
   roomId: string;
   matchID: string;
@@ -10,6 +18,8 @@ export interface RoomInfo {
   players: RoomPlayer[];
   spectatorCount: number;
   godViewAllowed: boolean;
+  hostPlayerID?: string | null;
+  history?: RoomHistoryEntry[];
 }
 export interface SeatSession extends RoomInfo { access?: 'player'; playerID: string; credentials: string; }
 export interface ObserverSession extends RoomInfo { access: 'spectator'; observerID: string; credentials: string; }
@@ -18,6 +28,9 @@ export type Admission = AuthSession & { inviteUrl?: string };
 export interface GameInfo { id: string; name: string; description: string; minPlayers: number; maxPlayers: number; }
 export type Perspective = 'blind' | 'god';
 export function isPlayer(session: AuthSession): session is SeatSession { return session.access !== 'spectator'; }
+export function isRoomHost(session: AuthSession, info: RoomInfo) {
+  return isPlayer(session) && session.playerID === (info.hostPlayerID === undefined ? '0' : info.hostPlayerID);
+}
 
 const seatKey = (roomId: string) => `friends-table.seat.${roomId}`;
 const tokenKey = (roomId: string) => `friends-table.invite.${roomId}`;

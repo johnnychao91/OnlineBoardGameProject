@@ -3,14 +3,16 @@ import { getFilterPlayerView } from 'boardgame.io/internal';
 import type { IncomingMessage } from 'node:http';
 import type { Game } from 'boardgame.io';
 import { RateLimiter, safeEqual, validCredential, validRoomID } from './security';
-import type { RoomStore } from './rooms';
+import { currentMatchID, type RoomStore } from './rooms';
+import type { RoomPresence } from './presence';
 
 /** Guard the wire protocol, not only the buttons exposed by the browser client. */
 export class GuardedTransport extends SocketIO {
+  private readonly guardedQueues = new Map<string, ReturnType<SocketIO['getMatchQueue']>>();
   private readonly bindings = new Map<string, {
     socket: any; matchID: string; playerID: string; credentials: string; revoked?: boolean;
   }>();
-  constructor(private rooms: RoomStore, private origins: string[]) {
+  constructor(private rooms: RoomStore, private origins: string[], private presence?: RoomPresence) {
     super({ socketOpts: {
       maxHttpBufferSize: 16384,
       cors: { origin: origins, methods: ['GET', 'POST'] },
@@ -22,6 +24,35 @@ export class GuardedTransport extends SocketIO {
   // HTTP admissions share this queue. Upstream deletes it on the last disconnect,
   // which could otherwise create two queues for an in-flight admission.
   override deleteMatchQueue(_matchID: string): void {}
+  getRoomQueue(roomID: string) {
+    return super.getMatchQueue(roomID);
+  }
+  override getMatchQueue(matchID: string) {
+    const existing = this.guardedQueues.get(matchID);
+    if (existing) return existing;
+    const room = this.rooms.findByMatch(matchID);
+    const queue = this.getRoomQueue(room?.roomId ?? matchID);
+    // The framework enqueues after packet middleware has authenticated. Recheck
+    // the generation at execution time, after any queued return / abort action.
+    const guarded = new Proxy(queue, { get: (target, property) => {
+      if (property === 'add') return (operation: () => unknown, options?: any) => target.add(() => {
+        const latest = this.rooms.findByMatch(matchID);
+        if (!latest || currentMatchID(latest) !== matchID) return;
+        return operation();
+      }, options);
+      const value = Reflect.get(target, property, target);
+      return typeof value === 'function' ? value.bind(target) : value;
+    } });
+    this.guardedQueues.set(matchID, guarded);
+    return guarded;
+  }
+  closeMatch(matchID: string) {
+    for (const binding of this.bindings.values()) {
+      if (binding.matchID !== matchID) continue;
+      binding.revoked = true;
+      binding.socket.disconnect(true);
+    }
+  }
   async drain(): Promise<void> {
     await Promise.all([...this.perMatchQueue.values()].map((queue) => queue.onIdle()));
   }
@@ -59,14 +90,26 @@ export class GuardedTransport extends SocketIO {
           socket.removeAllListeners(event);
           socket.on(event, (...args: any[]) => {
             const execute = async () => {
-              if (event === 'sync' && (!socket.connected || binding?.revoked)) return;
+              const room = binding && this.rooms.findByMatch(binding.matchID);
+              if (event === 'sync' && (!socket.connected || binding?.revoked || !room || currentMatchID(room) !== binding?.matchID)) return;
               for (const listener of listeners) await listener(...args);
-              if (event === 'disconnect') this.bindings.delete(socket.id);
+              if (event === 'sync' && binding && room) {
+                if (!this.clientInfo.has(socket.id)) {
+                  binding.revoked = true;
+                  socket.disconnect(true);
+                  return;
+                }
+                this.presence?.connect(room.roomId, `player:${binding.playerID}`, socket.id);
+              }
+              if (event === 'disconnect') {
+                if (binding && room) this.presence?.disconnectSocket(room.roomId, `player:${binding.playerID}`, socket.id);
+                this.bindings.delete(socket.id);
+              }
             };
             // The upstream update listener already queues moves. sync/disconnect
             // also write metadata, so serialize those with admissions and moves.
             const work = event !== 'update' && binding
-              ? this.getMatchQueue(binding.matchID).add(execute) : execute();
+              ? this.getRoomQueue(this.rooms.findByMatch(binding.matchID)?.roomId ?? binding.matchID).add(execute) : execute();
             void work.catch(() => { socket.emit('error', '連線處理失敗，請重新連線'); });
           });
         }
@@ -80,18 +123,20 @@ export class GuardedTransport extends SocketIO {
               const [matchID, playerID, credentials] = args;
               if (!validRoomID(matchID) || typeof playerID !== 'string' || !/^\d$/.test(playerID) || !validCredential(credentials)) throw new Error('未授權');
               if (binding && (binding.matchID !== matchID || binding.playerID !== playerID || !safeEqual(binding.credentials, credentials))) throw new Error('不可切換座位');
-              const room = this.rooms.rooms.get(matchID);
-              if (!room || room.gameId !== game.name) throw new Error('房間不存在');
+              const room = this.rooms.findByMatch(matchID);
+              if (!room || currentMatchID(room) !== matchID || room.gameId !== game.name) throw new Error('房間不存在');
               const { metadata } = await app.context.db.fetch(matchID, { metadata: true });
               if (!metadata || !safeEqual(metadata.players[playerID]?.credentials, credentials)) throw new Error('未授權');
               // Removal or disconnect can occur while metadata is being read.
-              if (!socket.connected || binding?.revoked) throw new Error('未授權');
+              if (!socket.connected || binding?.revoked || currentMatchID(this.rooms.rooms.get(room.roomId)!) !== matchID) throw new Error('未授權');
               if (binding && (binding.matchID !== matchID || binding.playerID !== playerID || !safeEqual(binding.credentials, credentials))) throw new Error('不可切換座位');
               binding = { socket, matchID, playerID, credentials };
               this.bindings.set(socket.id, binding);
             } else if (event === 'update') {
               const [action, stateID, matchID, playerID] = args as any[];
               if (!binding || matchID !== binding.matchID || playerID !== binding.playerID || !Number.isSafeInteger(stateID) || stateID < 0) throw new Error('未授權');
+              const room = this.rooms.findByMatch(matchID);
+              if (!room || currentMatchID(room) !== matchID) throw new Error('舊對局已結束');
               if (!action || action.type !== 'MAKE_MOVE' || !action.payload || !allowedMoves.has(action.payload.type)
                 || action.payload.type === 'startGame'
                 || action.payload.playerID !== binding.playerID || !safeEqual(action.payload.credentials, binding.credentials)

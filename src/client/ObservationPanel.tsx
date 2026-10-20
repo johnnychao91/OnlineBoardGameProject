@@ -28,7 +28,7 @@ export function ObservationPanel({ seat, info }: { seat: AuthSession; info: Room
     };
     void refresh();
     return () => { controller.abort(); if (timer !== undefined) clearTimeout(timer); };
-  }, [seat.roomId, seat.credentials, perspective]);
+  }, [seat.roomId, seat.credentials, info.matchID, perspective]);
   if (!definition) return <ErrorMessage>此遊戲尚未註冊觀戰介面。</ErrorMessage>;
   const Snapshot = definition.Snapshot;
   return <section className="observation-panel"><div className="observer-toolbar"><div><span className="eyebrow">READ-ONLY OBSERVATION</span><h2>觀戰席</h2><p className="small muted">{info.spectatorCount} 位已加入觀戰 · 不占玩家座位</p></div><PerspectiveSwitch perspective={perspective} onChange={setPerspective} /></div><PerspectiveNote perspective={perspective} /><ErrorMessage>{error}</ErrorMessage>{view?.perspective === perspective ? <Snapshot G={view.G} info={info} perspective={perspective} /> : <p className="loading" role="status">正在同步{perspective === 'god' ? '上帝' : '盲'}視角…</p>}</section>;

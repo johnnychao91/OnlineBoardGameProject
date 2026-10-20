@@ -1,6 +1,6 @@
-import { useContext, useEffect, useState, type FormEvent } from 'react';
+import { useContext, useEffect, useRef, useState, type FormEvent } from 'react';
 import {
-  api, ApiError, captureInvite, forgetSeat, isPlayer, loadSeat, pendingRequestID, pendingToken, rememberedName,
+  api, ApiError, captureInvite, forgetSeat, isPlayer, isRoomHost, loadSeat, pendingRequestID, pendingToken, rememberedName,
   rememberName, resetAdmission, savedInvite, saveSeat, type Admission, type AuthSession, type GameInfo, type RoomInfo,
 } from './api';
 import { clientGames } from './game-registry';
@@ -8,8 +8,10 @@ import { CreationPassword } from './CreationPassword';
 import { rememberedCreateKey, rememberCreateKey } from './creation-password';
 import { RemovePlayer } from './RemovePlayer';
 import { ObservationPanel } from './ObservationPanel';
-import { captureReplayShare, ReplayPanel, SharedReplay } from './ReplayViewer';
+import { captureReplayShare, SharedReplay } from './ReplayViewer';
 import { RoomContext } from './room-context';
+import { RoomActions } from './RoomActions';
+import { RoomHistory } from './RoomHistory';
 import { ShareInvite } from './ShareInvite';
 import { initials } from './StationBoard';
 import { Statistics } from './Statistics';
@@ -53,7 +55,7 @@ function Join({ roomId, onEnter }: { roomId: string; onEnter: (seat: AuthSession
     api<RoomInfo>(`/api/rooms/${roomId}`, { signal: controller.signal }, existing)
       .catch(e => {
         if (controller.signal.aborted) return;
-        if (e instanceof ApiError && e.status === 401) {
+        if (e instanceof ApiError && [401, 404, 410].includes(e.status)) {
           forgetSeat(roomId, existing.credentials);
           setExisting(null);
         } else setError((e as Error).message);
@@ -85,15 +87,17 @@ function Lobby({ onUpdate }: { onUpdate: (info: RoomInfo) => void }) {
   const [rules, setRules] = useState(false);
   const players = info.players.filter(p => p.name);
   const own = isPlayer(seat) ? players.find(p => String(p.id) === seat.playerID) : undefined;
-  const host = isPlayer(seat) && seat.playerID === '0';
+  const host = isRoomHost(seat, info);
   const ready = players.filter(p => p.ready).length;
   const eligible = players.length >= info.minPlayers && players.length <= info.maxPlayers && ready === players.length;
   async function action(endpoint: 'ready' | 'start' | 'remove', body: object) {
     setBusy(true); setError('');
-    try { onUpdate(await api<RoomInfo>(`/api/rooms/${seat.roomId}/${endpoint}`, { method: 'POST', body: JSON.stringify(body) }, seat)); }
+    try { onUpdate(await api<RoomInfo>(`/api/rooms/${seat.roomId}/${endpoint}`, {
+      method: 'POST', body: JSON.stringify({ ...(endpoint === 'remove' ? {} : { matchID: info.matchID }), ...body }),
+    }, seat)); }
     catch (e) { setError((e as Error).message); } finally { setBusy(false); }
   }
-  return <main className="room-layout"><section><div className="eyebrow">CREW ASSEMBLY</div><h1>隊員到齊，就能出發。</h1><p className="muted">{players.length} 位玩家 · {info.minPlayers}～{info.maxPlayers} 人可開始 · {info.spectatorCount} 位已加入觀戰</p><section className="panel roster"><div className="section-heading"><h2>登艦名單</h2><span>{players.length} / {info.maxPlayers}</span></div>{players.map(player => <div className="roster-row" key={player.membershipID || player.id}><span className={`avatar ${isPlayer(seat) && String(player.id) === seat.playerID ? 'mine' : ''}`}>{initials(player.name || '')}</span><div><strong>{player.name}{isPlayer(seat) && String(player.id) === seat.playerID && <small className="you-label">你</small>}</strong><small>{String(player.id) === '0' ? '房主' : `隊員 ${Number(player.id) + 1}`}</small></div><span className={`ready-pill ${player.ready ? 'ready' : ''}`}>{player.ready ? '已準備' : '準備中'}</span>{host && String(player.id) !== '0' && <RemovePlayer player={player} busy={busy} onRemove={target => action('remove', { playerID: String(target.id), membershipID: target.membershipID })} />}</div>)}{host && <p className="small muted">開局前可移出隊員；持有效邀請的人仍可重新加入。</p>}{players.length < info.minPlayers && <p className="small muted lobby-missing">再邀請 {info.minPlayers - players.length} 位玩家，就達到出發人數。</p>}{players.length >= info.minPlayers && <p className="small muted lobby-missing">{players.length < info.maxPlayers ? '還有朋友要上場？開始前都能加入。' : '玩家已滿，其他朋友仍可觀戰。'}</p>}</section><ErrorMessage>{error}</ErrorMessage>{isPlayer(seat) ? <div className="action-dock"><button className={`button full ${own?.ready ? 'secondary' : 'primary'}`} disabled={busy} onClick={() => action('ready', { ready: !own?.ready })}>{own?.ready ? '已準備好 · 點此取消' : '我準備好了'}<Icon type="check" /></button>{host && <button className="button primary full" disabled={busy || !eligible} onClick={() => action('start', {})}>以目前 {players.length} 位隊員開始<Icon type="arrow" /></button>}<p className="small muted center">{ready} / {players.length} 位已準備 · {host ? '開始時鎖定隊員名單與本局人數。' : '全員準備後，等待房主開始。'}</p></div> : <Note>你已在觀戰席，無需準備，也不計入開局人數。房主開始後，這裡會自動切換到對局。</Note>}</section><aside>{host ? <ShareInvite active /> : <Note>邀請由房主管理。遊戲開始後，仍可邀請其他朋友來觀戰。</Note>}{Rules && <div className="panel mission-brief"><div className="section-label">任務簡報</div><h2>{presentation.lobbyTitle || '遊戲簡介'}</h2><p>{presentation.lobbyDescription}</p><button className="text-button" onClick={() => setRules(!rules)}>{rules ? '收起玩法' : '展開玩法說明'} ↓</button>{rules && <Rules />}</div>}</aside></main>;
+  return <main className="room-layout"><section><div className="eyebrow">CREW ASSEMBLY</div><h1>隊員到齊，就能出發。</h1><p className="muted">{players.length} 位玩家 · {info.minPlayers}～{info.maxPlayers} 人可開始 · {info.spectatorCount} 位已加入觀戰</p><section className="panel roster"><div className="section-heading"><h2>登艦名單</h2><span>{players.length} / {info.maxPlayers}</span></div>{players.map(player => <div className="roster-row" key={player.membershipID || player.id}><span className={`avatar ${isPlayer(seat) && String(player.id) === seat.playerID ? 'mine' : ''}`}>{initials(player.name || '')}</span><div><strong>{player.name}{isPlayer(seat) && String(player.id) === seat.playerID && <small className="you-label">你</small>}</strong><small>{String(player.id) === (info.hostPlayerID ?? '0') ? '房主' : `隊員 ${Number(player.id) + 1}`}</small></div><span className={`ready-pill ${player.ready ? 'ready' : ''}`}>{player.ready ? '已準備' : '準備中'}</span>{host && String(player.id) !== info.hostPlayerID && String(player.id) !== (isPlayer(seat) ? seat.playerID : null) && <RemovePlayer player={player} busy={busy} onRemove={target => action('remove', { playerID: String(target.id), membershipID: target.membershipID })} />}</div>)}{host && <p className="small muted">開局前可移出隊員；持有效邀請的人仍可重新加入。</p>}{players.length < info.minPlayers && <p className="small muted lobby-missing">再邀請 {info.minPlayers - players.length} 位玩家，就達到出發人數。</p>}{players.length >= info.minPlayers && <p className="small muted lobby-missing">{players.length < info.maxPlayers ? '還有朋友要上場？開始前都能加入。' : '玩家已滿，其他朋友仍可觀戰。'}</p>}</section><ErrorMessage>{error}</ErrorMessage>{isPlayer(seat) ? <div className="action-dock"><button className={`button full ${own?.ready ? 'secondary' : 'primary'}`} disabled={busy} onClick={() => action('ready', { ready: !own?.ready })}>{own?.ready ? '已準備好 · 點此取消' : '我準備好了'}<Icon type="check" /></button>{host && <button className="button primary full" disabled={busy || !eligible} onClick={() => action('start', {})}>以目前 {players.length} 位隊員開始<Icon type="arrow" /></button>}<p className="small muted center">{ready} / {players.length} 位已準備 · {host ? '開始時鎖定隊員名單與本局人數。' : '全員準備後，等待房主開始。'}</p></div> : <Note>你已在觀戰席，無需準備，也不計入開局人數。房主開始後，這裡會自動切換到對局。</Note>}</section><aside>{host ? <ShareInvite active /> : <Note>邀請由房主管理。遊戲開始後，仍可邀請其他朋友來觀戰。</Note>}{Rules && <div className="panel mission-brief"><div className="section-label">任務簡報</div><h2>{presentation.lobbyTitle || '遊戲簡介'}</h2><p>{presentation.lobbyDescription}</p><button className="text-button" onClick={() => setRules(!rules)}>{rules ? '收起玩法' : '展開玩法說明'} ↓</button>{rules && <Rules />}</div>}</aside></main>;
 }
 
 function Room({ seat }: { seat: AuthSession }) {
@@ -102,41 +106,89 @@ function Room({ seat }: { seat: AuthSession }) {
   const [error, setError] = useState('');
   const [loaded, setLoaded] = useState(false);
   const [invalidSeat, setInvalidSeat] = useState(false);
-  const [replay, setReplay] = useState(false);
+  const acceptedRevision = useRef(0);
+  const sessionID = useRef(crypto.randomUUID());
   function acceptInfo(next: RoomInfo) {
-    setInfo(previous => (previous.status === 'finished' && next.status !== 'finished') || (previous.status && previous.status !== 'lobby' && next.status === 'lobby') ? previous : next);
+    acceptedRevision.current += 1;
+    setInfo(next);
+    const stored = loadSeat(seat.roomId);
+    if (stored?.credentials === seat.credentials && stored.matchID !== next.matchID) {
+      saveSeat({ ...seat, ...next });
+    }
   }
   useEffect(() => {
-    const controller = new AbortController(); let timer: number | undefined;
+    const controller = new AbortController();
+    let timer: number | undefined;
+    let heartbeatTimer: number | undefined;
+    let revoked = false;
+    const invalid = (e: unknown) => {
+      if (e instanceof ApiError && [401, 404, 410].includes(e.status)) {
+        forgetSeat(seat.roomId, seat.credentials);
+        revoked = true;
+        setInvalidSeat(true);
+        return true;
+      }
+      return false;
+    };
     const refresh = async () => {
-      try { const next = await api<RoomInfo>(`/api/rooms/${seat.roomId}`, { signal: controller.signal }, seat); if (!controller.signal.aborted) { acceptInfo(next); setLoaded(true); setError(''); } }
-      catch (e) {
-        if (controller.signal.aborted) return;
-        if (e instanceof ApiError && e.status === 401) {
-          forgetSeat(seat.roomId, seat.credentials);
-          setInvalidSeat(true);
-          return;
+      const revision = acceptedRevision.current;
+      try {
+        const next = await api<RoomInfo>(`/api/rooms/${seat.roomId}`, { signal: controller.signal }, seat);
+        if (!controller.signal.aborted && revision === acceptedRevision.current) {
+          acceptInfo(next); setLoaded(true); setError('');
         }
+      } catch (e) {
+        if (controller.signal.aborted) return;
+        if (invalid(e)) return;
         setError((e as Error).message);
       }
-      if (!controller.signal.aborted) timer = window.setTimeout(refresh, 2000);
+      if (!controller.signal.aborted && !revoked) timer = window.setTimeout(refresh, 2000);
+    };
+    const heartbeat = async () => {
+      if (controller.signal.aborted || revoked) return;
+      try {
+        await api(`/api/rooms/${seat.roomId}/heartbeat`, {
+          method: 'POST', body: JSON.stringify({ sessionID: sessionID.current }), signal: controller.signal,
+        }, seat);
+      } catch (e) { if (!controller.signal.aborted) invalid(e); }
+      if (!controller.signal.aborted && !revoked) heartbeatTimer = window.setTimeout(heartbeat, 20000);
     };
     void refresh();
-    return () => { controller.abort(); if (timer !== undefined) clearTimeout(timer); };
+    void heartbeat();
+    return () => {
+      controller.abort();
+      if (timer !== undefined) clearTimeout(timer);
+      if (heartbeatTimer !== undefined) clearTimeout(heartbeatTimer);
+    };
   }, [seat.roomId, seat.credentials]);
   const definition = clientGames[info.gameName];
   const PlayerClient = definition?.PlayerClient;
-  const host = isPlayer(seat) && seat.playerID === '0';
-  const finished = info.status === 'finished';
+  const host = isRoomHost(seat, info);
+  const session: AuthSession = { ...seat, ...info };
   if (invalidSeat) return <><Header /><main className="narrow"><section className="panel">
     <h1>你已離開這個房間</h1>
-    <p>可能已被房主移出，或這次加入的憑證已失效。若要重新加入，請開啟有效的完整邀請連結。</p>
+    <p>可能已主動離開、被房主移出，或這次加入已失效。若要重新加入，請開啟有效的完整邀請連結。</p>
     {pendingToken(seat.roomId) && <button className="button primary full" onClick={() => navigate(`/join/${seat.roomId}`)}>重新使用邀請加入</button>}
     <button className="button secondary full" onClick={() => navigate('/')}>回到首頁</button>
   </section></main></>;
-  return <><Header room={seat.roomId} />{error && <div className="room-error"><ErrorMessage>{error}</ErrorMessage><p className="small muted">連線恢復後會自動重試。若房間已過期，可返回首頁建立新房間。</p></div>}{!loaded ? !error && <main className="narrow"><p className="loading" role="status">正在確認你的房間身分…</p></main> : <RoomContext.Provider value={{ seat, info, inviteUrl, setInviteUrl }}>{info.status === 'lobby' ? <Lobby onUpdate={acceptInfo} /> : <><div className="room-tools"><div className="room-status-line"><span>{isPlayer(seat) ? '玩家座位' : '觀戰席'} · {info.numPlayers} 位玩家 · {info.spectatorCount} 位已加入觀戰</span>{finished && <div className="perspective-switch" role="group" aria-label="結局與復盤"><button className={!replay ? 'selected' : ''} aria-pressed={!replay} onClick={() => setReplay(false)}>任務結果</button><button className={replay ? 'selected' : ''} aria-pressed={replay} onClick={() => setReplay(true)}>逐步復盤</button></div>}</div>{host && <details className="post-start-invite"><summary>邀請朋友觀戰{finished ? '與復盤' : ''}</summary><ShareInvite active /></details>}</div>{replay && finished ? <ReplayPanel seat={seat} info={info} /> : isPlayer(seat) ? PlayerClient ? <PlayerClient matchID={seat.matchID} playerID={seat.playerID} credentials={seat.credentials} /> : <main className="narrow"><ErrorMessage>此遊戲尚未提供玩家介面。</ErrorMessage></main> : <ObservationPanel seat={seat} info={info} />}</>}</RoomContext.Provider>}</>;
+  return <>
+    <Header room={seat.roomId} />
+    {error && <div className="room-error"><ErrorMessage>{error}</ErrorMessage><p className="small muted">連線恢復後會自動重試。請保留這個頁面。</p></div>}
+    {!loaded ? !error && <main className="narrow"><p className="loading" role="status">正在確認你的房間身分…</p></main>
+      : <RoomContext.Provider value={{ seat: session, info, inviteUrl, setInviteUrl }}>
+        <div className="room-tools">
+          <div className="room-status-line"><span>{isPlayer(seat) ? '玩家座位' : '觀戰席'} · {info.numPlayers} 位玩家 · {info.spectatorCount} 位已加入觀戰</span></div>
+          <RoomActions seat={session} info={info} onUpdate={acceptInfo} />
+          {host && info.status !== 'lobby' && <details className="post-start-invite"><summary>邀請朋友觀戰</summary><ShareInvite active /></details>}
+        </div>
+        {info.status === 'lobby' ? <><RoomHistory seat={session} info={info} /><Lobby onUpdate={acceptInfo} /></>
+          : isPlayer(seat) ? PlayerClient
+            ? <PlayerClient key={info.matchID} matchID={info.matchID} playerID={seat.playerID} credentials={seat.credentials} />
+            : <main className="narrow"><ErrorMessage>此遊戲尚未提供玩家介面。</ErrorMessage></main>
+          : <ObservationPanel key={info.matchID} seat={session} info={info} />}
+      </RoomContext.Provider>}
+  </>;
 }
-
 export function App() {
   const [path, setPath] = useState(location.pathname);
   const [seatRevision, setSeatRevision] = useState(0);

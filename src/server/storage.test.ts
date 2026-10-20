@@ -358,7 +358,11 @@ describe('持久化回放與原子開局', () => {
     removed._stateID = 1;
     removed.G.players['1'].ready = false;
     await expect(storage.removePlayer(ID, '1', 'wrong-credential', removed)).rejects.toThrow('無法移出');
-    await expect(storage.removePlayer(ID, '0', 'private-seat', removed)).rejects.toThrow('無法移出');
+    // Host authorization belongs to the room API because the host can move to
+    // another seat. Storage still refuses an out-of-sequence membership update.
+    await expect(storage.removePlayer(ID, '0', 'private-seat', {
+      ...removed, _stateID: removed._stateID + 1,
+    })).rejects.toThrow('無法移出');
     expect(await readFile(filename, 'utf8')).toBe(before);
     const writing = storage.removePlayer(ID, '1', 'guest-removal-test', removed);
     removed.G.players['1'].ready = true;

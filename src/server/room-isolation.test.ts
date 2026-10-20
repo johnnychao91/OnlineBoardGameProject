@@ -345,21 +345,33 @@ describe('三組朋友同時遊玩，各房狀態、權限與回放互相隔離'
     });
     expectNoSecrets(statistics.body);
 
-    // Persist an announced, unflipped choice and reconnect all groups. No new
-    // membership, credential, claim, hand, result, or selection is synthesized.
+    // Persist the unfinished groups exactly. The finished group rejoins its
+    // reusable lobby while the archived game and its share remain unchanged.
     const persistedSelection = await select(f, second, 'stable');
     const persisted = await Promise.all(groups.map((group) => f.state(group.host)));
     for (const group of groups) {
       for (const client of group.clients) expect(new Set(f.messages.get(client))).toEqual(new Set([group.host.roomId]));
     }
     await f.restart();
-    await Promise.all(groups.map((group) => connectGroup(f, group)));
+    await Promise.all(groups.filter((_, index) => persisted[index].G.status !== 'finished')
+      .map((group) => connectGroup(f, group)));
     for (const [index, group] of groups.entries()) {
       expect((await f.state(group.host)).G).toEqual(persisted[index].G);
-      expect((await f.request(path(group.host), undefined, seatHeaders(group.host))).body.numPlayers).toBe(group.seats.length);
+      const room = await f.request(path(group.host), undefined, seatHeaders(group.host));
+      expect(room.body.numPlayers).toBe(group.seats.length);
       const observer = await f.request(path(group.host, 'view?perspective=blind'), undefined, observerHeaders(group.observer));
       expect(observer.status).toBe(200);
-      expect(observer.body.G.publicCards).toEqual(persisted[index].G.publicCards);
+      if (persisted[index].G.status === 'finished') {
+        expect(room.body.status).toBe('lobby');
+        expect(room.body.matchID).not.toBe(group.host.roomId);
+        expect(room.body.players.every((player: any) => player.ready === false)).toBe(true);
+        expect(observer.body.G.status).toBe('lobby');
+        expect(observer.body.G.publicCards).toEqual({});
+        expect(observer.body.G.private).toEqual({});
+        expect(observer.body.G.secret).toBeUndefined();
+      } else {
+        expect(observer.body.G.publicCards).toEqual(persisted[index].G.publicCards);
+      }
       const foreign = groups[(index + 1) % groups.length];
       expect((await f.request(path(group.host), undefined, seatHeaders(foreign.host))).status).toBe(401);
     }
