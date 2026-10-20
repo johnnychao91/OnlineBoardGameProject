@@ -1,0 +1,11 @@
+.site-header .brand-symbol {
+  border: 0;
+  border-radius: 0;
+}
+
+.site-header .brand-symbol img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}

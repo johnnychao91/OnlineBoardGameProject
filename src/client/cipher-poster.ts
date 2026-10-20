@@ -181,7 +181,7 @@ export async function createCipherPoster(options: CipherPosterOptions): Promise<
   98, 1146, 22, COLOR.muted);
   ctx.strokeStyle = COLOR.line;
   ctx.beginPath(); ctx.moveTo(72, 1234); ctx.lineTo(1008, 1234); ctx.stroke();
-  text(ctx, '朋友桌遊室', 72, 1288, 25, COLOR.ink, 650);
+  text(ctx, '捷寶桌遊室', 72, 1288, 25, COLOR.ink, 650);
   ctx.save(); ctx.textAlign = 'right';
   text(ctx, '公開事件戰報 / ENCRYPTED CALL', 1008, 1286, 16, COLOR.dim);
   ctx.restore();

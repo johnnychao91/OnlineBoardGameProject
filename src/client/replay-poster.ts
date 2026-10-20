@@ -235,7 +235,7 @@ export async function createReplayPoster({ G, players, step, totalSteps }: Repla
 
   ctx.strokeStyle = '#28434b'; ctx.lineWidth = 1;
   ctx.beginPath(); ctx.moveTo(72, 1257); ctx.lineTo(1008, 1257); ctx.stroke();
-  text(ctx, '朋友桌遊室', 72, 1302, 25, COLORS.ink, 650);
+  text(ctx, '捷寶桌遊室', 72, 1302, 25, COLORS.ink, 650);
   ctx.save(); ctx.textAlign = 'right';
   text(ctx, '公開事件戰報', 1008, 1300, 18, COLORS.faint);
   ctx.restore();
