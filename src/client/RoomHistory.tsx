@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { AuthSession, RoomInfo } from './api';
-import { clientGames } from './game-registry';
+import { clientGames, gameResultLabel } from './game-registry';
 import { ReplayPanel } from './ReplayViewer';
 
 export function RoomHistory({ seat, info }: { seat: AuthSession; info: RoomInfo }) {
@@ -14,7 +14,7 @@ export function RoomHistory({ seat, info }: { seat: AuthSession; info: RoomInfo 
     <div className="panel previous-result">
       <div className="eyebrow">MISSION ARCHIVE</div>
       <h2>{latest.ending === 'completed'
-        ? `${definition?.factionLabels[latest.winner ?? ''] ?? latest.winner ?? '任務'}${latest.winner ? '陣營獲勝' : '已完成'}`
+        ? gameResultLabel(info.gameName, latest.winner)
         : '上一局已提前結束'}</h2>
       <p className="muted">{latest.ending === 'completed'
         ? definition?.reasonLabels[latest.reason ?? ''] ?? '對局已完成，結果已保存。'
@@ -27,7 +27,7 @@ export function RoomHistory({ seat, info }: { seat: AuthSession; info: RoomInfo 
         <summary>這個房間的已完成對局</summary>
         {history.map((entry, index) => entry.ending === 'completed' && <button className="text-button" key={entry.matchID}
           onClick={() => setSelected(entry.matchID)}>
-          第 {index + 1} 局 · {entry.numPlayers} 人 · {definition?.factionLabels[entry.winner ?? ''] ?? entry.winner ?? '任務完成'}{entry.winner ? '獲勝' : ''}
+          第 {index + 1} 局 · {entry.numPlayers} 人 · {gameResultLabel(info.gameName, entry.winner)}
         </button>)}
       </details>}
     </div>

@@ -3,7 +3,11 @@ import { Client } from 'boardgame.io/react';
 import { SocketIO } from 'boardgame.io/multiplayer';
 import { StationGame } from '../games/station/game';
 import { RuleSummary, StationBoard } from './StationBoard';
-import { StationSnapshot, type SnapshotProps } from './StationSnapshot';
+import { StationSnapshot } from './StationSnapshot';
+import type { SnapshotProps } from './game-types';
+import { CipherGame } from '../games/cipher/game';
+import { CipherBoard, CipherRuleSummary } from './CipherBoard';
+import { CipherSnapshot } from './CipherSnapshot';
 import { Icon } from './ui';
 
 function ConnectingGame() {
@@ -11,6 +15,7 @@ function ConnectingGame() {
 }
 
 const StationClient = Client({ game: StationGame, board: StationBoard, loading: ConnectingGame, multiplayer: SocketIO({ server: window.location.origin }), debug: false });
+const CipherClient = Client({ game: CipherGame, board: CipherBoard, loading: ConnectingGame, multiplayer: SocketIO({ server: window.location.origin }), debug: false });
 
 export interface ClientGameDefinition {
   PlayerClient: ComponentType<{ matchID: string; playerID: string; credentials: string }>;
@@ -21,6 +26,9 @@ export interface ClientGameDefinition {
   lobbyDescription?: string;
   factionLabels: Record<string, string>;
   reasonLabels: Record<string, string>;
+  /** Cooperative games have one player team, including when the mission fails. */
+  cooperative?: boolean;
+  resultLabels?: Record<string, string>;
 }
 
 /** Add each game's player client, snapshot renderer and statistics labels together. */
@@ -34,4 +42,21 @@ export const clientGames: Record<string, ClientGameDefinition> = {
     factionLabels: { engineer: '維修員', saboteur: '干擾者' },
     reasonLabels: { 'all-repairs': '完成全部維修', hazard: '揭開反應爐危機', 'round-limit': '四輪時間用盡' },
   },
+  'encrypted-call': {
+    PlayerClient: props => <CipherClient {...props} />,
+    Snapshot: CipherSnapshot,
+    Rules: CipherRuleSummary,
+    lobbyTitle: '保持沉默，接通同一個頻率。',
+    lobbyDescription: '所有人都是友方特務。不能透露訊號數字、打暗號或約定節奏，靠默契由小到大傳送。',
+    cooperative: true,
+    factionLabels: { agents: '特務小隊' },
+    resultLabels: { agents: '全隊任務成功', intercepted: '全隊任務失敗' },
+    reasonLabels: { 'all-levels': '所有頻段完成同步', 'cover-blown': '掩護耗盡，通訊遭到攔截' },
+  },
 };
+
+export function gameResultLabel(gameID: string, winner?: string) {
+  const definition = clientGames[gameID];
+  if (!winner) return '任務完成';
+  return definition?.resultLabels?.[winner] ?? `${definition?.factionLabels[winner] ?? winner}陣營獲勝`;
+}

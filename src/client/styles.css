@@ -88,6 +88,11 @@
 }
 @media(prefers-reduced-motion:reduce){.station-turn-notice,.station-card{animation:none;transition:none}}
 
+.cipher-home-art{min-height:290px;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:18px;text-align:center;margin:28px 0;position:relative;background:repeating-linear-gradient(0deg,transparent 0,transparent 30px,#77e4c90b 31px,#77e4c90b 32px);border:1px solid #77e4c92e;border-radius:20px;overflow:hidden}
+.cipher-home-art strong{font-size:32px;line-height:1.5;letter-spacing:.18em;color:#b2f3d2}
+.cipher-home-wave{display:flex;align-items:center;justify-content:center;color:#77e4c9;width:110px;height:95px}
+.cipher-home-label{color:#9baac2;font-size:10px;letter-spacing:.13em}
+.game-description{margin:10px 0 22px}
 /* Persistent rooms keep results, invitations and the next game's preparation together. */
 .room-actions{margin:14px 0 0}
 .room-action-buttons{display:flex;flex-wrap:wrap;gap:9px;justify-content:flex-end}

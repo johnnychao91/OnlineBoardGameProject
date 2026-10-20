@@ -25,7 +25,7 @@ API 與網頁同源，正式環境使用 HTTPS；開發由 Vite 代理。POST �
 | `GET /api/rooms/:id` | 玩家／觀戰 | `RoomInfo` |
 | `POST /api/rooms/:id/ready` | 玩家 | `{ready:boolean,matchID}`，只在等待室；回 `RoomInfo` |
 | `POST /api/rooms/:id/remove` | 房主 | `{playerID,membershipID}`，只在等待室單次移出其他玩家；回 `RoomInfo` |
-| `POST /api/rooms/:id/start` | 房主 | `{matchID}`，實際 4～8 人全準備後開始；回 `RoomInfo` |
+| `POST /api/rooms/:id/start` | 房主 | `{matchID}`，符合該遊戲的人數範圍且全員準備後開始；回 `RoomInfo` |
 | `POST /api/rooms/:id/return` | 房主 | `{matchID}`，正常終局後返回等待室；通常由伺服器自動處理 |
 | `POST /api/rooms/:id/abort` | 房主 | `{matchID}`，提前結束目前局，不計勝敗；回新等待室的 `RoomInfo` |
 | `POST /api/rooms/:id/leave` | 玩家／觀戰 | `{}`，撤銷自己的身份，房主必要時交接；回 `{left:true}` |
@@ -46,6 +46,8 @@ API 與網頁同源，正式環境使用 HTTPS；開發由 Vite 代理。POST �
 ```
 
 不傳 `numPlayers`，舊格式回 400。暱稱去空白後須 1～24 個 Unicode code points，不含控制字元。正式環境建房密鑰至少 16 字元；開發可留空。
+
+`gameId` 可為 `space-station`（太空維修站，4～8 人）或 `encrypted-call`（加密通話，2～4 人），完整列表以 `/api/games` 為準。房間不能在進行中切換遊戲。`RoomInfo.status` 的 `lobby` 為共用等待室，其餘由遊戲決定；加密通話另有 `syncing`、`playing`、`pulse`、`intermission`、`finished`。所有房間、觀戰、回放與分享端點共用同一套授權規則。
 
 建立時預留最大席位，等待室只顯示入座參與者。`ready` 更新自己的準備狀態。`start`、加入與移出請求共用房間序列佇列，檢查實際人數與準備狀態，用新的加密亂數種子初始化正確人數，保留既有席位 ID 與憑證。席位不必連續；遊戲登錄的 `startSetupData(participantIDs)` 接收伺服器核對過的參與席位，遊戲依此建立角色、牌與行動順序。觀戰者不進玩家 metadata，也不計配牌。
 

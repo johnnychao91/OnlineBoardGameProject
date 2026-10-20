@@ -272,7 +272,9 @@ describe('Reusable rooms and match lifecycle', () => {
     const stats = await f.request('/api/stats');
     expect(stats.body).toMatchObject({
       completedGames: 2, totalPlayerParticipations: 8,
-      byGame: [{ completed: 2, wins: { saboteur: 2 }, byPlayerCount: [{ numPlayers: 4, completed: 2 }] }],
+    });
+    expect(stats.body.byGame.find((game: any) => game.gameId === 'space-station')).toMatchObject({
+      completed: 2, wins: { saboteur: 2 }, byPlayerCount: [{ numPlayers: 4, completed: 2 }],
     });
     await f.restart();
     expect((await f.request(path(g.host), undefined, g.host)).body.matchID).toBe(secondLobby.body.matchID);

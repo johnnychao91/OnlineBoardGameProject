@@ -8,7 +8,7 @@ export function PerspectiveSwitch({ perspective, onChange, disabled = false }: {
 }
 
 export function PerspectiveNote({ perspective, shared = false }: { perspective: Perspective; shared?: boolean }) {
-  return <p className={`perspective-note ${perspective === 'god' ? 'god-note' : ''}`}>{perspective === 'god' ? shared ? '此分享公開所有陣營、設備組成與暗牌順序。請避免透露給尚在遊玩的朋友。' : '上帝視角包含所有陣營與暗牌順序。觀戰時請勿透露秘密給正在遊玩的隊員。' : '盲視角只顯示公開資訊；未揭開的設備與尚未公布的陣營保持隱藏。'}</p>;
+  return <p className={`perspective-note ${perspective === 'god' ? 'god-note' : ''}`}>{perspective === 'god' ? shared ? '此分享包含所有參與者的秘密資訊與手牌。請避免透露給尚在遊玩的朋友。' : '上帝視角包含所有參與者的秘密資訊與手牌。觀戰時請勿透露給正在遊玩的朋友。' : '盲視角只顯示當時已公開的資訊，尚未公開的手牌與身分保持隱藏。'}</p>;
 }
 
 export function ObservationPanel({ seat, info }: { seat: AuthSession; info: RoomInfo }) {

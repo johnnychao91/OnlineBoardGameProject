@@ -1,6 +1,6 @@
 # 架構與新增遊戲
 
-專案將共用的房間功能與個別遊戲規則分開。第一款遊戲是 4～8 人的「太空維修站」；日後增加其他遊戲時，沿用邀請、座位、連線與部署方式，另加入規則與畫面模組。
+專案將共用的房間功能與個別遊戲規則分開。目前提供 4～8 人的「太空維修站」及 2～4 人的合作遊戲「加密通話」。各遊戲沿用邀請、座位、連線與部署方式，另有自己的規則與畫面模組。
 
 平台程式、Linux 服務、帳號及部署路徑統一使用 `boardgame`，例如 `boardgame.service`、`/opt/boardgame`、`/etc/boardgame.env` 與 `/var/lib/boardgame`。`space-station` 只作為第一款遊戲的穩定識別碼及 Socket.IO namespace；`src/games/station` 仍是這款遊戲的模組。既有房間、回放、瀏覽器儲存鍵及加入憑證的計算規約維持相容，新增遊戲使用自己的識別碼，不共用第一款遊戲的 namespace。
 
@@ -62,7 +62,7 @@ boardgame.io 的完整狀態保留於伺服器。每個玩家的 `playerView` �
 
 採用自訂 adapter，是為了避開既有 FlatFile 實作依賴 `node-persist` 共用預設 instance 與定時寫入佇列的等待。這裡使用 Node.js 原生檔案 API，每房的讀寫依 Promise 佇列序列化，不需等待固定的寫入掃描週期。這不代表磁碟 I/O 沒有延遲；仍需在 Pi 5 上量測。
 
-寫入會先建立同目錄的暫存檔，以 `flush: true` 同步檔案內容，再以 rename 替換完整對局檔。讀取重新解析 JSON，呼叫端不能透過修改回傳物件改到另一個請求的記憶體資料。狀態更新會保留 metadata 並追加 deltalog；metadata 更新則保留狀態與紀錄。
+寫入會先建立同目錄的暫存檔，以 `flush: true` 同步檔案內容，再以 rename 替換完整對局檔。Windows 若暫時遇到 `EPERM`、`EACCES` 或 `EBUSY`，對局與房間索引的替換最多嘗試 6 次、合計等待 620ms；不先刪除原檔，持續失敗仍回報錯誤。其他錯誤與 Linux 維持直接回報。讀取重新解析 JSON，呼叫端不能透過修改回傳物件改到另一個請求的記憶體資料。狀態更新會保留 metadata 並追加 deltalog；metadata 更新則保留狀態與紀錄。
 
 `src/server/room-isolation.test.ts` 以同一個真實 HTTP／Socket.IO 伺服器同時執行 4、5、6 人三房，驗證加入、宣稱、公開預選、揭牌、觀戰權限、跨房憑證拒絕、終局回放、全站統計與重啟恢復。這是朋友多桌同時遊玩的功能測試，不是 Pi 5 的負載或吞吐量保證。
 
@@ -72,7 +72,7 @@ boardgame.io 的完整狀態保留於伺服器。每個玩家的 `playerView` �
 
 0.2 版的 schema 1 增加 `replayFrames` 與 `replayComplete`。從正式開局起，每個有效狀態版本保存 `{stateID, at, G}`，與目前狀態一起原子寫入；等待室不加入回放，重複／較舊版本不會再次加入。舊資料缺乏完整歷史時保持 `complete: false`，不根據現在的牌面補造過去；正式對局版本跳號也會標為不完整。回放 API 僅在終局開放，依遊戲的 `observerView` 過濾，完全不傳出 metadata、RNG、plugins 或座位憑證。不完整歷史仍可供 API 識別，但前端不提供完整時間軸或發行分享。
 
-等待室由 HTTP 的 ready/start 操作管理；建立時只預留最大容量，真正開局才以當時入座且全員準備的 4～8 人重建初始對局。`startMatch` 在單一檔案內原子替換初始狀態、目前狀態、玩家 metadata 與回放；與入座使用相同房間佇列。Socket.IO 不接受 `startGame`，避免繞過 HTTP 的實際參與者檢查。前端在進入正式對局後才掛載 boardgame.io client。
+等待室由 HTTP 的 ready/start 操作管理；建立時只預留遊戲的最大容量，真正開局才依遊戲登錄的人數範圍，使用當時入座且全員準備的玩家重建初始對局。`startMatch` 在單一檔案內原子替換初始狀態、目前狀態、玩家 metadata 與回放；與入座使用相同房間佇列。Socket.IO 不接受 `startGame`，避免繞過 HTTP 的實際參與者檢查。前端在進入正式對局後才掛載 boardgame.io client。
 
 觀戰者使用獨立 HTTP 輪詢及憑證，不加入 boardgame.io 的玩家 metadata。全站統計由 `collectStatistics` 逐局讀取已完成結果，不另保存可重複累加的計數器；未完成局不計，舊版完整勝敗結果可納入。統計按遊戲、勝方、原因與實際玩家人數彙整，不提供房號、暱稱、個人戰績或排名。這適合朋友的小型單程序服務，大量歷史資料時應另建可重建的統計索引。
 
@@ -108,6 +108,12 @@ interface GameDefinition {
 `observerView` 明確列出允許的觀戰／回放欄位；`getOutcome` 僅在合法終局回傳結果，供統計及賽後分享授權。房主重設邀請不再受開局限制，但開始後邀請只能建立新觀戰身份。新遊戲也需提供前端唯讀快照 renderer；等待室的共用狀態約定為 `G.status`、`G.players[id].ready`。
 
 將規則放進自己的 `src/games/<遊戲目錄>/`，在登錄表新增定義，再於 `src/client` 的遊戲畫面選擇層加入同一個 `id` 對應的 React 元件。伺服器規則模組不要匯入瀏覽器專用元件。
+
+加密通話使用 `encrypted-call` 作為遊戲 ID 與 Socket.IO namespace，規則在 `src/games/cipher/game.ts`。全員可操作的遊戲使用每房共用的伺服器序列佇列，並對適用的 move 啟用 `ignoreStaleStateID`，避免同一個舊狀態版本送出的兩位玩家操作只接受其中一人。這不代表忽略合法性：每個操作仍檢查參與者、狀態、頻段與 `epoch`；出牌另要求符合伺服器目前的最小手牌。階段轉換遞增 `epoch`，避免失序、暫停、表決或換頻段後執行舊指令。數值依伺服器接收順序裁定，不使用客戶端時間戳重新排序。
+
+加密通話的 `private[id].cards` 僅回傳本人手牌；已授權上帝觀戰可取得已發手牌，盲視角只取公開狀態。開局同步、失序後同步及換頻段確認由遊戲規則控制；通用等待室的準備與開局仍走原本 HTTP 流程。正常結果為 `agents / all-levels` 或 `intercepted / cover-blown`，所有參與者的角色都屬 `agents`。前端以 `cooperative` 和 `resultLabels` 表示全隊成敗，統計只展示一支特務小隊。
+
+前端共用的 `SnapshotProps` 與 `PosterOptions` 定義在 `src/client/game-types.ts`；遊戲的唯讀快照不接收 move。`BattleReport` 依遊戲 ID 選擇 PNG renderer；每個 renderer 都必須明確只讀公開欄位，即使傳入上帝視角也不能把秘密手牌畫入圖片。新遊戲必須同時登錄玩家畫面、規則、快照、結果標籤及戰報 renderer。
 
 每款遊戲至少需提供穩定的識別碼、顯示名稱、人數範圍、boardgame.io 遊戲定義、玩家視角過濾與前端畫面。登錄新遊戲時，伺服器與前端應使用一致的識別碼；不能只在前端新增按鈕而未註冊伺服器規則。
 

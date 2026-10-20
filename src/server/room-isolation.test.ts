@@ -340,8 +340,10 @@ describe('三組朋友同時遊玩，各房狀態、權限與回放互相隔離'
     const statistics = await f.request('/api/stats');
     expect(statistics.body).toMatchObject({
       completedGames: 1, totalPlayerParticipations: 4,
-      byGame: [{ gameId: 'space-station', completed: 1, wins: { saboteur: 1 },
-        byPlayerCount: [{ numPlayers: 4, completed: 1, wins: { saboteur: 1 } }] }],
+    });
+    expect(statistics.body.byGame.find((game: any) => game.gameId === 'space-station')).toMatchObject({
+      gameId: 'space-station', completed: 1, wins: { saboteur: 1 },
+      byPlayerCount: [{ numPlayers: 4, completed: 1, wins: { saboteur: 1 } }],
     });
     expectNoSecrets(statistics.body);
 

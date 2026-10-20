@@ -1,6 +1,7 @@
-import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { validRoomID } from './security';
+import { atomicReplace } from './atomic-file';
 
 export interface RoomRecord {
   roomId: string;
@@ -53,7 +54,7 @@ export class RoomStore {
       records.set(incoming.roomId, incoming);
       const snapshot = JSON.stringify([...records.values()]);
       await writeFile(this.file + '.tmp', snapshot, { mode: 0o600 });
-      await rename(this.file + '.tmp', this.file);
+      await atomicReplace(this.file + '.tmp', this.file);
       this.rooms.set(incoming.roomId, incoming);
     });
     this.writes = job.catch(() => {});

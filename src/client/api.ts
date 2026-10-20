@@ -11,7 +11,8 @@ export interface RoomInfo {
   roomId: string;
   matchID: string;
   gameName: string;
-  status: 'lobby' | 'briefing' | 'claiming' | 'playing' | 'finished';
+  /** lobby / finished are shared; each game defines its active phase names. */
+  status: string;
   numPlayers: number;
   minPlayers: number;
   maxPlayers: number;

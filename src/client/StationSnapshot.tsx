@@ -1,10 +1,8 @@
 import type { StationState } from '../games/station/game';
-import type { Perspective, RoomInfo } from './api';
+import type { SnapshotProps } from './game-types';
 import { Log } from './StationBoard';
 import { MissionProgress, roleNames, StationTable, TurnNotice } from './StationTable';
 import { BattleReport } from './BattleReport';
-
-export interface SnapshotProps { G: unknown; info: RoomInfo; perspective: Perspective; replay?: boolean; }
 
 /** Read-only by construction: snapshots never receive a game client or move callbacks. */
 export function StationSnapshot({ G: unknownState, info, perspective, replay = false }: SnapshotProps) {

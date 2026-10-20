@@ -2,12 +2,15 @@ import { useEffect, useRef, useState } from 'react';
 import type { StationObserverState } from '../games/station/game';
 import type { Perspective, RoomInfo } from './api';
 import { createReplayPoster } from './replay-poster';
+import { createCipherPoster } from './cipher-poster';
+import type { CipherState } from '../games/cipher/game';
+import type { PosterOptions } from './game-types';
 import { ErrorMessage } from './ui';
 
-interface PosterOptions { G: unknown; info: RoomInfo; step: number; totalSteps: number; }
 /** A game can add its original report renderer without changing the replay controls. */
 const posterRenderers: Record<string, (options: PosterOptions) => Promise<Blob>> = {
   'space-station': ({ G, info, step, totalSteps }) => createReplayPoster({ G: G as StationObserverState, players: info.players, step, totalSteps }),
+  'encrypted-call': ({ G, info, step, totalSteps }) => createCipherPoster({ G: G as CipherState, players: info.players, step, totalSteps }),
 };
 
 export function BattleReport({ G, info, frameIndex = 0, totalFrames = 1, perspective, label = '製作這一步的戰報圖', beforeCreate }: { G: unknown; info: RoomInfo; frameIndex?: number; totalFrames?: number; perspective: Perspective; label?: string; beforeCreate?: () => void }) {

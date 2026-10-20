@@ -519,10 +519,11 @@ describe('Derived completed-game statistics', () => {
     await finish(f, four.host);
     const once = await f.request('/api/stats');
     expect(once.status).toBe(200);
-    expect(once.body).toMatchObject({ completedGames: 1, totalPlayerParticipations: 4, byGame: [{
+    expect(once.body).toMatchObject({ completedGames: 1, totalPlayerParticipations: 4 });
+    expect(once.body.byGame.find((game: any) => game.gameId === 'space-station')).toMatchObject({
       gameId: 'space-station', completed: 1, wins: { engineer: 1 }, reasons: { 'all-repairs': 1 },
       byPlayerCount: [{ numPlayers: 4, completed: 1, wins: { engineer: 1 } }],
-    }] });
+    });
     expect((await f.request(roomPath(four.host, 'share'), { frameIndex: 0 }, observerHeaders(observer))).status).toBe(200);
     expect((await f.request(roomPath(four.host, 'replay'), undefined, seatHeaders(four.host))).status).toBe(200);
     // Re-saving the exact final version is a transport retry, not another result.
@@ -532,14 +533,15 @@ describe('Derived completed-game statistics', () => {
     for (const response of repeated) expect(response.body).toEqual(once.body);
     await finish(f, five.host, 'saboteur');
     const total = await f.request('/api/stats');
-    expect(total.body).toMatchObject({ completedGames: 2, totalPlayerParticipations: 9, byGame: [{
+    expect(total.body).toMatchObject({ completedGames: 2, totalPlayerParticipations: 9 });
+    expect(total.body.byGame.find((game: any) => game.gameId === 'space-station')).toMatchObject({
       gameId: 'space-station', completed: 2, wins: { engineer: 1, saboteur: 1 },
       reasons: { 'all-repairs': 1, hazard: 1 },
       byPlayerCount: [
         { numPlayers: 4, completed: 1, wins: { engineer: 1 } },
         { numPlayers: 5, completed: 1, wins: { saboteur: 1 } },
       ],
-    }] });
+    });
     expectNoServerSecrets(total.body);
     expect(JSON.stringify(total.body)).not.toContain(four.host.roomId);
     expect(JSON.stringify(total.body)).not.toContain('站長');

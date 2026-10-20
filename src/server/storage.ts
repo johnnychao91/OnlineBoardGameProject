@@ -1,9 +1,10 @@
 import { randomUUID } from 'node:crypto';
-import { lstat, mkdir, readFile, readdir, rename, rm, writeFile } from 'node:fs/promises';
+import { lstat, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { Async } from 'boardgame.io/internal';
 import type { LogEntry, Server, State, StorageAPI } from 'boardgame.io';
 import { hashToken, safeEqual, validRoomID } from './security';
+import { atomicReplace } from './atomic-file';
 
 /** 伺服器私有回放資料；對外提供前仍須另做觀看權限與遊戲資訊過濾。 */
 export interface ReplayFrame {
@@ -137,7 +138,7 @@ export class FileStorage extends Async {
       await writeFile(temporary, JSON.stringify(record), {
         encoding: 'utf8', flag: 'wx', mode: 0o600, flush: true,
       });
-      await rename(temporary, filename);
+      await atomicReplace(temporary, filename);
     } finally {
       // 只處理本次產生的單一暫存檔；不刪除目錄，也不隱藏原本的 I/O 錯誤。
       await rm(temporary, { force: true }).catch(() => undefined);
