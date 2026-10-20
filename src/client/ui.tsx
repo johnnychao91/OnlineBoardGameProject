@@ -21,8 +21,9 @@ export function Icon({ type, size = 20 }: { type: 'orbit' | 'link' | 'arrow' | '
   return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{paths[type]}</svg>;
 }
 
-export function Header({ room }: { room?: string }) {
-  return <header className="site-header"><button className="brand" onClick={() => navigate('/')} aria-label="回捷寶桌遊室首頁"><span className="brand-symbol"><img src={siteIcon} alt="" /></span><span>捷寶桌遊室<small>BOARDGAME</small></span></button>{room ? <span className="room-tag">私人房間</span> : <span className="beta-tag">試玩版</span>}</header>;
+export function Header({ room, rulesGame }: { room?: string; rulesGame?: string }) {
+  const rulesPath = rulesGame === 'space-station' || rulesGame === 'encrypted-call' ? `/rules/${rulesGame}` : '/rules';
+  return <header className="site-header"><button className="brand" onClick={() => navigate('/')} aria-label="回捷寶桌遊室首頁"><span className="brand-symbol"><img src={siteIcon} alt="" /></span><span>捷寶桌遊室<small>BOARDGAME</small></span></button><div className="header-links"><a className="header-rules-link" href={rulesPath} target={room ? '_blank' : undefined} rel={room ? 'noopener noreferrer' : undefined}>詳細規則</a>{room ? <span className="room-tag">私人房間</span> : <span className="beta-tag">試玩版</span>}</div></header>;
 }
 
 export function ErrorMessage({ children }: { children: ReactNode }) { return children ? <p className="error-message" role="alert">{children}</p> : null; }

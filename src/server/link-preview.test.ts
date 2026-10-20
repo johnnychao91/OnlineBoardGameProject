@@ -100,6 +100,32 @@ describe('Public link previews', () => {
     expect((await f.request('/.env')).status).toBe(404);
   });
 
+  it('serves public detailed rules directly, including trailing slashes, without reflecting private inputs', async () => {
+    const f = await fixture();
+    for (const path of ['/rules', '/rules/', '/rules/space-station', '/rules/space-station/', '/rules/encrypted-call', '/rules/encrypted-call/']) {
+      const response = await f.request(`${path}?room=private-room&invite=private-invite&credentials=private-credential`, {
+        headers: { Host: 'attacker.example', 'X-Forwarded-Host': 'forwarded.example' },
+      });
+      expect(response.status).toBe(200);
+      expect(response.headers.get('content-type')).toContain('text/html');
+      expect(response.headers.get('cache-control')).toBe('no-cache');
+      const html = await response.text();
+      expect(html).toContain('<title>捷寶桌遊室</title>');
+      expect(metadata(html, 'og:url')).toEqual([publicOrigin + path]);
+      expect(metadata(html, 'og:image')).toEqual([publicOrigin + iconPath]);
+      expect(html).not.toMatch(/private-room|private-invite|private-credential|attacker\.example|forwarded\.example/);
+      const head = await f.request(path, { method: 'HEAD' });
+      expect(head.status).toBe(200);
+      expect(head.headers.get('content-type')).toContain('text/html');
+      expect(Number(head.headers.get('content-length'))).toBeGreaterThan(0);
+      expect(await head.text()).toBe('');
+    }
+    expect(f.app.rooms.rooms.size).toBe(0);
+    expect((await f.request('/rules/unknown-game')).status).toBe(404);
+    expect((await f.request('/rules/space-station/private-room')).status).toBe(404);
+    expect((await f.request('/rules/space-station', { method: 'POST' })).status).toBe(404);
+  });
+
   it('never exposes room members or credentials, grants a seat, or bypasses room authorization', async () => {
     const f = await fixture();
     const created = await f.request('/api/rooms', {
@@ -111,8 +137,8 @@ describe('Public link previews', () => {
     const invite = new URLSearchParams(new URL(host.inviteUrl).hash.slice(1)).get('invite')!;
     const before = await f.app.db.fetch(host.matchID, { metadata: true, state: true });
     const roomBefore = JSON.stringify(f.app.rooms.rooms.get(host.roomId));
-    for (const prefix of ['join', 'room', 'replay']) {
-      const response = await f.request(`/${prefix}/${host.roomId}#invite=${invite}`);
+    for (const path of [`/join/${host.roomId}`, `/room/${host.roomId}`, `/replay/${host.roomId}`, '/rules', '/rules/space-station', '/rules/encrypted-call']) {
+      const response = await f.request(`${path}#invite=${invite}`);
       expect(response.status).toBe(200);
       const html = await response.text();
       expect(metadata(html, 'og:title')).toEqual(['捷寶桌遊室']);

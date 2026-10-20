@@ -1,0 +1,22 @@
+/* Read-only views use the same game grid and panels as live players. */
+.snapshot-layout.game-layout { width: 100%; margin: 0; padding: 0; }
+.snapshot-layout > .game-aside, .snapshot-layout > .station-personal-aside { padding-top: 0; }
+.snapshot-inspection-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 15px 18px; }
+.snapshot-inspection-heading h2 { margin: 0; font-size: 15px; }
+.snapshot-inspection-heading > span { color: var(--muted); font-size: 10px; white-space: nowrap; }
+.snapshot-player-select { min-width: 0; margin-bottom: 12px; }
+.snapshot-player-select label { display: block; margin: 0 0 5px; color: var(--muted); font-size: 11px; }
+.snapshot-player-select select { width: 100%; min-width: 0; min-height: 40px; padding: 7px 10px; border: 1px solid #48627e; border-radius: 8px; background: #101c30; color: #e6edf9; font: inherit; font-size: 13px; }
+.snapshot-player-select select:focus-visible { outline: 2px solid var(--mint); outline-offset: 2px; }
+.snapshot-readonly-note { line-height: 1.7; margin: 0; }
+.cipher-card-back { background: repeating-linear-gradient(135deg, #23344a, #23344a 10px, #263a50 10px, #263a50 20px); border-color: #496883; color: #a6bdcf; }
+.cipher-snapshot .cipher-tools > p { margin: 0; }
+.replay-sharing-disclosure { margin-top: 12px; }
+.replay-sharing-disclosure > summary { cursor: pointer; min-height: 36px; padding: 8px 12px; border: 1px solid #496984; border-radius: 8px; color: var(--mint); font-size: 12px; }
+.replay-sharing-disclosure .replay-sharing { margin: 10px 0 0; }
+
+@media (max-width: 1099px), (max-height: 699px) {
+  .snapshot-layout.cipher-layout { display: block; }
+  .snapshot-layout.cipher-layout > .game-aside { padding-top: 20px; }
+  .replay-controls:has(.replay-sharing-disclosure[open]) { position: relative; top: auto; }
+}

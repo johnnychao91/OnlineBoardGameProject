@@ -653,7 +653,8 @@ export async function createApplication(config: AppConfig) {
     const directory = resolve(config.clientDir);
     const previewPage = createPreviewPage(await readFile(join(directory, 'index.html'), 'utf8'), origin);
     server.app.use(async (ctx, next) => {
-      if (['GET', 'HEAD'].includes(ctx.method) && (ctx.path === '/' || ctx.path === '/index.html' || /^\/(join|room|replay)\/[A-Za-z0-9_-]+$/.test(ctx.path))) {
+      const rulesMatch = ctx.path.match(/^\/rules(?:\/(space-station|encrypted-call))?\/?$/);
+      if (['GET', 'HEAD'].includes(ctx.method) && (ctx.path === '/' || ctx.path === '/index.html' || rulesMatch || /^\/(join|room|replay)\/[A-Za-z0-9_-]+$/.test(ctx.path))) {
         ctx.type = 'html'; ctx.set('Cache-Control', 'no-cache');
         ctx.body = previewPage(ctx.path);
       } else await next();

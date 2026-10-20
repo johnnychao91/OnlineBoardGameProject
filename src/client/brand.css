@@ -9,3 +9,11 @@
   height: 100%;
   object-fit: contain;
 }
+
+.header-links { display: flex; align-items: center; gap: 16px; flex-shrink: 0; }
+.header-rules-link { font-size: 12px; text-decoration: none; white-space: nowrap; padding: 8px 0; }
+.header-rules-link:hover { text-decoration: underline; }
+@media (max-width: 540px) {
+  .header-links { gap: 0; }
+  .header-links .room-tag, .header-links .beta-tag { display: none; }
+}

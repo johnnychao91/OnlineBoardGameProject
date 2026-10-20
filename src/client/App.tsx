@@ -19,6 +19,7 @@ import { isIdentityStorageKey, readRoleSwitch } from './role-switch';
 import { ShareInvite } from './ShareInvite';
 import { initials } from './StationBoard';
 import { Statistics } from './Statistics';
+import { RulesPage, type RulesGameID } from './RulesPage';
 import { ErrorMessage, Header, Icon, navigate, Note, Submit } from './ui';
 
 captureInvite();
@@ -147,7 +148,7 @@ function Lobby({ onUpdate }: { onUpdate: (info: RoomInfo) => void }) {
       {(isPlayer(seat) || host) && <p className="small muted center">{selected ? `${ready} / ${players.length} 位已準備 · ${host ? '開始時鎖定隊員名單與本局人數。' : '全員準備後，等待房主開始。'}` : '先選遊戲，再一起準備；切換遊戲後需要重新準備。'}</p>}
     </div>
   </section><aside className="lobby-info-column">{host ? <ShareInvite active /> : <Note>邀請由房主管理。遊戲開始後，仍可邀請其他朋友來觀戰。</Note>}
-    {Rules && presentation && <div className="panel mission-brief"><div className="section-label">任務簡報</div><h2>{presentation.lobbyTitle || '遊戲簡介'}</h2><p>{presentation.lobbyDescription}</p><button className="text-button" onClick={() => setRules(!rules)}>{rules ? '收起玩法' : '展開玩法說明'} ↓</button>{rules && <Rules />}</div>}
+    {Rules && presentation && <div className="panel mission-brief"><div className="section-label">任務簡報</div><h2>{presentation.lobbyTitle || '遊戲簡介'}</h2><p>{presentation.lobbyDescription}</p><button className="text-button" onClick={() => setRules(!rules)}>{rules ? '收起玩法' : '展開玩法說明'} ↓</button>{rules && <Rules />}<a className="full-rules-link" href={`/rules/${info.gameName}`} target="_blank" rel="noopener noreferrer">閱讀完整詳細規則 ↗</a></div>}
     {!selected && <div className="panel mission-brief"><div className="section-label">同一桌，隨時換玩法</div><h2>朋友先到，遊戲慢慢選。</h2><p>房主可在等待室切換遊戲，成員與邀請連結都會保留。開始後先完成或提前結束本局，再回到這裡換下一款。</p></div>}
   </aside></main>;
 }
@@ -234,7 +235,7 @@ function Room({ seat, onSwitch }: { seat: AuthSession; onSwitch: (seat: AuthSess
     <button className="button secondary full" onClick={() => navigate('/')}>回到首頁</button>
   </section></main></div>;
   return <div className={`room-page ${info.status === 'lobby' ? 'room-lobby' : isPlayer(seat) ? 'room-playing room-game' : 'room-observer room-game'}${stationActive ? ' station-active-room' : ''}`}>
-    <Header room={seat.roomId} />
+    <Header room={seat.roomId} rulesGame={info.gameSelected !== false ? info.gameName : undefined} />
     {error && <div className="room-error"><ErrorMessage>{error}</ErrorMessage><p className="small muted">連線恢復後會自動重試。請保留這個頁面。</p></div>}
     {!loaded ? !error && <main className="narrow"><p className="loading" role="status">正在確認你的房間身分…</p></main>
       : <RoomContext.Provider value={{ seat: session, info, inviteUrl, setInviteUrl }}>
@@ -273,6 +274,8 @@ export function App() {
     return () => { window.removeEventListener('popstate', update); window.removeEventListener('hashchange', update); window.removeEventListener('storage', identityChanged); };
   }, []);
   function enter(seat: AuthSession) { setSeatRevision(n => n + 1); navigate(`/room/${seat.roomId}`); }
+  const rulesMatch = path.match(/^\/rules(?:\/(space-station|encrypted-call))?\/?$/);
+  if (rulesMatch) return <RulesPage gameID={rulesMatch[1] as RulesGameID | undefined} />;
   const match = path.match(/^\/(join|room|replay)\/([A-Za-z0-9_-]+)\/?$/);
   if (!match) return <Home onEnter={enter} />;
   const roomId = match[2];

@@ -2,6 +2,8 @@
 
 API 與網頁同源，正式環境使用 HTTPS；開發由 Vite 代理。POST 使用 `Content-Type: application/json`，body 為物件且不超過 4096 bytes，無參數時傳 `{}`。API 回應為 `Cache-Control: no-store`，錯誤為 `{"error":"可顯示的說明"}`。
 
+公開詳細規則網頁使用 `GET`／`HEAD /rules`、`/rules/space-station`、`/rules/encrypted-call`，也接受尾端 `/`。不需加入房間，回傳 `no-cache` 的前端頁面；預覽只包含平台名稱、圖示與以 `PUBLIC_ORIGIN` 產生的公開路徑，不含 query、邀請、身份或對局資料。未知規則路徑回 404。房內規則連結在新分頁開啟，保留原遊戲連線；新增遊戲規則時同步擴充前後端規則路由。
+
 ## 身份與權限
 
 | 身份 | 標頭 | 用途 |
