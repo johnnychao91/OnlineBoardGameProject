@@ -18,7 +18,7 @@ function Chapter({ id, title, children }: { id: string; title: string; children:
 export function RulesPage({ gameID }: { gameID?: RulesGameID }) {
   const game = gameID ? games[gameID] : undefined;
   const chapters = gameID === 'space-station' ? stationChapters : gameID === 'encrypted-call' ? cipherChapters : [];
-  return <div className="rules-page"><Header /><main className="rules-main">
+  return <div className="rules-page" data-art-game={gameID}><Header /><main className="rules-main">
     <div className="rules-intro"><div className="eyebrow">HOW TO PLAY</div>
       <h1>{game ? `${game.name}・詳細規則` : '今晚怎麼玩？'}</h1>
       <p>{game?.intro ?? '先認識任務，再邀朋友同桌。這裡說明目前線上版本的完整流程與操作。'}</p>
@@ -28,7 +28,7 @@ export function RulesPage({ gameID }: { gameID?: RulesGameID }) {
       <a href="/rules" aria-current={!gameID ? 'page' : undefined}>規則總覽</a>
       {Object.entries(games).map(([id, entry]) => <a key={id} href={`/rules/${id}`} aria-current={gameID === id ? 'page' : undefined}>{entry.name}</a>)}
     </nav>
-    {!game && <div className="rules-game-cards">{Object.entries(games).map(([id, entry]) => <a className="panel rules-game-card" href={`/rules/${id}`} key={id}>
+    {!game && <div className="rules-game-cards">{Object.entries(games).map(([id, entry]) => <a className="panel rules-game-card" data-art-game={id} href={`/rules/${id}`} key={id}>
       <Icon type={id === 'space-station' ? 'orbit' : 'signal'} size={30} /><h2>{entry.name}</h2><p className="rules-game-meta">{entry.detail}</p><p>{entry.intro}</p><span>閱讀詳細規則 →</span>
     </a>)}</div>}
     <div className={`rules-reading-layout${game ? '' : ' rules-overview'}`}>
