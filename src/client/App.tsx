@@ -241,11 +241,14 @@ function Room({ seat, onSwitch }: { seat: AuthSession; onSwitch: (seat: AuthSess
         <div className="room-chrome">
         <div className="room-tools">
           <div className="room-status-line"><span>{host && '房主 · '}{isPlayer(seat) ? '玩家座位' : '觀戰席'} · {info.numPlayers} 位玩家 · {info.spectatorCount} 位已加入觀戰</span></div>
-          <details className="station-room-menu"><summary>房間管理</summary><div className="station-room-menu-content">
+          {info.status === 'lobby' ? <>
+            <RoleSwitcher seat={session} info={info} onChange={onSwitch} />
+            <RoomActions seat={session} info={info} onUpdate={acceptInfo} />
+          </> : <details className="station-room-menu"><summary>房間管理</summary><div className="station-room-menu-content">
             <RoleSwitcher seat={session} info={info} onChange={onSwitch} />
             <RoomActions seat={session} info={info} onUpdate={acceptInfo} />
             {host && info.status !== 'lobby' && <details className="post-start-invite"><summary>邀請朋友觀戰</summary><ShareInvite active /></details>}
-          </div></details>
+          </div></details>}
         </div>
         <SpectatorRoster info={info} seat={session} />
         </div>

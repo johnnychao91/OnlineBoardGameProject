@@ -1,149 +1,43 @@
-/* Fit the working surface to a desktop viewport. Long archives and expanded
-   reference material scroll inside their own panels; small windows keep the
-   regular document flow instead of clipping controls. */
+/* Only game, observation, and replay surfaces fit the desktop viewport.
+   Home, admission, and waiting rooms keep the regular scrollable layout.
+   Small windows also retain normal document flow for game controls. */
 @media (min-width: 1100px) and (min-height: 700px) {
-  #root { min-height: 100dvh; }
-  .home-page, .join-page, .room-page, .shared-replay-page { height: 100dvh; min-height: 0; }
-  .join-page, .room-page, .shared-replay-page { display: flex; flex-direction: column; }
-  .site-header { width: 100%; max-width: none; height: 52px; min-height: 52px; margin: 0; padding: 0 20px; flex-shrink: 0; }
-  .room-page > .bgio-client { flex: 1; min-height: 0; display: flex; flex-direction: column; }
-  .site-header .brand { font-size: 14px; gap: 9px; }
-  .site-header .brand-symbol { width: 32px; height: 32px; }
-  .site-header .brand small { margin-top: 3px; font-size: 7px; }
-  .button { min-height: 38px; padding: 8px 13px; font-size: 12px; }
-  .confirm-dialog { max-height: calc(100dvh - 40px); overflow: auto; }
-  .section-heading { margin-bottom: 12px; }
-  .section-heading h2 { font-size: 15px; }
-  .eyebrow, .section-label { margin-bottom: 10px; }
-  .error-message { margin: 6px 0; }
+  .room-game, .shared-replay-page { height: 100dvh; min-height: 0; }
+  .room-game, .shared-replay-page { display: flex; flex-direction: column; }
+  :where(.room-game, .shared-replay-page, .room-history-replay) .site-header { width: 100%; max-width: none; height: 52px; min-height: 52px; margin: 0; padding: 0 20px; flex-shrink: 0; }
+  .room-game > .bgio-client { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  :where(.room-game, .shared-replay-page, .room-history-replay) .site-header .brand { font-size: 14px; gap: 9px; }
+  :where(.room-game, .shared-replay-page, .room-history-replay) .site-header .brand-symbol { width: 32px; height: 32px; }
+  :where(.room-game, .shared-replay-page, .room-history-replay) .site-header .brand small { margin-top: 3px; font-size: 7px; }
+  :where(.room-game, .shared-replay-page, .room-history-replay) .button { min-height: 38px; padding: 8px 13px; font-size: 12px; }
+  :where(.room-game, .shared-replay-page, .room-history-replay) .confirm-dialog { max-height: calc(100dvh - 40px); overflow: auto; }
+  :where(.room-game, .shared-replay-page, .room-history-replay) .section-heading { margin-bottom: 12px; }
+  :where(.room-game, .shared-replay-page, .room-history-replay) .section-heading h2 { font-size: 15px; }
+  :where(.room-game, .shared-replay-page, .room-history-replay) .eyebrow, :where(.room-game, .shared-replay-page, .room-history-replay) .section-label { margin-bottom: 10px; }
+  :where(.room-game, .shared-replay-page, .room-history-replay) .error-message { margin: 6px 0; }
 
-  /* Landing screen: introduction, admission, and statistics sit side by side. */
-  .home-page { display: grid; grid-template-columns: minmax(210px, .85fr) minmax(310px, 1.05fr) minmax(310px, 1fr); grid-template-rows: 52px minmax(0, 1fr) 42px; gap: 16px 22px; padding: 0 20px; }
-  .home-page > .site-header { grid-column: 1 / -1; padding: 0; }
-  .home-layout { display: contents; }
-  .home-layout > .intro { align-self: center; min-width: 0; }
-  .intro h1 { font-size: clamp(30px, 3vw, 43px); margin-bottom: 18px; }
-  .intro-copy { font-size: 13px; line-height: 1.85; }
-  .intro .eyebrow { font-size: 8px; letter-spacing: .12em; }
-  .station-illustration, .cipher-home-art { height: 150px; margin: 20px 0; transform: scale(.82); transform-origin: left center; }
-  .feature-row { flex-wrap: wrap; gap: 10px; margin-top: 20px; font-size: 10px; }
-  .home-page .create-panel { padding: 18px; align-self: center; max-height: 100%; min-height: 0; overflow: auto; }
-  .create-panel > .section-label { margin-bottom: 5px; }
-  .create-panel h2 { font-size: 23px; margin-bottom: 10px; }
-  .create-panel > .small { margin-bottom: 10px; }
-  .create-panel form > label { margin-top: 8px; }
-  .create-panel input, .create-panel select { min-height: 42px; }
-  .create-panel .room-flexibility { padding: 7px 0; font-size: 11px; }
-  .create-panel .key-details { margin: 4px 0 10px; }
-  .create-panel .key-details summary { padding: 3px 0; }
-  .create-panel .key-details label { margin-top: 8px; }
-  .create-panel .key-details .small { font-size: 10px; margin: 8px 0; }
-  .create-panel .note { font-size: 10px; padding: 8px 0; }
-  .create-panel > .small { font-size: 10px; margin-bottom: 0; }
-  .home-statistics { max-width: none; width: 100%; min-height: 0; margin: 0; padding: 0; }
-  .home-statistics > .statistics-section { height: 100%; padding: 20px; overflow: auto; scrollbar-gutter: stable; }
-  .statistics-section > .section-heading { gap: 8px; }
-  .statistics-section .section-label { font-size: 8px; margin-bottom: 5px; }
-  .statistics-section > .small { font-size: 10px; margin-bottom: 10px; }
-  .site-totals { margin: 12px 0; gap: 14px; }
-  .site-totals > div { padding-left: 10px; }
-  .site-totals strong { font-size: 26px; }
-  .site-totals span { font-size: 10px; }
-  .game-statistics { padding-top: 12px; margin-top: 12px; }
-  .game-statistics .section-heading { margin-bottom: 8px; }
-  .game-statistics h3 { font-size: 14px; }
-  .faction-statistics { gap: 14px; }
-  .faction-statistics > div { gap: 5px; }
-  .faction-statistics strong { font-size: 11px; }
-  .faction-statistics > div > span { font-size: 17px; }
-  .statistics-details { font-size: 10px; margin-top: 10px; }
-  .statistics-details summary { min-height: 25px; }
-  .home-page > footer { grid-column: 1 / -1; width: 100%; max-width: none; margin: 0; padding: 8px 0; align-self: stretch; }
-
-  /* Join and error screens remain centered and usable at the shortest desktop height. */
-  .join-page > .narrow, .room-page > .narrow { margin: auto; padding: 14px 24px; min-height: 0; max-height: calc(100dvh - 52px); overflow: auto; }
-  .join-panel { padding: 23px 28px; }
-  .join-panel .large-orbit { width: 48px; height: 48px; margin-bottom: 14px; }
-  .join-panel .large-orbit svg { width: 28px; }
-  .join-panel h1 { font-size: 23px; margin-bottom: 10px; }
-  .join-panel > .muted { margin-bottom: 10px; }
-  .join-panel .access-picker { margin: 14px 0 8px; }
-  .join-panel .access-picker button { min-height: 63px; padding: 8px 12px; }
-  .join-panel .access-picker small { margin-top: 4px; }
-  .join-panel .small, .join-panel .note { font-size: 10px; }
-  .join-panel form > .button { margin-top: 13px; }
-  #root:has(> .narrow) { display: flex; flex-direction: column; height: 100dvh; }
-  #root > .narrow { margin: auto; min-height: 0; max-height: calc(100dvh - 52px); overflow: auto; }
-
-  /* One compact room toolbar for both games and the waiting room. */
-  .room-page .room-chrome { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 16px; margin: 0 20px; height: 48px; min-height: 48px; }
-  .room-page .room-tools { max-width: none; margin: 0; padding: 0; display: flex; align-items: center; gap: 14px; }
-  .room-page .room-status-line > span { font-size: 10px; white-space: nowrap; }
-  .room-page .station-room-menu { position: relative; margin: 0; z-index: 12; }
-  .room-page .station-room-menu > summary { min-height: 32px; padding: 5px 10px; white-space: nowrap; font-size: 11px; }
-  .room-page .station-room-menu-content { position: absolute; top: calc(100% + 6px); left: 0; width: 370px; max-height: calc(100dvh - 125px); overflow: auto; padding: 14px 18px; border: 1px solid #637b98; border-radius: 14px; background: #132139; box-shadow: 0 20px 70px #000a; }
-  .room-page .spectator-roster { margin: 0; padding: 0; max-width: none; min-width: 0; }
-  .room-page .spectator-roster-panel { display: flex; align-items: center; gap: 10px; padding: 5px 10px; border-radius: 9px; min-width: 0; }
-  .room-page .spectator-roster-panel > summary { display: flex; gap: 7px; flex-shrink: 0; min-height: 26px; }
-  .room-page .spectator-roster-title { font-size: 11px; }
-  .room-page .spectator-roster-count { font-size: 10px; }
-  .room-page .spectator-roster-note { display: none; }
-  .room-page .spectator-roster-list { display: flex; flex: 1; gap: 6px; min-width: 0; max-height: 32px; overflow: auto; margin: 0; }
-  .room-page .spectator-roster-person { flex-shrink: 0; padding: 3px 7px; gap: 5px; border-radius: 6px; max-width: 220px; }
-  .room-page .spectator-roster-name { font-size: 10px; overflow: auto; white-space: nowrap; }
-  .room-page .spectator-roster-avatar { flex-basis: 18px; width: 18px; height: 18px; }
-  .room-page .spectator-roster-empty { font-size: 10px; margin: 0; }
-  .room-page .connection-banner { width: 100%; max-width: none; height: 18px; min-height: 18px; padding: 0 22px; flex-shrink: 0; }
-  .room-page .connection-banner.offline { height: auto; min-height: 24px; }
-  .room-page .room-error { margin: 0 20px; max-width: none; padding: 5px 12px; font-size: 11px; }
-  .room-error p { margin: 0; }
-
-  /* Waiting room: all eight members remain visible in two columns. */
-  .room-lobby > .room-layout { flex: 1; min-height: 0; max-width: none; width: 100%; margin: 0; padding: 8px 20px 14px; gap: 18px; grid-template-columns: minmax(0, 1.2fr) minmax(340px, .85fr); }
-  .lobby-player-column, .lobby-info-column { min-width: 0; min-height: 0; display: flex; flex-direction: column; gap: 10px; }
-  .room-layout .lobby-info-column { padding-top: 0; }
-  .lobby-heading h1 { font-size: 25px; margin-bottom: 4px; }
-  .lobby-heading > p { font-size: 11px; margin-bottom: 0; }
-  .lobby-heading .eyebrow { font-size: 8px; margin-bottom: 5px; }
-  .room-game-picker { flex-shrink: 0; padding: 12px 16px; margin: 0; }
-  .room-game-picker h2 { font-size: 15px; margin-bottom: 6px; }
-  .room-game-picker p { font-size: 11px; margin-bottom: 5px; }
-  .room-game-picker > p { margin: 5px 0 0; font-size: 10px; line-height: 1.5; }
-  .room-game-picker-heading label { font-size: 11px; }
-  .room-game-picker select { min-height: 38px; font-size: 12px; }
-  .room-game-picker .section-heading { margin-bottom: 6px; }
-  .room-layout .roster { flex: 1; min-height: 0; margin: 0; padding: 12px 16px; display: flex; flex-direction: column; }
-  .roster-players { min-height: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 18px; overflow: auto; }
-  .roster-row { min-width: 0; padding: 6px 0; gap: 8px; min-height: 42px; }
-  .roster-row:last-child { padding-bottom: 6px; }
-  .roster-row .remove-player { min-height: 30px; min-width: 32px; padding: 4px; font-size: 10px; }
-  .roster-row > div { min-width: 0; }
-  .roster-row strong { font-size: 11px; }
-  .roster-row small { font-size: 9px; }
-  .roster-row .avatar { width: 27px; height: 27px; font-size: 11px; }
-  .roster-row .ready-pill { font-size: 9px; padding: 3px 5px; }
-  .roster > .small { font-size: 10px; margin: 7px 0 0; line-height: 1.5; }
-  .roster .lobby-missing { padding-top: 5px; }
-  .room-layout .action-dock { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 10px; margin: 0; flex-shrink: 0; }
-  .action-dock > .button + .button { margin: 0; }
-  .action-dock > p, .action-dock > .note { grid-column: 1 / -1; margin: 0; font-size: 10px; padding: 0; }
-  .action-dock > .button:only-of-type { grid-column: 1 / -1; }
-  .lobby-info-column .invite-card { padding: 18px; flex-shrink: 0; }
-  .lobby-info-column .invite-heading { margin-bottom: 12px; }
-  .lobby-info-column .invite-card > .small { margin-top: 10px; }
-  .lobby-info-column .invite-controls { margin-top: 10px; padding-top: 10px; }
-  .lobby-info-column .mission-brief { min-height: 0; margin: 0; padding: 18px; overflow: auto; }
-  .lobby-info-column .mission-brief h2 { font-size: 18px; margin-bottom: 8px; }
-  .lobby-info-column .mission-brief > p { font-size: 12px; margin-bottom: 9px; }
-  .room-history { width: 100%; max-width: none; padding: 0 20px 5px; margin: 0; flex-shrink: 0; }
-  .previous-result { display: flex; align-items: center; flex-wrap: wrap; gap: 5px 15px; padding: 9px 14px; }
-  .previous-result .eyebrow { display: none; }
-  .previous-result h2 { font-size: 15px; margin: 0; }
-  .previous-result > p { font-size: 10px; margin: 0; }
-  .previous-result > .small { display: none; }
-  .previous-result > .button { margin-left: auto; min-height: 30px; font-size: 10px; padding: 4px 9px; }
-  .history-list { position: relative; margin: 0; font-size: 11px; }
-  .history-list[open] { max-height: 100px; overflow: auto; }
+  /* Compact room toolbar while playing or observing a game. */
+  .room-game .room-chrome { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 16px; margin: 0 20px; height: 48px; min-height: 48px; }
+  .room-game .room-tools { max-width: none; margin: 0; padding: 0; display: flex; align-items: center; gap: 14px; }
+  .room-game .room-status-line > span { font-size: 10px; white-space: nowrap; }
+  .room-game .station-room-menu { position: relative; margin: 0; z-index: 12; }
+  .room-game .station-room-menu > summary { min-height: 32px; padding: 5px 10px; white-space: nowrap; font-size: 11px; }
+  .room-game .station-room-menu-content { position: absolute; top: calc(100% + 6px); left: 0; width: 370px; max-height: calc(100dvh - 125px); overflow: auto; padding: 14px 18px; border: 1px solid #637b98; border-radius: 14px; background: #132139; box-shadow: 0 20px 70px #000a; }
+  .room-game .spectator-roster { margin: 0; padding: 0; max-width: none; min-width: 0; }
+  .room-game .spectator-roster-panel { display: flex; align-items: center; gap: 10px; padding: 5px 10px; border-radius: 9px; min-width: 0; }
+  .room-game .spectator-roster-panel > summary { display: flex; gap: 7px; flex-shrink: 0; min-height: 26px; }
+  .room-game .spectator-roster-title { font-size: 11px; }
+  .room-game .spectator-roster-count { font-size: 10px; }
+  .room-game .spectator-roster-note { display: none; }
+  .room-game .spectator-roster-list { display: flex; flex: 1; gap: 6px; min-width: 0; max-height: 32px; overflow: auto; margin: 0; }
+  .room-game .spectator-roster-person { flex-shrink: 0; padding: 3px 7px; gap: 5px; border-radius: 6px; max-width: 220px; }
+  .room-game .spectator-roster-name { font-size: 10px; overflow: auto; white-space: nowrap; }
+  .room-game .spectator-roster-avatar { flex-basis: 18px; width: 18px; height: 18px; }
+  .room-game .spectator-roster-empty { font-size: 10px; margin: 0; }
+  .room-game .connection-banner { width: 100%; max-width: none; height: 18px; min-height: 18px; padding: 0 22px; flex-shrink: 0; }
+  .room-game .connection-banner.offline { height: auto; min-height: 24px; }
+  .room-game .room-error { margin: 0 20px; max-width: none; padding: 5px 12px; font-size: 11px; }
+  .room-game .room-error p { margin: 0; }
 
   /* Requested station swap: history left, identity right, table in the center. */
   .station-active-room .station-player-live { flex: 1; height: auto; min-height: 0; grid-template-areas: "activity main personal"; grid-template-columns: 190px minmax(0, 1fr) 205px; grid-template-rows: minmax(0, 1fr); gap: 14px; }
@@ -160,7 +54,7 @@
   .station-active-room .station-snapshot-live > aside { grid-area: activity; }
 
   /* Shared observation framing, including the second game's own snapshot. */
-  .room-page .observation-panel { width: 100%; max-width: none; flex: 1; min-height: 0; margin: 0; padding: 0 20px 12px; display: flex; flex-direction: column; }
+  .room-game .observation-panel { width: 100%; max-width: none; flex: 1; min-height: 0; margin: 0; padding: 0 20px 12px; display: flex; flex-direction: column; }
   .observer-toolbar { flex-shrink: 0; min-height: 34px; margin: 0; gap: 12px; }
   .observer-toolbar > div:first-child { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
   .observer-toolbar .eyebrow { display: none; }
@@ -171,7 +65,7 @@
   .perspective-note { flex-shrink: 0; padding: 4px 10px; font-size: 10px; line-height: 1.5; margin: 5px 0 7px; }
 
   /* Cipher player board: hand and public activity share the horizontal space. */
-  .room-page .cipher-layout { flex: 1; min-height: 0; width: 100%; max-width: none; margin: 0; padding: 0 20px 12px; gap: 16px; grid-template-columns: minmax(0, 1fr) 235px; }
+  .room-game .cipher-layout { flex: 1; min-height: 0; width: 100%; max-width: none; margin: 0; padding: 0 20px 12px; gap: 16px; grid-template-columns: minmax(0, 1fr) 235px; }
   .cipher-layout > .game-main { min-height: 0; min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, .9fr); grid-template-rows: auto auto minmax(0, 1fr) auto; gap: 9px 14px; }
   .cipher-layout .cipher-heading { grid-column: 1 / -1; grid-row: 1; }
   .cipher-layout .cipher-metrics { grid-column: 1; grid-row: 2; }
@@ -278,7 +172,7 @@
   .share-replay > p, .battle-report > .small { font-size: 10px; line-height: 1.7; }
   .share-replay + .battle-report { padding-top: 13px; margin-top: 13px; }
   .replay-sharing .button { font-size: 11px; }
-  .manual-share { flex-direction: column; }
+  :where(.room-game, .shared-replay-page, .room-history-replay) .manual-share { flex-direction: column; }
   .report-preview { padding: 7px; margin-top: 12px; }
   .report-preview img { max-height: 250px; object-fit: contain; }
   .report-preview .button-row { flex-wrap: wrap; gap: 6px; }
