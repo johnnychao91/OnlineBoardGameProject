@@ -30,8 +30,9 @@ describe('牌位顯示', () => {
     return structuredClone(match.initialState.G) as StationState;
   }
 
-  it('固定暗牌與已翻牌的位置，資訊只來自公開牌面', () => {
+  it.each([2, 3] as const)('V%i 固定暗牌與已翻牌的位置，資訊只來自公開牌面', (version) => {
     const G = state();
+    G.rulesVersion = version;
     G.publicCards!['1'] = [null, 'stable', null, 'repair', null];
     G.players['1'].cardCount = 3;
     const view = stationPlayerView({ G, playerID: '0' });
@@ -59,8 +60,9 @@ describe('牌位顯示', () => {
     expect(G.log).toHaveLength(1);
   });
 
-  it('缺少 v2 公開牌位或未參與席位不產生可點擊牌', () => {
+  it.each([2, 3] as const)('缺少 V%i 公開牌位或未參與席位不產生可點擊牌', (version) => {
     const G = state();
+    G.rulesVersion = version;
     delete G.publicCards!['1'];
     expect(getCardSlots(G, '1')).toEqual([]);
     for (const id of ['99', '__proto__', 'constructor']) expect(getCardSlots(G, id)).toEqual([]);

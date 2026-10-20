@@ -347,6 +347,11 @@ describe('三組朋友同時遊玩，各房狀態、權限與回放互相隔離'
     });
     expectNoSecrets(statistics.body);
 
+    const held = await f.request(path(first.host), undefined, seatHeaders(first.host));
+    expect(held.body).toMatchObject({ status: 'finished', matchID: first.host.roomId });
+    const completedRoom = f.app.rooms.rooms.get(first.host.roomId)!;
+    await f.app.rooms.save({ ...completedRoom,
+      completedDisplay: { matchID: first.host.roomId, until: Date.now() - 1 } });
     // Persist the unfinished groups exactly. The finished group rejoins its
     // reusable lobby while the archived game and its share remain unchanged.
     const persistedSelection = await select(f, second, 'stable');
@@ -438,6 +443,8 @@ describe('三組朋友同時遊玩，各房狀態、權限與回放互相隔離'
       await select(f, group, 'stable');
       await revealSelected(f, group);
     }
+    expect((await f.state(host)).G).toMatchObject({ status: 'round-review', round: 1 });
+    await movesFromEveryone(f, group, 'acknowledgeRound', [1]);
     expect((await f.state(host)).G).toMatchObject({ status: 'briefing', round: 2 });
     await movesFromEveryone(f, group, 'acknowledge');
     const nextRound = await f.state(host);

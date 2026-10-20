@@ -97,6 +97,8 @@ export async function createApplication(config: AppConfig) {
     numPlayers: state.G.status === 'lobby' ? Object.values(metadata.players).filter((p: any) => p.credentials).length : state.ctx.numPlayers,
     minPlayers: getGameDefinition(room.gameId)!.minPlayers, maxPlayers: getGameDefinition(room.gameId)!.maxPlayers,
     status: state.G.status,
+    ...(!historical && state.G.status === 'finished' && room.completedDisplay?.matchID === matchID
+      ? { completedDisplayUntil: room.completedDisplay.until } : {}),
     players: Object.values(metadata.players).filter((p: any) => state.G.status === 'lobby' ? p.credentials : state.G.players?.[p.id]).map((p: any) => ({
       id: String(p.id), name: p.name || '', isConnected: historical ? false : !!p.isConnected, ready: historical ? false : !!state.G.players?.[p.id]?.ready,
       ...(!historical && p.credentials ? { membershipID: hashToken(`${room.roomId}:${p.credentials}`).slice(0, 16) } : {}),
@@ -144,6 +146,16 @@ export async function createApplication(config: AppConfig) {
     if (definition.isJoinable(state.G)) return room;
     const outcome = definition.getOutcome(state.G);
     if (ending === 'completed' && !outcome) fail(409, '對局尚未結束');
+    const displayMs = ending === 'completed' ? definition.completedDisplayMs?.(state.G) ?? 0 : 0;
+    if (displayMs > 0) {
+      if (room.completedDisplay?.matchID !== previousID) {
+        room = { ...room, completedDisplay: { matchID: previousID, until: Date.now() + displayMs } };
+        // Publish the deadline once. Polling, explicit returns and process
+        // restarts must neither skip nor keep extending the final-card display.
+        await rooms.save(room);
+      }
+      if (Date.now() < room.completedDisplay!.until) return room;
+    }
     const matchID = randomToken(12);
     const match = createMatch({ game: { ...definition.game, seed: randomToken() }, numPlayers: definition.maxPlayers, setupData: undefined, unlisted: true });
     if ('setupDataError' in match) fail(500, '無法返回等待室');
@@ -156,7 +168,7 @@ export async function createApplication(config: AppConfig) {
       ? previousHost : participants.length ? String(participants[0].id) : null;
     const history: RoomHistory = { matchID: previousID, endedAt: Date.now(), ending,
       numPlayers: state.ctx.numPlayers, ...(outcome && ending === 'completed' ? { winner: outcome.winner, reason: outcome.reason } : {}) };
-    const next: RoomRecord = { ...room, currentMatchID: matchID, hostPlayerID: nextHost,
+    const next: RoomRecord = { ...room, currentMatchID: matchID, hostPlayerID: nextHost, completedDisplay: undefined,
       departedPlayerIDs: [], history: [...(room.history || []), history] };
     // Create first, then atomically publish the new room pointer. A failed index
     // write leaves an unused file, never an overwritten completed game.
@@ -497,6 +509,7 @@ export async function createApplication(config: AppConfig) {
         if (operation === 'return' && !finished) fail(409, '對局尚未結束');
         if (operation === 'abort' && finished) fail(409, '對局已結束，請返回等待室');
         const next = await returnToLobby(current, finished ? 'completed' : 'host-ended');
+        if (currentMatchID(next) === matchID) fail(409, '請先查看本局最後一張模組，稍後將自動返回等待室');
         const nextState = await snapshot(next);
         ctx.body = publicRoom(next, nextState.metadata, nextState.state);
       } else if (operation === 'leave') {

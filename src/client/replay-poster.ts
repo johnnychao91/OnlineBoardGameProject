@@ -18,7 +18,7 @@ const COLORS = {
 const CARDS: Record<CardKind, { label: string; detail: string; color: string; mark: string }> = {
   stable: { label: '穩定設備', detail: '設備維持穩定，任務繼續。', color: '#b6d0df', mark: '—' },
   repair: { label: '維修模組', detail: '找到維修模組，太空站更接近恢復運作。', color: COLORS.mint, mark: '+' },
-  hazard: { label: '反應爐危機', detail: '危機已揭開，這次任務就此結束。', color: COLORS.amber, mark: '!' },
+  hazard: { label: '反應爐危機', detail: '危機已揭開，這次任務就此結束。', color: '#ffa6a6', mark: '!' },
 };
 
 function positiveInteger(value: number, fallback = 1): number {
@@ -167,7 +167,7 @@ export async function createReplayPoster({ G, players, step, totalSteps }: Repla
   pill(ctx, round > 0 ? `第 ${round} 輪` : '任務準備', 72, 270, 155);
   pill(ctx, `復盤 ${String(position).padStart(2, '0')} / ${String(total).padStart(2, '0')} 步`, 243, 270, 304);
   const status = G.status === 'finished' ? '任務結束' : G.status === 'claiming' ? '公開宣稱' : G.status === 'briefing' ? '情報確認'
-    : G.status === 'playing' ? '行動中' : '等待出發';
+    : G.status === 'round-review' ? '本輪結算' : G.status === 'playing' ? '行動中' : '等待出發';
   pill(ctx, status, 563, 270, 164, G.status === 'finished' ? COLORS.amber : COLORS.muted);
 
   box(ctx, 64, 360, 952, 410, 30, COLORS.panel, COLORS.stroke);

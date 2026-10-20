@@ -76,6 +76,8 @@ API 與網頁同源，正式環境使用 HTTPS；開發由 Vite 代理。POST �
 
 `return` 與 `abort` 必須指定畫面確認時的 `matchID`，過期值回 409；`ready`、`start` 亦傳目前 ID，避免舊畫面操作新等待室。房主資格由伺服器重新檢查。`abort` 不產生勝方或戰績，只保存中止摘要，不開放未完成對局的回放。
 
+版本 3 的太空維修站終局先保留至少 8 秒，再自動返回等待室。伺服器第一次偵測終局時保存對局 ID 與截止時間，輪詢與重啟不會延長期限；`RoomInfo.completedDisplayUntil` 是截止的 Unix 毫秒。在期限前呼叫 `return` 回 409，`abort` 也不能把已完成局變成中止；勝敗、觀戰快照與終局回放已成立，不必等返回等待室。其他遊戲及舊規則保持原本流程。
+
 `leave` 撤銷整個玩家／觀戰身份，包括該身份的其他分頁；原加入重試不能恢復已離席的憑證。房主離開後交接給剩餘玩家。對局中離席不把角色和設備交給新人，原參與者暱稱仍保留在歷史。新玩家只在等待室加入。
 
 前端每個分頁使用自己的隨機 `sessionID`，每 20 秒送出已認證的心跳，期限為 60 秒；玩家 Socket 連線也納入在線判斷。關閉分頁不呼叫 `leave`，單一分頁關閉不會撤銷其他分頁。所有玩家與觀戰者都逾重連期限後，伺服器自動中止進行中的對局；最後一位成員明確離席則可立即中止。服務重啟先保留同等重連寬限。公開分享的收件者不屬於房間在線成員，觀看分享不會延長對局。
@@ -98,12 +100,13 @@ API 與網頁同源，正式環境使用 HTTPS；開發由 Vite 代理。POST �
 | `gameName` | 登錄的遊戲識別碼 |
 | `numPlayers` | 實際入座參與者數，開局後固定 |
 | `minPlayers`, `maxPlayers` | 遊戲人數範圍 |
-| `status` | `lobby`, `briefing`, `claiming`, `playing`, `finished` |
+| `status` | 共用 `lobby`；太空維修站另有 `briefing`, `claiming`, `playing`, `round-review`, `finished`，其他遊戲依自身定義 |
 | `players` | 等待室為有效入座者；對局中保留原參與者的 `id,name,isConnected,ready,departed,membershipID?`，無憑證，ID 可能缺號；歷史投影不含目前連線／管理識別值 |
 | `spectatorCount` | 已發行觀戰身份數，不代表在線人數 |
 | `spectators` | 有效觀戰身分的 `{id,name}` 名單，不含憑證或憑證雜湊；僅已認證房間成員可讀取，歷史投影為 `[]` |
 | `godViewAllowed` | 本版 true；不授予進行中玩家觀戰權限 |
 | `hostPlayerID` | 目前房主座位字串；沒有玩家時為 `null` |
+| `completedDisplayUntil` | 選填；目前終局牌桌的最早自動返回時間，Unix 毫秒，歷史投影不帶此欄位 |
 | `history` | 依結束順序的 `{matchID,endedAt,ending,numPlayers,winner?,reason?}`；`ending` 為 `completed`、`host-ended` 或 `empty`，沒有秘密牌面 |
 
 ## 視角與回放
@@ -147,19 +150,23 @@ PNG 戰報由瀏覽器 canvas 產生，只取公開事件、暱稱與任務進�
 
 Socket 只接受白名單 `MAKE_MOVE`，強制拒絕 `startGame`（走 HTTP）、框架事件、聊天、undo、redo、reset、plugin。保留 `setReady` 規則相容性，新等待室使用 HTTP。
 
-太空維修站新局使用 `rulesVersion: 2`，正式操作如下：
+太空維修站新局使用 `rulesVersion: 3`，正式操作如下：
 
 | 操作 | 參數與限制 |
 | --- | --- |
 | `acknowledge()` | `briefing` 階段確認自己的資訊；全員完成進入 `claiming` |
 | `declareRepairs(count, round)` | `claiming` 階段，整數 0～本輪起始手牌數，每人一次；必須帶當輪編號，允許同輪多人並行宣稱及與真實牌數不同，全員完成進入 `playing` |
+| `acknowledgeBriefing(round)` | 版本 3 的 `briefing` 階段，帶目前輪次確認自己的資訊；允許多人同時確認，過期輪次及重複確認拒絕 |
 | `selectCard(targetID, slot)` | 目前檢修者預選別人的未翻牌，`slot` 為本輪固定的零起算牌位 |
 | `clearSelection()` | 目前檢修者取消公開預選 |
 | `reveal(targetID, slot, selectionID)` | 目前檢修者確認與伺服器 `pendingReveal` 完全一致的預選；過期／缺少識別值、已翻牌、自選均拒絕 |
+| `acknowledgeRound(round)` | 版本 3 的 `round-review` 階段，參與玩家各確認一次；須傳目前輪次，允許同輪並行確認，全員完成後重新發牌 |
 
 `G.publicCards[playerID]` 是本輪固定牌位的陣列，未翻為 `null`，已翻為設備種類；`cardCount` 只計剩餘暗牌。`G.players[playerID].claim` 是本輪起始時的公開宣稱，未提交為 `null`，不代表真實剩餘牌數。`G.pendingReveal` 包含 `actorID,targetID,slot,round,selectionID`，不帶暗牌種類；預選序號在同一局遞增，取消、換人、換輪或終局會清除預選。這些公開欄位會同步給其他玩家、觀戰及對應歷史步驟。
 
-玩家仍只收到自己的秘密陣營與剩餘組成。上帝視角的 `secret.cards` 在 v2 保留本輪完整固定牌序，配合 `publicCards` 區分已翻與未翻。舊局未帶 `rulesVersion` 時保留原本兩參數 `reveal`、緊縮牌列及確認後直接行動的流程；新版介面也能讀取其歷史，不會重寫舊回放。
+版本 3 非終局的最後一次揭牌進入 `round-review`，保留本輪 `publicCards`、`log`、宣稱及最後被揭牌者，使用 `players[id].reviewAcknowledged` 表示確認進度。未全員確認前不洗牌，也不允許選牌或揭牌；確認最後一人後才進入下一輪 `briefing`。直接產生勝負時進入 `finished`，不等待輪末確認。
+
+玩家仍只收到自己的秘密陣營與剩餘組成。上帝視角的 `secret.cards` 在版本 2、3 都保留本輪完整固定牌序，配合 `publicCards` 區分已翻與未翻。版本 2 在輪末仍立即重新發牌；未帶 `rulesVersion` 的舊局保留兩參數 `reveal`、緊縮牌列及確認後直接行動。新版介面能讀取各版本歷史，不會重寫舊回放。
 
 每個房間有自己的狀態、亂數種子、操作佇列與持久化檔案。玩家、觀戰及分享憑證都在指定房間內驗證，Socket 綁定一個房間的一個席位。全站戰績按設計彙整不同房間的已完成對局，各局只算一次。
 

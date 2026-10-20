@@ -23,6 +23,8 @@ export interface GameDefinition {
   /** The caller must authorize this perspective before returning the projection. */
   observerView: (state: any, perspective: ObserverPerspective) => unknown;
   getOutcome: (state: any) => GameOutcome | null;
+  /** Keep the completed live table visible before the room returns to its lobby. */
+  completedDisplayMs?: (state: any) => number;
 }
 
 export const gameDefinitions: GameDefinition[] = [{
@@ -32,6 +34,7 @@ export const gameDefinitions: GameDefinition[] = [{
   isJoinable: (state) => state.status === 'lobby',
   startSetupData: (participantIDs) => ({ startImmediately: true, participantIDs }),
   observerView: stationObserverView,
+  completedDisplayMs: (state: StationState) => state.rulesVersion === 3 ? 8000 : 0,
   getOutcome: (state: StationState) => {
     if (state.status !== 'finished' || !state.winner || !state.winReason) return null;
     const roles: Record<string, string> = {};

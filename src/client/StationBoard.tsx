@@ -5,7 +5,7 @@ import { isPlayer } from './api';
 import { RoomContext } from './room-context';
 import { Icon } from './ui';
 import { BattleReport } from './BattleReport';
-import { cardNames, initials, MissionProgress, roleNames, StationTable, TurnNotice } from './StationTable';
+import { cardNames, initials, MissionProgress, roleNames, RoundRevealList, StationTable, TurnNotice } from './StationTable';
 
 export { cardNames, initials, roleNames } from './StationTable';
 
@@ -40,7 +40,7 @@ export function StationBoard({ G, playerID, moves, isConnected }: BoardProps) {
   };
   const myTurn = G.status === 'playing' && G.activePlayer === id;
   const canAct = isConnected !== false;
-  const version2 = G.rulesVersion === 2;
+  const version2 = (G.rulesVersion ?? 1) >= 2;
   const pending = G.pendingReveal;
   const needsClaim = G.status === 'claiming' && !!own && own.claim == null;
   const claimMaximum = getCardSlots(G, id).length;
@@ -153,32 +153,8 @@ export function StationBoard({ G, playerID, moves, isConnected }: BoardProps) {
       <Icon type="signal" size={15} />
       {canAct ? '即時連線中' : '連線中斷，正在自動重連。請保留這個頁面。'}
     </div>
-    {G.status === 'finished' ? <main className="narrow results">
-      <div className={`result-emblem ${G.winner === 'saboteur' ? 'sabotage' : ''}`}><Icon type="orbit" size={58} /></div>
-      <div className="eyebrow">MISSION COMPLETE</div>
-      <h1>{G.winner === 'engineer' ? '維修完成。平安返航。' : '任務中斷。暗流得逞。'}</h1>
-      <p className="result-winner">{G.winner ? roleNames[G.winner] : '任務'}陣營獲勝</p>
-      <p className="muted">{G.winReason === 'all-repairs' ? '所有維修模組都已找出，維修站恢復運作。'
-        : G.winReason === 'hazard' ? '反應爐危機被揭開，太空維修站停止運作。' : '四輪結束，仍有維修模組沒有找到。'}</p>
-      <div className="result-stats">
-        <div><strong>{G.repairsFound} / {G.repairsRequired}</strong><span>完成維修</span></div>
-        <div><strong>{G.round} / 4</strong><span>任務輪次</span></div>
-      </div>
-      <section className="panel">
-        <div className="section-heading"><h2>揭曉真正的隊友</h2><Icon type="orbit" /></div>
-        <div className="role-reveal-grid">{Object.keys(G.players).map(pid => <div key={pid}>
-          <span className={`avatar ${pid === id ? 'mine' : ''}`}>{initials(nameOf(pid))}</span>
-          <strong>{nameOf(pid)}{pid === id && '（你）'}</strong>
-          <span className={G.players[pid].revealedRole === 'saboteur' ? 'amber' : 'mint'}>
-            {G.players[pid].revealedRole ? roleNames[G.players[pid].revealedRole!] : '未知'}
-          </span>
-        </div>)}</div>
-      </section>
-      <StationTable G={G} nameOf={nameOf} ownID={id} />
-      <p className="small muted" role="status">本局已完成，正在返回原房間。結果與復盤會保留，準備好就能接著玩。</p>
-      <BattleReport G={G} info={info} perspective="blind" label="製作本局戰報圖" />
-      <Log G={G} nameOf={nameOf} />
-    </main> : <main className="game-layout">
+    <main className={`game-layout station-live ${G.status === 'finished' ? 'station-finished' : ''}`}>
+
       <section className="game-main">
         <div className="game-title">
           <div><div className="eyebrow">SPACE MAINTENANCE</div><h1>太空維修站</h1></div>
@@ -186,6 +162,12 @@ export function StationBoard({ G, playerID, moves, isConnected }: BoardProps) {
         </div>
         <MissionProgress G={G} numPlayers={info.numPlayers} />
         <TurnNotice G={G} nameOf={nameOf} ownID={id} />
+        <div className="selection-feedback" role="status">
+          {request ? '正在向全桌同步你的預選…' : notice || (myTurn && pending?.actorID === id ? '大家已看見你的預選。再點同一張牌，開啟檢修確認。' : '')}
+        </div>
+        <StationTable G={G} nameOf={nameOf} ownID={id} canSelect={canAct && myTurn && !request} onCardClick={chooseCard} />
+      </section>
+      <aside className="game-aside">
         <section className="panel private-panel">
           <button className="private-toggle" onClick={() => setPrivateVisible(!privateVisible)} aria-expanded={privateVisible}>
             <span><Icon type="shield" /><strong>我的秘密資訊</strong><small>只有你看得到</small></span>
@@ -206,13 +188,13 @@ export function StationBoard({ G, playerID, moves, isConnected }: BoardProps) {
             <div className="composition">
               <div><strong>{mine.composition.stable}</strong><span>穩定設備</span></div>
               <div className="mint"><strong>{mine.composition.repair}</strong><span>維修模組</span></div>
-              <div className="amber"><strong>{mine.composition.hazard}</strong><span>反應爐危機</span></div>
+              <div className="card-kind-hazard"><strong>{mine.composition.hazard}</strong><span>反應爐危機</span></div>
             </div>
             <p className="small muted">你知道數量，不知道暗牌的排列位置。</p>
           </div>}
           {G.status === 'briefing' && <div className="briefing-action">
             <button className="button primary full" disabled={!canAct || own?.acknowledged}
-              onClick={() => { moves.acknowledge(); setPrivateVisible(false); }}>
+              onClick={() => { if (G.rulesVersion === 3) moves.acknowledgeBriefing(G.round); else moves.acknowledge(); setPrivateVisible(false); }}>
               {own?.acknowledged ? '已確認，等待其他隊員' : '我已看過資訊，準備繼續'}
             </button>
             <p className="small muted center">{Object.values(G.players).filter(p => p.acknowledged).length} / {info.numPlayers} 位已確認</p>
@@ -226,16 +208,28 @@ export function StationBoard({ G, playerID, moves, isConnected }: BoardProps) {
             </p>
           </div>}
         </section>
-        <div className="selection-feedback" role="status">
-          {request ? '正在向全桌同步你的預選…' : notice || (myTurn && pending?.actorID === id ? '大家已看見你的預選。再點同一張牌，開啟檢修確認。' : '')}
-        </div>
-        <StationTable G={G} nameOf={nameOf} ownID={id} canSelect={canAct && myTurn && !request} onCardClick={chooseCard} />
-      </section>
-      <aside className="game-aside">
-        <Log G={G} nameOf={nameOf} />
+
+        {G.status === 'round-review' && <section className="panel round-review-confirmation">
+          <h2>看清楚最後一張了嗎？</h2>
+          <p className="small muted">全體確認後，才會收回暗牌並開始下一輪。</p>
+          <button className="button primary full" disabled={!canAct || own?.reviewAcknowledged}
+            onClick={() => moves.acknowledgeRound(G.round)}>
+            {own?.reviewAcknowledged ? '已確認，等待其他隊員' : '已看清楚，準備下一輪'}
+          </button>
+          <p className="small muted" role="status">{Object.values(G.players).filter(p => p.reviewAcknowledged).length} / {info.numPlayers} 位已確認</p>
+        </section>}
+        <RoundRevealList G={G} nameOf={nameOf} />
+        {G.status === 'finished' && <details className="panel station-results-details"><summary>陣營揭曉與戰報</summary>
+          <div className="role-reveal-grid">{Object.keys(G.players).map(pid => <div key={pid}>
+            <span className={G.players[pid].revealedRole === 'saboteur' ? 'amber' : 'mint'}>{G.players[pid].revealedRole ? roleNames[G.players[pid].revealedRole!] : '未知'}</span>
+            <strong>{nameOf(pid)}{pid === id && '（你）'}</strong>
+          </div>)}</div>
+          <BattleReport G={G} info={info} perspective="blind" label="製作本局戰報圖" />
+        </details>}
+        <details className="panel station-log-details"><summary>全部任務紀錄</summary><Log G={G} nameOf={nameOf} /></details>
         <details className="panel rules-details"><summary>任務規則速查</summary><RuleSummary legacy={!version2} /></details>
       </aside>
-    </main>}
+    </main>
     <dialog ref={modal} onCancel={event => { event.preventDefault(); cancelSelection(); }}
       onClose={() => setSelection(null)} className="confirm-dialog" aria-labelledby="station-confirm-title">
       <div className="eyebrow">CONFIRM YOUR CHOICE</div>
@@ -272,7 +266,7 @@ export function Log({ G, nameOf }: { G: StationState; nameOf: (id: string) => st
       <span className={`log-dot ${entry.kind}`} />
       <div>
         <p><strong>{nameOf(entry.actorID)}</strong> 檢修了 {nameOf(entry.targetID)} 的第 {entry.slot + 1} 張設備牌</p>
-        <span className={entry.kind === 'repair' ? 'mint' : entry.kind === 'hazard' ? 'amber' : 'muted'}>{cardNames[entry.kind]}</span>
+        <span className={entry.kind === 'repair' ? 'mint' : entry.kind === 'hazard' ? 'card-kind-hazard' : 'muted'}>{cardNames[entry.kind]}</span>
         <small>第 {entry.round} 輪</small>
       </div>
     </li>)}</ol> : <p className="muted small">第一次檢修後，結果會出現在這裡。</p>}
@@ -289,7 +283,7 @@ export function RuleSummary({ legacy = false }: { legacy?: boolean } = {}) {
       <p>每輪先查看設備組成，確認後宣稱自己有幾張維修模組。宣稱可以說謊，並不代表實際牌數。暗牌會洗亂，連本人也不知道位置。</p>
       <p>輪到你檢修時，先點別人的一張暗牌，全桌都會看見預選；再點同一張牌並確認才翻開。翻開的牌留在原位，由對方接手下一次檢修。</p>
     </>}
-    <p>每輪共揭開等同玩家人數的牌；剩餘暗牌重新混洗與分配，進入下一輪。穩定設備沒有特殊效果；維修模組累計維修進度。</p>
+    <p>每輪共揭開等同玩家人數的牌。新局會保留本輪牌桌，全體確認後，剩餘暗牌才重新混洗與分配，進入下一輪。穩定設備沒有特殊效果；維修模組累計維修進度。</p>
     <p>反應爐危機一揭開，干擾者立刻獲勝。所有維修模組都找到，維修員立刻獲勝。</p>
   </div>;
 }

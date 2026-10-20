@@ -24,6 +24,8 @@ export interface RoomInfo {
   godViewAllowed: boolean;
   hostPlayerID?: string | null;
   history?: RoomHistoryEntry[];
+  /** Earliest automatic lobby return for the completed live match, in Unix milliseconds. */
+  completedDisplayUntil?: number;
 }
 export interface SeatSession extends RoomInfo { access?: 'player'; playerID: string; credentials: string; }
 export interface ObserverSession extends RoomInfo { access: 'spectator'; observerID: string; credentials: string; }

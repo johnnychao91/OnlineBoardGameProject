@@ -176,6 +176,13 @@ async function finish(f: Fixture, group: Group) {
   if (before.G.secret!.cards[before.G.activePlayer!].includes('hazard')) await revealKind(f, group, 'stable');
   const result = await revealKind(f, group, 'hazard');
   expect(result.G).toMatchObject({ status: 'finished', winner: 'saboteur' });
+  const held = await f.request(path(group.host), undefined, group.host);
+  expect(held.body).toMatchObject({ status: 'finished', matchID: group.matchID });
+  expect(held.body.completedDisplayUntil).toBeGreaterThan(Date.now());
+  // This suite exercises the later room lifecycle. The dedicated round-review
+  // tests cover the actual display deadline, restart and early-return guard.
+  const room = f.app.rooms.rooms.get(group.host.roomId)!;
+  await f.app.rooms.save({ ...room, completedDisplay: { matchID: group.matchID, until: Date.now() - 1 } });
   return result;
 }
 

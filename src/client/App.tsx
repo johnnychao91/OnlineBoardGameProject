@@ -176,6 +176,7 @@ function Room({ seat, onSwitch }: { seat: AuthSession; onSwitch: (seat: AuthSess
   const definition = clientGames[info.gameName];
   const PlayerClient = definition?.PlayerClient;
   const host = isRoomHost(seat, info);
+  const stationActive = loaded && info.gameName === 'space-station' && info.status !== 'lobby';
   const session: AuthSession = { ...seat, ...info };
   if (invalidSeat) return <><Header /><main className="narrow"><section className="panel">
     <h1>你已離開這個房間</h1>
@@ -183,25 +184,33 @@ function Room({ seat, onSwitch }: { seat: AuthSession; onSwitch: (seat: AuthSess
     {pendingToken(seat.roomId) && <button className="button primary full" onClick={() => navigate(`/join/${seat.roomId}`)}>重新使用邀請加入</button>}
     <button className="button secondary full" onClick={() => navigate('/')}>回到首頁</button>
   </section></main></>;
-  return <>
+  return <div className={stationActive ? 'station-active-room' : undefined}>
     <Header room={seat.roomId} />
     {error && <div className="room-error"><ErrorMessage>{error}</ErrorMessage><p className="small muted">連線恢復後會自動重試。請保留這個頁面。</p></div>}
     {!loaded ? !error && <main className="narrow"><p className="loading" role="status">正在確認你的房間身分…</p></main>
       : <RoomContext.Provider value={{ seat: session, info, inviteUrl, setInviteUrl }}>
+        <div className="room-chrome">
         <div className="room-tools">
           <div className="room-status-line"><span>{isPlayer(seat) ? '玩家座位' : '觀戰席'} · {info.numPlayers} 位玩家 · {info.spectatorCount} 位已加入觀戰</span></div>
-          <RoleSwitcher seat={session} info={info} onChange={onSwitch} />
-          <RoomActions seat={session} info={info} onUpdate={acceptInfo} />
-          {host && info.status !== 'lobby' && <details className="post-start-invite"><summary>邀請朋友觀戰</summary><ShareInvite active /></details>}
+          {stationActive ? <details className="station-room-menu"><summary>房間管理</summary><div className="station-room-menu-content">
+            <RoleSwitcher seat={session} info={info} onChange={onSwitch} />
+            <RoomActions seat={session} info={info} onUpdate={acceptInfo} />
+            {host && <details className="post-start-invite"><summary>邀請朋友觀戰</summary><ShareInvite active /></details>}
+          </div></details> : <>
+            <RoleSwitcher seat={session} info={info} onChange={onSwitch} />
+            <RoomActions seat={session} info={info} onUpdate={acceptInfo} />
+            {host && info.status !== 'lobby' && <details className="post-start-invite"><summary>邀請朋友觀戰</summary><ShareInvite active /></details>}
+          </>}
         </div>
         <SpectatorRoster info={info} seat={session} />
+        </div>
         {info.status === 'lobby' ? <><RoomHistory seat={session} info={info} /><Lobby onUpdate={acceptInfo} /></>
           : isPlayer(seat) ? PlayerClient
             ? <PlayerClient key={info.matchID} matchID={info.matchID} playerID={seat.playerID} credentials={seat.credentials} />
             : <main className="narrow"><ErrorMessage>此遊戲尚未提供玩家介面。</ErrorMessage></main>
           : <ObservationPanel key={info.matchID} seat={session} info={info} />}
       </RoomContext.Provider>}
-  </>;
+  </div>;
 }
 export function App() {
   const [path, setPath] = useState(location.pathname);

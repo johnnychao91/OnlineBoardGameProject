@@ -21,6 +21,7 @@ export interface RoomRecord {
   hostPlayerID?: string | null;
   departedPlayerIDs?: string[];
   history?: RoomHistory[];
+  completedDisplay?: { matchID: string; until: number };
   gameId: string;
   numPlayers: number;
   inviteHash: string;
@@ -55,6 +56,8 @@ export class RoomStore {
       for (const room of records) {
         if (!validRoomID(room.roomId) || typeof room.inviteHash !== 'string'
           || (room.currentMatchID !== undefined && !validRoomID(room.currentMatchID))
+          || (room.completedDisplay !== undefined && (!validRoomID(room.completedDisplay.matchID)
+            || !Number.isFinite(room.completedDisplay.until) || room.completedDisplay.until < 0))
           || (room.history !== undefined && (!Array.isArray(room.history) || room.history.some((entry) => !validRoomID(entry.matchID))))) throw new Error('房間索引格式錯誤');
         this.rooms.set(room.roomId, room);
       }

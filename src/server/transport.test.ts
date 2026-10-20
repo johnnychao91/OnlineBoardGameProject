@@ -378,13 +378,15 @@ describe('Socket.IO 權限與資料邊界', () => {
       ]);
       await vi.waitFor(() => clients.forEach((socket) => expect(views.get(socket)!._stateID).toBe(revealed._stateID)));
     }
+    expect((await app.db.fetch(room.roomId, { state: true })).state!.G).toMatchObject({ status: 'round-review', round: 1 });
+    await moveEach(room, survivors, clients, 'acknowledgeRound', [1]);
     const after = (await app.db.fetch(room.roomId, { state: true })).state!;
     expect(after.G).toMatchObject({ status: 'briefing', round: 2 });
     expect(after.G.log.some((entry: any) => entry.actorID === '4')).toBe(true);
     expect(after.G.log.every((entry: any) => entry.actorID !== '1' && entry.targetID !== '1')).toBe(true);
     const replay = await app.db.fetchReplay(room.roomId);
     expect(replay.complete).toBe(true);
-    expect(replay.frames).toHaveLength(17);
+    expect(replay.frames).toHaveLength(21);
     for (const frame of replay.frames) expect(Object.keys(frame.G.players)).toEqual(['0', '2', '3', '4']);
     expect(oldUpdates).not.toHaveBeenCalled();
     expect(oldSynced).not.toHaveBeenCalled();

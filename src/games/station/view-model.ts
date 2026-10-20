@@ -36,7 +36,7 @@ export function getCardSlots(
   playerID: string,
 ): Array<{ slot: number; kind: CardKind | null }> {
   if (!Object.prototype.hasOwnProperty.call(G.players, playerID)) return [];
-  if (G.rulesVersion === 2) {
+  if (G.rulesVersion === 2 || G.rulesVersion === 3) {
     const cards = G.publicCards?.[playerID];
     return cards ? cards.map((kind, slot) => ({ slot, kind })) : [];
   }
