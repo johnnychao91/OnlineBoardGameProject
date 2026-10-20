@@ -105,6 +105,8 @@ export function StationTable({ G, nameOf, ownID, god = false, canSelect = false,
     <div className="station-players" style={{ '--station-rows': Math.ceil(Object.keys(G.players).length / 2) } as CSSProperties}>
     {Object.entries(G.players).map(([id, player]) => {
       const active = G.status === 'playing' && G.activePlayer === id;
+      const confirming = G.status === 'briefing' || G.status === 'round-review';
+      const confirmed = G.status === 'round-review' ? !!player.reviewAcknowledged : player.acknowledged;
       const privateInfo = G.private?.[id];
       const role = player.revealedRole || (god ? privateInfo?.role : undefined);
       const slots = getCardSlots(G, id);
@@ -113,6 +115,11 @@ export function StationTable({ G, nameOf, ownID, god = false, canSelect = false,
         <div className="module-player">
           <span className={`avatar ${id === ownID ? 'mine' : ''}`}>{initials(nameOf(id))}</span>
           <strong>{nameOf(id)}{id === ownID && <small className="you-label">你</small>}</strong>
+          {confirming && <span className={`station-ready-badge ${confirmed ? 'confirmed' : 'pending'}`}
+            aria-label={`${nameOf(id)}${confirmed ? '已準備' : '尚未準備'}`}
+            title={G.status === 'round-review' ? '本輪結算確認' : '本輪任務資訊確認'}>
+            {confirmed ? '✓ 已準備' : '待準備'}
+          </span>}
           {active && <span className="actor-tag"><Icon type="arrow" size={13} />正在檢修</span>}
           {role && <span className={`observer-role ${role === 'engineer' ? 'mint' : 'role-saboteur'}`}>{roleNames[role]}</span>}
           <span className="remaining">暗牌 {player.cardCount} 張</span>
