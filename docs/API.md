@@ -162,7 +162,9 @@ Socket 只接受白名單 `MAKE_MOVE`，強制拒絕 `startGame`（走 HTTP）�
 | `reveal(targetID, slot, selectionID)` | 目前檢修者確認與伺服器 `pendingReveal` 完全一致的預選；過期／缺少識別值、已翻牌、自選均拒絕 |
 | `acknowledgeRound(round)` | 版本 3 的 `round-review` 階段，參與玩家各確認一次；須傳目前輪次，允許同輪並行確認，全員完成後重新發牌 |
 
-`G.publicCards[playerID]` 是本輪固定牌位的陣列，未翻為 `null`，已翻為設備種類；`cardCount` 只計剩餘暗牌。`G.players[playerID].claim` 是本輪起始時的公開宣稱，未提交為 `null`，不代表真實剩餘牌數。`G.pendingReveal` 包含 `actorID,targetID,slot,round,selectionID`，不帶暗牌種類；預選序號在同一局遞增，取消、換人、換輪或終局會清除預選。這些公開欄位會同步給其他玩家、觀戰及對應歷史步驟。
+`G.publicCards[playerID]` 是本輪固定牌位的陣列，未翻為 `null`，已翻為設備種類；`cardCount` 只計剩餘暗牌。`G.players[playerID].claim` 是本輪起始時的宣稱，不代表真實剩餘牌數。未提交時為 `null`；宣稱階段尚未提交的玩家收到他人的數字也為 `null`，應使用投影欄位 `claimSubmitted` 判斷對方是否已提交。自己提交後即可取得其他人的已提交數字，觀戰與賽後復盤保持可見。`claimSubmitted` 只用於傳送進度，不另存入原始遊戲狀態。
+
+`G.pendingReveal` 包含 `actorID,targetID,slot,round,selectionID`，不帶暗牌種類；預選序號在同一局遞增，取消、換人、換輪或終局會清除預選。這些欄位依各自可見範圍同步給玩家、觀戰及對應歷史步驟。
 
 版本 3 非終局的最後一次揭牌進入 `round-review`，保留本輪 `publicCards`、`log`、宣稱及最後被揭牌者，使用 `players[id].reviewAcknowledged` 表示確認進度。未全員確認前不洗牌，也不允許選牌或揭牌；確認最後一人後才進入下一輪 `briefing`。直接產生勝負時進入 `finished`，不等待輪末確認。
 
