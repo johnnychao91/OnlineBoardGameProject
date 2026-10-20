@@ -2,7 +2,7 @@
 
 供朋友透過瀏覽器一起遊玩的線上桌遊平台，程式與部署服務統一命名為 `boardgame`，透過遊戲註冊介面加入不同遊戲。第一款遊戲「太空維修站」支援 4～8 人，使用 boardgame.io 管理回合與多人狀態。名稱、介面文案與視覺素材均以本專案自己的設計為準。
 
-前端使用 React，遊戲由 Node.js 伺服器裁定；開發環境支援 Windows 與 Linux。正式環境可部署到 Raspberry Pi 5，沿用 Apache 提供 HTTPS 反向代理。
+前端使用 React，遊戲由 Node.js 伺服器裁定；開發環境支援 Windows 與 Linux。正式環境可部署於 Linux 伺服器，由 Apache 提供 HTTPS 反向代理。
 
 公開儲存庫不綁定任何實際網站。文件中的 `example.com` 及其子網域都是示範值；真實網域、IP、憑證與密鑰只保存在主機的私有設定中，不要改回已追蹤的文件或範本。提交前執行 `npm run check:public`，CI 也會檢查。
 
@@ -85,13 +85,13 @@ npm run dev
 - 玩家與觀戰憑證保留於目前瀏覽器。重新整理與短暫斷線可重新同步；目前不提供換裝置、清除瀏覽器資料後的身份恢復服務。
 - 對局與回放資料寫入 `DATA_DIR`，統計從已完成對局推算，重新整理不會重複累加。伺服器重啟恢復與備份還原仍應依部署文件在目標機器驗收。
 - 邀請到期不會刪除房間；目前沒有自動清理舊房間或到期對局的功能。
-- 目前以朋友試玩與單機服務為範圍。可同時容納的房間數需要在自己的樹莓派與網路上量測。
+- 目前以朋友試玩與單機服務為範圍。可同時容納的房間數需要依實際伺服器與網路環境量測。
 - 原創名稱與素材可以降低直接複製表現內容的風險，但不是任何用途均無法律風險的保證；新增素材時應保留來源與授權資料。
 
 ## 文件
 
-- [既有 Pi 改名為 boardgame](docs/MIGRATION.md)：已用舊服務名稱上線的主機，先做一次保留密碼、房間與回放的遷移，再使用一般更新流程。
-- [Pi 5 完整部署](docs/DEPLOYMENT.md)：從 GitHub clone 開始，以 `boardgame.example.com`、Apache、HTTPS、systemd 上線，保留主網站。
+- [既有服務改名為 boardgame](docs/MIGRATION.md)：已用舊服務名稱上線的主機，先做一次保留密碼、房間與回放的遷移，再使用一般更新流程。
+- [Linux 伺服器部署](docs/DEPLOYMENT.md)：從 GitHub clone 開始，以 `boardgame.example.com`、Apache、HTTPS、systemd 上線，保留主網站。
 - [更新、備份與還原](docs/OPERATIONS.md)：停止服務的一致性備份、更新失敗處理、隔離還原、日誌與排錯。
 - [架構與新增遊戲](docs/ARCHITECTURE.md)：遊戲模組、伺服器裁定、資料流與持久化。
 - [安全設計](docs/SECURITY.md)：房間邀請、玩家憑證、隱藏資訊與公開儲存庫注意事項。
@@ -103,4 +103,4 @@ npm run dev
 
 程式儲存庫為 [johnnychao91/OnlineBoardGameProject](https://github.com/johnnychao91/OnlineBoardGameProject)。請勿將 `.env`、遊戲資料、憑證或備份提交到公開儲存庫。發布前也請明確選擇程式碼與素材的授權方式。
 
-GitHub Actions 工作流程會在 Ubuntu 與 Windows、Node.js 24 上執行安裝、型別檢查、測試與建置；執行結果請查看儲存庫的 Actions 頁面。此工作流程不部署網站，也不代表 Pi 5／Apache 的實機驗收已完成。
+GitHub Actions 工作流程會在 Ubuntu 與 Windows、Node.js 24 上執行安裝、型別檢查、測試與建置；執行結果請查看儲存庫的 Actions 頁面。此工作流程不部署網站，正式環境仍需另外驗證伺服器與 Apache 設定。
