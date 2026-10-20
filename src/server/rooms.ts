@@ -3,6 +3,18 @@ import { join } from 'node:path';
 import { validRoomID } from './security';
 import { atomicReplace } from './atomic-file';
 
+/** Retry receipts contain only credential hashes; they never authorize normal room requests. */
+export interface RoleSwitchReceipt {
+  requestID: string;
+  sourceMatchID: string;
+  sourceAccess: 'player' | 'spectator';
+  sourceID: string;
+  sourceCredentialHash: string;
+  targetAccess: 'player' | 'spectator';
+  targetID: string;
+  targetCredentialHash: string;
+}
+
 export interface RoomRecord {
   roomId: string;
   currentMatchID?: string;
@@ -15,6 +27,7 @@ export interface RoomRecord {
   inviteExpiresAt: number;
   createdAt: number;
   spectators?: Record<string, { name: string; credentialHash: string }>;
+  roleSwitchReceipts?: RoleSwitchReceipt[];
   revokedObserverAdmissions?: string[];
   replayShares?: { matchID?: string; tokenHash: string; expiresAt: number; frameIndex: number; perspective: 'blind' | 'god' }[];
 }

@@ -12,6 +12,9 @@ import { captureReplayShare, SharedReplay } from './ReplayViewer';
 import { RoomContext } from './room-context';
 import { RoomActions } from './RoomActions';
 import { RoomHistory } from './RoomHistory';
+import { RoleSwitcher } from './RoleSwitcher';
+import { SpectatorRoster } from './SpectatorRoster';
+import { isIdentityStorageKey, readRoleSwitch } from './role-switch';
 import { ShareInvite } from './ShareInvite';
 import { initials } from './StationBoard';
 import { Statistics } from './Statistics';
@@ -55,7 +58,7 @@ function Join({ roomId, onEnter }: { roomId: string; onEnter: (seat: AuthSession
     api<RoomInfo>(`/api/rooms/${roomId}`, { signal: controller.signal }, existing)
       .catch(e => {
         if (controller.signal.aborted) return;
-        if (e instanceof ApiError && [401, 404, 410].includes(e.status)) {
+        if (e instanceof ApiError && [401, 404, 410].includes(e.status) && !(e.status === 401 && readRoleSwitch(existing))) {
           forgetSeat(roomId, existing.credentials);
           setExisting(null);
         } else setError((e as Error).message);
@@ -75,7 +78,7 @@ function Join({ roomId, onEnter }: { roomId: string; onEnter: (seat: AuthSession
       } else setError((e as Error).message);
     } finally { setBusy(false); }
   }
-  return <><Header /><main className="narrow"><section className="panel join-panel"><span className="large-orbit"><Icon type="orbit" size={46} /></span><div className="eyebrow">AN INVITATION TO PLAY</div><h1>一起上場，或在旁加油。</h1><p className="muted">朋友的私人桌遊室</p>{checking ? <p role="status">正在確認原本的房間身分…</p> : existing ? <><p>這個瀏覽器已以{isPlayer(existing) ? '玩家' : '觀戰者'}身分加入，可直接回到原位置。</p><button className="button primary full" onClick={() => onEnter(existing)}>{isPlayer(existing) ? '回到我的座位' : '回到觀戰席'}<Icon type="arrow" /></button></> : token ? <form onSubmit={join}><fieldset className="access-picker"><legend>這次想怎麼加入</legend><div><button type="button" disabled={busy} className={access === 'player' ? 'selected' : ''} aria-pressed={access === 'player'} onClick={() => { setAccess('player'); setError(''); }}><strong>參與遊戲</strong><small>加入隊員，影響任務</small></button><button type="button" disabled={busy} className={access === 'spectator' ? 'selected' : ''} aria-pressed={access === 'spectator'} onClick={() => { setAccess('spectator'); setError(''); }}><strong>先來觀戰</strong><small>不占席，隨時可加入</small></button></div></fieldset><p className="small muted">{access === 'spectator' ? '觀戰可切換盲視角與上帝視角。這局身分固定，不會轉為玩家。' : '任務開始前才能加入隊員；這局身分固定。若已經開局，請改選觀戰。'}</p><label htmlFor="guest-name">你的暱稱</label><input autoFocus id="guest-name" autoComplete="nickname" maxLength={20} placeholder="讓朋友認得你" required value={name} onChange={e => setName(e.target.value)} /><ErrorMessage>{error}</ErrorMessage><Submit busy={busy} disabled={!name.trim()}>{access === 'player' ? '加入隊員' : '進入觀戰席'}</Submit></form> : <ErrorMessage>邀請資訊不完整，請重新開啟房主分享的完整連結。若連結已失效，請房主產生新邀請。</ErrorMessage>}<Note>一個瀏覽器在同一房間保留一種身分。重新整理可恢復，清除網站資料後憑證就會遺失。</Note></section></main></>;
+  return <><Header /><main className="narrow"><section className="panel join-panel"><span className="large-orbit"><Icon type="orbit" size={46} /></span><div className="eyebrow">AN INVITATION TO PLAY</div><h1>一起上場，或在旁加油。</h1><p className="muted">朋友的私人桌遊室</p>{checking ? <p role="status">正在確認原本的房間身分…</p> : existing ? <><p>這個瀏覽器已以{isPlayer(existing) ? '玩家' : '觀戰者'}身分加入，可直接回到原位置。</p><button className="button primary full" onClick={() => onEnter(existing)}>{isPlayer(existing) ? '回到我的座位' : '回到觀戰席'}<Icon type="arrow" /></button></> : token ? <form onSubmit={join}><fieldset className="access-picker"><legend>這次想怎麼加入</legend><div><button type="button" disabled={busy} className={access === 'player' ? 'selected' : ''} aria-pressed={access === 'player'} onClick={() => { setAccess('player'); setError(''); }}><strong>參與遊戲</strong><small>加入隊員，影響任務</small></button><button type="button" disabled={busy} className={access === 'spectator' ? 'selected' : ''} aria-pressed={access === 'spectator'} onClick={() => { setAccess('spectator'); setError(''); }}><strong>先來觀戰</strong><small>不占席，隨時可加入</small></button></div></fieldset><p className="small muted">{access === 'spectator' ? '觀戰可切換盲視角與上帝視角。等待室有空位時，可以改為參加遊戲。' : '任務開始前可以入座或改為觀戰；開局後身分固定。若已經開局，請改選觀戰。'}</p><label htmlFor="guest-name">你的暱稱</label><input autoFocus id="guest-name" autoComplete="nickname" maxLength={20} placeholder="讓朋友認得你" required value={name} onChange={e => setName(e.target.value)} /><ErrorMessage>{error}</ErrorMessage><Submit busy={busy} disabled={!name.trim()}>{access === 'player' ? '加入隊員' : '進入觀戰席'}</Submit></form> : <ErrorMessage>邀請資訊不完整，請重新開啟房主分享的完整連結。若連結已失效，請房主產生新邀請。</ErrorMessage>}<Note>一個瀏覽器在同一房間保留一種身分。重新整理可恢復，清除網站資料後憑證就會遺失。</Note></section></main></>;
 }
 
 function Lobby({ onUpdate }: { onUpdate: (info: RoomInfo) => void }) {
@@ -100,7 +103,7 @@ function Lobby({ onUpdate }: { onUpdate: (info: RoomInfo) => void }) {
   return <main className="room-layout"><section><div className="eyebrow">FRIENDS AT THE TABLE</div><h1>{info.gameName === 'encrypted-call' ? '特務到齊，準備接通。' : '隊員到齊，就能出發。'}</h1><p className="muted">{players.length} 位玩家 · {info.minPlayers}～{info.maxPlayers} 人可開始 · {info.spectatorCount} 位已加入觀戰</p><section className="panel roster"><div className="section-heading"><h2>參與名單</h2><span>{players.length} / {info.maxPlayers}</span></div>{players.map(player => <div className="roster-row" key={player.membershipID || player.id}><span className={`avatar ${isPlayer(seat) && String(player.id) === seat.playerID ? 'mine' : ''}`}>{initials(player.name || '')}</span><div><strong>{player.name}{isPlayer(seat) && String(player.id) === seat.playerID && <small className="you-label">你</small>}</strong><small>{String(player.id) === (info.hostPlayerID ?? '0') ? '房主' : `隊員 ${Number(player.id) + 1}`}</small></div><span className={`ready-pill ${player.ready ? 'ready' : ''}`}>{player.ready ? '已準備' : '準備中'}</span>{host && String(player.id) !== info.hostPlayerID && String(player.id) !== (isPlayer(seat) ? seat.playerID : null) && <RemovePlayer player={player} busy={busy} onRemove={target => action('remove', { playerID: String(target.id), membershipID: target.membershipID })} />}</div>)}{host && <p className="small muted">開局前可移出隊員；持有效邀請的人仍可重新加入。</p>}{players.length < info.minPlayers && <p className="small muted lobby-missing">再邀請 {info.minPlayers - players.length} 位玩家，就達到出發人數。</p>}{players.length >= info.minPlayers && <p className="small muted lobby-missing">{players.length < info.maxPlayers ? '還有朋友要上場？開始前都能加入。' : '玩家已滿，其他朋友仍可觀戰。'}</p>}</section><ErrorMessage>{error}</ErrorMessage>{isPlayer(seat) ? <div className="action-dock"><button className={`button full ${own?.ready ? 'secondary' : 'primary'}`} disabled={busy} onClick={() => action('ready', { ready: !own?.ready })}>{own?.ready ? '已準備好 · 點此取消' : '我準備好了'}<Icon type="check" /></button>{host && <button className="button primary full" disabled={busy || !eligible} onClick={() => action('start', {})}>以目前 {players.length} 位隊員開始<Icon type="arrow" /></button>}<p className="small muted center">{ready} / {players.length} 位已準備 · {host ? '開始時鎖定隊員名單與本局人數。' : '全員準備後，等待房主開始。'}</p></div> : <Note>你已在觀戰席，無需準備，也不計入開局人數。房主開始後，這裡會自動切換到對局。</Note>}</section><aside>{host ? <ShareInvite active /> : <Note>邀請由房主管理。遊戲開始後，仍可邀請其他朋友來觀戰。</Note>}{Rules && <div className="panel mission-brief"><div className="section-label">任務簡報</div><h2>{presentation.lobbyTitle || '遊戲簡介'}</h2><p>{presentation.lobbyDescription}</p><button className="text-button" onClick={() => setRules(!rules)}>{rules ? '收起玩法' : '展開玩法說明'} ↓</button>{rules && <Rules />}</div>}</aside></main>;
 }
 
-function Room({ seat }: { seat: AuthSession }) {
+function Room({ seat, onSwitch }: { seat: AuthSession; onSwitch: (seat: AuthSession) => void }) {
   const [info, setInfo] = useState<RoomInfo>(seat);
   const [inviteUrl, setInviteUrl] = useState(() => savedInvite(seat.roomId) || '');
   const [error, setError] = useState('');
@@ -111,10 +114,8 @@ function Room({ seat }: { seat: AuthSession }) {
   function acceptInfo(next: RoomInfo) {
     acceptedRevision.current += 1;
     setInfo(next);
-    const stored = loadSeat(seat.roomId);
-    if (stored?.credentials === seat.credentials && stored.matchID !== next.matchID) {
-      saveSeat({ ...seat, ...next });
-    }
+    // Room metadata is refreshed on load. Polls must never persist an old
+    // credential over an identity that another tab has just switched.
   }
   useEffect(() => {
     const controller = new AbortController();
@@ -123,6 +124,17 @@ function Room({ seat }: { seat: AuthSession }) {
     let revoked = false;
     const invalid = (e: unknown) => {
       if (e instanceof ApiError && [401, 404, 410].includes(e.status)) {
+        const replacement = loadSeat(seat.roomId);
+        if (replacement && replacement.credentials !== seat.credentials) {
+          onSwitch(replacement);
+          return true;
+        }
+        if (e.status === 401 && readRoleSwitch(seat)) {
+          // The role may already have changed but its response was lost. Keep
+          // the old key + request UUID solely to recover that committed switch.
+          setLoaded(true);
+          return false;
+        }
         forgetSeat(seat.roomId, seat.credentials);
         revoked = true;
         setInvalidSeat(true);
@@ -178,9 +190,11 @@ function Room({ seat }: { seat: AuthSession }) {
       : <RoomContext.Provider value={{ seat: session, info, inviteUrl, setInviteUrl }}>
         <div className="room-tools">
           <div className="room-status-line"><span>{isPlayer(seat) ? '玩家座位' : '觀戰席'} · {info.numPlayers} 位玩家 · {info.spectatorCount} 位已加入觀戰</span></div>
+          <RoleSwitcher seat={session} info={info} onChange={onSwitch} />
           <RoomActions seat={session} info={info} onUpdate={acceptInfo} />
           {host && info.status !== 'lobby' && <details className="post-start-invite"><summary>邀請朋友觀戰</summary><ShareInvite active /></details>}
         </div>
+        <SpectatorRoster info={info} seat={session} />
         {info.status === 'lobby' ? <><RoomHistory seat={session} info={info} /><Lobby onUpdate={acceptInfo} /></>
           : isPlayer(seat) ? PlayerClient
             ? <PlayerClient key={info.matchID} matchID={info.matchID} playerID={seat.playerID} credentials={seat.credentials} />
@@ -194,8 +208,12 @@ export function App() {
   const [seatRevision, setSeatRevision] = useState(0);
   useEffect(() => {
     const update = () => { captureInvite(); captureReplayShare(); setPath(location.pathname); setSeatRevision(n => n + 1); };
+    const identityChanged = (event: StorageEvent) => {
+      if (event.storageArea === localStorage && isIdentityStorageKey(event.key)) setSeatRevision(n => n + 1);
+    };
     window.addEventListener('popstate', update); window.addEventListener('hashchange', update);
-    return () => { window.removeEventListener('popstate', update); window.removeEventListener('hashchange', update); };
+    window.addEventListener('storage', identityChanged);
+    return () => { window.removeEventListener('popstate', update); window.removeEventListener('hashchange', update); window.removeEventListener('storage', identityChanged); };
   }, []);
   function enter(seat: AuthSession) { setSeatRevision(n => n + 1); navigate(`/room/${seat.roomId}`); }
   const match = path.match(/^\/(join|room|replay)\/([A-Za-z0-9_-]+)\/?$/);
@@ -204,5 +222,5 @@ export function App() {
   if (match[1] === 'replay') return <SharedReplay key={`${roomId}-${seatRevision}`} roomId={roomId} />;
   if (match[1] === 'join') return <Join key={`${roomId}-${seatRevision}`} roomId={roomId} onEnter={enter} />;
   const seat = loadSeat(roomId);
-  return seat ? <Room key={roomId} seat={seat} /> : <><Header /><main className="narrow"><section className="panel"><h1>這個瀏覽器還沒加入房間。</h1><p className="muted">請開啟房主分享的完整邀請連結，選擇參與遊戲或觀戰。已加入過的朋友，請使用原本的瀏覽器。</p><button className="button secondary" onClick={() => navigate('/')}>回到首頁</button></section></main></>;
+  return seat ? <Room key={`${roomId}-${seat.credentials}`} seat={seat} onSwitch={enter} /> : <><Header /><main className="narrow"><section className="panel"><h1>這個瀏覽器還沒加入房間。</h1><p className="muted">請開啟房主分享的完整邀請連結，選擇參與遊戲或觀戰。已加入過的朋友，請使用原本的瀏覽器。</p><button className="button secondary" onClick={() => navigate('/')}>回到首頁</button></section></main></>;
 }

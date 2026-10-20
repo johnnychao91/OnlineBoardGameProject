@@ -1,4 +1,5 @@
 import { mkdir, readFile } from 'node:fs/promises';
+import { createHmac } from 'node:crypto';
 import { resolve, join, relative, isAbsolute, sep } from 'node:path';
 import type { AddressInfo } from 'node:net';
 import type { Context } from 'koa';
@@ -7,7 +8,7 @@ import { Server } from 'boardgame.io/server';
 import { createMatch } from 'boardgame.io/internal';
 import { gameDefinitions, getGameDefinition, publicGameDefinitions } from '../games/registry';
 import { GuardedTransport } from './transport';
-import { RoomStore, currentMatchID, hostPlayerID, roomMatchIDs, type RoomRecord, type RoomHistory } from './rooms';
+import { RoomStore, currentMatchID, hostPlayerID, roomMatchIDs, type RoomRecord, type RoomHistory, type RoleSwitchReceipt } from './rooms';
 import { RoomPresence } from './presence';
 import { FileStorage } from './storage';
 import { collectStatistics } from './statistics';
@@ -26,6 +27,9 @@ export interface AppConfig {
 }
 const INVITE_TTL = 24 * 60 * 60 * 1000;
 const REPLAY_SHARE_TTL = 7 * 24 * 60 * 60 * 1000;
+const UUID_V4 = /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i;
+const roleSwitchCredential = (credential: string, roomId: string, matchID: string, requestID: string, access: string) =>
+  createHmac('sha256', credential).update(JSON.stringify(['boardgame-role-switch-v1', roomId, matchID, requestID, access])).digest('base64url');
 function fail(status: number, message: string, code?: 'ADMISSION_REMOVED'): never {
   throw Object.assign(new Error(message), { status, code });
 }
@@ -98,6 +102,7 @@ export async function createApplication(config: AppConfig) {
       ...(!historical && p.credentials ? { membershipID: hashToken(`${room.roomId}:${p.credentials}`).slice(0, 16) } : {}),
       ...(!historical ? { departed: !p.credentials } : {}),
     })),
+    spectators: historical ? [] : Object.entries(room.spectators || {}).map(([id, spectator]) => ({ id, name: spectator.name })),
     spectatorCount: historical ? 0 : Object.keys(room.spectators || {}).length, godViewAllowed: true,
   });
   const authenticate = (ctx: Context, metadata: any) => {
@@ -251,7 +256,7 @@ export async function createApplication(config: AppConfig) {
         inviteUrl: `${origin}/join/${roomId}#invite=${invite}`, expiresAt: room.inviteExpiresAt };
       return;
     }
-    const route = /^\/api\/rooms\/([A-Za-z0-9_-]+)(?:\/(join|watch|invite|ready|remove|start|view|replay|share|revoke-shares|return|abort|leave|heartbeat))?$/.exec(ctx.path);
+    const route = /^\/api\/rooms\/([A-Za-z0-9_-]+)(?:\/(join|watch|invite|ready|remove|start|view|replay|share|revoke-shares|return|abort|leave|heartbeat|switch-role))?$/.exec(ctx.path);
     if (!route) fail(404, '找不到此功能');
     const room = getRoom(route[1]);
     const operation = route[2];
@@ -347,6 +352,94 @@ export async function createApplication(config: AppConfig) {
         if (updated !== current) await rooms.save(updated);
         presence.touch(current.roomId, `player:${seat.id}`, 'admission');
         ctx.body = { ...publicRoom(updated, metadata, state), access: 'player', playerID: String(seat.id), credentials: seat.credentials };
+      } else if (operation === 'switch-role') {
+        if (body.access !== 'player' && body.access !== 'spectator') fail(400, '請選擇參加遊戲或觀戰');
+        if (typeof body.requestID !== 'string' || !UUID_V4.test(body.requestID)) fail(400, '切換請求識別碼不正確');
+        if (!validRoomID(body.matchID)) fail(400, '請提供目前房間的對局識別碼');
+        const requestID = body.requestID.toLowerCase();
+        const credentials = ctx.get('Authorization').replace(/^Bearer /, '');
+        if (!validCredential(credentials)) fail(401, '此瀏覽器沒有有效的房間憑證');
+        const observerID = ctx.get('X-Observer-ID');
+        const sourceAccess = observerID ? 'spectator' : 'player';
+        const sourceID = observerID || ctx.get('X-Player-ID');
+        if ((observerID && (ctx.get('X-Player-ID') || !validRoomID(observerID)))
+          || (!observerID && !/^\d$/.test(sourceID))) fail(401, '房間憑證不正確');
+        const sourceHash = hashToken(credentials);
+        const nextCredentials = roleSwitchCredential(credentials, current.roomId, body.matchID, requestID, body.access);
+        const targetIsCurrent = (receipt: RoleSwitchReceipt, players = metadata.players, spectators = current.spectators) =>
+          receipt.targetAccess === 'player'
+            ? safeEqual(receipt.targetCredentialHash, players[Number(receipt.targetID)]?.credentials ? hashToken(players[Number(receipt.targetID)].credentials!) : '')
+            : safeEqual(receipt.targetCredentialHash, spectators?.[receipt.targetID]?.credentialHash);
+        // An old identity may recover only the exact successful response. It can
+        // neither issue a new transition nor resurrect a departed/replaced target.
+        const receipt = current.roleSwitchReceipts?.find((entry) =>
+          entry.sourceAccess === sourceAccess && entry.sourceID === sourceID
+          && entry.sourceMatchID === body.matchID && entry.requestID === requestID
+          && entry.targetAccess === body.access && safeEqual(entry.sourceCredentialHash, sourceHash)
+          && safeEqual(entry.targetCredentialHash, hashToken(nextCredentials)) && targetIsCurrent(entry));
+        if (receipt) {
+          presence.touch(current.roomId, `${receipt.targetAccess}:${receipt.targetID}`, 'admission');
+          ctx.body = { ...publicRoom(current, metadata, state), access: receipt.targetAccess,
+            ...(receipt.targetAccess === 'player' ? { playerID: receipt.targetID } : { observerID: receipt.targetID }),
+            credentials: nextCredentials };
+          return;
+        }
+        const viewer = authenticateViewer(ctx, current, metadata);
+        if (body.matchID !== matchID) fail(409, '對局已更新，請重新確認房間狀態');
+        if (!definition.isJoinable(state.G)) fail(409, '對局進行中不能切換，請等返回等待室');
+        if (viewer.access === body.access) fail(409, '目前已是所選身分');
+        const spectators = { ...current.spectators };
+        const participants = Object.values(metadata.players).filter((player) => player.credentials);
+        if (body.access === 'player' && participants.length >= definition.maxPlayers) fail(409, '參與席位已滿，請先留在觀戰席');
+        if (body.access === 'spectator' && Object.keys(spectators).length >= 128) fail(409, '此房觀戰席數量已達上限');
+        const nextID = randomToken(12);
+        const match = createMatch({ game: { ...definition.game, seed: randomToken() }, numPlayers: definition.maxPlayers, setupData: undefined, unlisted: true });
+        if ('setupDataError' in match) fail(500, '無法切換房間身分');
+        // The framework freezes nested G during initialization. Copy before
+        // restoring only the unchanged members' waiting-room readiness.
+        match.initialState = JSON.parse(JSON.stringify(match.initialState));
+        match.metadata.createdAt = metadata.createdAt;
+        match.metadata.updatedAt = Date.now();
+        match.initialState._stateID = state._stateID + 1;
+        for (const player of participants) {
+          if (viewer.access === 'player' && String(player.id) === viewer.id) continue;
+          match.metadata.players[player.id] = { ...player, isConnected: false };
+          match.initialState.G.players[player.id].ready = !!state.G.players[player.id]?.ready;
+        }
+        let targetID: string;
+        if (body.access === 'spectator') {
+          targetID = randomToken(12);
+          spectators[targetID] = { name: metadata.players[Number(viewer.id)].name!, credentialHash: hashToken(nextCredentials) };
+        } else {
+          const seat = Object.values(match.metadata.players).find((player) => !player.credentials)!;
+          targetID = String(seat.id);
+          seat.name = spectators[viewer.id].name;
+          seat.credentials = nextCredentials;
+          delete spectators[viewer.id];
+        }
+        const remaining = Object.values(match.metadata.players).filter((player) => player.credentials).sort((a, b) => a.id - b.id);
+        const previousHost = hostPlayerID(current);
+        const nextHost = remaining.some((player) => String(player.id) === previousHost)
+          ? previousHost : remaining.length ? String(remaining[0].id) : null;
+        const next: RoomRecord = { ...current, currentMatchID: nextID, hostPlayerID: nextHost,
+          departedPlayerIDs: [], spectators,
+          revokedObserverAdmissions: viewer.access === 'spectator'
+            ? [...new Set([...(current.revokedObserverAdmissions || []), sourceHash])] : current.revokedObserverAdmissions,
+          roleSwitchReceipts: [
+            ...(current.roleSwitchReceipts || []).filter((entry) => targetIsCurrent(entry, match.metadata.players, spectators)),
+            { requestID, sourceMatchID: matchID, sourceAccess: viewer.access, sourceID: viewer.id, sourceCredentialHash: sourceHash,
+              targetAccess: body.access, targetID, targetCredentialHash: hashToken(nextCredentials) },
+          ],
+        };
+        // Do not mutate the active membership before publishing the new pointer:
+        // a failed room-index write keeps the previous room fully usable.
+        await db.createNextMatch(matchID, nextID, match, viewer.access === 'player' ? [credentials] : []);
+        await rooms.save(next);
+        presence.remove(current.roomId, `${viewer.access}:${viewer.id}`);
+        presence.touch(current.roomId, `${body.access}:${targetID}`, 'admission');
+        transport.closeMatch(matchID);
+        ctx.body = { ...publicRoom(next, match.metadata, match.initialState), access: body.access,
+          ...(body.access === 'player' ? { playerID: targetID } : { observerID: targetID }), credentials: nextCredentials };
       } else if (operation === 'ready') {
         const playerID = authenticate(ctx, metadata);
         if (!definition.isJoinable(state.G)) fail(409, '遊戲已開始');

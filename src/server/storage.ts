@@ -153,12 +153,12 @@ export class FileStorage extends Async {
     });
   }
 
-  /** A fresh lobby inherits revoked admission retries, while old match files stay intact. */
-  async createNextMatch(previousMatchID: string, matchID: string, options: StorageAPI.CreateMatchOpts): Promise<void> {
+  /** Publish revocations with a fresh lobby, without changing the still-active previous file. */
+  async createNextMatch(previousMatchID: string, matchID: string, options: StorageAPI.CreateMatchOpts, revokedCredentials: string[] = []): Promise<void> {
     const previous = await this.enqueue(previousMatchID, () => this.readMatch(previousMatchID));
     if (!previous) throw new Error('對局不存在');
     const record = newRecord(matchID, options);
-    record.revokedAdmissions = previous.revokedAdmissions;
+    record.revokedAdmissions = [...new Set([...(previous.revokedAdmissions || []), ...revokedCredentials.map(hashToken)])];
     await this.enqueue(matchID, async () => {
       if (await this.readMatch(matchID)) throw new Error('對局已存在');
       await this.writeMatch(matchID, record);

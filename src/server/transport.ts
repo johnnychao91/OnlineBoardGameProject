@@ -10,7 +10,7 @@ import type { RoomPresence } from './presence';
 export class GuardedTransport extends SocketIO {
   private readonly guardedQueues = new Map<string, ReturnType<SocketIO['getMatchQueue']>>();
   private readonly bindings = new Map<string, {
-    socket: any; matchID: string; playerID: string; credentials: string; revoked?: boolean;
+    socket: any; roomID: string; matchID: string; playerID: string; credentials: string; revoked?: boolean;
   }>();
   constructor(private rooms: RoomStore, private origins: string[], private presence?: RoomPresence) {
     super({ socketOpts: {
@@ -72,7 +72,7 @@ export class GuardedTransport extends SocketIO {
       const allowedMoves = new Set(Object.keys(game.moves || {}));
       app._io.of(game.name).on('connection', (socket: any) => {
         const rate = new RateLimiter();
-        let binding: { socket: any; matchID: string; playerID: string; credentials: string; revoked?: boolean } | undefined;
+        let binding: { socket: any; roomID: string; matchID: string; playerID: string; credentials: string; revoked?: boolean } | undefined;
         const originalEmit = socket.emit.bind(socket);
         const filter = getFilterPlayerView(game);
         socket.emit = (event: string, ...args: any[]) => {
@@ -102,14 +102,17 @@ export class GuardedTransport extends SocketIO {
                 this.presence?.connect(room.roomId, `player:${binding.playerID}`, socket.id);
               }
               if (event === 'disconnect') {
-                if (binding && room) this.presence?.disconnectSocket(room.roomId, `player:${binding.playerID}`, socket.id);
+                // A role switch replaces an unused lobby without archiving it.
+                // Its old match is no longer in the room index, but its socket
+                // presence must still expire instead of staying online forever.
+                if (binding) this.presence?.disconnectSocket(binding.roomID, `player:${binding.playerID}`, socket.id);
                 this.bindings.delete(socket.id);
               }
             };
             // The upstream update listener already queues moves. sync/disconnect
             // also write metadata, so serialize those with admissions and moves.
             const work = event !== 'update' && binding
-              ? this.getRoomQueue(this.rooms.findByMatch(binding.matchID)?.roomId ?? binding.matchID).add(execute) : execute();
+              ? this.getRoomQueue(binding.roomID).add(execute) : execute();
             void work.catch(() => { socket.emit('error', '連線處理失敗，請重新連線'); });
           });
         }
@@ -130,7 +133,7 @@ export class GuardedTransport extends SocketIO {
               // Removal or disconnect can occur while metadata is being read.
               if (!socket.connected || binding?.revoked || currentMatchID(this.rooms.rooms.get(room.roomId)!) !== matchID) throw new Error('未授權');
               if (binding && (binding.matchID !== matchID || binding.playerID !== playerID || !safeEqual(binding.credentials, credentials))) throw new Error('不可切換座位');
-              binding = { socket, matchID, playerID, credentials };
+              binding = { socket, roomID: room.roomId, matchID, playerID, credentials };
               this.bindings.set(socket.id, binding);
             } else if (event === 'update') {
               const [action, stateID, matchID, playerID] = args as any[];

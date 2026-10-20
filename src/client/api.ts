@@ -1,4 +1,5 @@
 export interface RoomPlayer { id: number | string; name?: string; isConnected: boolean; ready: boolean; membershipID?: string; departed?: boolean; }
+export interface RoomSpectator { id: string; name: string; }
 export interface RoomHistoryEntry {
   matchID: string;
   endedAt: number;
@@ -18,6 +19,8 @@ export interface RoomInfo {
   maxPlayers: number;
   players: RoomPlayer[];
   spectatorCount: number;
+  /** Optional only for browser sessions saved before spectator rosters were added. */
+  spectators?: RoomSpectator[];
   godViewAllowed: boolean;
   hostPlayerID?: string | null;
   history?: RoomHistoryEntry[];

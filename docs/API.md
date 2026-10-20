@@ -23,6 +23,7 @@ API 與網頁同源，正式環境使用 HTTPS；開發由 Vite 代理。POST �
 | `POST /api/rooms/:id/join` | body 邀請 | 玩家 session；開始後拒絕新玩家 |
 | `POST /api/rooms/:id/watch` | body 邀請 | 觀戰 session；任何階段都可加入 |
 | `GET /api/rooms/:id` | 玩家／觀戰 | `RoomInfo` |
+| `POST /api/rooms/:id/switch-role` | 玩家／觀戰 | `{access,matchID,requestID}`，只在等待室切換參與／觀戰；回新身分 session |
 | `POST /api/rooms/:id/ready` | 玩家 | `{ready:boolean,matchID}`，只在等待室；回 `RoomInfo` |
 | `POST /api/rooms/:id/remove` | 房主 | `{playerID,membershipID}`，只在等待室單次移出其他玩家；回 `RoomInfo` |
 | `POST /api/rooms/:id/start` | 房主 | `{matchID}`，符合該遊戲的人數範圍且全員準備後開始；回 `RoomInfo` |
@@ -49,7 +50,17 @@ API 與網頁同源，正式環境使用 HTTPS；開發由 Vite 代理。POST �
 
 `gameId` 可為 `space-station`（太空維修站，4～8 人）或 `encrypted-call`（加密通話，2～4 人），完整列表以 `/api/games` 為準。房間不能在進行中切換遊戲。`RoomInfo.status` 的 `lobby` 為共用等待室，其餘由遊戲決定；加密通話另有 `syncing`、`playing`、`pulse`、`intermission`、`finished`。所有房間、觀戰、回放與分享端點共用同一套授權規則。
 
-建立時預留最大席位，等待室只顯示入座參與者。`ready` 更新自己的準備狀態。`start`、加入與移出請求共用房間序列佇列，檢查實際人數與準備狀態，用新的加密亂數種子初始化正確人數，保留既有席位 ID 與憑證。席位不必連續；遊戲登錄的 `startSetupData(participantIDs)` 接收伺服器核對過的參與席位，遊戲依此建立角色、牌與行動順序。觀戰者不進玩家 metadata，也不計配牌。
+建立時預留最大席位，等待室顯示實際參與者與獨立觀戰名單。`ready` 更新自己的準備狀態。`start`、加入、移出與身分切換請求共用房間序列佇列，檢查實際人數與準備狀態，用新的加密亂數種子初始化正確人數，保留既有席位 ID 與憑證。席位不必連續；遊戲登錄的 `startSetupData(participantIDs)` 接收伺服器核對過的參與席位，遊戲依此建立角色、牌與行動順序。觀戰者不進玩家 metadata，也不計配牌。
+
+## 等待室切換身分
+
+`switch-role` 的 `access` 必須為 `"player"` 或 `"spectator"`；`matchID` 為目前等待室 ID，`requestID` 為必填 UUIDv4。使用目前身分的授權標頭，不需重新提供邀請或暱稱。只能在等待室轉為另一種身分；遊戲進行中、所選身分相同、參與席位或觀戰席已滿，均回 409。參與席上限依遊戲定義，觀戰席最多 128 位。
+
+成功後回傳新的玩家或觀戰 session，保留房號、暱稱、邀請、歷史及其他成員憑證；原憑證立即失效。新入座玩家須重新準備，其他玩家的準備狀態保留。房主改為觀戰時交接給編號最小的剩餘玩家；沒有玩家時 `hostPlayerID` 為 `null`，下一位入座者接任。
+
+每次成功切換會建立新的等待室 `matchID`，舊等待室不加入歷史、回放或戰績。新身分、觀戰名單及重試紀錄隨房間索引一起發布；發布失敗時舊身分仍可使用。客戶端收到新 session 後應完整替換身分，不能只更改 `access`。舊 Socket 關閉，舊 `matchID` 的操作不能套用至新等待室。
+
+同一次請求遺失回應時，保留原身分授權與原 `access,matchID,requestID` 重試，可取回相同的新憑證；伺服器重啟或其他成員切換不會使這次恢復失效。若目標身分已離開、被移出或再次切換，舊重試回 401，不能復活它。舊憑證不能換用新的 UUID 或不同操作取得另一個身分，原加入請求也不能重新占位。重試取回的是既有切換結果，即使此後開局也不會執行第二次切換。
 
 ## 房主單次移出
 
@@ -83,13 +94,14 @@ API 與網頁同源，正式環境使用 HTTPS；開發由 Vite 代理。POST �
 
 | 欄位 | 說明 |
 | --- | --- |
-| `roomId`, `matchID` | 16 字元 base64url 識別碼；房號穩定，返回等待室時目前對局 ID 更新 |
+| `roomId`, `matchID` | 16 字元 base64url 識別碼；房號穩定，返回等待室或切換身分時目前對局 ID 更新 |
 | `gameName` | 登錄的遊戲識別碼 |
 | `numPlayers` | 實際入座參與者數，開局後固定 |
 | `minPlayers`, `maxPlayers` | 遊戲人數範圍 |
 | `status` | `lobby`, `briefing`, `claiming`, `playing`, `finished` |
 | `players` | 等待室為有效入座者；對局中保留原參與者的 `id,name,isConnected,ready,departed,membershipID?`，無憑證，ID 可能缺號；歷史投影不含目前連線／管理識別值 |
 | `spectatorCount` | 已發行觀戰身份數，不代表在線人數 |
+| `spectators` | 有效觀戰身分的 `{id,name}` 名單，不含憑證或憑證雜湊；僅已認證房間成員可讀取，歷史投影為 `[]` |
 | `godViewAllowed` | 本版 true；不授予進行中玩家觀戰權限 |
 | `hostPlayerID` | 目前房主座位字串；沒有玩家時為 `null` |
 | `history` | 依結束順序的 `{matchID,endedAt,ending,numPlayers,winner?,reason?}`；`ending` 為 `completed`、`host-ended` 或 `empty`，沒有秘密牌面 |
@@ -102,7 +114,7 @@ API 與網頁同源，正式環境使用 HTTPS；開發由 Vite 代理。POST �
 
 `complete:false` 表示舊局缺歷史或正式對局版本不連續；終局 API 仍會回傳此標示與實際保存的片段，前端顯示無完整復盤，不能以片段假裝整局，也不能建立回放分享。既有 schema 1 對局及身份仍可載入，更新後從等待室開始的新局才重設為完整回放。
 
-返回等待室後，讀取歷史必須帶 `history` 中的 `matchID`；省略時仍選目前對局，等待室沒有終局回放，會回 409。任何歷史 ID 都必須屬於已認證的同一房間，不能藉由改參數跨房。分享回應的歷史 `room` 只含原局名單，`history` 為空、`hostPlayerID` 為 `null`、`spectatorCount` 為 0，不透露後來的房間活動。
+返回等待室後，讀取歷史必須帶 `history` 中的 `matchID`；省略時仍選目前對局，等待室沒有終局回放，會回 409。任何歷史 ID 都必須屬於已認證的同一房間，不能藉由改參數跨房。房間復盤與分享回應的歷史 `room` 只含原局玩家名單，`history` 與 `spectators` 為空陣列、`hostPlayerID` 為 `null`、`spectatorCount` 為 0，不透露目前觀戰者或後來的房間活動。
 
 ## 分享精彩操作
 
