@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { RevealRecord, StationState } from '../games/station/game';
-import { StationAudio, StationSoundTracker, stationSoundsMuted } from './station-sounds';
+import { StationAudio, StationSoundTracker, saveStationSoundVolume, stationSoundsMuted, stationSoundsVolume } from './station-sounds';
 
 type Frame = Pick<StationState, 'round' | 'status' | 'activePlayer' | 'log'>;
 const frame = (changes: Partial<Frame> = {}): Frame => ({ round: 1, status: 'claiming', activePlayer: '0', log: [], ...changes });
@@ -118,7 +118,43 @@ describe('station generated audio', () => {
     audio.play({ reveals: 1, ownTurn: true });
     expect(fake.voices.map(voice => voice.frequency.setValueAtTime.mock.calls[0][0])).toEqual([720, 1060, 520, 780, 1040]);
     expect(fake.voices.map(voice => voice.type)).toEqual(['sine', 'sine', 'triangle', 'triangle', 'triangle']);
+    expect(fake.context.createGain.mock.results.map(result => result.value.gain.linearRampToValueAtTime.mock.calls[0][0]))
+      .toEqual([0.045, 0.045, 0.035, 0.035, 0.035]);
     expect(fake.voices[2].start.mock.calls[0][0]).toBeGreaterThan(fake.voices[1].stop.mock.calls[0][0]);
+    audio.dispose();
+  });
+
+  it.each([[25, .5], [50, 1], [100, 2], [125, 2], [NaN, 1]])('scales both cue types at %s%% without changing their timing', async (volume, factor) => {
+    const fake = fakeAudioContext();
+    const audio = new StationAudio(() => fake.asContext);
+    audio.setVolume(volume);
+    await audio.unlock();
+    audio.play({ reveals: 1, ownTurn: true });
+    const amplitudes = fake.context.createGain.mock.results.map(result => result.value.gain.linearRampToValueAtTime.mock.calls[0][0]);
+    expect(amplitudes).toHaveLength(5);
+    amplitudes.forEach((amplitude, index) => expect(amplitude).toBeCloseTo((index < 2 ? .045 : .035) * factor));
+    expect(fake.voices[2].start.mock.calls[0][0]).toBeGreaterThan(fake.voices[1].stop.mock.calls[0][0]);
+    audio.dispose();
+  });
+
+  it('zero volume immediately cancels pending cues and creates no silent voices or replay backlog', async () => {
+    const fake = fakeAudioContext();
+    const audio = new StationAudio(() => fake.asContext);
+    await audio.unlock();
+    audio.play({ reveals: 1, ownTurn: true });
+    audio.setVolume(0);
+    expect(fake.voices.every(voice => voice.disconnect.mock.calls.length === 1)).toBe(true);
+    audio.play({ reveals: 3, ownTurn: true });
+    expect(await audio.unlock()).toBe(false);
+    expect(fake.voices).toHaveLength(5);
+    audio.setVolume(50);
+    await audio.unlock();
+    expect(fake.voices).toHaveLength(5);
+    audio.play({ reveals: 1, ownTurn: false });
+    expect(fake.voices).toHaveLength(7);
+    audio.setVolume(-1);
+    audio.play({ reveals: 1, ownTurn: true });
+    expect(fake.voices).toHaveLength(7);
     audio.dispose();
   });
 
@@ -210,5 +246,32 @@ describe('station generated audio', () => {
     expect(stationSoundsMuted()).toBe(false);
     vi.stubGlobal('localStorage', { getItem: () => { throw new Error('storage denied'); } });
     expect(stationSoundsMuted()).toBe(false);
+  });
+
+  it.each([[null, 50], ['', 50], [' ', 50], ['0', 0], ['25', 25], ['50', 50], ['100', 100], ['125', 100], ['-10', 0], ['36.7', 37], ['garbage', 50], ['Infinity', 50]])(
+    'loads stored volume %s as %s%%', (stored, expected) => {
+      vi.stubGlobal('localStorage', { getItem: () => stored });
+      expect(stationSoundsVolume()).toBe(expected);
+    },
+  );
+
+  it('remembers bounded volume independently of the existing mute preference', () => {
+    const data = new Map([['friends-table.station-sound-muted', '1']]);
+    vi.stubGlobal('localStorage', { getItem: (key: string) => data.get(key) ?? null, setItem: (key: string, value: string) => data.set(key, value) });
+    expect(stationSoundsVolume()).toBe(50);
+    expect(stationSoundsMuted()).toBe(true);
+    expect(saveStationSoundVolume(73)).toBe(73);
+    expect(stationSoundsVolume()).toBe(73);
+    expect(stationSoundsMuted()).toBe(true);
+    expect(saveStationSoundVolume(400)).toBe(100);
+    expect(stationSoundsVolume()).toBe(100);
+    expect(saveStationSoundVolume(-400)).toBe(0);
+    expect(stationSoundsVolume()).toBe(0);
+  });
+
+  it('keeps volume adjustment usable when browser storage is denied', () => {
+    vi.stubGlobal('localStorage', { getItem: () => { throw new Error('storage denied'); }, setItem: () => { throw new Error('storage denied'); } });
+    expect(stationSoundsVolume()).toBe(50);
+    expect(saveStationSoundVolume(67)).toBe(67);
   });
 });

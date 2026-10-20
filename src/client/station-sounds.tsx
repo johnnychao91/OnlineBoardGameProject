@@ -1,7 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import type { StationState } from '../games/station/game';
+import './station-sounds.css';
 
 const MUTE_KEY = 'friends-table.station-sound-muted';
+const VOLUME_KEY = 'friends-table.station-sound-volume';
+const DEFAULT_VOLUME = 50;
 type SoundState = Pick<StationState, 'status' | 'round' | 'activePlayer' | 'log'>;
 export interface StationSoundInput {
   G?: SoundState;
@@ -66,11 +69,29 @@ function saveMuted(muted: boolean): void {
   try { localStorage.setItem(MUTE_KEY, muted ? '1' : '0'); } catch { /* Playback still works without persistent storage. */ }
 }
 
+function normalizeVolume(volume: number): number {
+  return Number.isFinite(volume) ? Math.max(0, Math.min(100, Math.round(volume))) : DEFAULT_VOLUME;
+}
+
+export function stationSoundsVolume(): number {
+  try {
+    const stored = localStorage.getItem(VOLUME_KEY);
+    return stored === null || stored.trim() === '' ? DEFAULT_VOLUME : normalizeVolume(Number(stored));
+  } catch { return DEFAULT_VOLUME; }
+}
+
+export function saveStationSoundVolume(volume: number): number {
+  const next = normalizeVolume(volume);
+  try { localStorage.setItem(VOLUME_KEY, String(next)); } catch { /* Volume still works without persistent storage. */ }
+  return next;
+}
+
 /** Web Audio is created only from a user gesture; a failed cue must never affect a move. */
 export class StationAudio {
   private context: AudioContext | null = null;
   private disposed = false;
   private muted = false;
+  private volume = DEFAULT_VOLUME;
   private voices = new Set<{ oscillator: OscillatorNode; gain: GainNode }>();
   private stateChanged = () => {
     if (this.disposed) return;
@@ -92,8 +113,14 @@ export class StationAudio {
     if (value) this.stop();
   }
 
+  setVolume(value: number): void {
+    const next = normalizeVolume(value);
+    if (next !== this.volume) this.stop();
+    this.volume = next;
+  }
+
   async unlock(): Promise<boolean> {
-    if (this.disposed || this.muted) return false;
+    if (this.disposed || this.muted || this.volume === 0) return false;
     try {
       if (!this.context) {
         this.context = this.createContext();
@@ -113,7 +140,7 @@ export class StationAudio {
 
   play({ reveals, ownTurn }: StationSoundEvents): void {
     const context = this.context;
-    if (this.disposed || this.muted || !context || context.state !== 'running' || (!reveals && !ownTurn)) return;
+    if (this.disposed || this.muted || this.volume === 0 || !context || context.state !== 'running' || (!reveals && !ownTurn)) return;
     // A newer move replaces any still-pending cue instead of building a notification backlog.
     this.stop();
     try {
@@ -142,7 +169,8 @@ export class StationAudio {
     oscillator.type = type;
     oscillator.frequency.setValueAtTime(frequency, at);
     gain.gain.setValueAtTime(0, at);
-    gain.gain.linearRampToValueAtTime(volume, at + 0.008);
+    // 50% retains the original cue amplitude; 100% doubles it.
+    gain.gain.linearRampToValueAtTime(volume * this.volume / DEFAULT_VOLUME, at + 0.008);
     gain.gain.exponentialRampToValueAtTime(0.0001, at + duration);
     oscillator.connect(gain);
     gain.connect(context.destination);
@@ -177,26 +205,32 @@ export class StationAudio {
 
 export interface StationSoundControls {
   muted: boolean;
+  volume: number;
   available: boolean;
   ready: boolean;
   label: string;
   toggle: () => void;
+  setVolume: (volume: number) => void;
 }
 
 export function useStationSounds(input: StationSoundInput): StationSoundControls {
   const { G, matchID, playerID, connected = true, enabled = true } = input;
   const [muted, setMuted] = useState(stationSoundsMuted);
+  const [volume, setVolumeState] = useState(stationSoundsVolume);
   const [ready, setReady] = useState(false);
   const available = !!audioConstructor();
   const audio = useRef<StationAudio | null>(null);
   const tracker = useRef(new StationSoundTracker());
   const mutedRef = useRef(muted);
+  const volumeRef = useRef(volume);
   mutedRef.current = muted;
+  volumeRef.current = volume;
 
   useEffect(() => {
     if (!enabled || !available) { setReady(false); return; }
     const engine = new StationAudio(undefined, setReady);
     engine.setMuted(mutedRef.current);
+    engine.setVolume(volumeRef.current);
     audio.current = engine;
     const unlock = (event: Event) => {
       if (event instanceof KeyboardEvent && event.repeat) return;
@@ -210,6 +244,11 @@ export function useStationSounds(input: StationSoundInput): StationSoundControls
         const next = stationSoundsMuted();
         engine.setMuted(next);
         setMuted(next);
+      }
+      if (event.key === VOLUME_KEY || event.key === null) {
+        const next = stationSoundsVolume();
+        engine.setVolume(next);
+        setVolumeState(next);
       }
     };
     window.addEventListener('pointerdown', unlock, true);
@@ -227,12 +266,27 @@ export function useStationSounds(input: StationSoundInput): StationSoundControls
   useEffect(() => {
     const events = tracker.current.update({ G, matchID, playerID, connected, enabled });
     audio.current?.setMuted(muted);
+    audio.current?.setVolume(volume);
     if (!enabled || !connected || !G) audio.current?.stop();
     else audio.current?.play(events);
-  }, [G, matchID, playerID, connected, enabled, muted]);
+  }, [G, matchID, playerID, connected, enabled, muted, volume]);
+
+  const setVolume = useCallback((value: number) => {
+    if (!available || !enabled) return;
+    const next = saveStationSoundVolume(value);
+    volumeRef.current = next;
+    mutedRef.current = false;
+    audio.current?.setVolume(next);
+    audio.current?.setMuted(false);
+    setVolumeState(next);
+    saveMuted(false);
+    setMuted(false);
+    if (next > 0) void audio.current?.unlock();
+  }, [available, enabled]);
 
   const toggle = useCallback(() => {
     if (!available || !enabled) return;
+    if (volume === 0) { setVolume(DEFAULT_VOLUME); return; }
     if (!muted && !ready) { void audio.current?.unlock(); return; }
     const next = !muted;
     mutedRef.current = next;
@@ -240,17 +294,24 @@ export function useStationSounds(input: StationSoundInput): StationSoundControls
     saveMuted(next);
     setMuted(next);
     if (!next) void audio.current?.unlock();
-  }, [available, enabled, muted, ready]);
-  const label = !available ? '音效不支援' : muted ? '音效：關' : ready ? '音效：開' : '啟用音效';
-  return { muted, available, ready, toggle, label };
+  }, [available, enabled, muted, ready, volume, setVolume]);
+  const silent = muted || volume === 0;
+  const label = !available ? '音效不支援' : silent ? '音效：關' : ready ? '音效：開' : '啟用音效';
+  return { muted: silent, volume, available, ready, toggle, setVolume, label };
 }
 
 export function StationSoundToggle({ controls }: { controls: StationSoundControls }) {
-  const { muted, available, ready, toggle, label } = controls;
-  return <button type="button" className="station-sound-toggle" onClick={toggle}
+  const { muted, volume, available, ready, toggle, setVolume, label } = controls;
+  const volumeID = useId();
+  return <div className="station-sound-controls"><button type="button" className="station-sound-toggle" onClick={toggle}
     disabled={!available} aria-pressed={!muted && ready}
     title={!available ? '此瀏覽器不支援音效。' : muted ? '開啟翻牌與自己回合的提示音。'
       : ready ? '關閉這台瀏覽器的遊戲提示音。' : '點一下允許瀏覽器播放音效；先前的提示不會補播。'}>
     <span aria-hidden="true">{!muted && ready ? '♪' : '♩'}</span>{label}
-  </button>;
+  </button><label className="station-sound-volume" htmlFor={volumeID}><span>音量</span>
+    <input id={volumeID} type="range" min="0" max="100" step="1" value={volume}
+      aria-label="提示音效音量" aria-valuetext={`${volume}%${volume === 0 ? '，靜音' : ''}`}
+      disabled={!available} onChange={event => setVolume(Number(event.currentTarget.value))} />
+    <output htmlFor={volumeID}>{volume}%</output>
+  </label></div>;
 }

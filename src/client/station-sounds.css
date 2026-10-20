@@ -1,0 +1,9 @@
+.station-sound-controls { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; max-width: 100%; }
+.station-sound-volume { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 10px; white-space: nowrap; }
+.station-sound-volume input[type="range"] { width: 90px; height: 44px; min-height: 44px; padding: 0; margin: 0; border: 0; border-radius: 0; background: transparent; accent-color: var(--mint); cursor: pointer; }
+.station-sound-volume input:disabled { cursor: default; opacity: .5; }
+.station-sound-volume output { min-width: 32px; text-align: right; font-variant-numeric: tabular-nums; }
+@media (min-width: 1100px) and (min-height: 700px) {
+  .station-active-room .station-sound-controls { gap: 6px; }
+  .station-active-room .station-sound-volume input[type="range"] { width: 72px; height: 28px; min-height: 28px; }
+}

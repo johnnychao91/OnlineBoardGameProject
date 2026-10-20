@@ -12,6 +12,7 @@ import { RoomStore, currentMatchID, hostPlayerID, hostObserverID, roomMatchIDs, 
 import { RoomPresence } from './presence';
 import { FileStorage } from './storage';
 import { collectStatistics } from './statistics';
+import { createPreviewPage } from './link-preview';
 import { admissionCredential, hashToken, randomToken, RateLimiter, safeEqual, validCredential, validRoomID } from './security';
 
 export interface AppConfig {
@@ -600,13 +601,14 @@ export async function createApplication(config: AppConfig) {
   });
   if (config.clientDir) {
     const directory = resolve(config.clientDir);
-    server.app.use(serve(directory, { hidden: false, index: false, maxage: 0 }));
+    const previewPage = createPreviewPage(await readFile(join(directory, 'index.html'), 'utf8'), origin);
     server.app.use(async (ctx, next) => {
-      if (ctx.method === 'GET' && (ctx.path === '/' || /^\/(join|room|replay)\/[A-Za-z0-9_-]+$/.test(ctx.path))) {
+      if (['GET', 'HEAD'].includes(ctx.method) && (ctx.path === '/' || ctx.path === '/index.html' || /^\/(join|room|replay)\/[A-Za-z0-9_-]+$/.test(ctx.path))) {
         ctx.type = 'html'; ctx.set('Cache-Control', 'no-cache');
-        ctx.body = await readFile(join(directory, 'index.html'));
+        ctx.body = previewPage(ctx.path);
       } else await next();
     });
+    server.app.use(serve(directory, { hidden: false, index: false, maxage: 0 }));
   }
   // Never mount boardgame.io's default public Lobby routes. All admissions use our API.
   server.app.use((ctx) => { ctx.status = 404; ctx.body = { error: '找不到此頁面' }; });
