@@ -155,7 +155,7 @@ Socket 只接受白名單 `MAKE_MOVE`，強制拒絕 `startGame`（走 HTTP）�
 | 操作 | 參數與限制 |
 | --- | --- |
 | `acknowledge()` | `briefing` 階段確認自己的資訊；全員完成進入 `claiming` |
-| `declareRepairs(count, round)` | `claiming` 階段，整數 0～本輪起始手牌數，每人一次；必須帶當輪編號，允許同輪多人並行宣稱及與真實牌數不同，全員完成進入 `playing` |
+| `declareRepairs(count, round)` | `claiming` 階段，整數 0～`min(players[id].cardCount, repairsRequired - repairsFound)`，每人一次；必須帶當輪編號，允許同輪多人並行宣稱及與真實牌數不同，全員完成進入 `playing` |
 | `acknowledgeBriefing(round)` | 版本 3 的 `briefing` 階段，帶目前輪次確認自己的資訊；允許多人同時確認，過期輪次及重複確認拒絕 |
 | `selectCard(targetID, slot)` | 目前檢修者預選別人的未翻牌，`slot` 為本輪固定的零起算牌位 |
 | `clearSelection()` | 目前檢修者取消公開預選 |

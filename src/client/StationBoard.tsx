@@ -1,6 +1,6 @@
 import { useContext, useEffect, useRef, useState } from 'react';
 import type { StationState } from '../games/station/game';
-import { getCardSlots, possibleRoleCounts } from '../games/station/view-model';
+import { getCardSlots, possibleRoleCounts, repairClaimMaximum } from '../games/station/view-model';
 import { isPlayer } from './api';
 import { RoomContext } from './room-context';
 import { Icon } from './ui';
@@ -43,7 +43,7 @@ export function StationBoard({ G, playerID, moves, isConnected }: BoardProps) {
   const version2 = (G.rulesVersion ?? 1) >= 2;
   const pending = G.pendingReveal;
   const needsClaim = G.status === 'claiming' && !!own && own.claim == null;
-  const claimMaximum = getCardSlots(G, id).length;
+  const claimMaximum = repairClaimMaximum(G, id);
   const roles = possibleRoleCounts(Object.keys(G.players).length, mine?.role);
   const validSelection = !!selection && canAct && myTurn
     && selection.round === G.round && selection.actorID === id
@@ -247,6 +247,7 @@ export function StationBoard({ G, playerID, moves, isConnected }: BoardProps) {
       <h2 id="station-claim-title">你要宣稱幾張維修模組？</h2>
       <p>選擇你要公開宣稱的<strong>維修模組數量</strong>。</p>
       <p className="claim-secret"><Icon type="shield" size={17} />只有你知道：實際有 <strong>{mine?.composition.repair ?? '—'} 張</strong></p>
+      <p className="small">全桌尚未翻出 {Math.max(0, G.repairsRequired - G.repairsFound)} 張維修模組；你最多可宣稱 {claimMaximum} 張。</p>
       <p className="muted small">可以說實話，也可以說謊。點選數字就會公開提交，本輪不能修改。</p>
       <div className="claim-options" aria-label="宣稱維修模組數量">
         {Array.from({ length: claimMaximum + 1 }, (_, amount) => <button key={amount} type="button"

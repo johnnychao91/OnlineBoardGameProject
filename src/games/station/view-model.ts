@@ -30,6 +30,18 @@ export function possibleRoleCounts(
   return result;
 }
 
+/** Public feasibility limit; declarations never reveal a player's actual hand. */
+export function repairClaimMaximum(
+  G: Pick<StationState, 'players' | 'repairsRequired' | 'repairsFound'>,
+  playerID: string,
+): number {
+  if (!Object.prototype.hasOwnProperty.call(G.players, playerID)) return 0;
+  return Math.max(0, Math.min(
+    G.players[playerID].cardCount,
+    G.repairsRequired - G.repairsFound,
+  ));
+}
+
 /** Legacy snapshots retain compact remaining-card positions; do not invent slots. */
 export function getCardSlots(
   G: Pick<StationState, 'rulesVersion' | 'players' | 'publicCards'>,

@@ -5,7 +5,7 @@ import type { Game, State } from 'boardgame.io';
 import { StationGame, stationObserverView, stationPlayerView } from './game';
 import type { CardKind, Composition, StationSetupData, StationState } from './game';
 import { getGameDefinition, publicGameDefinitions } from '../registry';
-import { getCardSlots } from './view-model';
+import { getCardSlots, repairClaimMaximum } from './view-model';
 
 function makeClient(numPlayers = 4, seed = 'station-test', game: Game<StationState> = StationGame) {
   // The non-networked reducer is the authoritative engine in these tests.
@@ -425,12 +425,12 @@ describe('每輪公開宣稱與兩階段剪線', () => {
       act(client, raw(client).activePlayer!, 'reveal', '1', 0, 1);
       expect(raw(client)).toEqual(before);
       // Every statement differs from the actual private repair-card count.
-      const claim = (raw(client).private[id].composition.repair + 1) % 6;
+      const claim = (raw(client).private[id].composition.repair + 1) % (repairClaimMaximum(raw(client), id) + 1);
       act(client, id, 'declareRepairs', claim, raw(client).round);
       expect(raw(client).players[id].claim).toBe(claim);
       expect(stationObserverView(raw(client), 'blind').players[id].claim).toBe(claim);
       const after = structuredClone(raw(client));
-      act(client, id, 'declareRepairs', (claim + 1) % 6, raw(client).round);
+      act(client, id, 'declareRepairs', (claim + 1) % (repairClaimMaximum(raw(client), id) + 1), raw(client).round);
       expect(raw(client)).toEqual(after);
     }
     expect(raw(client).status).toBe('playing');
@@ -438,20 +438,20 @@ describe('每輪公開宣稱與兩階段剪線', () => {
     expect(raw(client).log).toHaveLength(1);
   });
 
-  it('宣稱拒絕錯誤席位、非整數、負數與超過當輪手牌數，接受 0 與上限', () => {
+  it('宣稱拒絕錯誤席位、非整數、負數與超過全場剩餘數，接受 0 與上限', () => {
     const client = makeClient();
     readyAndStart(client);
     for (const id of Object.keys(raw(client).players)) act(client, id, 'acknowledge');
     const before = structuredClone(raw(client));
-    for (const value of [-1, 6, 1.5, '2', null, undefined, NaN, Infinity, {}, true]) {
+    for (const value of [-1, 5, 6, 1.5, '2', null, undefined, NaN, Infinity, {}, true]) {
       act(client, '0', 'declareRepairs', value, raw(client).round);
     }
     for (const id of ['99', '__proto__', 'constructor']) act(client, id, 'declareRepairs', 0, raw(client).round);
     expect(raw(client)).toEqual(before);
     act(client, '0', 'declareRepairs', 0, raw(client).round);
-    act(client, '1', 'declareRepairs', 5, raw(client).round);
+    act(client, '1', 'declareRepairs', 4, raw(client).round);
     expect(raw(client).players['0'].claim).toBe(0);
-    expect(raw(client).players['1'].claim).toBe(5);
+    expect(raw(client).players['1'].claim).toBe(4);
     expect(raw(client).status).toBe('claiming');
   });
 
@@ -466,6 +466,75 @@ describe('每輪公開宣稱與兩階段剪線', () => {
     expect(raw(client)).toEqual(before);
     act(client, '0', 'declareRepairs', 0, 1);
     expect(raw(client).players['0'].claim).toBe(0);
+  });
+
+  it.each([2, 3] as const)('V%i 以全場未揭開維修數限制宣稱，仍允許各人獨立說謊', (version) => {
+    const client = makeClient(4, `remaining-claim-${version}`);
+    if (version === 2) restoreV2(client);
+    readyAndStart(client);
+    // A conserved first-round deck guarantees exactly three repair reveals
+    // before the next claim phase, independent of shuffled test identities.
+    const prepared = structuredClone(client.store.getState()) as State<StationState>;
+    for (const id of Object.keys(prepared.G.players)) {
+      prepared.G.secret!.cards[id] = ['repair', 'stable', 'stable', 'stable', id === '3' ? 'hazard' : 'stable'];
+      prepared.G.private[id].composition = counts(prepared.G.secret!.cards[id]);
+    }
+    client.store.dispatch({ type: 'UPDATE', state: prepared, deltalog: [], clientOnly: true });
+    acknowledgeAll(client);
+    for (const targetID of ['1', '2', '0']) revealChoice(client, { targetID, slot: 0, kind: 'repair' });
+    revealChoice(client, { targetID: '1', slot: 1, kind: 'stable' });
+    if (version === 3) reviewAll(client);
+    for (const id of Object.keys(raw(client).players)) act(client, id, 'acknowledge');
+    const claiming = structuredClone(raw(client));
+    expect(claiming).toMatchObject({ status: 'claiming', round: 2, repairsRequired: 4, repairsFound: 3 });
+    expect(Object.values(claiming.players).every(player => player.cardCount === 4)).toBe(true);
+    for (const id of Object.keys(claiming.players)) {
+      act(client, id, 'declareRepairs', 2, 2);
+      act(client, id, 'declareRepairs', 4, 2);
+    }
+    expect(raw(client)).toEqual(claiming);
+    for (const id of Object.keys(claiming.players)) act(client, id, 'declareRepairs', 1, 2);
+    expect(raw(client).status).toBe('playing');
+    expect(Object.values(raw(client).players).every(player => player.claim === 1)).toBe(true);
+    expect(Object.values(raw(client).private).filter(player => player.composition.repair === 0)).toHaveLength(3);
+    assertConservation(raw(client), 4);
+  });
+
+  it.each([2, 3] as const)('V%i 宣稱同時受當輪手牌上限限制，不只檢查全場維修數', (version) => {
+    const client = makeClient(8, `hand-claim-${version}`);
+    if (version === 2) restoreV2(client);
+    readyAndStart(client);
+    acknowledgeAll(client);
+    for (let i = 0; i < 8; i += 1) revealChoice(client, choose(client, kind => kind === 'stable'));
+    if (version === 3) reviewAll(client);
+    for (const id of Object.keys(raw(client).players)) act(client, id, 'acknowledge');
+    const claiming = structuredClone(raw(client));
+    expect(claiming).toMatchObject({ status: 'claiming', round: 2, repairsRequired: 8, repairsFound: 0 });
+    act(client, '0', 'declareRepairs', 5, 2);
+    act(client, '0', 'declareRepairs', 8, 2);
+    expect(raw(client)).toEqual(claiming);
+    act(client, '0', 'declareRepairs', 4, 2);
+    expect(raw(client).players['0'].claim).toBe(4);
+    assertConservation(raw(client), 8);
+  });
+
+  it.each([2, 3] as const)('V%i 已保存的舊宣稱原樣保留在目前狀態與復盤投影', (version) => {
+    const client = makeClient();
+    if (version === 2) restoreV2(client);
+    readyAndStart(client);
+    for (const id of Object.keys(raw(client).players)) act(client, id, 'acknowledge');
+    const saved = structuredClone(client.store.getState()) as State<StationState>;
+    saved.G.players['0'].claim = 5;
+    client.store.dispatch({ type: 'UPDATE', state: saved, deltalog: [], clientOnly: true });
+    expect(repairClaimMaximum(raw(client), '0')).toBe(4);
+    expect(stationPlayerView({ G: raw(client), playerID: '0' }).players['0'].claim).toBe(5);
+    expect(stationObserverView(raw(client), 'blind').players['0'].claim).toBe(5);
+    expect(stationObserverView(raw(client), 'god').players['0'].claim).toBe(5);
+    act(client, '0', 'declareRepairs', 4, 1);
+    expect(raw(client).players['0'].claim).toBe(5);
+    for (const id of ['1', '2', '3']) act(client, id, 'declareRepairs', 4, 1);
+    expect(raw(client).status).toBe('playing');
+    expect(raw(client).players['0'].claim).toBe(5);
   });
 
   it('選牌公開給所有視角但不先翻牌；視圖拷貝不洩漏額外資料也不改伺服器', () => {

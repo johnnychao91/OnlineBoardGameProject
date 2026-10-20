@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createMatch } from 'boardgame.io/internal';
 import { StationGame, stationPlayerView } from './game';
 import type { Role, StationState } from './game';
-import { getCardSlots, possibleRoleCounts } from './view-model';
+import { getCardSlots, possibleRoleCounts, repairClaimMaximum } from './view-model';
 
 describe('公開陣營可能人數', () => {
   it.each([
@@ -19,6 +19,44 @@ describe('公開陣營可能人數', () => {
 
   it.each([0, 3, 9, 4.5, NaN, Infinity])('不支援的人數 %s 不虛構組合', (n) => {
     expect(possibleRoleCounts(n)).toEqual([]);
+  });
+});
+
+describe('公開宣稱上限', () => {
+  const state = (cardCount: number, required: number, found: number) => ({
+    players: { '0': { ready: true, acknowledged: true, cardCount } },
+    repairsRequired: required,
+    repairsFound: found,
+  });
+
+  it.each([
+    [5, 4, 0, 4],
+    [5, 5, 0, 5],
+    [5, 6, 0, 5],
+    [5, 7, 0, 5],
+    [5, 8, 0, 5],
+    [4, 8, 0, 4],
+    [4, 4, 3, 1],
+    [2, 8, 7, 1],
+    [2, 8, 8, 0],
+    [0, 8, 0, 0],
+    [2, 4, 5, 0],
+  ])('手牌 %i 張、目標 %i、已完成 %i 時最多宣稱 %i', (hand, required, found, expected) => {
+    expect(repairClaimMaximum(state(hand, required, found), '0')).toBe(expected);
+  });
+
+  it('只讀公開張數與進度，不讀任何人的真實手牌或已宣稱數量', () => {
+    const G = state(4, 6, 4);
+    for (const field of ['private', 'secret', 'publicCards']) {
+      Object.defineProperty(G, field, { get: () => { throw new Error(`Private source read: ${field}`); } });
+    }
+    Object.defineProperty(G.players['0'], 'claim', { get: () => { throw new Error('Claims are not verified allocations'); } });
+    expect(repairClaimMaximum(G, '0')).toBe(2);
+  });
+
+  it('未參與席位不產生可選宣稱數', () => {
+    const G = state(5, 4, 0);
+    for (const id of ['99', '__proto__', 'constructor']) expect(repairClaimMaximum(G, id)).toBe(0);
   });
 });
 

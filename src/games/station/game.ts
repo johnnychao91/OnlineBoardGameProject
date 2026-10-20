@@ -1,6 +1,6 @@
 import type { FnContext, Game } from 'boardgame.io';
 import { ActivePlayers, INVALID_MOVE } from 'boardgame.io/core';
-import { stationRolePool } from './view-model';
+import { repairClaimMaximum, stationRolePool } from './view-model';
 
 export type Role = 'engineer' | 'saboteur';
 export type CardKind = 'stable' | 'repair' | 'hazard';
@@ -197,7 +197,7 @@ function declareRepairs({ G, playerID }: MoveContext, count: unknown, round: unk
     || typeof round !== 'number' || !Number.isInteger(round) || round !== G.round
     || G.players[playerID].claim !== null || typeof count !== 'number'
     || !Number.isInteger(count) || count < 0 || !G.publicCards?.[playerID]
-    || count > G.publicCards[playerID].length) {
+    || count > repairClaimMaximum(G, playerID)) {
     return INVALID_MOVE;
   }
   G.players[playerID].claim = count;
