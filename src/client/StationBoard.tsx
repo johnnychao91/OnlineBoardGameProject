@@ -26,7 +26,9 @@ export function StationBoard({ G, playerID, moves, isConnected }: BoardProps) {
   // Catch two clicks before React has rendered the first move.
   const requestRef = useRef<SelectionRequest | null>(null);
   const [notice, setNotice] = useState('');
-  const [privateVisible, setPrivateVisible] = useState(false);
+  const [privateVisible, setPrivateVisible] = useState(true);
+  const [pageVisible, setPageVisible] = useState(() => typeof document === 'undefined' || !document.hidden);
+  const privateExpanded = privateVisible && pageVisible;
   const [claimDismissed, setClaimDismissed] = useState(false);
   const [claimSending, setClaimSending] = useState(false);
   const claimSendingRef = useRef(false);
@@ -107,9 +109,9 @@ export function StationBoard({ G, playerID, moves, isConnected }: BoardProps) {
   }, [claimSending]);
 
   useEffect(() => {
-    const hide = () => { if (document.hidden) setPrivateVisible(false); };
-    document.addEventListener('visibilitychange', hide);
-    return () => document.removeEventListener('visibilitychange', hide);
+    const updateVisibility = () => setPageVisible(!document.hidden);
+    document.addEventListener('visibilitychange', updateVisibility);
+    return () => document.removeEventListener('visibilitychange', updateVisibility);
   }, []);
 
   function chooseCard(targetID: string, slot: number) {
@@ -155,7 +157,7 @@ export function StationBoard({ G, playerID, moves, isConnected }: BoardProps) {
       <Icon type="signal" size={15} />
       {canAct ? '即時連線中' : '連線中斷，正在自動重連。請保留這個頁面。'}
     </div>
-    <main className={`game-layout station-live ${G.status === 'finished' ? 'station-finished' : ''}`}>
+    <main className={`game-layout station-live station-player-live ${G.status === 'finished' ? 'station-finished' : ''}`}>
 
       <section className="game-main">
         <div className="game-title">
@@ -169,13 +171,13 @@ export function StationBoard({ G, playerID, moves, isConnected }: BoardProps) {
         </div>
         <StationTable G={G} nameOf={nameOf} ownID={id} canSelect={canAct && myTurn && !request} onCardClick={chooseCard} />
       </section>
-      <aside className="game-aside">
+      <aside className="station-personal-aside">
         <section className="panel private-panel">
-          <button className="private-toggle" onClick={() => setPrivateVisible(!privateVisible)} aria-expanded={privateVisible}>
+          <button className="private-toggle" onClick={() => setPrivateVisible(!privateVisible)} aria-expanded={privateExpanded}>
             <span><Icon type="shield" /><strong>我的秘密資訊</strong><small>只有你看得到</small></span>
-            <span>{privateVisible ? '收起 −' : '查看 +'}</span>
+            <span>{privateExpanded ? '收起 −' : '查看 +'}</span>
           </button>
-          {privateVisible && mine && <div className="private-content">
+          {privateExpanded && mine && <div className="private-content">
             <div className={`role-card ${mine.role}`}>
               <span>你的身份</span><strong>{roleNames[mine.role]}</strong>
               <div className="possible-roles"><span>本局可能的全場人數（包含你）</span>
@@ -196,7 +198,7 @@ export function StationBoard({ G, playerID, moves, isConnected }: BoardProps) {
           </div>}
           {G.status === 'briefing' && <div className="briefing-action">
             <button className="button primary full" disabled={!canAct || own?.acknowledged}
-              onClick={() => { if (G.rulesVersion === 3) moves.acknowledgeBriefing(G.round); else moves.acknowledge(); setPrivateVisible(false); }}>
+              onClick={() => { if (G.rulesVersion === 3) moves.acknowledgeBriefing(G.round); else moves.acknowledge(); }}>
               {own?.acknowledged ? '已確認，等待其他隊員' : '我已看過資訊，準備繼續'}
             </button>
             <p className="small muted center">{Object.values(G.players).filter(p => p.acknowledged).length} / {info.numPlayers} 位已確認</p>
@@ -206,7 +208,7 @@ export function StationBoard({ G, playerID, moves, isConnected }: BoardProps) {
               宣稱我的維修模組數量<Icon type="arrow" />
             </button> : <p className="claim-submitted"><Icon type="check" />你宣稱了 {own?.claim} 張維修模組，等待其他隊員。</p>}
             <p className="small muted center" role="status">
-              {Object.values(G.players).filter(p => p.claim != null).length} / {info.numPlayers} 位已宣稱
+              {Object.values(G.players).filter(p => p.claimSubmitted ?? (p.claim != null)).length} / {info.numPlayers} 位已宣稱
             </p>
           </div>}
         </section>
@@ -220,6 +222,8 @@ export function StationBoard({ G, playerID, moves, isConnected }: BoardProps) {
           </button>
           <p className="small muted" role="status">{Object.values(G.players).filter(p => p.reviewAcknowledged).length} / {info.numPlayers} 位已確認</p>
         </section>}
+      </aside>
+      <aside className="game-aside">
         <RoundRevealList G={G} nameOf={nameOf} />
         {G.status === 'finished' && <details className="panel station-results-details"><summary>陣營揭曉與戰報</summary>
           <div className="role-reveal-grid">{Object.keys(G.players).map(pid => <div key={pid}>
@@ -250,7 +254,7 @@ export function StationBoard({ G, playerID, moves, isConnected }: BoardProps) {
       <p>選擇你要公開宣稱的<strong>維修模組數量</strong>。</p>
       <p className="claim-secret"><Icon type="shield" size={17} />只有你知道：實際有 <strong>{mine?.composition.repair ?? '—'} 張</strong></p>
       <p className="small">全桌尚未翻出 {Math.max(0, G.repairsRequired - G.repairsFound)} 張維修模組；你最多可宣稱 {claimMaximum} 張。</p>
-      <p className="muted small">可以說實話，也可以說謊。點選數字就會公開提交，本輪不能修改。</p>
+      <p className="muted small">可以說實話，也可以說謊。提交前看不到其他人的宣稱數量；點選數字即提交，本輪不能修改。</p>
       <div className="claim-options" aria-label="宣稱維修模組數量">
         {Array.from({ length: claimMaximum + 1 }, (_, amount) => <button key={amount} type="button"
           disabled={!canAct || !needsClaim || claimSending} aria-label={`宣稱 ${amount} 張維修模組`}
@@ -283,7 +287,7 @@ export function RuleSummary({ legacy = false }: { legacy?: boolean } = {}) {
       <p>每輪先查看自己的設備組成，全員確認後開始檢修。暗牌會洗亂，連本人也不知道位置。大家可以自由討論，說實話、保留資訊或說謊。</p>
       <p>輪到你檢修時，選擇其他隊員的一張暗牌，在確認視窗按下「確認檢修」後翻開，再由對方接手。這局翻開的牌移入紀錄，剩餘暗牌往前排列。</p>
     </> : <>
-      <p>每輪先查看設備組成，確認後宣稱自己有幾張維修模組。宣稱可以說謊，並不代表實際牌數。暗牌會洗亂，連本人也不知道位置。</p>
+      <p>每輪先查看設備組成，確認後宣稱自己有幾張維修模組。提交自己的數字後才可看其他人的宣稱；宣稱可以說謊，並不代表實際牌數。暗牌會洗亂，連本人也不知道位置。</p>
       <p>輪到你檢修時，先點別人的一張暗牌，全桌都會看見預選；再點同一張牌並確認才翻開。翻開的牌留在原位，由對方接手下一次檢修。</p>
     </>}
     <p>每輪共揭開等同玩家人數的牌。新局會保留本輪牌桌，全體確認後，剩餘暗牌才重新混洗與分配，進入下一輪。穩定設備沒有特殊效果；維修模組累計維修進度。</p>

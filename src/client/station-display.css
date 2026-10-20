@@ -49,7 +49,7 @@
 
 @media (max-width: 1099px), (max-height: 699px) {
   .game-layout.station-live { display: flex; flex-direction: column; gap: 0; }
-  .station-live .game-main, .station-live .game-aside { display: contents; }
+  .station-live .game-main, .station-live .game-aside, .station-live .station-personal-aside { display: contents; }
   .station-live .game-title { order: 0; }
   .station-live .mission-progress { order: 1; }
   .station-live .station-turn-notice { order: 3; }
@@ -90,6 +90,10 @@
   .station-active-room .connection-banner { max-width: none; min-height: 16px; padding: 0 22px; height: 16px; }
   .station-active-room .connection-banner.offline { height: auto; min-height: 24px; }
   .station-active-room .station-live { width: 100%; max-width: none; height: calc(100dvh - 118px); min-height: 560px; margin: 0; padding: 0 20px 10px; grid-template-columns: minmax(0, 1fr) 290px; gap: 18px; }
+  .station-active-room .station-player-live { grid-template-areas: "main personal" "main activity"; grid-template-rows: minmax(0, 1fr) minmax(0, 1fr); }
+  .station-active-room .station-player-live > .game-main { grid-area: main; }
+  .station-active-room .station-player-live > .game-aside { grid-area: activity; }
+  .station-active-room .station-personal-aside { grid-area: personal; min-height: 0; min-width: 0; display: flex; flex-direction: column; gap: 9px; }
   .station-active-room .station-live .game-main,
   .station-active-room .station-snapshot-live .station-snapshot-main { min-height: 0; min-width: 0; display: flex; flex-direction: column; gap: 7px; }
   .station-active-room .station-live .game-aside,
@@ -139,13 +143,18 @@
   .station-active-room .station-table .readonly-card, .station-active-room .station-finished .station-card { min-height: 34px; }
   .station-active-room .station-table .observer-role { font-size: 10px; white-space: nowrap; margin-left: 0; }
   .station-active-room .station-table .observer-composition { font-size: 8px; line-height: 1.4; margin: 0; white-space: nowrap; }
-  .station-active-room .station-live .private-panel { position: relative; margin: 0; border-radius: 10px; flex-shrink: 0; }
-  .station-active-room .private-toggle { padding: 10px 12px; min-height: 40px; gap: 6px; }
+  .station-active-room .station-live .private-panel { margin: 0; border-radius: 10px; min-height: 0; display: flex; flex-direction: column; }
+  .station-active-room .private-toggle { padding: 10px 12px; min-height: 40px; gap: 6px; flex-shrink: 0; }
   .station-active-room .private-toggle strong { font-size: 11px; }
   .station-active-room .private-toggle small { font-size: 8px; }
   .station-active-room .private-toggle > span:first-child { gap: 6px; }
-  .station-active-room .station-live .private-content { position: absolute; top: calc(100% + 5px); right: 0; width: 100%; max-height: calc(100dvh - 200px); overflow: auto; z-index: 9; background: #18253a; border: 1px solid #667c97; border-radius: 12px; padding: 14px; box-shadow: 0 16px 60px #000a; }
-  .station-active-room .briefing-action { padding: 0 10px 5px; }
+  .station-active-room .station-live .private-content { min-height: 0; overflow: auto; padding: 0 12px 10px; }
+  .station-active-room .private-content .role-card { padding: 10px; margin-bottom: 12px; }
+  .station-active-room .private-content .role-card > strong { font-size: 21px; }
+  .station-active-room .private-content .possible-roles { padding: 8px 0; margin: 8px 0; }
+  .station-active-room .private-content .possible-roles p { font-size: 11px; gap: 5px; }
+  .station-active-room .private-content .composition { margin: 7px 0 10px; }
+  .station-active-room .briefing-action { padding: 0 10px 5px; flex-shrink: 0; }
   .station-active-room .briefing-action .button { font-size: 11px; min-height: 36px; padding: 8px 10px; }
   .station-active-room .briefing-action p { font-size: 10px; margin: 5px 0 0; }
   .station-active-room .round-review-confirmation { margin: 0; padding: 10px 12px; flex-shrink: 0; }
@@ -179,4 +188,20 @@
   .station-active-room .station-snapshot-live .station-player-facts { min-height: 14px; margin-bottom: 3px; }
   .station-active-room .station-snapshot-live .public-claim { min-height: 14px; line-height: 1.3; }
   .station-active-room .station-view-label { margin: 0; font-size: 9px; line-height: 1.4; }
+}
+
+@media (min-width: 1280px) and (min-height: 700px) {
+  .station-active-room .station-player-live { grid-template-areas: "personal main activity"; grid-template-columns: 220px minmax(0, 1fr) 250px; grid-template-rows: minmax(0, 1fr); gap: 14px; }
+}
+
+@media (min-width: 1100px) and (min-height: 700px) and (max-height: 760px) {
+  .station-active-room .station-player-live .station-turn-notice { padding: 6px 10px; }
+  .station-active-room .station-player-live .station-turn-notice > div > strong { font-size: 14px; line-height: 1.3; }
+  .station-active-room .station-player-live .station-turn-notice p { font-size: 9px; line-height: 1.4; margin-top: 1px; }
+  .station-active-room .station-player-live .station-table > .section-heading { min-height: 20px; margin-bottom: 4px; }
+  .station-active-room .station-player-live .player-modules { padding: 5px 8px; }
+  .station-active-room .station-player-live .module-player { min-height: 19px; margin-bottom: 2px; }
+  .station-active-room .station-player-live .module-player .avatar { width: 19px; height: 19px; }
+  .station-active-room .station-player-live .station-player-facts { min-height: 14px; margin-bottom: 3px; }
+  .station-active-room .station-player-live .public-claim { min-height: 14px; line-height: 1.3; }
 }

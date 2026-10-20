@@ -37,7 +37,7 @@ export function TurnNotice({ G, nameOf, ownID, replay = false }: {
     <div>
       <strong className={G.status === 'finished' && G.winner === 'saboteur' ? 'role-saboteur' : undefined}>{heading}</strong>
       <p>{G.status === 'briefing' ? (G.rulesVersion ?? 1) >= 2 ? '每輪重新洗牌，全員確認後進入宣稱階段。' : '每輪重新洗牌，全員確認後開始檢修。'
-        : G.status === 'claiming' ? '宣稱可以說謊。所有人提交後，才開始檢修。'
+        : G.status === 'claiming' ? ownID ? '先提交自己的宣稱，才可看其他人的數量。全員提交後開始檢修。' : '隊員正在宣稱維修模組數量，全員提交後開始檢修。'
           : playing ? myTurn ? (G.rulesVersion ?? 1) >= 2 ? '先點一張暗牌讓大家看到，再點同一張確認檢修。' : '討論後，選擇其他隊員的一張暗牌。' : '請一起討論，只有目前負責檢修的隊員能翻牌。'
             : review ? '牌桌暫時保留，全體隊員確認後才重新發牌。'
             : G.status === 'finished' ? `${G.winReason === 'all-repairs' ? '所有維修模組都已找出。'
@@ -126,7 +126,8 @@ export function StationTable({ G, nameOf, ownID, god = false, canSelect = false,
         </div>
         <div className="station-player-facts">
         {(G.rulesVersion ?? 1) >= 2 && <p className={`public-claim ${player.claim == null ? 'unclaimed' : ''}`}>
-          {player.claim == null ? G.status === 'briefing' ? '確認資訊後宣稱' : '尚未宣稱'
+          {player.claim == null ? player.claimSubmitted ? '已宣稱 · 提交後可見數量'
+            : G.status === 'briefing' ? '確認資訊後宣稱' : '尚未宣稱'
             : <><span>宣稱維修模組</span><strong>{player.claim} 張</strong><small>玩家自述，未經驗證</small></>}
         </p>}
         {god && privateInfo && <p className="small muted observer-composition">

@@ -21,8 +21,10 @@ export interface StationPlayer {
   /** V3: this seated player has reviewed the final revealed card this round. */
   reviewAcknowledged?: boolean;
   cardCount: number;
-  /** Public statement about this round's repair cards; players may bluff. */
+  /** A statement about repair cards; hidden from players who have not declared. */
   claim?: number | null;
+  /** Projection-only public progress flag; safe even while the count is hidden. */
+  claimSubmitted?: boolean;
   revealedRole?: Role;
 }
 
@@ -331,7 +333,9 @@ export function stationPlayerView({ G, playerID }: {
   G: StationState;
   playerID: string | null;
 }): StationState {
-  const ownInfo = playerID !== null && isSeat(G, playerID) ? G.private[playerID] : undefined;
+  const seated = playerID !== null && isSeat(G, playerID);
+  const ownInfo = seated ? G.private[playerID] : undefined;
+  const hideOtherClaims = G.status === 'claiming' && seated && G.players[playerID].claim == null;
   return {
     ...(G.rulesVersion === undefined ? {} : { rulesVersion: G.rulesVersion }),
     status: G.status,
@@ -340,7 +344,10 @@ export function stationPlayerView({ G, playerID }: {
       acknowledged: player.acknowledged,
       ...(player.reviewAcknowledged === undefined ? {} : { reviewAcknowledged: player.reviewAcknowledged }),
       cardCount: player.cardCount,
-      ...(player.claim === undefined ? {} : { claim: player.claim }),
+      ...(player.claim === undefined ? {} : { claim: hideOtherClaims && id !== playerID ? null : player.claim }),
+      // Clients may apply playerView again to an already filtered state.
+      // Retain only this safe boolean so progress stays correct after re-filtering.
+      claimSubmitted: player.claim != null || player.claimSubmitted === true,
       ...(player.revealedRole === undefined ? {} : { revealedRole: player.revealedRole }),
     }])),
     ...(G.publicCards === undefined ? {} : {

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Client } from 'boardgame.io/client';
-import { createMatch } from 'boardgame.io/internal';
+import { createMatch, getFilterPlayerView, ProcessGameConfig } from 'boardgame.io/internal';
 import type { Game, State } from 'boardgame.io';
 import { StationGame, stationObserverView, stationPlayerView } from './game';
 import type { CardKind, Composition, StationSetupData, StationState } from './game';
@@ -1117,5 +1117,122 @@ describe('V3 同時確認任務資訊', () => {
     expect(raw(client)).toEqual(before);
     acknowledgeAll(client);
     expect(raw(client).status).toBe('playing');
+  });
+});
+
+describe('提交宣稱前的數字遮蔽', () => {
+  function claiming(version: 2 | 3 = 3) {
+    const client = makeClient();
+    if (version === 2) restoreV2(client);
+    readyAndStart(client);
+    for (const id of Object.keys(raw(client).players)) act(client, id, 'acknowledge');
+    return client;
+  }
+
+  it.each([2, 3] as const)('V%i 未提交者只見進度，自己提交後立即可見其他已提交數字', (version) => {
+    const client = claiming(version);
+    act(client, '1', 'declareRepairs', 3, 1);
+    act(client, '2', 'declareRepairs', 0, 1);
+    const G = structuredClone(raw(client));
+    for (const viewer of ['0', '3']) {
+      const view = stationPlayerView({ G, playerID: viewer });
+      expect(Object.values(view.players).map(player => player.claim)).toEqual([null, null, null, null]);
+      expect(Object.values(view.players).map(player => player.claimSubmitted)).toEqual([false, true, true, false]);
+      expect(stationPlayerView({ G: view, playerID: viewer })).toEqual(view);
+      view.players['1'].claimSubmitted = false;
+      expect(raw(client)).toEqual(G);
+    }
+    for (const viewer of ['1', '2']) {
+      const view = stationPlayerView({ G, playerID: viewer });
+      expect(Object.values(view.players).map(player => player.claim)).toEqual([null, 3, 0, null]);
+    }
+    expect(Object.values(G.players).every(player => player.claimSubmitted === undefined)).toBe(true);
+    act(client, '0', 'declareRepairs', 2, 1);
+    expect(raw(client).status).toBe('claiming');
+    const submitted = stationPlayerView({ G: raw(client), playerID: '0' });
+    expect(Object.values(submitted.players).map(player => player.claim)).toEqual([2, 3, 0, null]);
+    const pending = stationPlayerView({ G: raw(client), playerID: '3' });
+    expect(Object.values(pending.players).map(player => player.claim)).toEqual([null, null, null, null]);
+    expect(Object.values(pending.players).map(player => player.claimSubmitted)).toEqual([true, true, true, false]);
+    act(client, '3', 'declareRepairs', 1, 1);
+    for (const viewer of ['0', '1', '2', '3']) {
+      const view = stationPlayerView({ G: raw(client), playerID: viewer });
+      expect(view.status).toBe('playing');
+      expect(Object.values(view.players).map(player => player.claim)).toEqual([2, 3, 0, 1]);
+    }
+  });
+
+  it('重新發牌後重新遮蔽，舊輪已提交狀態不會替下一輪解鎖', () => {
+    const client = claiming();
+    for (const id of Object.keys(raw(client).players)) act(client, id, 'declareRepairs', 2, 1);
+    for (let i = 0; i < 4; i += 1) revealChoice(client, choose(client, kind => kind === 'stable'));
+    reviewAll(client);
+    for (const id of Object.keys(raw(client).players)) act(client, id, 'acknowledge');
+    act(client, '1', 'declareRepairs', 1, 2);
+    const view = stationPlayerView({ G: raw(client), playerID: '0' });
+    expect(view).toMatchObject({ status: 'claiming', round: 2 });
+    expect(Object.values(view.players).map(player => player.claim)).toEqual([null, null, null, null]);
+    expect(Object.values(view.players).map(player => player.claimSubmitted)).toEqual([false, true, false, false]);
+  });
+
+  it('缺少自己的宣稱欄位也視為尚未提交，不會提早解除遮蔽', () => {
+    const client = claiming();
+    act(client, '1', 'declareRepairs', 3, 1);
+    const snapshot = structuredClone(raw(client));
+    delete snapshot.players['0'].claim;
+    const view = stationPlayerView({ G: snapshot, playerID: '0' });
+    expect(view.players['0'].claimSubmitted).toBe(false);
+    expect(view.players['1']).toMatchObject({ claim: null, claimSubmitted: true });
+    expect(snapshot.players['1'].claim).toBe(3);
+  });
+
+  it('觀戰與歷史投影維持原政策，未改寫伺服器保存的宣稱數字', () => {
+    const client = claiming();
+    act(client, '1', 'declareRepairs', 3, 1);
+    const snapshot = structuredClone(raw(client));
+    for (const perspective of ['blind', 'god'] as const) {
+      const view = stationObserverView(snapshot, perspective);
+      expect(view.players['1']).toMatchObject({ claim: 3, claimSubmitted: true });
+      expect(view.players['0']).toMatchObject({ claim: null, claimSubmitted: false });
+      if (perspective === 'blind') expect(view.private).toEqual({});
+      else expect(view.secret!.cards).toEqual(snapshot.secret!.cards);
+    }
+    expect(raw(client)).toEqual(snapshot);
+    expect(StationGame.moves!.declareRepairs).toMatchObject({ redact: true });
+  });
+
+  it('框架 update、patch、重連 sync 的狀態與操作日志都不洩漏未解鎖數字', () => {
+    const client = claiming();
+    const before = structuredClone(client.store.getState()) as State<StationState>;
+    act(client, '1', 'declareRepairs', 3, 1);
+    const after = structuredClone(client.store.getState()) as State<StationState>;
+    expect(after.deltalog).toHaveLength(1);
+    expect(after.deltalog![0]).toMatchObject({
+      action: { payload: { type: 'declareRepairs', playerID: '1', args: [3, 1] } },
+      redact: true,
+    });
+    const filter = getFilterPlayerView(ProcessGameConfig(StationGame));
+    const update = filter('0', { type: 'update', args: ['claim-privacy', after] });
+    if (update.type !== 'update') throw new Error('Unexpected filtered message');
+    expect(update.args[1].G.players['1']).toMatchObject({ claim: null, claimSubmitted: true });
+    expect(update.args[2][0].action.payload.args).toBeNull();
+    const patch = filter('0', { type: 'patch', args: ['claim-privacy', before._stateID, before, after] });
+    if (patch.type !== 'patch') throw new Error('Unexpected filtered patch');
+    expect(patch.args[3]).not.toContainEqual(expect.objectContaining({ path: '/G/players/1/claim', value: 3 }));
+    expect(patch.args[3]).toContainEqual(expect.objectContaining({ path: '/G/players/1/claimSubmitted', value: true }));
+    expect(patch.args[4][0].action.payload.args).toBeNull();
+    const sync = filter('0', {
+      type: 'sync',
+      args: ['claim-privacy', { state: after, initialState: before, log: after.deltalog!, filteredMetadata: [] }],
+    });
+    if (sync.type !== 'sync') throw new Error('Unexpected filtered sync');
+    expect(sync.args[1].state.G.players['1']).toMatchObject({ claim: null, claimSubmitted: true });
+    expect(sync.args[1].log[0].action.payload.args).toBeNull();
+    // The transport separately filters initialState with this same update path.
+    const initial = filter('0', { type: 'update', args: ['claim-privacy', after] });
+    if (initial.type !== 'update') throw new Error('Unexpected filtered initial state');
+    expect(initial.args[1].G.players['1'].claim).toBeNull();
+    expect(after.G.players['1'].claim).toBe(3);
+    expect(after.deltalog![0].action.payload.args).toEqual([3, 1]);
   });
 });
