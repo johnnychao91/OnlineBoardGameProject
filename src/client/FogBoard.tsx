@@ -63,7 +63,7 @@ export function FogBoard({ G, playerID, moves, isConnected }: BoardProps) {
   return <>
     <div className={`connection-banner ${isConnected === false ? 'offline' : ''}`} role="status"><Icon type="signal" size={15} />{isConnected === false ? '連線中斷，行動已暫停。重連後請確認最新局勢。' : '巡夜連線已建立'}</div>
     <main className="game-layout fog-layout">
-      <section className="game-main fog-main">
+      <section className={`game-main fog-main ${reviewPhases.includes(G.status) ? 'fog-reviewing' : ''}`}>
         <FogHeading G={G}><GameSoundControl gameID="black-fog" G={G} matchID={info.matchID} playerID={id} connected={isConnected !== false} /></FogHeading><FogStatus G={G} nameOf={nameOf} ownID={id} />
         <FogTrack G={G} />
         <FogParticipants G={G} nameOf={nameOf} ownID={id} secretsVisible={secretsVisible} selecting={canNominate} onSelect={targetID => {
@@ -71,11 +71,9 @@ export function FogBoard({ G, playerID, moves, isConnected }: BoardProps) {
           if (!selected && G.team.length >= required) return;
           send('selectTeam', selected ? G.team.filter(member => member !== targetID) : [...G.team, targetID]);
         }} />
-        <section className="panel fog-action-panel" aria-label="目前行動">
-          <FogPublicPhase G={G} nameOf={nameOf} />
-          {reviewPhases.includes(G.status) && <button className="button primary full" disabled={!canAct || own?.acknowledged} onClick={() => send('acknowledge')}>
-            {own?.acknowledged ? '已確認，等待其他巡夜者' : G.status === 'briefing' ? '我已看過身分，準備巡夜' : '我已看過結果，繼續'}<Icon type="check" size={17} />
-          </button>}
+        <section className={`panel fog-action-panel ${reviewPhases.includes(G.status) ? 'fog-review-panel' : ''}`} aria-label="目前行動">
+          <div className="fog-action-content">
+          <FogPublicPhase G={G} nameOf={nameOf} showWaiting={false} />
           {G.status === 'nomination' && G.leaderID === id && <button className="button primary full" disabled={!canAct || G.team.length !== required} onClick={() => send('confirmTeam')}>確認這 {required} 位出征，開始全員表決</button>}
           {G.status === 'voting' && <div className="fog-vote-actions">
             <button className="button secondary" disabled={!canAct || own?.voteSubmitted} onClick={() => send('vote', false)}>反對此隊伍</button>
@@ -92,6 +90,12 @@ export function FogBoard({ G, playerID, moves, isConnected }: BoardProps) {
           {notice && <p className="error-message" role="status">{notice}</p>}
           {pending && <p className="small muted" role="status">正在確認行動…</p>}
           {G.status === 'finished' && <p className="small muted">本局已結束，稍後返回原等待室。結果與復盤會保留。</p>}
+          </div>
+          {reviewPhases.includes(G.status) && <FogReviewFooter G={G} nameOf={nameOf}>
+            <button className="button primary" disabled={!canAct || own?.acknowledged} onClick={() => send('acknowledge')}>
+              {own?.acknowledged ? '已確認，等待其他巡夜者' : G.status === 'briefing' ? '我已看過身分，準備巡夜' : '我已看過結果，繼續'}<Icon type="check" size={17} />
+            </button>
+          </FogReviewFooter>}
         </section>
       </section>
       <aside className="fog-personal-aside"><FogPrivatePanel G={G} playerID={id} nameOf={nameOf} expanded={secretsVisible} onExpandedChange={setSecretsVisible} /></aside>
@@ -157,8 +161,12 @@ export function FogParticipants({ G, nameOf, ownID, secretsVisible = true, godVi
   })}</div></section>;
 }
 
-export function FogPublicPhase({ G, nameOf }: { G: FogState; nameOf: FogNameOf }) {
+export function FogReviewFooter({ G, nameOf, children }: { G: FogState; nameOf: FogNameOf; children?: ReactNode }) {
   const unready = Object.keys(G.players).filter(id => !G.players[id].acknowledged);
+  return <div className="fog-review-footer"><p className="fog-unready" role="status"><strong>尚未確認：</strong>{unready.length ? unready.map(nameOf).join('、') : '全員已確認'}</p>{children}</div>;
+}
+
+export function FogPublicPhase({ G, nameOf, showWaiting = true }: { G: FogState; nameOf: FogNameOf; showWaiting?: boolean }) {
   const result = G.questResults.at(-1);
   return <>
     {G.status === 'briefing' && <p>查看秘密身分與已知情報；之後可以自由討論，請勿展示秘密畫面。</p>}
@@ -167,7 +175,7 @@ export function FogPublicPhase({ G, nameOf }: { G: FogState; nameOf: FogNameOf }
     {G.status === 'vote-review' && G.lastVote && <div className="fog-vote-result"><h3>{G.lastVote.approved ? '表決通過' : '表決未通過'}</h3><div>{Object.entries(G.lastVote.votes).map(([id, approve]) => <span className={approve ? 'approved' : 'rejected'} key={id}>{nameOf(id)}：{approve ? '贊成' : '反對'}</span>)}</div></div>}
     {G.status === 'quest' && <p className="fog-submission-count">已密封行動 <strong>{G.team.filter(id => G.players[id]?.questSubmitted).length} / {G.team.length}</strong> 位。只揭曉匿名合計。</p>}
     {G.status === 'quest-review' && result && <div className={`fog-quest-result ${result.succeeded ? 'lit' : 'lost'}`}><h3>第 {result.quest} 座燈塔{result.succeeded ? '成功點亮' : '失守'}</h3><div><span>守護 <strong>{result.successes}</strong></span><span>侵蝕 <strong>{result.fails}</strong></span></div><p className="small muted">出征：{result.team.map(nameOf).join('、')}。行動牌的主人不會公開。</p></div>}
-    {reviewPhases.includes(G.status) && <p className="fog-unready" role="status"><strong>尚未確認：</strong>{unready.length ? unready.map(nameOf).join('、') : '全員已確認'}</p>}
+    {showWaiting && reviewPhases.includes(G.status) && <FogReviewFooter G={G} nameOf={nameOf} />}
     {G.status === 'assassination' && <p>所有人可討論；只有刺客能提交最後指認。其他玩家請等待。</p>}
     {G.status === 'finished' && <p>{G.assassinationTarget ? `最後指認：${nameOf(G.assassinationTarget)}。` : ''}{fogReason(G.winReason)}</p>}
   </>;

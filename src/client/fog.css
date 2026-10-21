@@ -52,7 +52,11 @@
 .fog-player.fog-known-initial-apostles,.fog-player.fog-known-candidate { border-left: 4px dashed #acb9ca; }
 .fog-known-initial-apostles .fog-known-faction,.fog-known-candidate .fog-known-faction { color: #bec9d9; }
 .fog-action-panel p { line-height: 1.65; font-size: 13px; margin: 0 0 11px; }
-.fog-action-panel > :last-child { margin-bottom: 0; }
+.fog-action-panel { display: flex; flex-direction: column; gap: 12px; }
+.fog-action-content > :last-child { margin-bottom: 0; }
+.fog-review-footer { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; flex-shrink: 0; }
+.fog-review-footer .fog-unready { flex: 1 1 220px; margin: 0; min-width: 0; overflow-wrap: anywhere; }
+.fog-review-footer > .button { flex: 0 0 auto; position: static; }
 .fog-vote-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .fog-vote-actions > p { grid-column: 1/-1; }
 .fog-vote-actions .button { padding: 11px; }
@@ -123,10 +127,11 @@
   .fog-status strong { font-size: 16px; }
   .fog-player { padding: 8px; }
   .fog-player-name { font-size: 12px; }
+  .fog-review-footer > .button { width: 100%; }
 }
 @media (min-width: 1100px) and (min-height: 700px) {
   :is(.room-game,.replay-panel,.shared-replay) .fog-layout { flex: 1; min-height: 0; width: 100%; max-width: none; margin: 0; padding: 0 20px 12px; display: grid; grid-template-columns: var(--game-history-width,190px) minmax(0,1fr) 220px; grid-template-rows: minmax(0,1fr); gap: 14px; align-items: stretch; overflow: hidden; }
-  :is(.room-game,.replay-panel,.shared-replay) .fog-main { grid-column: 2; grid-row: 1; min-height: 0; display: grid; grid-template-rows: auto auto minmax(0,max-content) minmax(100px,1fr) minmax(70px,.7fr); overflow: hidden; gap: 9px; }
+  :is(.room-game,.replay-panel,.shared-replay) .fog-main { grid-column: 2; grid-row: 1; min-height: 0; display: grid; grid-template-rows: auto auto minmax(0,max-content) minmax(100px,1fr) auto; overflow: hidden; gap: 9px; }
   .fog-personal-aside { grid-column: 3; grid-row: 1; min-height: 0; overflow: auto; }
   .fog-history-aside { grid-column: 1; grid-row: 1; min-height: 0; overflow: hidden; padding-top: 0; }
   .fog-history-aside > * { margin: 0; }
@@ -158,8 +163,11 @@
   .fog-player-tags { gap: 3px; font-size: 9px; }
   .fog-player-tags b { font-size: 9px; padding: 0 3px; }
   .fog-action-panel p { font-size: 12px; margin-bottom: 8px; }
-  .fog-action-panel { min-height: 0; max-height: 190px; overflow: auto; }
-  .fog-action-panel > .button:last-child { position: sticky; bottom: -1px; z-index: 1; }
+  .fog-action-panel { min-height: 0; max-height: min(34vh,300px); overflow: hidden; }
+  .fog-action-content { flex: 1 1 auto; min-height: 0; overflow: auto; }
+  .fog-review-panel { min-height: 184px; }
+  .fog-review-panel .fog-action-content { min-height: 72px; }
+  .fog-review-footer .fog-unready { margin: 0; max-height: 74px; overflow: auto; }
   .fog-quest-result { display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: center; gap: 4px 10px; }
   .fog-quest-result > div { margin: 0; gap: 12px; }
   .fog-quest-result h3 { margin: 0; }
@@ -168,6 +176,17 @@
   .fog-action-panel .button { padding-top: 10px; padding-bottom: 10px; font-size: 12px; }
   .fog-players-panel .section-heading { margin-bottom: 8px; }
   .fog-players-panel h2,.fog-log h2,.fog-action-panel h3 { font-size: 14px; margin-bottom: 7px; }
+}
+
+/* In a short desktop window, the result itself replaces the duplicate phase
+   banner. Keep the tower cards and a readable result area above a separate
+   confirmation row; long names scroll within their own list. */
+@media (min-width: 1100px) and (min-height: 700px) and (max-height: 800px) {
+  :is(.room-game,.replay-panel,.shared-replay) .fog-main.fog-reviewing {
+    grid-template-rows: auto minmax(180px,max-content) minmax(70px,1fr) minmax(172px,max-content);
+  }
+  .fog-review-panel { min-height: 172px; padding: 8px; gap: 8px; }
+  .fog-reviewing > .fog-status,.fog-reviewing .fog-readonly-note { display: none; }
 }
 
 /* Original art loads only when the player selects the art style. */
