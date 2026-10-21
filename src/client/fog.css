@@ -1,0 +1,182 @@
+.fog-layout { --fog-gold: #ecd399; --fog-red: #ff8591; --fog-green: #88dec9; align-items: start; }
+.fog-main { min-width: 0; display: flex; flex-direction: column; gap: 14px; }
+.fog-main > * { margin: 0; }
+.fog-heading h1 { margin: 3px 0 0; }
+.fog-heading-controls { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 9px; }
+.fog-status { display: flex; gap: 13px; padding: 15px 18px; border: 1px solid #60798a; background: #223448; border-radius: 12px; }
+.fog-status strong { color: var(--fog-gold); font-size: 18px; }
+.fog-status p { margin: 5px 0 0; font-size: 13px; color: #bbc8d9; line-height: 1.6; }
+.fog-status-emblem { flex: 0 0 auto; font-size: 29px; color: var(--fog-gold); }
+.fog-your-turn { border: 2px solid var(--fog-gold); background: #3c3b2e; box-shadow: 0 0 0 4px #ecd39915; }
+.fog-your-turn strong { font-size: 21px; }
+.fog-danger strong,.fog-apostles-text,.fog-public-role.apostles { color: var(--fog-red); }
+.fog-public-role.knights { color: var(--fog-green); }
+.fog-track-panel,.fog-players-panel,.fog-action-panel { padding: 17px; }
+.fog-track { display: grid; grid-template-columns: repeat(5,minmax(0,1fr)); gap: 7px; }
+.fog-lighthouse { min-width: 0; padding: 11px 3px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 4px; border: 1px solid #435369; border-radius: 10px; background: #172335; }
+.fog-lighthouse > span:not(.fog-lighthouse-art) { font-size: 11px; color: #a4b6cc; }
+.fog-lighthouse strong { font-size: 20px; }
+.fog-lighthouse small { font-size: 10px; color: #a4b6cc; line-height: 1.4; }
+.fog-lighthouse.current { border-color: var(--fog-gold); box-shadow: inset 0 0 0 1px #ecd39933; }
+.fog-lighthouse.lit { background: #1c3b36; border-color: #568f7f; color: var(--fog-green); }
+.fog-lighthouse.lost { background: #412b36; border-color: #a25e6b; color: var(--fog-red); }
+.fog-rejections { display: flex; align-items: center; flex-wrap: wrap; gap: 9px; font-size: 12px; padding: 11px 0 8px; }
+.fog-rejections strong { color: var(--fog-red); }
+.fog-bells { display: flex; gap: 8px; padding-top: 10px; border-top: 1px solid #3c4e64; font-size: 11px; }
+.fog-bells strong { color: var(--fog-gold); font-size: 12px; }
+.fog-bell-cards { display: flex; flex-wrap: wrap; gap: 4px 10px; margin-top: 7px; color: #aebed0; }
+.fog-bell-cards .switch { color: var(--fog-red); }
+.fog-bell-line { margin: 2px 0 0; }
+.fog-players-panel .section-heading { margin-bottom: 12px; }
+.fog-players-panel h2,.fog-log h2,.fog-action-panel h3 { font-size: 16px; margin: 0 0 10px; }
+.fog-players { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 7px; }
+.fog-player { display: flex; flex-direction: column; min-width: 0; min-height: 68px; gap: 7px; text-align: left; padding: 10px; background: #121e30; border: 1px solid #405168; border-radius: 10px; color: inherit; font: inherit; }
+.fog-player.selectable { cursor: pointer; }
+.fog-player.selectable:hover:not(:disabled) { border-color: var(--fog-gold); background: #293b43; }
+.fog-player:disabled { opacity: .48; cursor: not-allowed; }
+.fog-player.selected { background: #253c40; border-color: #82b4a6; }
+.fog-player-top { display: flex; gap: 7px; align-items: center; }
+.fog-seat { display: inline-grid; place-items: center; width: 21px; height: 21px; border-radius: 50%; border: 1px solid #6b7f92; font-size: 11px; flex-shrink: 0; color: var(--fog-gold); }
+.fog-player-name { font-weight: 650; font-size: 13px; overflow-wrap: anywhere; }
+.fog-player-tags { display: flex; flex-wrap: wrap; gap: 5px; font-size: 11px; color: #a9bad0; }
+.fog-player-tags b { font-size: 10px; font-weight: 650; border-radius: 4px; padding: 1px 5px; background: #554a33; color: var(--fog-gold); }
+.fog-player-tags .fog-selected-label { background: #274e44; color: var(--fog-green); }
+.fog-public-role { font-size: 10px; }
+.fog-action-panel p { line-height: 1.65; font-size: 13px; margin: 0 0 11px; }
+.fog-action-panel > :last-child { margin-bottom: 0; }
+.fog-vote-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.fog-vote-actions > p { grid-column: 1/-1; }
+.fog-vote-actions .button { padding: 11px; }
+.fog-submission-count strong { color: var(--fog-gold); }
+.fog-vote-result > div { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 12px; }
+.fog-vote-result span { padding: 5px 8px; border-radius: 6px; font-size: 12px; background: #29463c; color: var(--fog-green); }
+.fog-vote-result .rejected { background: #49323d; color: var(--fog-red); }
+.fog-quest-result > div { display: flex; gap: 22px; margin: 8px 0; }
+.fog-quest-result strong { font-size: 23px; margin-left: 7px; }
+.fog-quest-result.lit h3 { color: var(--fog-green); }
+.fog-quest-result.lost h3 { color: var(--fog-red); }
+.fog-unready { padding: 10px 12px; border: 1px solid #58637a; border-radius: 8px; color: #d1d9e4; background: #202f43; }
+.fog-targets { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 10px; }
+.fog-targets .button { padding: 8px 12px; font-size: 12px; }
+.fog-private-panel { padding: 0; overflow: hidden; }
+.fog-private-toggle { width: 100%; padding: 13px; border: 0; border-radius: 12px; background: #1e3044; color: #d8e6ef; display: flex; justify-content: space-between; gap: 7px; font: inherit; font-size: 11px; cursor: pointer; }
+.fog-private-toggle span:first-child { display: flex; align-items: center; gap: 6px; font-weight: 650; }
+.fog-private-toggle span:last-child { color: var(--fog-green); }
+.fog-private-content { padding: 13px; }
+.fog-role-card { padding: 13px; border: 1px solid #52796e; background: #1d3634; border-radius: 10px; }
+.fog-role-card h2 { margin: 5px 0 10px; color: var(--fog-green); font-size: 25px; }
+.fog-role-card strong { font-size: 12px; color: var(--fog-green); }
+.fog-role-card p { font-size: 12px; line-height: 1.75; margin-bottom: 0; }
+.fog-role-card.apostles { background: #362734; border-color: #9e6471; }
+.fog-role-card.apostles h2,.fog-role-card.apostles strong { color: var(--fog-red); }
+.fog-role-card.unrevealed { background: #1a2a3d; border-color: #4d6077; }
+.fog-intelligence { border-top: 1px solid #42536b; margin-top: 12px; padding-top: 12px; }
+.fog-intelligence h3 { font-size: 12px; margin: 0 0 8px; color: var(--fog-gold); }
+.fog-intelligence p { font-size: 12px; line-height: 1.75; }
+.fog-concealed { display: flex; align-items: center; justify-content: center; gap: 9px; min-height: 80px; padding: 13px; }
+.fog-inspector { padding: 12px 13px 0; }
+.fog-log { padding: 16px; }
+.fog-log ol { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column-reverse; }
+.fog-log li { border-top: 1px solid #34475c; padding: 10px 0; }
+.fog-log li > span { font-size: 10px; color: #8197af; }
+.fog-log p { font-size: 12px; line-height: 1.6; margin: 4px 0 0; overflow-wrap: anywhere; }
+.fog-history-aside { display: flex; flex-direction: column; gap: 12px; }
+.fog-vote-log { font-size: 11px; margin-top: 7px; }
+.fog-vote-log summary { color: #acbcd0; cursor: pointer; }
+.fog-vote-log > div { padding-top: 4px; }
+.fog-role-art,.fog-lighthouse-art,.fog-bell-art { display: none; }
+.fog-options { margin-top: 14px; }
+.fog-options h3 { margin-top: 0; }
+.fog-options label { display: block; font-size: 13px; }
+.fog-options select { width: 100%; margin-top: 7px; }
+.fog-option-roles { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 14px 0; }
+.fog-option-roles label { display: flex; align-items: center; min-width: 0; gap: 8px; line-height: 1.5; }
+.fog-option-roles input[type="checkbox"] { width: 20px; height: 20px; min-height: 20px; padding: 0; margin: 0; flex: 0 0 20px; accent-color: #77e4c9; }
+.fog-options .small { line-height: 1.7; }
+
+@media (max-width: 1099px), (max-height: 699px) {
+  .fog-layout { display: flex; flex-direction: column; gap: 16px; max-width: 800px; }
+  .fog-main,.fog-personal-aside,.fog-history-aside { width: 100%; }
+  .fog-personal-aside { order: -1; }
+}
+@media (max-width: 600px) {
+  .fog-layout { padding: 0 12px; margin-top: 14px; }
+  .fog-track-panel,.fog-players-panel,.fog-action-panel { padding: 12px; }
+  .fog-track { gap: 4px; }
+  .fog-lighthouse { padding: 8px 2px; }
+  .fog-lighthouse strong { font-size: 17px; }
+  .fog-lighthouse small { font-size: 8px; }
+  .fog-status { padding: 12px; }
+  .fog-status strong { font-size: 16px; }
+  .fog-player { padding: 8px; }
+  .fog-player-name { font-size: 12px; }
+}
+@media (min-width: 1100px) and (min-height: 700px) {
+  :is(.room-game,.replay-panel,.shared-replay) .fog-layout { flex: 1; min-height: 0; width: 100%; max-width: none; margin: 0; padding: 0 20px 12px; display: grid; grid-template-columns: var(--game-history-width,190px) minmax(0,1fr) 220px; grid-template-rows: minmax(0,1fr); gap: 14px; align-items: stretch; overflow: hidden; }
+  :is(.room-game,.replay-panel,.shared-replay) .fog-main { grid-column: 2; grid-row: 1; min-height: 0; display: grid; grid-template-rows: auto auto auto minmax(70px,1fr) auto; overflow: hidden; gap: 9px; }
+  .fog-personal-aside { grid-column: 3; grid-row: 1; min-height: 0; overflow: auto; }
+  .fog-history-aside { grid-column: 1; grid-row: 1; min-height: 0; overflow: hidden; padding-top: 0; }
+  .fog-history-aside > * { margin: 0; }
+  .fog-history-aside > .fog-log { flex: 1; min-height: 0; overflow: auto; }
+  .fog-history-aside > details { flex-shrink: 0; max-height: 40%; overflow: auto; }
+  .fog-heading { min-height: 43px; }
+  .fog-heading h1 { font-size: 23px; }
+  .fog-heading .eyebrow { display: none; }
+  .fog-status { padding: 8px 13px; }
+  .fog-status-emblem { font-size: 24px; line-height: 1.2; }
+  .fog-status strong { display: block; font-size: 16px; line-height: 20px; }
+  .fog-status p { font-size: 11px; line-height: 15px; margin-top: 2px; }
+  .fog-track-panel,.fog-players-panel,.fog-action-panel { padding: 12px; }
+  .fog-lighthouse { padding: 5px 3px; gap: 0; }
+  .fog-lighthouse > span:not(.fog-lighthouse-art) { font-size: 10px; line-height: 12px; }
+  .fog-lighthouse strong { font-size: 17px; line-height: 22px; }
+  .fog-lighthouse small { font-size: 9px; line-height: 12px; }
+  .fog-rejections { padding: 3px 0; line-height: 19px; }
+  .fog-bells { padding-top: 6px; line-height: 1.4; font-size: 10px; }
+  .fog-bells strong { font-size: 11px; }
+  .fog-bell-cards { margin-top: 3px; }
+  .fog-players-panel { min-height: 0; overflow: auto; }
+  .fog-players { grid-template-columns: repeat(5,minmax(0,1fr)); gap: 6px; }
+  .fog-player { padding: 7px; gap: 4px; min-height: 54px; }
+  .fog-player-top { gap: 5px; }
+  .fog-seat { width: 17px; height: 17px; font-size: 9px; }
+  .fog-player-name { font-size: 11px; }
+  .fog-player-tags { gap: 3px; font-size: 9px; }
+  .fog-player-tags b { font-size: 9px; padding: 0 3px; }
+  .fog-action-panel p { font-size: 12px; margin-bottom: 8px; }
+  .fog-action-panel { max-height: 255px; overflow: auto; }
+  .fog-action-panel > .button:last-child { position: sticky; bottom: -1px; z-index: 1; }
+  .fog-quest-result { display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: center; gap: 4px 10px; }
+  .fog-quest-result > div { margin: 0; gap: 12px; }
+  .fog-quest-result h3 { margin: 0; }
+  .fog-quest-result > p { grid-column: 1/-1; }
+  .fog-unready { padding: 6px 9px; }
+  .fog-action-panel .button { padding-top: 10px; padding-bottom: 10px; font-size: 12px; }
+  .fog-players-panel .section-heading { margin-bottom: 8px; }
+  .fog-players-panel h2,.fog-log h2,.fog-action-panel h3 { font-size: 14px; margin-bottom: 7px; }
+}
+
+/* Original art loads only when the player selects the art style. */
+:root[data-visual-style="art"] [data-art-game="black-fog"] { --art-scene: url('./assets/art/fog/city.webp'); }
+:root[data-visual-style="art"] .fog-role-art { display: block; width: 100%; height: 154px; margin-bottom: 11px; background-position: center 26%; background-size: cover; border-radius: 8px; border: 1px solid #b49e6c; }
+:root[data-visual-style="art"] .fog-role-art[data-fog-role="merlin"] { background-image: url('./assets/art/fog/merlin.webp'); }
+:root[data-visual-style="art"] .fog-role-art[data-fog-role="percival"] { background-image: url('./assets/art/fog/percival.webp'); }
+:root[data-visual-style="art"] .fog-role-art[data-fog-role="loyal-servant"] { background-image: url('./assets/art/fog/loyal.webp'); }
+:root[data-visual-style="art"] .fog-role-art[data-fog-role="assassin"] { background-image: url('./assets/art/fog/assassin.webp'); }
+:root[data-visual-style="art"] .fog-role-art[data-fog-role="morgana"] { background-image: url('./assets/art/fog/morgana.webp'); }
+:root[data-visual-style="art"] .fog-role-art[data-fog-role="mordred"] { background-image: url('./assets/art/fog/mordred.webp'); }
+:root[data-visual-style="art"] .fog-role-art[data-fog-role="oberon"] { background-image: url('./assets/art/fog/oberon.webp'); }
+:root[data-visual-style="art"] .fog-role-art[data-fog-role="minion"] { background-image: url('./assets/art/fog/minion.webp'); }
+:root[data-visual-style="art"] .fog-role-art[data-fog-role="good-lancelot"] { background-image: url('./assets/art/fog/lancelot-good.webp'); }
+:root[data-visual-style="art"] .fog-role-art[data-fog-role="evil-lancelot"] { background-image: url('./assets/art/fog/lancelot-evil.webp'); }
+:root[data-visual-style="art"] .fog-lighthouse-art { display: block; height: 38px; width: 38px; background: url('./assets/art/fog/lighthouse.webp') center / cover; border-radius: 7px; }
+:root[data-visual-style="art"] .fog-bell-art { display: block; height: 37px; width: 37px; flex: 0 0 37px; background: url('./assets/art/fog/bell.webp') center / cover; border-radius: 7px; }
+:root[data-visual-style="art"] .fog-layout .panel { border-color: #716c57; }
+:root[data-visual-style="art"] .fog-status { background: #34382f; border-color: #ac9460; }
+:root[data-visual-style="art"] .fog-player.selected { background: #35483a; border-color: #b9b27c; }
+:root[data-visual-style="art"] .fog-role-card { background-color: #253b31; }
+:root[data-visual-style="art"] .fog-role-card.apostles { background-color: #3d3038; }
+@media (min-width: 1100px) and (min-height: 700px) {
+  :root[data-visual-style="art"] .fog-lighthouse-art { width: 25px; height: 25px; margin-bottom: 3px; }
+  :root[data-visual-style="art"] .fog-bell-art { width: 28px; height: 28px; flex-basis: 28px; }
+}

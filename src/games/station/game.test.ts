@@ -177,7 +177,7 @@ describe('太空維修站設定與資訊邊界', () => {
     revealChoice(client, choose(client, kind => kind === 'stable'));
     expect(raw(client).log).toHaveLength(1);
     assertConservation(raw(client), 4);
-    for (const ids of [['1', '1', '3', '4'], ['1', '3', '4', '8'], ['1', '3', '4']]) {
+    for (const ids of [['1', '1', '3', '4'], ['1', '3', '4', '10'], ['1', '3', '4']]) {
       expect(StationGame.validateSetupData!({ startImmediately: true, participantIDs: ids }, 4)).toBeTypeOf('string');
     }
   });

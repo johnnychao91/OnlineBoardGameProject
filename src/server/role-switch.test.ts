@@ -1,3 +1,4 @@
+import { ROOM_CAPACITY } from '../games/catalog';
 import { randomUUID } from 'node:crypto';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -270,7 +271,7 @@ describe('Authenticated spectator roster and in-room role switching', () => {
   });
 
   it.each(games)('rejects full player seats in $id without revoking the observer or changing the room', async game => {
-    const f = await fixture(); const g = await group(f, game.id, 8);
+    const f = await fixture(); const g = await group(f, game.id, ROOM_CAPACITY);
     const before = (await f.request(path(g.room), undefined, g.room)).body;
     const result = await f.request(path(g.room, 'switch-role'), switchBody(before.matchID, 'player'), g.observer);
     expect(result.status).toBe(409);

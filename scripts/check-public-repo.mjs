@@ -23,6 +23,9 @@ const metadataHostFiles = new Set([
 
 export function allowedHost(input, file) {
   const host = input.toLowerCase().replace(/^\*\./, '').replace(/\.$/, '');
+  // Rules provenance only; this is never an allowed deployment target.
+  if (['docs/BLACK_FOG.md', 'scripts/check-public-repo.mjs', 'scripts/check-public-repo.test.mjs'].includes(file)
+    && host === 'indieboardsandcards.com') return true;
   if (['localhost', '127.0.0.1', '[::1]', '::1'].includes(host)) return true;
   if (/(?:^|\.)example\.(?:com|org|net)$/.test(host)) return true;
   if (/(?:^|\.)(?:example|test|invalid|localhost)$/.test(host)) return true;

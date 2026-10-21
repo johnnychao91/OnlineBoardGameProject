@@ -1,3 +1,4 @@
+import { ROOM_CAPACITY } from '../games/catalog';
 import { afterEach, describe, expect, it } from 'vitest';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -93,10 +94,10 @@ describe('Private room admission API', () => {
   });
   it('serializes concurrent joins without assigning the same seat twice', async () => {
     const f = await fixture(); const host = await f.create();
-    const joined = await Promise.all(Array.from({ length: 8 }, (_, i) => f.request(`/api/rooms/${host.roomId}/join`, { inviteToken: inviteToken(host), displayName: `朋友${i}` })));
+    const joined = await Promise.all(Array.from({ length: ROOM_CAPACITY }, (_, i) => f.request(`/api/rooms/${host.roomId}/join`, { inviteToken: inviteToken(host), displayName: `朋友${i}` })));
     const successful = joined.filter((r) => r.status === 200);
-    expect(successful).toHaveLength(7);
-    expect(new Set(successful.map((r) => r.body.playerID)).size).toBe(7);
+    expect(successful).toHaveLength(ROOM_CAPACITY - 1);
+    expect(new Set(successful.map((r) => r.body.playerID)).size).toBe(ROOM_CAPACITY - 1);
     expect(joined.filter((r) => r.status === 409)).toHaveLength(1);
   });
   it('safely retries a lost admission response without consuming another seat', async () => {

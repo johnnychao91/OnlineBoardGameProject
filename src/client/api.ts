@@ -16,6 +16,7 @@ export interface RoomInfo {
   gameName: string;
   /** Absent in older saved sessions, which already had a selected game. */
   gameSelected?: boolean;
+  gameOptions?: Record<string, unknown>;
   roomCapacity?: number;
   /** lobby / finished are shared; each game defines its active phase names. */
   status: string;

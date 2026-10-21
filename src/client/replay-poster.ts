@@ -1,4 +1,5 @@
 import type { CardKind, StationObserverState } from '../games/station/game';
+import { isPlayerSeatID } from '../games/catalog';
 
 export interface ReplayPosterOptions {
   G: StationObserverState;
@@ -124,7 +125,7 @@ function playerName(players: ReplayPosterOptions['players'], id: string): string
   const name = players.find((player) => String(player.id) === id)?.name;
   if (typeof name === 'string' && safeText(name, 32)) return safeText(name, 32);
   const seat = Number(id);
-  return Number.isInteger(seat) && seat >= 0 && seat < 8 ? `玩家 ${seat + 1}` : '未命名玩家';
+  return isPlayerSeatID(id) ? `玩家 ${seat + 1}` : '未命名玩家';
 }
 
 function backdrop(ctx: CanvasRenderingContext2D): void {

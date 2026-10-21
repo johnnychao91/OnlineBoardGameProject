@@ -15,6 +15,9 @@ test('permits reserved examples, loopback and narrowly scoped public sources', (
     assert.equal(allowedHost(host, 'README.md'), true);
   }
   assert.equal(allowedHost('github.com', 'README.md'), true);
+  assert.equal(allowedHost('indieboardsandcards.com', 'docs/BLACK_FOG.md'), true);
+  assert.equal(allowedHost('indieboardsandcards.com', 'deploy/apache.conf.example'), false);
+  assert.equal(allowedHost('indieboardsandcards.com', 'README.md'), false);
   assert.equal(allowedHost('registry.npmjs.org', 'package-lock.json'), true);
   assert.equal(allowedHost('registry.npmjs.org', 'deploy/apache.conf.example'), false);
   assert.equal(allowedHost(`example.com.${privateHost}`, 'README.md'), false);

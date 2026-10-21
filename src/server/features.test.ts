@@ -160,8 +160,8 @@ describe('Dynamic participant counts and authorized start', () => {
     const observer = await watch(f, host);
     expect(observer).toMatchObject({ access: 'spectator', numPlayers: 8, spectatorCount: 1 });
     expect(observer.playerID).toBeUndefined();
-    expect((await f.request(roomPath(host, 'join'), { inviteToken: inviteToken(host), displayName: '第九位' })).status).toBe(409);
     expect((await f.request(roomPath(host, 'start'), {}, seatHeaders(host))).body.numPlayers).toBe(8);
+    expect((await f.request(roomPath(host, 'join'), { inviteToken: inviteToken(host), displayName: '第九位' })).status).toBe(409);
   });
 
   it('serializes a join racing with start without dropping or silently admitting a player', async () => {

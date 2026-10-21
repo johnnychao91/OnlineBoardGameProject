@@ -2,7 +2,7 @@
 
 API 與網頁同源，正式環境使用 HTTPS；開發由 Vite 代理。POST 使用 `Content-Type: application/json`，body 為物件且不超過 4096 bytes，無參數時傳 `{}`。API 回應為 `Cache-Control: no-store`，錯誤為 `{"error":"可顯示的說明"}`。
 
-公開詳細規則網頁使用 `GET`／`HEAD /rules`、`/rules/space-station`、`/rules/encrypted-call`，也接受尾端 `/`。不需加入房間，回傳 `no-cache` 的前端頁面；預覽只包含平台名稱、圖示與以 `PUBLIC_ORIGIN` 產生的公開路徑，不含 query、邀請、身份或對局資料。未知規則路徑回 404。房內規則連結在新分頁開啟，保留原遊戲連線；新增遊戲規則時同步擴充前後端規則路由。
+公開詳細規則網頁使用 `GET`／`HEAD /rules`、`/rules/space-station`、`/rules/encrypted-call`、`/rules/black-fog`，也接受尾端 `/`。不需加入房間，回傳 `no-cache` 的前端頁面；預覽只包含平台名稱、圖示與以 `PUBLIC_ORIGIN` 產生的公開路徑，不含 query、邀請、身份或對局資料。未知規則路徑回 404。房內規則連結在新分頁開啟，保留原遊戲連線；規則路由依共用遊戲目錄與註冊表辨識，不另維護固定白名單。
 
 ## 身份與權限
 
@@ -27,6 +27,7 @@ API 與網頁同源，正式環境使用 HTTPS；開發由 Vite 代理。POST �
 | `GET /api/rooms/:id` | 玩家／觀戰 | `RoomInfo` |
 | `POST /api/rooms/:id/switch-role` | 玩家／觀戰 | `{access,matchID,requestID}`，只在等待室切換參與／觀戰；回新身分 session |
 | `POST /api/rooms/:id/game` | 房主 | `{matchID,gameId}`，只在等待室選擇或更換遊戲，重設準備；回 `RoomInfo` |
+| `POST /api/rooms/:id/options` | 房主 | `{matchID,options}`，等待室調整當前遊戲房規，重設準備並換新對局 ID；回 `RoomInfo` |
 | `POST /api/rooms/:id/ready` | 玩家 | `{ready:boolean,matchID}`，只在等待室；回 `RoomInfo` |
 | `POST /api/rooms/:id/remove` | 房主 | `{playerID,membershipID}`，只在等待室單次移出其他玩家；回 `RoomInfo` |
 | `POST /api/rooms/:id/start` | 房主 | `{matchID}`，符合該遊戲的人數範圍且全員準備後開始；回 `RoomInfo` |
@@ -53,7 +54,7 @@ API 與網頁同源，正式環境使用 HTTPS；開發由 Vite 代理。POST �
 
 `gameId` 選填，省略時建立尚未選遊戲的等待室（`gameSelected:false`），不能準備或開局；底層 `gameName` 不表示房主已選定遊戲。仍接受舊客戶端傳入 `space-station`（太空維修站，4～8 人）或 `encrypted-call`（加密通話，2～4 人），完整列表以 `/api/games` 為準。`RoomInfo.status` 的 `lobby` 為共用等待室，其餘由遊戲決定；加密通話另有 `syncing`、`playing`、`pulse`、`intermission`、`finished`。
 
-房主（包含觀戰房主）可用 `game` 端點選擇遊戲，須帶目前等待室的 `matchID`。換遊戲建立新等待室 ID、清除全員準備，保留房號、成員座位與憑證、房主、邀請和歷史；舊 ID 的操作不得套用到新等待室。對局中拒絕換遊戲。房間參與席容量 `roomCapacity` 為 8，與遊戲開局上限分開；換成 2～4 人遊戲仍保留所有成員，超過 4 人時不能開始，須自行改為觀戰或離開。
+房主（包含觀戰房主）可用 `game` 端點選擇遊戲，須帶目前等待室的 `matchID`。換遊戲建立新等待室 ID、清除全員準備，保留房號、成員座位與憑證、房主、邀請和歷史；舊 ID 的操作不得套用到新等待室。對局中拒絕換遊戲。房間參與席容量 `roomCapacity` 目前為 10，與遊戲開局上限分開；換成 2～4 人遊戲仍保留所有成員，超過 4 人時不能開始，須自行改為觀戰或離開。
 
 建立時預留房間容量，等待室顯示實際參與者與獨立觀戰名單。`ready` 更新自己的準備狀態。`start`、加入、移出、選遊戲與身分切換請求共用房間序列佇列，檢查實際人數與準備狀態，用新的加密亂數種子初始化正確人數，保留既有席位 ID 與憑證。席位不必連續；遊戲登錄的 `startSetupData(participantIDs)` 接收伺服器核對過的參與席位，遊戲依此建立角色、牌與行動順序。觀戰者不進玩家 metadata，也不計配牌。
 
@@ -104,7 +105,7 @@ API 與網頁同源，正式環境使用 HTTPS；開發由 Vite 代理。POST �
 | `roomId`, `matchID` | 16 字元 base64url 識別碼；房號穩定，返回等待室或切換身分時目前對局 ID 更新 |
 | `gameName` | 登錄的遊戲識別碼 |
 | `gameSelected` | 是否已選定遊戲；舊資料缺省視為 `true`，`false` 時不可準備／開局 |
-| `roomCapacity` | 房間參與席容量 8；與所選遊戲的 `maxPlayers` 不同 |
+| `roomCapacity` | 房間參與席容量目前 10；與所選遊戲的 `maxPlayers` 不同 |
 | `numPlayers` | 實際入座參與者數，開局後固定 |
 | `minPlayers`, `maxPlayers` | 遊戲人數範圍 |
 | `status` | 共用 `lobby`；太空維修站另有 `briefing`, `claiming`, `playing`, `round-review`, `finished`，其他遊戲依自身定義 |
@@ -186,3 +187,16 @@ Socket 每連線 180 包／分、單包 16 KiB。每房最多 128 份觀戰身�
 400 格式錯誤；401 身份無效；403 權限／邀請／分享失效；404 未知端點／房號；409 狀態／人數／準備衝突；410 缺對局；413 過大；415 非 JSON；429 過頻；500 未公開的內部錯誤。
 
 尚無房主在進行中移出玩家、移出觀戰者、將角色交接給新人、身份找回、刪除房間或自動清理歷史 API。全員離線中止只結束當前局，不刪除房間與回放。
+
+
+## 黑霧襲城與公開房規
+
+遊戲 ID 為 `black-fog`，參與人數 5～10。`RoomInfo.gameOptions` 為公開房規，沒有私人角色與部署設定。房主可使用 `POST /api/rooms/:id/options`：
+
+```json
+{"matchID":"目前等待對局ID","options":{"lancelotMode":"forecast","percival":true,"morgana":false,"mordred":false,"oberon":false}}
+```
+
+`lancelotMode` 接受 `off`、`random`、`forecast`，預設 `random`；四個角色旗標預設 false，梅林與刺客固定加入。未知欄位、錯誤型別及永遠無法成立的角色配置回 400；非房主回 403；舊對局 ID 或已開局回 409。允許先設定需要較多人數的角色，但開局人數不足時回 409，不刪除已選角色。更改後座位、憑證、觀戰、邀請與歷史保留，所有人重新準備。歷史回放附帶當局設定，不使用房間後來修改的值。
+
+黑霧狀態為 `briefing`、`nomination`、`voting`、`vote-review`、`quest`、`quest-review`、`assassination`、`finished`。`acknowledge(epoch)`、`selectTeam(ids,epoch)`、`confirmTeam(epoch)`、`vote(approve,epoch)`、`submitQuest(card,epoch)`、`assassinate(targetID,epoch)` 皆由已授權 Socket.IO 送出；完整 move 參數遮蔽，不以日誌洩漏投票或任務選擇。普通玩家只收到自己的情報，觀戰須使用獨立身份；隨機模式未來鐘牌在任何視角均不公開。

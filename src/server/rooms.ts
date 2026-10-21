@@ -2,6 +2,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { validRoomID } from './security';
 import { atomicReplace } from './atomic-file';
+export { ROOM_CAPACITY } from '../games/catalog';
 
 /** Retry receipts contain only credential hashes; they never authorize normal room requests. */
 export interface RoleSwitchReceipt {
@@ -27,6 +28,7 @@ export interface RoomRecord {
   gameId: string;
   /** Undefined on legacy rooms, which already selected a game at creation. */
   gameSelected?: boolean;
+  gameOptions?: Record<string, unknown>;
   numPlayers: number;
   inviteHash: string;
   inviteExpiresAt: number;
@@ -53,7 +55,6 @@ export const hostPlayerID = (room: RoomRecord) => hostObserverID(room) !== null
 export const roomMatchIDs = (room: RoomRecord) => [...new Set([...(room.history || []).map((entry) => entry.matchID), currentMatchID(room)])];
 export const matchGameID = (room: RoomRecord, matchID: string) =>
   room.history?.find(entry => entry.matchID === matchID)?.gameName ?? room.gameId;
-export const ROOM_CAPACITY = 8;
 export class RoomStore {
   readonly rooms = new Map<string, RoomRecord>();
   private file: string;

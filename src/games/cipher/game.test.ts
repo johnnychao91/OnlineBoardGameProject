@@ -130,7 +130,7 @@ describe('加密通話設定與完整通關', () => {
   it('拒絕錯誤開始資料、重複席位、越界與原型名稱', () => {
     for (const setup of [null, [], true, { startImmediately: 'true' },
       { participantIDs: ['0'] }, { participantIDs: ['0', '0'] },
-      { participantIDs: ['0', '8'] }, { participantIDs: ['__proto__', '1'] },
+      { participantIDs: ['0', '10'] }, { participantIDs: ['__proto__', '1'] },
       { participantIDs: [0, 1] }]) {
       expect(CipherGame.validateSetupData!(setup as CipherSetupData, 2)).toBeTypeOf('string');
       const match = createMatch({ game: CipherGame, numPlayers: 2, setupData: setup, unlisted: true });

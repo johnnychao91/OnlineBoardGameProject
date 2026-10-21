@@ -5,6 +5,8 @@ import { BattleReport } from './BattleReport';
 import { RoomContext } from './room-context';
 import { Icon } from './ui';
 import './cipher.css';
+import { GameSoundControl } from './GameSoundControl';
+import type { ReactNode } from 'react';
 
 type NameOf = (id: string) => string;
 type BoardProps = {
@@ -65,7 +67,7 @@ export function CipherBoard({ G, playerID, moves, isConnected }: BoardProps) {
     </div>
     <main className="game-layout cipher-layout">
       <section className="game-main">
-        <CipherHeading G={G} />
+        <CipherHeading G={G}><GameSoundControl gameID="encrypted-call" G={G} matchID={info.matchID} playerID={id} connected={isConnected !== false} /></CipherHeading>
         <CipherMetrics G={G} />
         <CipherStatus G={G} />
 
@@ -138,10 +140,10 @@ export function CipherCardNumber({ value }: { value: number | null }) {
   return <strong className={value === 100 ? 'cipher-number-three-digits' : undefined}>{value ?? '?'}</strong>;
 }
 
-export function CipherHeading({ G }: { G: CipherState }) {
+export function CipherHeading({ G, children }: { G: CipherState; children?: ReactNode }) {
   return <div className="game-title cipher-heading">
     <div><div className="eyebrow"><span className="cipher-seal" aria-hidden="true">⌁</span> ENCRYPTED CALL</div><h1>加密通話</h1></div>
-    <span className="round-badge">頻段 <strong>{G.level || '—'}</strong> / {G.targetLevel}</span>
+    <div className="station-title-actions">{children}<span className="round-badge">頻段 <strong>{G.level || '—'}</strong> / {G.targetLevel}</span></div>
   </div>;
 }
 

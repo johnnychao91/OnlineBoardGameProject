@@ -1,4 +1,9 @@
-import type { Perspective, RoomInfo } from './api';
+import type { AuthSession, Perspective, RoomInfo } from './api';
+
+export interface LobbyOptionsProps {
+  seat: AuthSession; info: RoomInfo; disabled: boolean;
+  onBusy: (busy: boolean) => void; onUpdate: (info: RoomInfo) => void;
+}
 
 /** Shared read-only rendering contract; no game actions or credentials are passed. */
 export interface SnapshotProps {

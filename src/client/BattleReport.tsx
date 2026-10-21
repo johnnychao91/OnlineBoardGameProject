@@ -1,17 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import type { StationObserverState } from '../games/station/game';
 import type { Perspective, RoomInfo } from './api';
-import { createReplayPoster } from './replay-poster';
-import { createCipherPoster } from './cipher-poster';
-import type { CipherState } from '../games/cipher/game';
-import type { PosterOptions } from './game-types';
+import { clientGames } from './game-registry';
 import { ErrorMessage } from './ui';
-
-/** A game can add its original report renderer without changing the replay controls. */
-const posterRenderers: Record<string, (options: PosterOptions) => Promise<Blob>> = {
-  'space-station': ({ G, info, step, totalSteps }) => createReplayPoster({ G: G as StationObserverState, players: info.players, step, totalSteps }),
-  'encrypted-call': ({ G, info, step, totalSteps }) => createCipherPoster({ G: G as CipherState, players: info.players, step, totalSteps }),
-};
 
 export function BattleReport({ G, info, frameIndex = 0, totalFrames = 1, perspective, label = '製作這一步的戰報圖', beforeCreate }: { G: unknown; info: RoomInfo; frameIndex?: number; totalFrames?: number; perspective: Perspective; label?: string; beforeCreate?: () => void }) {
   const [preview, setPreview] = useState<{ url: string; blob: Blob } | null>(null);
@@ -20,7 +10,7 @@ export function BattleReport({ G, info, frameIndex = 0, totalFrames = 1, perspec
   const [message, setMessage] = useState('');
   const currentUrl = useRef<string | null>(null);
   const generation = useRef(0);
-  const render = posterRenderers[info.gameName];
+  const render = clientGames[info.gameName]?.createPoster;
   useEffect(() => () => { if (currentUrl.current) URL.revokeObjectURL(currentUrl.current); }, []);
   useEffect(() => { generation.current += 1; setPreview(null); setError(''); setMessage(''); if (currentUrl.current) { URL.revokeObjectURL(currentUrl.current); currentUrl.current = null; } }, [info.roomId, info.matchID, frameIndex, perspective, totalFrames]);
   if (!render) return null;

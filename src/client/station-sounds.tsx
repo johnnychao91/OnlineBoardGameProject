@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import type { StationState } from '../games/station/game';
+import { GameSoundTracker, type GameSoundInput } from './sound-cues';
 import './station-sounds.css';
 
 const MUTE_KEY = 'friends-table.station-sound-muted';
@@ -214,13 +215,23 @@ export interface StationSoundControls {
 }
 
 export function useStationSounds(input: StationSoundInput): StationSoundControls {
+  return useSoundOutput(input, StationSoundTracker);
+}
+
+export function useGameSounds(input: GameSoundInput): StationSoundControls {
+  return useSoundOutput(input, GameSoundTracker);
+}
+
+function useSoundOutput<T extends { G?: unknown; matchID: string; playerID?: string; connected?: boolean; enabled?: boolean }>(
+  input: T, Tracker: new () => { update(input: T): StationSoundEvents },
+): StationSoundControls {
   const { G, matchID, playerID, connected = true, enabled = true } = input;
   const [muted, setMuted] = useState(stationSoundsMuted);
   const [volume, setVolumeState] = useState(stationSoundsVolume);
   const [ready, setReady] = useState(false);
   const available = !!audioConstructor();
   const audio = useRef<StationAudio | null>(null);
-  const tracker = useRef(new StationSoundTracker());
+  const tracker = useRef(new Tracker());
   const mutedRef = useRef(muted);
   const volumeRef = useRef(volume);
   mutedRef.current = muted;
@@ -264,7 +275,7 @@ export function useStationSounds(input: StationSoundInput): StationSoundControls
   }, [enabled, available]);
 
   useEffect(() => {
-    const events = tracker.current.update({ G, matchID, playerID, connected, enabled });
+    const events = tracker.current.update(input);
     audio.current?.setMuted(muted);
     audio.current?.setVolume(volume);
     if (!enabled || !connected || !G) audio.current?.stop();
@@ -305,7 +316,7 @@ export function StationSoundToggle({ controls }: { controls: StationSoundControl
   const volumeID = useId();
   return <div className="station-sound-controls"><button type="button" className="station-sound-toggle" onClick={toggle}
     disabled={!available} aria-pressed={!muted && ready}
-    title={!available ? '此瀏覽器不支援音效。' : muted ? '開啟翻牌與自己回合的提示音。'
+    title={!available ? '此瀏覽器不支援音效。' : muted ? '開啟這台瀏覽器的遊戲提示音。'
       : ready ? '關閉這台瀏覽器的遊戲提示音。' : '點一下允許瀏覽器播放音效；先前的提示不會補播。'}>
     <span aria-hidden="true">{!muted && ready ? '♪' : '♩'}</span>{label}
   </button><label className="station-sound-volume" htmlFor={volumeID}><span>音量</span>

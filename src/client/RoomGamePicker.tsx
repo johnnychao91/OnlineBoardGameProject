@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { api, isRoomHost, type AuthSession, type GameInfo, type RoomInfo } from './api';
 import { ErrorMessage } from './ui';
 import './room-game-picker.css';
+import { clientGames } from './game-registry';
 
 export function RoomGamePicker({ seat, info, disabled, onBusy, onUpdate }: {
   seat: AuthSession; info: RoomInfo; disabled: boolean;
@@ -15,6 +16,7 @@ export function RoomGamePicker({ seat, info, disabled, onBusy, onUpdate }: {
   const host = isRoomHost(seat, info);
   const selected = info.gameSelected !== false;
   const game = selected ? games.find(game => game.id === info.gameName) : undefined;
+  const Options = selected ? clientGames[info.gameName]?.LobbyOptions : undefined;
   useEffect(() => {
     mounted.current = true;
     const controller = new AbortController();
@@ -44,5 +46,6 @@ export function RoomGamePicker({ seat, info, disabled, onBusy, onUpdate }: {
     {game && <p className="small muted">{game.description} · {game.minPlayers}～{game.maxPlayers} 人</p>}
     <p className="small muted">{host ? '選擇後即時套用；切換會清除全員準備，成員與邀請連結保留。' : '房主可在開局前切換遊戲；切換後請重新準備。'}</p>
     <ErrorMessage>{error}</ErrorMessage>
+    {Options && <Options seat={seat} info={info} disabled={disabled || busy} onBusy={onBusy} onUpdate={onUpdate} />}
   </section>;
 }

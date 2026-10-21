@@ -1,3 +1,4 @@
+import { ROOM_CAPACITY, isGameID } from '../games/catalog';
 import { useContext, useEffect, useRef, useState, type FormEvent } from 'react';
 import {
   api, ApiError, captureInvite, forgetSeat, isPlayer, isRoomHost, loadSeat, pendingRequestID, pendingToken, rememberedName,
@@ -48,7 +49,7 @@ function Home({ onEnter }: { onEnter: (seat: AuthSession) => void }) {
     <section className="panel create-panel"><div className="section-label">01 / 開一桌</div><h2>先開房，邀朋友加入</h2>
       <p className="small muted">不用先選遊戲。房主可在等待室選擇或切換，大家繼續留在同一桌。</p>
       <form onSubmit={create}><label htmlFor="host-name">你的暱稱</label><input id="host-name" autoComplete="nickname" maxLength={20} placeholder="朋友怎麼叫你？" required value={name} onChange={e => setName(e.target.value)} />
-        <div className="room-flexibility"><Icon type="check" /><span>最多 8 個參與席位，觀戰不占席；開局人數依選擇的遊戲決定。</span></div>
+        <div className="room-flexibility"><Icon type="check" /><span>最多 {ROOM_CAPACITY} 個參與席位，觀戰不占席；開局人數依選擇的遊戲決定。</span></div>
         <CreationPassword saved={!!rememberedCreateKey()} value={createKey} onChange={setCreateKey} remember={rememberKey} onRemember={value => { setRememberKey(value); if (!value) rememberCreateKey(''); }} onForget={() => { rememberCreateKey(''); setCreateKey(''); setRememberKey(false); }} />
         <ErrorMessage>{error}</ErrorMessage><Submit busy={busy} disabled={!name.trim()}>建立私人房間</Submit>
       </form>
@@ -130,12 +131,12 @@ function Lobby({ onUpdate }: { onUpdate: (info: RoomInfo) => void }) {
       <p className="muted">{players.length} 位玩家 · {selected ? `這款遊戲需 ${info.minPlayers}～${info.maxPlayers} 人` : '等待房主選擇遊戲'} · {info.spectatorCount} 位已加入觀戰</p>
     </div>
     <RoomGamePicker seat={seat} info={info} disabled={busy} onBusy={setGameBusy} onUpdate={onUpdate} />
-    <section className="panel roster"><div className="section-heading"><h2>參與名單</h2><span>{players.length} / {info.roomCapacity ?? 8} 席</span></div>
+    <section className="panel roster"><div className="section-heading"><h2>參與名單</h2><span>{players.length} / {info.roomCapacity ?? ROOM_CAPACITY} 席</span></div>
       <div className="roster-players">{players.map(player => <div className="roster-row" key={player.membershipID || player.id}><span className={`avatar ${isPlayer(seat) && String(player.id) === seat.playerID ? 'mine' : ''}`}>{initials(player.name || '')}</span><div><strong>{player.name}{isPlayer(seat) && String(player.id) === seat.playerID && <small className="you-label">你</small>}</strong><small>{String(player.id) === hostPlayerID ? '房主' : `隊員 ${Number(player.id) + 1}`}</small></div><span className={`ready-pill ${player.ready ? 'ready' : ''}`}>{player.ready ? '已準備' : selected ? '準備中' : '待選遊戲'}</span>{host && String(player.id) !== hostPlayerID && String(player.id) !== (isPlayer(seat) ? seat.playerID : null) && <RemovePlayer player={player} busy={locked} onRemove={target => action('remove', { playerID: String(target.id), membershipID: target.membershipID })} />}</div>)}</div>
       {host && <p className="small muted">開局前可移出隊員；持有效邀請的人仍可重新加入。</p>}
       {overCapacity ? <p className="small amber lobby-missing" role="status">這款遊戲最多 {info.maxPlayers} 人，請 {players.length - info.maxPlayers} 位玩家改為觀戰，或由房主切換遊戲。所有人仍保留在房間內。</p>
         : selected && players.length < info.minPlayers ? <p className="small muted lobby-missing">再邀請 {info.minPlayers - players.length} 位玩家，就達到開局人數。</p>
-          : <p className="small muted lobby-missing">{players.length < (info.roomCapacity ?? 8) ? '還有朋友要上場？開始前都能加入。' : '參與席位已滿，其他朋友仍可觀戰。'}</p>}
+          : <p className="small muted lobby-missing">{players.length < (info.roomCapacity ?? ROOM_CAPACITY) ? '還有朋友要上場？開始前都能加入。' : '參與席位已滿，其他朋友仍可觀戰。'}</p>}
     </section>
     <ErrorMessage>{error}</ErrorMessage><div className="action-dock">
       {isPlayer(seat) ? <button className={`button full ${own?.ready ? 'secondary' : 'primary'}`} disabled={locked || !selected} onClick={() => action('ready', { ready: !own?.ready })}>
@@ -274,8 +275,8 @@ export function App() {
     return () => { window.removeEventListener('popstate', update); window.removeEventListener('hashchange', update); window.removeEventListener('storage', identityChanged); };
   }, []);
   function enter(seat: AuthSession) { setSeatRevision(n => n + 1); navigate(`/room/${seat.roomId}`); }
-  const rulesMatch = path.match(/^\/rules(?:\/(space-station|encrypted-call))?\/?$/);
-  if (rulesMatch) return <RulesPage gameID={rulesMatch[1] as RulesGameID | undefined} />;
+  const rulesMatch = path.match(/^\/rules(?:\/([a-z0-9-]+))?\/?$/);
+  if (rulesMatch && (!rulesMatch[1] || isGameID(rulesMatch[1]))) return <RulesPage gameID={rulesMatch[1] as RulesGameID | undefined} />;
   const match = path.match(/^\/(join|room|replay)\/([A-Za-z0-9_-]+)\/?$/);
   if (!match) return <Home onEnter={enter} />;
   const roomId = match[2];

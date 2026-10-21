@@ -1,6 +1,9 @@
 import type { Game } from 'boardgame.io';
 import { StationGame, stationObserverView, type StationState } from './station/game';
 import { CipherGame, cipherObserverView, type CipherState } from './cipher/game';
+import { FogGame, fogObserverView, type FogState } from './fog/game';
+import { normalizeFogOptions, validateFogOptions } from './fog/rules';
+import { gameCatalog, type GameID } from './catalog';
 
 export type ObserverPerspective = 'blind' | 'god';
 export interface GameOutcome {
@@ -11,7 +14,7 @@ export interface GameOutcome {
 
 /** A registered game has an isolated rules module and a matching client renderer. */
 export interface GameDefinition {
-  id: string;
+  id: GameID;
   name: string;
   description: string;
   minPlayers: number;
@@ -19,7 +22,10 @@ export interface GameDefinition {
   game: Game<any>;
   isJoinable: (state: any) => boolean;
   /** Passed by the authorized HTTP start flow, never accepted directly from spectators. */
-  startSetupData: (participantIDs: string[]) => Record<string, unknown>;
+  startSetupData: (participantIDs: string[], options?: Record<string, unknown>) => Record<string, unknown>;
+  /** Public lobby options. Secrets and deployment settings never belong here. */
+  normalizeOptions?: (options: unknown) => Record<string, unknown>;
+  validateOptions?: (options: Record<string, unknown> | undefined, numPlayers: number) => string | undefined;
   /** The caller must authorize this perspective before returning the projection. */
   observerView: (state: any, perspective: ObserverPerspective) => unknown;
   getOutcome: (state: any) => GameOutcome | null;
@@ -28,9 +34,7 @@ export interface GameDefinition {
 }
 
 export const gameDefinitions: GameDefinition[] = [{
-  id: 'space-station', name: '太空維修站',
-  description: '在未知與信任之間，讓太空站恢復運作。',
-  minPlayers: 4, maxPlayers: 8, game: StationGame,
+  id: 'space-station', ...gameCatalog['space-station'], game: StationGame,
   isJoinable: (state) => state.status === 'lobby',
   startSetupData: (participantIDs) => ({ startImmediately: true, participantIDs }),
   observerView: stationObserverView,
@@ -46,9 +50,7 @@ export const gameDefinitions: GameDefinition[] = [{
     return { winner: state.winner, reason: state.winReason, roles };
   },
 }, {
-  id: 'encrypted-call', name: '加密通話',
-  description: '潛伏諜報戰線，以沉默與默契完成遞增的訊號傳送。',
-  minPlayers: 2, maxPlayers: 4, game: CipherGame,
+  id: 'encrypted-call', ...gameCatalog['encrypted-call'], game: CipherGame,
   isJoinable: (state) => state.status === 'lobby',
   startSetupData: (participantIDs) => ({ startImmediately: true, participantIDs }),
   observerView: cipherObserverView,
@@ -56,6 +58,19 @@ export const gameDefinitions: GameDefinition[] = [{
     if (state.status !== 'finished' || !state.winner || !state.winReason) return null;
     return { winner: state.winner, reason: state.winReason,
       roles: Object.fromEntries(Object.keys(state.players).map(id => [id, 'agents'])) };
+  },
+}, {
+  id: 'black-fog', ...gameCatalog['black-fog'], game: FogGame,
+  isJoinable: state => state.status === 'lobby',
+  normalizeOptions: options => ({ ...normalizeFogOptions(options) }),
+  validateOptions: (options, count) => validateFogOptions(normalizeFogOptions(options), count),
+  startSetupData: (participantIDs, options) => ({ startImmediately: true, participantIDs, options: normalizeFogOptions(options) }),
+  observerView: fogObserverView,
+  completedDisplayMs: () => 8000,
+  getOutcome: (state: FogState) => {
+    if (state.status !== 'finished' || !state.winner || !state.winReason) return null;
+    return { winner: state.winner, reason: state.winReason,
+      roles: Object.fromEntries(Object.entries(state.players).map(([id, player]) => [id, player.revealedFaction!])) };
   },
 }];
 

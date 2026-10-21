@@ -1,3 +1,4 @@
+import { isPlayerSeatID } from '../games/catalog';
 import { SocketIO } from 'boardgame.io/server';
 import { getFilterPlayerView } from 'boardgame.io/internal';
 import type { IncomingMessage } from 'node:http';
@@ -124,7 +125,7 @@ export class GuardedTransport extends SocketIO {
             const [event, ...args] = packet;
             if (event === 'sync') {
               const [matchID, playerID, credentials] = args;
-              if (!validRoomID(matchID) || typeof playerID !== 'string' || !/^\d$/.test(playerID) || !validCredential(credentials)) throw new Error('未授權');
+              if (!validRoomID(matchID) || typeof playerID !== 'string' || !isPlayerSeatID(playerID) || !validCredential(credentials)) throw new Error('未授權');
               if (binding && (binding.matchID !== matchID || binding.playerID !== playerID || !safeEqual(binding.credentials, credentials))) throw new Error('不可切換座位');
               const room = this.rooms.findByMatch(matchID);
               if (!room || currentMatchID(room) !== matchID || room.gameId !== game.name) throw new Error('房間不存在');

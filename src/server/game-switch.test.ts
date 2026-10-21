@@ -1,3 +1,4 @@
+import { ROOM_CAPACITY } from '../games/catalog';
 import { randomUUID } from 'node:crypto';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -76,12 +77,12 @@ async function readyStart(f: Fixture, host: any, seats: Member[]) {
 describe('Selecting a game within a persistent shared room', () => {
   it('creates an unselected room, blocks readiness and starting, and preserves old explicit game creation', async () => {
     const f = await fixture(), g = await group(f);
-    expect(g.host).toMatchObject({ status: 'lobby', gameSelected: false, roomCapacity: 8 });
+    expect(g.host).toMatchObject({ status: 'lobby', gameSelected: false, roomCapacity: ROOM_CAPACITY });
     expect((await f.request(path(g.host, 'ready'), { ready: true, matchID: g.host.matchID }, g.host)).status).toBe(409);
     expect((await f.request(path(g.host, 'start'), { matchID: g.host.matchID }, g.host)).status).toBe(409);
     const selected = await select(f, g.host, 'encrypted-call');
     expect(selected.status).toBe(200);
-    expect(selected.body).toMatchObject({ gameName: 'encrypted-call', gameSelected: true, minPlayers: 2, maxPlayers: 4, roomCapacity: 8, numPlayers: 4 });
+    expect(selected.body).toMatchObject({ gameName: 'encrypted-call', gameSelected: true, minPlayers: 2, maxPlayers: 4, roomCapacity: ROOM_CAPACITY, numPlayers: 4 });
     expect(selected.body.matchID).not.toBe(g.host.matchID);
     expect((await readyStart(f, g.host, g.seats)).status).toBe(200);
     expect((await group(f, 2, 'encrypted-call')).host.gameSelected).toBe(true);
@@ -108,7 +109,7 @@ describe('Selecting a game within a persistent shared room', () => {
     const f = await fixture(), g = await group(f, 8, 'space-station');
     const before = f.app.rooms.rooms.get(g.host.roomId)!;
     const changed = await select(f, g.host, 'encrypted-call');
-    expect(changed.body).toMatchObject({ numPlayers: 8, maxPlayers: 4, roomCapacity: 8, spectatorCount: 1 });
+    expect(changed.body).toMatchObject({ numPlayers: 8, maxPlayers: 4, roomCapacity: ROOM_CAPACITY, spectatorCount: 1 });
     expect((await readyStart(f, g.host, g.seats)).status).toBe(409);
     let host = g.host;
     for (const seat of g.seats.slice(0, 6)) {
@@ -232,6 +233,6 @@ describe('Selecting a game within a persistent shared room', () => {
     expect((await f.request(path(g.host, 'share'), { matchID: cipherID, perspective: 'blind', frameIndex: 0 }, g.host)).status).toBe(200);
     const stats = (await f.request('/api/stats')).body;
     expect(stats.completedGames).toBe(2);
-    expect(stats.byGame.map((game: any) => game.completed)).toEqual([1, 1]);
+    expect(stats.byGame.filter((game: any) => game.completed).map((game: any) => game.completed)).toEqual([1, 1]);
   });
 });

@@ -7,6 +7,7 @@ import serve from 'koa-static';
 import { Server } from 'boardgame.io/server';
 import { createMatch } from 'boardgame.io/internal';
 import { gameDefinitions, getGameDefinition, publicGameDefinitions, type GameDefinition } from '../games/registry';
+import { isPlayerSeatID } from '../games/catalog';
 import { GuardedTransport } from './transport';
 import { RoomStore, currentMatchID, hostPlayerID, hostObserverID, roomMatchIDs, matchGameID, ROOM_CAPACITY, type RoomRecord, type RoomHistory, type RoleSwitchReceipt } from './rooms';
 import { RoomPresence } from './presence';
@@ -30,7 +31,7 @@ const INVITE_TTL = 24 * 60 * 60 * 1000;
 const REPLAY_SHARE_TTL = 7 * 24 * 60 * 60 * 1000;
 const UUID_V4 = /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i;
 /** Waiting room capacity is independent of the selected game's player limit. */
-function createWaitingMatch(definition: GameDefinition) {
+function createWaitingMatch(definition: GameDefinition, options?: Record<string, unknown>) {
   return createMatch({
     game: {
       ...definition.game, seed: randomToken(), minPlayers: ROOM_CAPACITY, maxPlayers: ROOM_CAPACITY,
@@ -38,7 +39,7 @@ function createWaitingMatch(definition: GameDefinition) {
       setup: (context) => {
         // Initialize the game's empty lobby with valid game settings, then add
         // shared waiting seats. Real play is initialized again with its true count.
-        const G = definition.game.setup!({ ...context, ctx: { ...context.ctx, numPlayers: definition.maxPlayers } }, undefined);
+        const G = definition.game.setup!({ ...context, ctx: { ...context.ctx, numPlayers: definition.maxPlayers } }, { options });
         const player = Object.values(G.players)[0];
         for (let id = 0; id < ROOM_CAPACITY; id++) G.players[id] ??= { ...(player as object) };
         return G;
@@ -113,6 +114,7 @@ export async function createApplication(config: AppConfig) {
   const publicRoom = (room: RoomRecord, metadata: any, state: any, matchID = currentMatchID(room), historical = false) => ({
     roomId: room.roomId, matchID, gameName: matchGameID(room, matchID),
     gameSelected: historical || room.gameSelected !== false, roomCapacity: ROOM_CAPACITY,
+    gameOptions: historical ? state.G.options : room.gameOptions,
     hostPlayerID: historical ? null : hostPlayerID(room),
     hostObserverID: historical ? null : hostObserverID(room),
     history: historical ? [] : (room.history || []).map(entry => ({ ...entry, gameName: entry.gameName ?? room.gameId })),
@@ -133,7 +135,7 @@ export async function createApplication(config: AppConfig) {
     if (ctx.get('X-Observer-ID')) fail(401, '觀戰憑證不能用於玩家操作');
     const playerID = ctx.get('X-Player-ID');
     const credential = ctx.get('Authorization').replace(/^Bearer /, '');
-    if (!/^\d$/.test(playerID) || !safeEqual(credential, metadata.players[playerID]?.credentials)) fail(401, '此瀏覽器沒有有效的座位憑證');
+    if (!isPlayerSeatID(playerID) || !safeEqual(credential, metadata.players[playerID]?.credentials)) fail(401, '此瀏覽器沒有有效的座位憑證');
     return playerID;
   };
   const authenticateViewer = (ctx: Context, room: RoomRecord, metadata: any) => {
@@ -198,7 +200,7 @@ export async function createApplication(config: AppConfig) {
       if (Date.now() < room.completedDisplay!.until) return room;
     }
     const matchID = randomToken(12);
-    const match = createWaitingMatch(definition);
+    const match = createWaitingMatch(definition, room.gameOptions);
     if ('setupDataError' in match) fail(500, '無法返回等待室');
     for (const player of Object.values(metadata.players)) {
       if (player.credentials) match.metadata.players[player.id] = { ...player, isConnected: false };
@@ -291,13 +293,14 @@ export async function createApplication(config: AppConfig) {
       const roomId = randomToken(12);
       const invite = randomToken();
       const credentials = randomToken();
+      const gameOptions = definition.normalizeOptions?.(undefined);
       // The framework's default seed is timestamp-based. Use independent CSPRNG
       // entropy for each match and keep it only in server storage.
-      const match = createWaitingMatch(definition);
+      const match = createWaitingMatch(definition, gameOptions);
       if ('setupDataError' in match) fail(400, '無法使用這組遊戲設定');
       match.metadata.players['0'].name = name;
       match.metadata.players['0'].credentials = credentials;
-      const room: RoomRecord = { roomId, currentMatchID: roomId, hostPlayerID: '0', gameId: definition.id, gameSelected: body.gameId !== undefined, numPlayers: ROOM_CAPACITY, inviteHash: hashToken(invite), inviteExpiresAt: Date.now() + INVITE_TTL, createdAt: Date.now() };
+      const room: RoomRecord = { roomId, currentMatchID: roomId, hostPlayerID: '0', gameId: definition.id, gameOptions, gameSelected: body.gameId !== undefined, numPlayers: ROOM_CAPACITY, inviteHash: hashToken(invite), inviteExpiresAt: Date.now() + INVITE_TTL, createdAt: Date.now() };
       await db.createMatch(roomId, match);
       await rooms.save(room);
       presence.touch(roomId, 'player:0', 'admission');
@@ -306,7 +309,7 @@ export async function createApplication(config: AppConfig) {
         inviteUrl: `${origin}/join/${roomId}#invite=${invite}`, expiresAt: room.inviteExpiresAt };
       return;
     }
-    const route = /^\/api\/rooms\/([A-Za-z0-9_-]+)(?:\/(join|watch|invite|ready|remove|start|view|replay|share|revoke-shares|return|abort|leave|heartbeat|switch-role|game))?$/.exec(ctx.path);
+    const route = /^\/api\/rooms\/([A-Za-z0-9_-]+)(?:\/(join|watch|invite|ready|remove|start|view|replay|share|revoke-shares|return|abort|leave|heartbeat|switch-role|game|options))?$/.exec(ctx.path);
     if (!route) fail(404, '找不到此功能');
     const room = getRoom(route[1]);
     const operation = route[2];
@@ -414,7 +417,7 @@ export async function createApplication(config: AppConfig) {
         const sourceAccess = observerID ? 'spectator' : 'player';
         const sourceID = observerID || ctx.get('X-Player-ID');
         if ((observerID && (ctx.get('X-Player-ID') || !validRoomID(observerID)))
-          || (!observerID && !/^\d$/.test(sourceID))) fail(401, '房間憑證不正確');
+          || (!observerID && !isPlayerSeatID(sourceID))) fail(401, '房間憑證不正確');
         const sourceHash = hashToken(credentials);
         const nextCredentials = roleSwitchCredential(credentials, current.roomId, body.matchID, requestID, body.access);
         const targetIsCurrent = (receipt: RoleSwitchReceipt, players = metadata.players, spectators = current.spectators) =>
@@ -444,7 +447,7 @@ export async function createApplication(config: AppConfig) {
         if (body.access === 'player' && participants.length >= ROOM_CAPACITY) fail(409, '參與席位已滿，請先留在觀戰席');
         if (body.access === 'spectator' && Object.keys(spectators).length >= 128) fail(409, '此房觀戰席數量已達上限');
         const nextID = randomToken(12);
-        const match = createWaitingMatch(definition);
+        const match = createWaitingMatch(definition, current.gameOptions);
         if ('setupDataError' in match) fail(500, '無法切換房間身分');
         // The framework freezes nested G during initialization. Copy before
         // restoring only the unchanged members' waiting-room readiness.
@@ -494,18 +497,27 @@ export async function createApplication(config: AppConfig) {
         transport.closeMatch(matchID);
         ctx.body = { ...publicRoom(next, match.metadata, match.initialState), access: body.access,
           ...(body.access === 'player' ? { playerID: targetID } : { observerID: targetID }), credentials: nextCredentials };
-      } else if (operation === 'game') {
-        authenticateHost(ctx, current, metadata, '只有房主可以切換遊戲');
+      } else if (operation === 'game' || operation === 'options') {
+        authenticateHost(ctx, current, metadata, '只有房主可以切換遊戲或修改規則');
         if (body.matchID !== matchID) fail(409, '對局已更新，請重新確認房間狀態');
         if (!definition.isJoinable(state.G)) fail(409, '對局進行中不能切換遊戲，請先返回等待室');
-        const selected = getGameDefinition(body.gameId);
+        const selected = operation === 'options' ? definition : getGameDefinition(body.gameId);
         if (!selected) fail(400, '遊戲不正確');
-        if (current.gameSelected !== false && selected.id === current.gameId) {
+        let options: Record<string, unknown> | undefined;
+        if (operation === 'options') {
+          if (current.gameSelected === false || !selected.normalizeOptions) fail(400, '這個遊戲沒有可調整的規則');
+          try { options = selected.normalizeOptions(body.options); }
+          catch (error) { fail(400, (error as Error).message); }
+          const invalid = selected.validateOptions?.(options, selected.maxPlayers);
+          if (invalid) fail(400, invalid);
+        } else options = selected.normalizeOptions?.(undefined);
+        if (current.gameSelected !== false && selected.id === current.gameId
+          && (operation === 'game' || JSON.stringify(options) === JSON.stringify(current.gameOptions))) {
           ctx.body = publicRoom(current, metadata, state);
           return;
         }
         const nextID = randomToken(12);
-        const match = createWaitingMatch(selected);
+        const match = createWaitingMatch(selected, options);
         if ('setupDataError' in match) fail(500, '無法切換遊戲');
         match.metadata.createdAt = metadata.createdAt;
         match.metadata.updatedAt = Date.now();
@@ -514,6 +526,7 @@ export async function createApplication(config: AppConfig) {
           if (player.credentials) match.metadata.players[player.id] = { ...player, isConnected: false };
         }
         const next: RoomRecord = { ...current, currentMatchID: nextID, gameId: selected.id,
+          gameOptions: options,
           gameSelected: true, numPlayers: ROOM_CAPACITY, completedDisplay: undefined, departedPlayerIDs: [],
           // Pin legacy records before changing the room's current game id.
           history: (current.history || []).map(entry => ({ ...entry, gameName: entry.gameName ?? current.gameId })),
@@ -535,7 +548,7 @@ export async function createApplication(config: AppConfig) {
       } else if (operation === 'remove') {
         authenticateHost(ctx, current, metadata, '只有房主可以移出玩家');
         if (!definition.isJoinable(state.G)) fail(409, '遊戲開始後不能移出玩家');
-        if (typeof body.playerID !== 'string' || !/^\d$/.test(body.playerID) || body.playerID === hostPlayerID(current)
+        if (typeof body.playerID !== 'string' || !isPlayerSeatID(body.playerID) || body.playerID === hostPlayerID(current)
           || typeof body.membershipID !== 'string' || !/^[a-f0-9]{16}$/.test(body.membershipID)) {
           fail(400, '請選擇房主以外的玩家');
         }
@@ -559,8 +572,10 @@ export async function createApplication(config: AppConfig) {
         const count = participants.length;
         if (count < definition.minPlayers || count > definition.maxPlayers) fail(409, `需要 ${definition.minPlayers}～${definition.maxPlayers} 位參與者`);
         if (participants.some((p) => !state.G.players[p.id]?.ready)) fail(409, '所有參與者準備後才能開始');
+        const optionsError = definition.validateOptions?.(current.gameOptions, count);
+        if (optionsError) fail(409, optionsError);
         const match = createMatch({ game: { ...definition.game, seed: randomToken() }, numPlayers: count,
-          setupData: definition.startSetupData(participants.map((player) => String(player.id))), unlisted: true });
+          setupData: definition.startSetupData(participants.map((player) => String(player.id)), current.gameOptions), unlisted: true });
         if ('setupDataError' in match) fail(400, '無法開始這個遊戲');
         match.metadata.players = Object.fromEntries(participants.map((p) => [String(p.id), p]));
         match.metadata.createdAt = metadata.createdAt;
@@ -653,8 +668,8 @@ export async function createApplication(config: AppConfig) {
     const directory = resolve(config.clientDir);
     const previewPage = createPreviewPage(await readFile(join(directory, 'index.html'), 'utf8'), origin);
     server.app.use(async (ctx, next) => {
-      const rulesMatch = ctx.path.match(/^\/rules(?:\/(space-station|encrypted-call))?\/?$/);
-      if (['GET', 'HEAD'].includes(ctx.method) && (ctx.path === '/' || ctx.path === '/index.html' || rulesMatch || /^\/(join|room|replay)\/[A-Za-z0-9_-]+$/.test(ctx.path))) {
+      const rulesMatch = ctx.path.match(/^\/rules(?:\/([a-z0-9-]+))?\/?$/);
+      if (['GET', 'HEAD'].includes(ctx.method) && (ctx.path === '/' || ctx.path === '/index.html' || (rulesMatch && (!rulesMatch[1] || getGameDefinition(rulesMatch[1]))) || /^\/(join|room|replay)\/[A-Za-z0-9_-]+$/.test(ctx.path))) {
         ctx.type = 'html'; ctx.set('Cache-Control', 'no-cache');
         ctx.body = previewPage(ctx.path);
       } else await next();
