@@ -29,10 +29,12 @@ describe('test-room controls', () => {
 
   it('caps bots at the selected game limit, and shared capacity before choosing a game', () => {
     const four = { ...info, players: Array.from({ length: 4 }, (_, id) => ({ id, name: `成員 ${id}`, ready: true, isConnected: true })) };
-    expect(render(four)).toContain('已達 4 位玩家上限');
-    expect(render(four)).toContain('disabled=""');
-    expect(render({ ...four, gameSelected: false })).toContain('還可加入 8 位');
-    expect(render({ ...four, gameSelected: false })).not.toContain('disabled=""');
+    const selectedGame = render(four);
+    const unselectedGame = render({ ...four, gameSelected: false });
+    expect(selectedGame).toContain('已達 4 位玩家上限');
+    expect(selectedGame).toContain('disabled=""');
+    expect(unselectedGame).toContain('還可加入 8 位');
+    expect(unselectedGame).not.toContain('disabled=""');
     expect(render(info, host, true)).toContain('disabled=""');
   });
 

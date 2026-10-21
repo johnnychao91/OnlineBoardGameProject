@@ -111,6 +111,8 @@ describe('Dynamic participant counts and authorized start', () => {
     const f = await fixture();
     const { host, seats } = await populatedRoom(f, count);
     const observer = await watch(f, host);
+    expect(observer).toMatchObject({ access: 'spectator', numPlayers: count, spectatorCount: 1 });
+    expect(observer.playerID).toBeUndefined();
     const before = await f.app.db.fetch(host.roomId, { state: true, metadata: true });
     expect(before.state.G.private).toEqual({});
     expect(before.state.G.secret).toBeUndefined();
@@ -152,16 +154,6 @@ describe('Dynamic participant counts and authorized start', () => {
     await ready(f, host, seats[1]);
     expect((await f.request(roomPath(host, 'start'), {}, seatHeaders(seats[1]))).status).toBe(403);
     expect((await f.request(roomPath(host, 'start'), {}, seatHeaders(host))).status).toBe(200);
-  });
-
-  it('caps participants at eight without counting spectators as seats', async () => {
-    const f = await fixture();
-    const { host } = await populatedRoom(f, 8);
-    const observer = await watch(f, host);
-    expect(observer).toMatchObject({ access: 'spectator', numPlayers: 8, spectatorCount: 1 });
-    expect(observer.playerID).toBeUndefined();
-    expect((await f.request(roomPath(host, 'start'), {}, seatHeaders(host))).body.numPlayers).toBe(8);
-    expect((await f.request(roomPath(host, 'join'), { inviteToken: inviteToken(host), displayName: '第九位' })).status).toBe(409);
   });
 
   it('serializes a join racing with start without dropping or silently admitting a player', async () => {

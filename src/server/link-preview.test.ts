@@ -2,12 +2,14 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
+import { GAME_IDS } from '../games/catalog';
 import { createApplication } from './app';
 import { createPreviewPage } from './link-preview';
 
 const publicOrigin = 'https://boardgame.example.com';
 const iconPath = '/assets/site-icon-test-fingerprint.png';
 const createKey = 'test-only-preview-room-key';
+const gameRulesPaths = GAME_IDS.map(id => `/rules/${id}`);
 const cleanups: (() => Promise<void>)[] = [];
 afterEach(async () => { for (const cleanup of cleanups.splice(0).reverse()) await cleanup(); });
 
@@ -102,7 +104,7 @@ describe('Public link previews', () => {
 
   it('serves public detailed rules directly, including trailing slashes, without reflecting private inputs', async () => {
     const f = await fixture();
-    for (const path of ['/rules', '/rules/', '/rules/space-station', '/rules/space-station/', '/rules/encrypted-call', '/rules/encrypted-call/']) {
+    for (const path of ['/rules', ...gameRulesPaths].flatMap(path => [path, `${path}/`])) {
       const response = await f.request(`${path}?room=private-room&invite=private-invite&credentials=private-credential`, {
         headers: { Host: 'attacker.example', 'X-Forwarded-Host': 'forwarded.example' },
       });
@@ -122,8 +124,10 @@ describe('Public link previews', () => {
     }
     expect(f.app.rooms.rooms.size).toBe(0);
     expect((await f.request('/rules/unknown-game')).status).toBe(404);
-    expect((await f.request('/rules/space-station/private-room')).status).toBe(404);
-    expect((await f.request('/rules/space-station', { method: 'POST' })).status).toBe(404);
+    for (const path of gameRulesPaths) {
+      expect((await f.request(`${path}/private-room`)).status).toBe(404);
+      expect((await f.request(path, { method: 'POST' })).status).toBe(404);
+    }
   });
 
   it('never exposes room members or credentials, grants a seat, or bypasses room authorization', async () => {
@@ -137,7 +141,7 @@ describe('Public link previews', () => {
     const invite = new URLSearchParams(new URL(host.inviteUrl).hash.slice(1)).get('invite')!;
     const before = await f.app.db.fetch(host.matchID, { metadata: true, state: true });
     const roomBefore = JSON.stringify(f.app.rooms.rooms.get(host.roomId));
-    for (const path of [`/join/${host.roomId}`, `/room/${host.roomId}`, `/replay/${host.roomId}`, '/rules', '/rules/space-station', '/rules/encrypted-call']) {
+    for (const path of [`/join/${host.roomId}`, `/room/${host.roomId}`, `/replay/${host.roomId}`, '/rules', ...gameRulesPaths]) {
       const response = await f.request(`${path}#invite=${invite}`);
       expect(response.status).toBe(200);
       const html = await response.text();

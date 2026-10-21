@@ -180,6 +180,7 @@ npm run dev
 - [Linux 伺服器部署](docs/DEPLOYMENT.md)：從 GitHub clone 開始，以 `boardgame.example.com`、Apache、HTTPS、systemd 上線，保留主網站。
 - [更新、備份與還原](docs/OPERATIONS.md)：停止服務的一致性備份、更新失敗處理、隔離還原、日誌與排錯。
 - [遊戲框架盤點](docs/GAME_FRAMEWORK.md)：跨遊戲功能定義、新遊戲必備介面與驗收。
+- [測試分工與精簡原則](docs/TESTING.md)：各層覆蓋責任、重複案例的合併依據與完整驗證方式。
 - [黑霧襲城規則](docs/BLACK_FOG.md)：角色、燈塔任務、表決、刺客與兩種詛咒之鐘。
 - [銀月列車規則](docs/SILVER_MOON.md)：線上／現場輔助、夜間技能、發言倒數、警長與勝負。
 - [架構與新增遊戲](docs/ARCHITECTURE.md)：遊戲模組、伺服器裁定、資料流與持久化。

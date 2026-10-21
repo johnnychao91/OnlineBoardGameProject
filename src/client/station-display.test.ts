@@ -54,8 +54,8 @@ describe('Station public round display', () => {
     for (const field of ['private', 'secret', 'publicCards']) {
       Object.defineProperty(G, field, { get: () => { throw new Error(`Private source read: ${field}`); } });
     }
-    expect(() => renderList(G)).not.toThrow();
-    const html = renderList(G);
+    let html = '';
+    expect(() => { html = renderList(G); }).not.toThrow();
     expect(html).not.toMatch(/反應爐危機|維修員|干擾者|unusedRoles|composition|secret/);
     expect(html.match(/class="reveal-order"/g)).toHaveLength(4);
   });

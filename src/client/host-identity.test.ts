@@ -75,10 +75,12 @@ describe('player and spectator host presentation', () => {
     const render = (numPlayers: number) => renderToStaticMarkup(createElement(RoleSwitcher, {
       seat: observer, info: { ...info, numPlayers }, onChange: () => {},
     }));
-    expect(render(4)).not.toContain('disabled=""');
-    expect(render(4)).toContain('改為參加遊戲');
-    expect(render(8)).toContain('disabled=""');
-    expect(render(8)).toContain('玩家席位已滿');
+    const available = render(4);
+    const full = render(8);
+    expect(available).not.toContain('disabled=""');
+    expect(available).toContain('改為參加遊戲');
+    expect(full).toContain('disabled=""');
+    expect(full).toContain('玩家席位已滿');
   });
 
   it('shows the active-game abort control to the spectator host but not a regular observer or player zero', () => {

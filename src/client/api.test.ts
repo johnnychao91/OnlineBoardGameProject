@@ -95,8 +95,9 @@ describe('browser identity and invite boundaries', () => {
 
   it('distinguishes revoked identity from a temporary connection or server failure', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 401, headers: new Headers(), json: async () => ({ error: '憑證已失效' }) }));
-    await expect(api(`/api/rooms/${room.roomId}`, {}, player)).rejects.toMatchObject({ name: 'ApiError', status: 401 });
-    await expect(api(`/api/rooms/${room.roomId}`, {}, player)).rejects.toBeInstanceOf(ApiError);
+    const request = api(`/api/rooms/${room.roomId}`, {}, player);
+    await expect(request).rejects.toMatchObject({ name: 'ApiError', status: 401 });
+    await expect(request).rejects.toBeInstanceOf(ApiError);
   });
 
   it('clears a removed seat and its admission nonce, preserving a freshly opened invitation', () => {
