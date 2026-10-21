@@ -3,12 +3,12 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { createMatch } from 'boardgame.io/internal';
 import { describe, expect, it } from 'vitest';
 import { MoonGame, moonPlayerView, type MoonState } from '../games/moon/game';
-import { MoonCoverTask, MoonNightAction, MoonPrivatePanel, MoonCountdown, MoonSheriffAction, MoonStatus, MoonWolfChoices } from './MoonBoard';
+import { MoonCoverTask, MoonNightAction, MoonPrivatePanel, MoonPublicPhase, MoonCountdown, MoonSheriffAction, MoonStatus, MoonWolfChoices } from './MoonBoard';
 import { MoonSnapshot } from './MoonSnapshot';
 import type { RoomInfo } from './api';
 
-function fixture(): MoonState {
-  const match = createMatch({ game: MoonGame, numPlayers: 8, setupData: { startImmediately: true }, unlisted: true });
+function fixture(count = 8): MoonState {
+  const match = createMatch({ game: MoonGame, numPlayers: count, setupData: { startImmediately: true }, unlisted: true });
   if ('setupDataError' in match) throw new Error(match.setupDataError);
   const G = structuredClone(match.initialState.G) as MoonState;
   G.status = 'night'; G.nightStep = 2; G.deadline = Date.now() + 30000;
@@ -19,7 +19,10 @@ function fixture(): MoonState {
 const info: RoomInfo = { roomId: 'test-room', matchID: 'test-match', gameName: 'silver-moon', status: 'night', numPlayers: 8, minPlayers: 6, maxPlayers: 12,
   spectatorCount: 1, godViewAllowed: true, players: Array.from({ length: 8 }, (_, id) => ({ id, name: `乘客 ${id}`, isConnected: true, ready: true })) };
 const nameOf = (id: string) => `乘客 ${id}`;
-const snapshot = (G: MoonState, perspective: 'blind' | 'god') => renderToStaticMarkup(createElement(MoonSnapshot, { G, info, perspective, replay: true }));
+const snapshot = (G: MoonState, perspective: 'blind' | 'god', replay = true) => renderToStaticMarkup(createElement(MoonSnapshot, {
+  G, info: { ...info, numPlayers: Object.keys(G.players).length,
+    players: Object.keys(G.players).map(id => ({ id, name: nameOf(id), isConnected: true, ready: true })) }, perspective, replay,
+}));
 
 describe('Silver Moon read-only and private surfaces', () => {
   it('shows the same public profession phase without inspecting secret deadlines', () => {
@@ -32,6 +35,45 @@ describe('Silver Moon read-only and private surfaces', () => {
       expect(after).toContain(`${label}時段 ${step + 1} / 4`);
       expect(after).toEqual(before);
     }
+  });
+  it.each([6, 7, 9])('uses three public stages for a new %i-player game in player, observer and replay views', count => {
+    const G = fixture(count);
+    expect(G.rulesVersion).toBe(2);
+    for (const [index, label] of ['狼人', '預言家', '女巫'].entries()) {
+      G.nightStep = index + 1;
+      const ownView = moonPlayerView({ G, playerID: '0' });
+      const player = renderToStaticMarkup(createElement(MoonStatus, { G: ownView, nameOf, ownID: '0' }));
+      expect(player).toContain(`${label}時段 ${index + 1} / 3`);
+      expect(player).not.toContain('守衛時段');
+      for (const perspective of ['blind', 'god'] as const) for (const replay of [false, true]) {
+        const html = snapshot(G, perspective, replay);
+        expect(html).toContain(`${label}時段 ${index + 1} / 3`);
+        expect(html).toContain(`${label}時段（${index + 1} / 3）`);
+        expect(html).not.toContain('守衛時段');
+      }
+    }
+  });
+  it('preserves four-stage numbering for old six-player games and their replay', () => {
+    const G = fixture(6); G.rulesVersion = 1;
+    for (const [step, label] of ['守衛', '狼人', '預言家', '女巫'].entries()) {
+      G.nightStep = step;
+      const player = renderToStaticMarkup(createElement(MoonStatus, { G: moonPlayerView({ G, playerID: '0' }), nameOf }));
+      expect(player).toContain(`${label}時段 ${step + 1} / 4`);
+      for (const perspective of ['blind', 'god'] as const) {
+        const html = snapshot(G, perspective);
+        expect(html).toContain(`${label}時段 ${step + 1} / 4`);
+        expect(html).toContain(`${label}時段（${step + 1} / 4）`);
+      }
+    }
+  });
+  it('derives public stage progress from the starting player count without reading identities or alive flags', () => {
+    const G = fixture(); G.nightStep = 0;
+    for (const player of Object.values(G.players)) Object.defineProperty(player, 'alive', { get: () => { throw new Error('Alive status read'); } });
+    for (const field of ['private', 'secret']) Object.defineProperty(G, field, { get: () => { throw new Error(`Private source read: ${field}`); } });
+    const status = renderToStaticMarkup(createElement(MoonStatus, { G, nameOf, replay: true }));
+    const publicPhase = renderToStaticMarkup(createElement(MoonPublicPhase, { G, nameOf }));
+    expect(status).toContain('守衛時段 1 / 4');
+    expect(publicPhase).toContain('守衛時段（1 / 4）');
   });
   it('lists every living known wolf and distinguishes missing, skipped, and target choices', () => {
     const G = fixture(); G.nightStep = 1;

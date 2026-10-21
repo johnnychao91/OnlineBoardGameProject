@@ -61,7 +61,7 @@ export function MoonOptions({ seat, info, disabled, onBusy, onUpdate }: LobbyOpt
     <p className="small muted">警長不是額外角色。開啟後，第一個白天可競選；當選者決定發言順序，放逐票算 1.5 票，離場時可移交或銷毀警徽。</p>
     <div className="moon-option-times">{timeFields.map(([key, label]) => <label key={key}>{label}<div><input type="number" inputMode="numeric" min={MOON_TIME_LIMITS[key].min} max={MOON_TIME_LIMITS[key].max} step="1" value={times[key]} disabled={blocked} onChange={event => setTimes(current => ({ ...current, [key]: event.target.value }))} onBlur={() => finishTyping(key)} onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); if (!blocked) void update(normalizeDraft()); } }} /><span>秒</span></div><small>{MOON_TIME_LIMITS[key].min}～{MOON_TIME_LIMITS[key].max} 秒</small></label>)}</div>
     {host && <button className="button secondary" disabled={blocked || !dirty} onClick={() => void update(normalizeDraft())}>{busy ? '儲存中…' : '套用倒數設定'}</button>}
-    <p className="small muted">發言本人可提前結束。守衛、預言家、女巫完成操作，或存活狼人選擇一致後，最多再等 3 秒切換。無人完成時保留原倒數；巡查票券不影響進度。投票逾時視為棄票。</p>
+    <p className="small muted">發言本人可提前結束。夜間只安排開局配置中有登場的職業；已登場後離場的職業仍保留時段。守衛、預言家與女巫都等待完整倒數；只有存活狼人一致選中同一目標並維持 3 秒，才提前切換。巡查票券不影響進度。投票逾時視為棄票。</p>
     {roles.length > 0 && <p className="moon-role-configuration">目前 {count} 人配置：{Object.entries(MOON_ROLES).filter(([id]) => roles.includes(id as typeof roles[number])).map(([id, role]) => `${role.name} ${roles.filter(value => value === id).length}`).join(' ／ ')}</p>}
     <p className="small muted">{host ? '套用設定會清除全員準備；尚未套用的數字不會更改本局房規。' : '由房主在等待室調整；更新後請重新準備。'}</p><ErrorMessage>{error}</ErrorMessage>
   </section>;

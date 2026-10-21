@@ -1,6 +1,6 @@
 import { useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import type { MoonState } from '../games/moon/game';
-import { MOON_ROLES, moonRoleDeck } from '../games/moon/rules';
+import { MOON_ROLES, moonNightSteps, moonRoleDeck } from '../games/moon/rules';
 import { isPlayer } from './api';
 import { RoomContext } from './room-context';
 import { GameSoundControl } from './GameSoundControl';
@@ -15,6 +15,10 @@ type BoardProps = { G: MoonState; playerID: string | null; isConnected?: boolean
 export const moonFactionLabel = (faction: string | null | undefined) => faction === 'wolves' ? '狼人陣營' : faction === 'town' ? '好人陣營' : '尚未公開';
 const nightRoleNames = ['守衛', '狼人', '預言家', '女巫'];
 export const moonNightLabel = (step: number) => `${nightRoleNames[step] ?? '夜間'}時段`;
+function moonNightProgress(G: MoonState): string {
+  const steps = moonNightSteps(Object.keys(G.players).length, G.rulesVersion);
+  return `${steps.indexOf(G.nightStep) + 1} / ${steps.length}`;
+}
 
 export function useMoonPrivacy() {
   const [visible, setVisible] = useState(() => typeof document === 'undefined' || !document.hidden);
@@ -94,7 +98,7 @@ export function MoonCountdown({ deadline, replay = false }: { deadline: number |
 export function MoonStatus({ G, nameOf, ownID, replay = false }: { G: MoonState; nameOf: MoonNameOf; ownID?: string; replay?: boolean }) {
   const speech = G.status === 'speaking' || G.status === 'sheriff-speech';
   const ownTurn = speech && G.speakerID === ownID;
-  const title = G.status === 'lobby' ? '等待乘客登車' : G.status === 'briefing' ? '查看身分 · 準備出發' : G.status === 'night' ? `車廂熄燈 · ${moonNightLabel(G.nightStep)} ${G.nightStep + 1} / 4` : G.status === 'dawn' ? '晨光穿過車窗 · 昨夜結果' : speech ? `${G.status === 'sheriff-speech' ? '競選 · ' : ''}${ownTurn ? '輪到你發言' : `${G.speakerID ? nameOf(G.speakerID) : '乘客'}正在發言`}` : G.status === 'voting' ? `餐車表決 · ${G.voteRound === 2 ? '同票重投' : '秘密投票'}` : G.status === 'vote-review' ? '表決已揭曉' : G.status === 'hunter' ? `獵人 ${G.hunterID ? nameOf(G.hunterID) : ''} 的最後選擇` : G.status === 'sheriff-signup' ? '警長競選 · 報名上警' : G.status === 'sheriff-voting' ? `警長競選 · ${G.sheriffRound === 2 ? '同票重投' : '警下投票'}` : G.status === 'sheriff-order' ? `警長 ${G.sheriffID ? nameOf(G.sheriffID) : ''} 決定發言順序` : G.status === 'sheriff-transfer' ? '警長離場 · 交接警徽' : `${moonFactionLabel(G.winner)}獲勝`;
+  const title = G.status === 'lobby' ? '等待乘客登車' : G.status === 'briefing' ? '查看身分 · 準備出發' : G.status === 'night' ? `車廂熄燈 · ${moonNightLabel(G.nightStep)} ${moonNightProgress(G)}` : G.status === 'dawn' ? '晨光穿過車窗 · 昨夜結果' : speech ? `${G.status === 'sheriff-speech' ? '競選 · ' : ''}${ownTurn ? '輪到你發言' : `${G.speakerID ? nameOf(G.speakerID) : '乘客'}正在發言`}` : G.status === 'voting' ? `餐車表決 · ${G.voteRound === 2 ? '同票重投' : '秘密投票'}` : G.status === 'vote-review' ? '表決已揭曉' : G.status === 'hunter' ? `獵人 ${G.hunterID ? nameOf(G.hunterID) : ''} 的最後選擇` : G.status === 'sheriff-signup' ? '警長競選 · 報名上警' : G.status === 'sheriff-voting' ? `警長競選 · ${G.sheriffRound === 2 ? '同票重投' : '警下投票'}` : G.status === 'sheriff-order' ? `警長 ${G.sheriffID ? nameOf(G.sheriffID) : ''} 決定發言順序` : G.status === 'sheriff-transfer' ? '警長離場 · 交接警徽' : `${moonFactionLabel(G.winner)}獲勝`;
   const detail = G.status === 'night' ? '保持安靜，按照操作台行動。不公開哪些乘客持有技能或已完成；時段由系統統一切換。' : speech ? '依順序輪流發言。本人可提前結束，時間到會自動交棒。' : G.status === 'voting' ? '每位存活乘客一票，警長票算 1.5 票。逾時視為棄票。' : G.status === 'hunter' ? '只有這位獵人可以指定目標；時間到視為放棄開槍。' : G.status === 'sheriff-signup' ? '存活乘客可報名；倒數結束後由候選人依序發言。' : G.status === 'sheriff-voting' ? '只有非候選的存活乘客能投票。候選人不參與這輪投票。' : G.status === 'sheriff-order' ? '警長指定第一位與發言方向。逾時使用預設座位順序。' : G.status === 'sheriff-transfer' ? '離場的警長可把警徽交給存活乘客，或銷毀警徽；逾時視為銷毀。' : G.status === 'finished' ? G.winReason === 'wolves-eliminated' ? '全部狼人已被找出，列車得以繼續前進。' : '存活狼人人數已達其餘乘客總和，列車落入狼群掌握。' : '看清目前結果，再確認繼續。';
   return <section className={`moon-status ${ownTurn ? 'moon-your-turn' : ''} ${G.status === 'night' ? 'night' : ''}`} aria-label="目前階段"><span className="moon-status-emblem" aria-hidden="true">{G.status === 'night' ? '☾' : '◈'}</span><div><strong>{title}</strong><p>{detail}</p></div><MoonCountdown deadline={G.deadline} replay={replay} /></section>;
 }
@@ -150,7 +154,7 @@ export function MoonNightAction({ G, id, nameOf, disabled, send, confirm }: { G:
   };
   return <><h3>{labels[role]}</h3><p className="small moon-secret-note">僅自己可見 · {own.nightSubmitted ? '已收到你的選擇' : '尚未選擇'}{own.nightChoice ? `：${nameOf(own.nightChoice)}` : ''}</p>
     <MoonWolfChoices G={G} id={id} nameOf={nameOf} />
-    {role === 'guard' && <p className="small muted">可以守護自己，不能連續兩晚守護同一人。送出後最多再等 3 秒切換；期間可修改，但不延長時間。</p>}
+    {role === 'guard' && <p className="small muted">可以守護自己，不能連續兩晚守護同一人。倒數結束前可修改選擇，送出後仍等待完整時段。</p>}
     {role === 'seer' && <p className="small muted">確認後不可修改。查驗結果只出現在你的秘密情報。</p>}
     {role !== 'witch' && !completed && <><MoonTargets ids={candidates} nameOf={nameOf} selected={own.nightChoice} disabled={disabled} onSelect={target => role === 'seer' ? confirm('inspect', [target], `查驗 ${nameOf(target)} 的陣營？`) : selectMutable(target)} /><button className="button secondary" disabled={disabled} onClick={() => role === 'seer' ? confirm('inspect', [null], '確定今晚不查驗？') : selectMutable(null)}>今晚不行動</button></>}
     {role === 'witch' && <><p className="small">解藥 {own.antidote ? '1' : '0'} 瓶 ／ 毒藥 {own.poison ? '1' : '0'} 瓶。每晚最多使用一瓶。</p>{own.antidote && <p>{own.attackedID ? `今晚被襲擊：${nameOf(own.attackedID)}` : '今晚沒有狼人襲擊目標。'}{own.attackedID === id && G.day > 1 ? '第一晚之後不能自救。' : ''}</p>}{!own.antidote && <p className="small muted">解藥已用完，不再獲知襲擊對象。</p>}{!completed && <><button className="button primary" disabled={disabled || !own.antidote || !own.attackedID || (own.attackedID === id && G.day > 1)} onClick={() => confirm('witch', ['save', own.attackedID], `使用唯一的解藥救 ${own.attackedID ? nameOf(own.attackedID) : ''}？`)}>使用解藥</button><h4>毒藥目標</h4><MoonTargets ids={aliveIDs.filter(target => target !== id)} nameOf={nameOf} disabled={disabled || !own.poison} onSelect={target => confirm('witch', ['poison', target], `使用唯一的毒藥帶走 ${nameOf(target)}？`)} /><button className="button secondary" disabled={disabled} onClick={() => confirm('witch', ['skip', null], '確定今晚不用藥？')}>保留藥劑</button></>}</>}
@@ -179,7 +183,7 @@ export function MoonPublicPhase({ G, nameOf }: { G: MoonState; nameOf: MoonNameO
     {['sheriff-signup', 'sheriff-speech', 'sheriff-voting'].includes(G.status) && <p>目前候選：{G.sheriffCandidates.map(nameOf).join('、') || '尚無人報名'}{G.sheriffRound === 2 ? '（同票重選）' : ''}</p>}
     {G.electionResult && G.status.startsWith('sheriff-') && <details className="moon-election-result"><summary>上一輪警長選舉結果</summary><div className="moon-ballots">{Object.entries(G.electionResult.votes).map(([id, target]) => <span key={id}>{nameOf(id)} → {target ? nameOf(target) : '棄票'}</span>)}</div></details>}
     {G.status === 'briefing' && <p>這班列車將穿越荒野。看完自己的身分後，請勿將秘密畫面展示給其他乘客。{G.options.mode === 'assisted' ? '現場夜間請安靜操作；每個人都有巡查任務，不需要抬頭找裁判。' : '請先確認外部通話已連上；夜間所有人保持安靜。'}</p>}
-    {G.status === 'night' && <p>目前為{moonNightLabel(G.nightStep)}（{G.nightStep + 1} / 4）。不公開個別技能、目標或是否完成；請等候系統統一切換。</p>}
+    {G.status === 'night' && <p>目前為{moonNightLabel(G.nightStep)}（{moonNightProgress(G)}）。不公開個別技能、目標或是否完成；請等候系統統一切換。</p>}
     {G.status === 'dawn' && <div className="moon-result"><h3>{G.dawnDeaths.length ? '這些乘客未能走出車廂' : '平安夜 · 所有人仍在車上'}</h3><p>{G.dawnDeaths.map(nameOf).join('、') || '列車繼續向前。'}</p><p className="small muted">死因與一般離場者身分不公開。</p></div>}
     {(G.status === 'speaking' || G.status === 'sheriff-speech') && <p className="small">發言順序：{G.speakingOrder.filter(id => G.status !== 'sheriff-speech' || G.sheriffCandidates.includes(id)).map(id => <span className={id === G.speakerID ? 'moon-current-speaker' : ''} key={id}>{nameOf(id)}　</span>)}</p>}
     {G.status === 'vote-review' && G.lastVote && <div className="moon-result"><h3>{G.lastVote.exiledID ? `${nameOf(G.lastVote.exiledID)} 被放逐` : G.lastVote.tied.length > 1 && G.lastVote.round === 1 ? '最高票相同 · 將進行一次重投' : '本次無人被放逐'}</h3><div className="moon-ballots">{Object.entries(G.lastVote.votes).map(([id, target]) => <span key={id}>{nameOf(id)}{G.lastVote!.weights[id] === 3 ? '（1.5 票）' : ''} → <b>{target ? nameOf(target) : '棄票'}</b></span>)}</div></div>}
@@ -219,5 +223,5 @@ export function moonEventText(entry: MoonState['log'][number], nameOf: MoonNameO
 }
 
 export function MoonRuleSummary() {
-  return <div className="small"><p>6～12 人。好人找出全部狼人；存活狼人人數達其餘乘客總和時，狼人獲勝。角色配置依實際人數決定。</p><p>夜間依序進入守衛、狼人、預言家、女巫時段；技能完成或存活狼人選擇一致後，最多再等 3 秒切換，無人完成仍保留原倒數。巡查票券不影響結果。</p><p>白天依序發言，本人可以提前結束。秘密投票後統一揭曉；同票只重投一次，再同票則無人放逐。</p><a href="/rules/silver-moon" target="_blank" rel="noopener noreferrer">閱讀完整規則 →</a></div>;
+  return <div className="small"><p>6～12 人。好人找出全部狼人；存活狼人人數達其餘乘客總和時，狼人獲勝。角色配置依實際人數決定。</p><p>夜間依序進入本局有登場的守衛、狼人、預言家、女巫時段；未配置的職業直接略過。已登場但後來離場的職業仍保留時段。守衛、預言家與女巫使用完整倒數；只有存活狼人一致選中同一目標並維持 3 秒，才提前切換。巡查票券不影響結果。</p><p>白天依序發言，本人可以提前結束。秘密投票後統一揭曉；同票只重投一次，再同票則無人放逐。</p><a href="/rules/silver-moon" target="_blank" rel="noopener noreferrer">閱讀完整規則 →</a></div>;
 }

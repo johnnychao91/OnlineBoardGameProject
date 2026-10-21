@@ -112,9 +112,23 @@ async function ack(f: Fixture, g: Group) {
   const { G } = await f.state(g);
   for (const id of Object.keys(G.players).filter(id => G.players[id].alive)) await f.move(g, id, 'acknowledge', [G.epoch]);
 }
-async function quietNight(f: Fixture, g: Group) {
-  for (let slot = 0; slot < 4; slot++) {
+async function quietNight(f: Fixture, g: Group, inspectDuringSeer = false) {
+  // These full-match fixtures have six players: no guard was dealt at setup.
+  expect(g.seats).toHaveLength(6);
+  for (const slot of [1, 2, 3]) {
     const before = await f.state(g); expect(before.G).toMatchObject({ status: 'night', nightStep: slot });
+    for (const socket of g.sockets) expect(f.views.get(socket)!.G).toMatchObject({ rulesVersion: 2, status: 'night', nightStep: slot, deadline: before.G.deadline });
+    if (slot === 2 && inspectDuringSeer) {
+      const seer = Object.keys(before.G.private).find(id => before.G.private[id].role === 'seer')!;
+      const target = Object.keys(before.G.players).find(id => id !== seer && before.G.players[id].alive)!;
+      const completed = await f.move(g, seer, 'inspect', [target, before.G.epoch]);
+      expect(completed.G.private[seer].nightSubmitted).toBe(true);
+      f.advance(3000);
+      await new Promise(ok => setTimeout(ok, 150));
+      const waiting = await f.state(g);
+      expect(waiting._stateID).toBe(completed._stateID);
+      expect(waiting.G).toMatchObject({ status: 'night', nightStep: 2, deadline: before.G.deadline });
+    }
     await f.expire(g);
   }
   expect((await f.state(g)).G.status).toBe('dawn');
@@ -151,8 +165,15 @@ describe('Silver Moon shared framework and authoritative timers', () => {
     expect(blind.body.G.private).toEqual({}); noSecrets(blind.body.G); expect(Number(blind.clock)).toBe(Date.now());
     const wolves = Object.keys((await f.state(g)).G.private).filter(id => (f.views.get(g.sockets[Number(id)])!.G.private[id].role === 'wolf'));
     await ack(f, g);
+    for (const perspective of ['blind', 'god']) {
+      const night = await f.request(path(g, `view?perspective=${perspective}`), undefined, g.observer);
+      expect(night.status).toBe(200);
+      expect(night.body.G).toMatchObject({ rulesVersion: 2, status: 'night', nightStep: 1 });
+      expect(Object.keys(night.body.G.private)).toHaveLength(perspective === 'blind' ? 0 : 6);
+      noSecrets(night.body.G);
+    }
     for (const wolf of wolves) {
-      await quietNight(f, g); await ack(f, g);
+      await quietNight(f, g, true); await ack(f, g);
       const first = (await f.state(g)).G;
       const wrong = Object.keys(first.players).find(id => id !== first.speakerID && first.players[id].alive)!;
       await f.move(g, wrong, 'finishSpeech', [first.epoch], false);
@@ -172,6 +193,9 @@ describe('Silver Moon shared framework and authoritative timers', () => {
     const shared = await f.request(`/api/replays/${g.host.roomId}`, undefined, undefined, { 'X-Replay-Token': token(share.body.url, 'share') });
     expect(shared.status).toBe(200); expect(shared.body.complete).toBe(true);
     shared.body.frames.forEach((frame: any) => { expect(frame.G.private).toEqual({}); noSecrets(frame.G); });
+    const nightFrames = shared.body.frames.filter((frame: any) => frame.G.status === 'night');
+    expect([...new Set(nightFrames.map((frame: any) => frame.G.nightStep))]).toEqual([1, 2, 3]);
+    nightFrames.forEach((frame: any) => expect(frame.G.rulesVersion).toBe(2));
     expect((await f.request('/api/stats')).body.completedGames).toBe(1);
     await f.request(path(g), undefined, g.host); f.advance(8001);
     const lobby = (await f.request(path(g), undefined, g.host)).body;
@@ -203,10 +227,12 @@ describe('Silver Moon shared framework and authoritative timers', () => {
   }, 30000);
 
   it('advances a unanimous wolf choice after three hidden seconds without affecting other rooms', async () => {
-    const f = await fixture(), a = await f.group(), b = await f.group(), c = await f.group('encrypted-call', 2);
+    const f = await fixture(), a = await f.group('silver-moon', 8), b = await f.group(), c = await f.group('encrypted-call', 2);
     await f.start(a); await f.start(b, { ...DEFAULT_MOON_OPTIONS, mode: 'assisted', nightSeconds: 45 }); await f.start(c);
     await ack(f, a); await ack(f, b);
     const bBefore = await f.state(b), cBefore = await f.state(c);
+    expect((await f.state(a)).G).toMatchObject({ rulesVersion: 2, nightStep: 0 });
+    expect(bBefore.G).toMatchObject({ rulesVersion: 2, nightStep: 1 });
     await f.expire(a);
     expect((await f.state(b))._stateID).toBe(bBefore._stateID); expect((await f.state(c))._stateID).toBe(cBefore._stateID);
     const { G } = await f.state(a), wolves = Object.keys(G.private).filter(id => G.private[id].role === 'wolf');
@@ -235,8 +261,9 @@ describe('Silver Moon shared framework and authoritative timers', () => {
 
   it.each(['online', 'assisted'] as const)('%s cancels changed wolf consensus and preserves a new hidden deadline across restart', async mode => {
     const f = await fixture(), g = await f.group();
-    await f.start(g, { ...DEFAULT_MOON_OPTIONS, mode }); await ack(f, g); await f.expire(g);
+    await f.start(g, { ...DEFAULT_MOON_OPTIONS, mode }); await ack(f, g);
     const { G } = await f.state(g), wolves = Object.keys(G.private).filter(id => G.private[id].role === 'wolf');
+    expect(G).toMatchObject({ rulesVersion: 2, status: 'night', nightStep: 1 });
     const targets = Object.keys(G.private).filter(id => G.private[id].role !== 'wolf');
     for (const id of wolves) await f.move(g, id, 'wolfVote', [targets[0], G.epoch]);
     f.advance(2000);
@@ -253,8 +280,11 @@ describe('Silver Moon shared framework and authoritative timers', () => {
     const beforeRestart = await f.state(g);
     await f.restart(g);
     expect((await f.state(g)).G.secret).toEqual(beforeRestart.G.secret);
-    expect((await f.state(g)).G.deadline).toBe(G.deadline);
-    g.sockets.forEach(socket => noSecrets(f.views.get(socket)));
+    expect((await f.state(g)).G).toMatchObject({ rulesVersion: 2, status: 'night', nightStep: 1, deadline: G.deadline });
+    g.sockets.forEach(socket => {
+      noSecrets(f.views.get(socket));
+      expect(f.views.get(socket)!.G).toMatchObject({ rulesVersion: 2, status: 'night', nightStep: 1, deadline: G.deadline });
+    });
     f.advance(1999); await new Promise(ok => setTimeout(ok, 80));
     expect((await f.state(g)).G.nightStep).toBe(1);
     f.advance(1);

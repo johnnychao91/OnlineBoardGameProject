@@ -3,7 +3,7 @@ import { Client } from 'boardgame.io/client';
 import { CreateGameReducer, createMatch } from 'boardgame.io/internal';
 import type { State } from 'boardgame.io';
 import { MoonGame, advanceMoonClock, moonClockDeadline, moonObserverView, moonPlayerView, type MoonState } from './game';
-import { DEFAULT_MOON_OPTIONS, MOON_ROLES, MOON_TIME_LIMITS, moonRoleCounts, moonRoleDeck, normalizeMoonOptions, normalizeMoonSeconds, validateMoonOptions, type MoonOptions, type MoonRole } from './rules';
+import { DEFAULT_MOON_OPTIONS, MOON_ROLES, MOON_TIME_LIMITS, moonNightSteps, moonRoleCounts, moonRoleDeck, normalizeMoonOptions, normalizeMoonSeconds, validateMoonOptions, type MoonOptions, type MoonRole } from './rules';
 
 let now = 1_800_000_000_000;
 beforeEach(() => {
@@ -130,36 +130,37 @@ describe('銀月列車設定與發牌', () => {
   });
 });
 
-describe('夜間完成後的私有三秒緩衝', () => {
+describe('神職固定時段與狼人私有三秒緩衝', () => {
   it.each([
     ['guard', 0, false], ['guard', 0, true],
     ['seer', 2, false], ['seer', 2, true],
     ['witch', 3, false], ['witch', 3, true],
-  ] as const)('%s 第 %i 階段完成操作（放棄：%s）三秒後才切一階段，公開時間不變', (role, step, skip) => {
+  ] as const)('%s 第 %i 階段完成操作（放棄：%s）仍等待完整時段，公開時間不變', (role, step, skip) => {
     const client = makeClient(); toNight(client); nextNightStep(client, step);
     const actor = roleID(client, role), target = skip ? null : villagers(client)[0];
     const originalDeadline = raw(client).deadline!, originalEpoch = raw(client).epoch;
     now += 1000;
     if (role === 'witch') act(client, actor, 'witch', skip ? 'skip' : 'poison', target, originalEpoch);
     else act(client, actor, role === 'seer' ? 'inspect' : 'guard', target, originalEpoch);
-    const early = now + 3000;
     expect(raw(client).deadline).toBe(originalDeadline);
-    expect(moonClockDeadline(raw(client))).toBe(early);
-    expect(raw(client).secret!.nightAdvance).toEqual({ epoch: originalEpoch, deadline: early });
+    expect(moonClockDeadline(raw(client))).toBe(originalDeadline);
+    expect(raw(client).secret!.nightAdvance).toBeUndefined();
+    expect(raw(client).private[actor]).toMatchObject({ nightSubmitted: true, nightChoice: target });
     const restored = JSON.parse(JSON.stringify(raw(client))) as MoonState;
-    expect(advanceMoonClock(restored, early - 1)).toBe(false);
-    expect(advanceMoonClock(restored, early)).toBe(true);
+    expect(advanceMoonClock(restored, now + 3000)).toBe(false);
+    expect(advanceMoonClock(restored, originalDeadline - 1)).toBe(false);
+    expect(advanceMoonClock(restored, originalDeadline)).toBe(true);
     expect(restored.epoch).toBe(originalEpoch + 1);
     expect(restored.secret!.nightAdvance).toBeUndefined();
-    expect(advanceMoonClock(restored, early)).toBe(false);
+    expect(advanceMoonClock(restored, originalDeadline)).toBe(false);
     if (step < 3) {
       expect(restored.nightStep).toBe(step + 1);
-      expect(restored.deadline).toBe(early + 30000);
+      expect(restored.deadline).toBe(originalDeadline + 30000);
     } else expect(restored.status).toBe('dawn');
   });
   it('所有視角都保持原始倒數，秘密緩衝及隨機順位不進投影', () => {
     const client = makeClient(); toNight(client);
-    act(client, roleID(client, 'guard'), 'guard', null, raw(client).epoch);
+    wolfAttack(client, villagers(client)[0]);
     const G = raw(client);
     expect(G.secret!.nightAdvance).toBeDefined();
     expect(G.secret!.attackTieOrder).toHaveLength(6);
@@ -172,8 +173,9 @@ describe('夜間完成後的私有三秒緩衝', () => {
       expect(moonClockDeadline(view)).toBe(G.deadline);
     }
   });
-  it('狼人全體選擇同一目標才開始，重送同票不延長，改票或撤回取消並可重建', () => {
-    const client = makeClient(); toNight(client); nextNightStep(client, 1);
+  it.each([1, 2] as const)('V%i 狼人全體選擇同一目標才開始，重送同票不延長，改票或撤回取消並可重建', rulesVersion => {
+    const client = makeClient(); patch(client, G => { G.rulesVersion = rulesVersion; });
+    toNight(client); nextNightStep(client, 1);
     const [wolfA, wolfB] = wolves(client), [a, b] = villagers(client), epoch = raw(client).epoch;
     const originalDeadline = raw(client).deadline;
     act(client, wolfA, 'wolfVote', a, epoch);
@@ -212,7 +214,7 @@ describe('夜間完成後的私有三秒緩衝', () => {
     expect(advanceMoonClock(state, now + 3000)).toBe(true);
     expect(state.secret!.attackTarget).toBe(b);
   });
-  it.each(['guard', 'wolf'] as const)('%s 在三秒已到而伺服器尚未推進時不能修改已定案結果', role => {
+  it.each(['guard', 'wolf'] as const)('%s 在裁定期限已到而伺服器尚未推進時不能修改已定案結果', role => {
     const client = makeClient(); toNight(client);
     const [a, b] = villagers(client);
     if (role === 'wolf') wolfAttack(client, a);
@@ -229,19 +231,19 @@ describe('夜間完成後的私有三秒緩衝', () => {
     expect(raw(client)).toEqual(after);
   });
   it('三秒晚於原本截止時以原時刻為準，重啟後最多推進一階段', () => {
-    const client = makeClient(8, { nightSeconds: 5 }); toNight(client);
+    const client = makeClient(8, { nightSeconds: 5 }); toNight(client); nextNightStep(client, 1);
     const deadline = raw(client).deadline!;
     now = deadline - 1000;
-    act(client, roleID(client, 'guard'), 'guard', null, raw(client).epoch);
+    wolfAttack(client, villagers(client)[0]);
     expect(raw(client).secret!.nightAdvance!.deadline).toBe(deadline + 2000);
     expect(moonClockDeadline(raw(client))).toBe(deadline);
     const atOriginalDeadline = JSON.parse(JSON.stringify(raw(client))) as MoonState;
     expect(advanceMoonClock(atOriginalDeadline, deadline)).toBe(true);
-    expect(atOriginalDeadline.nightStep).toBe(1);
+    expect(atOriginalDeadline.nightStep).toBe(2);
     const restored = JSON.parse(JSON.stringify(raw(client))) as MoonState;
     expect(advanceMoonClock(restored, deadline - 1)).toBe(false);
     expect(advanceMoonClock(restored, deadline + 100_000)).toBe(true);
-    expect(restored.nightStep).toBe(1);
+    expect(restored.nightStep).toBe(2);
     expect(restored.deadline).toBe(deadline + 105_000);
   });
   it('缺欄位的舊存檔或過期 epoch 不會提前跳階段，死亡神職也不自動跳過', () => {
@@ -255,6 +257,23 @@ describe('夜間完成後的私有三秒緩衝', () => {
     expect(advanceMoonClock(G, G.deadline!)).toBe(true);
     expect(G.nightStep).toBe(1);
     expect(G.secret!.nightAdvance).toBeUndefined();
+  });
+  it.each(([1, 2] as const).flatMap(rulesVersion => ([['guard', 0], ['seer', 2], ['witch', 3]] as const).map(([role, step]) => ({ rulesVersion, role, step }))))('V$rulesVersion 的 $role 存檔殘留提前期限也必須等待原公開截止', ({ rulesVersion, role, step }) => {
+    const client = makeClient(); patch(client, G => { G.rulesVersion = rulesVersion; });
+    toNight(client); nextNightStep(client, step);
+    const actor = roleID(client, role), epoch = raw(client).epoch;
+    if (role === 'witch') act(client, actor, 'witch', 'skip', null, epoch);
+    else act(client, actor, role === 'guard' ? 'guard' : 'inspect', null, epoch);
+    const restored = JSON.parse(JSON.stringify(raw(client))) as MoonState;
+    const deadline = restored.deadline!;
+    restored.secret!.nightAdvance = { epoch, deadline: now + 3000 };
+    expect(moonClockDeadline(restored)).toBe(deadline);
+    expect(advanceMoonClock(restored, now + 3000)).toBe(false);
+    expect(advanceMoonClock(restored, deadline - 1)).toBe(false);
+    expect(restored).toMatchObject({ status: 'night', nightStep: step, epoch, deadline });
+    expect(advanceMoonClock(restored, deadline)).toBe(true);
+    expect(restored.epoch).toBe(epoch + 1);
+    expect(restored.secret!.nightAdvance).toBeUndefined();
   });
   it('平票順位來自遊戲隨機器，重啟重現且只選最高票；全棄票不襲擊', () => {
     const outcomes = new Set<string>();
@@ -291,9 +310,58 @@ describe('夜間完成後的私有三秒緩衝', () => {
 });
 
 describe('夜間計時、技能與秘密資訊', () => {
-  it.each(['online', 'assisted'] as const)('%s 模式四段夜晚固定長度，缺少或死亡神職也不跳過', mode => {
-    const client = makeClient(6, { mode, nightSeconds: 17 }); toNight(client);
+  it.each([6, 7, 8, 9, 10, 11, 12].flatMap(count => (['online', 'assisted'] as const).map(mode => ({ count, mode }))))('$mode 模式 $count 人新局每晚只排已配置職業，保留完整時段與公開投影', ({ count, mode }) => {
+    const client = makeClient(count, { mode, nightSeconds: 17 }); toNight(client);
+    const expectedSteps = [6, 7, 9].includes(count) ? [1, 2, 3] : [0, 1, 2, 3];
+    expect(raw(client).rulesVersion).toBe(2);
+    expect(moonNightSteps(count, 2)).toEqual(expectedSteps);
+    for (const step of expectedSteps) {
+      const G = raw(client);
+      expect(G.nightStep).toBe(step);
+      expect(G.deadline).toBe(now + 17000);
+      const restored = JSON.parse(JSON.stringify(G)) as MoonState;
+      expect(advanceMoonClock(restored, now + 16999)).toBe(false);
+      expect(advanceMoonClock(restored, Number.NaN)).toBe(false);
+      for (const view of [moonPlayerView({ G, playerID: '0' }), moonObserverView(G, 'blind'), moonObserverView(G, 'god')]) {
+        expect(view).toMatchObject({ rulesVersion: 2, nightStep: step, deadline: G.deadline });
+        expect(view).not.toHaveProperty('secret');
+        expect(moonNightSteps(Object.keys(view.players).length, view.rulesVersion)).toEqual(expectedSteps);
+      }
+      tick(client, step === 1 ? 3_600_000 : 0);
+      expect(raw(client).epoch).toBe(G.epoch + 1);
+    }
+    expect(raw(client)).toMatchObject({ status: 'dawn', dawnDeaths: [], deadline: null });
+    expect(raw(client).log.map(e => e.type)).toEqual(['start', 'night', 'dawn']);
+
+    // Beginning the next night must use the same composition, not revert to guard.
+    toVote(client); voteAll(client, null); ackAll(client);
+    expect(raw(client)).toMatchObject({ status: 'night', day: 2, nightStep: expectedSteps[0], deadline: now + 17000 });
+    for (const step of expectedSteps) { expect(raw(client).nightStep).toBe(step); tick(client); }
+    expect(raw(client)).toMatchObject({ status: 'dawn', day: 2, dawnDeaths: [] });
+  });
+  it.each(['online', 'assisted'] as const)('%s 模式已登場守衛死亡後仍保留時段，不暴露死者職業', mode => {
+    const client = makeClient(8, { mode, nightSeconds: 17 }); toNight(client);
+    const guard = roleID(client, 'guard');
+    wolfAttack(client, guard); finishNight(client);
+    expect(raw(client).players[guard]).toMatchObject({ alive: false });
+    expect(raw(client).players[guard].revealedRole).toBeUndefined();
+    toVote(client); voteAll(client, null); ackAll(client);
+    const G = raw(client);
+    expect(G).toMatchObject({ status: 'night', day: 2, nightStep: 0, deadline: now + 17000 });
+    expect(advanceMoonClock(structuredClone(G), now + 16999)).toBe(false);
+    expect(moonNightSteps(Object.keys(moonObserverView(G, 'blind').players).length, G.rulesVersion)).toEqual([0, 1, 2, 3]);
+    tick(client);
+    expect(raw(client)).toMatchObject({ status: 'night', nightStep: 1, deadline: now + 17000 });
+  });
+  it.each(['online', 'assisted'] as const)('%s 模式舊版存檔維持四段夜晚與完整期限', mode => {
+    const client = makeClient(6, { mode, nightSeconds: 17 });
+    patch(client, G => { G.rulesVersion = 1; });
+    toNight(client);
     const G = structuredClone(raw(client));
+    expect(moonNightSteps(6, 1)).toEqual([0, 1, 2, 3]);
+    for (const view of [moonPlayerView({ G, playerID: '0' }), moonObserverView(G, 'blind'), moonObserverView(G, 'god')]) {
+      expect(view).toMatchObject({ rulesVersion: 1, nightStep: 0 });
+    }
     expect(advanceMoonClock(G, now + 16999)).toBe(false);
     expect(advanceMoonClock(G, Number.NaN)).toBe(false);
     for (let step = 0; step < 4; step++) {

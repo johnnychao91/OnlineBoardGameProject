@@ -73,3 +73,11 @@ export function moonRoleCounts(count: number): Record<MoonRole, number> {
   for (const role of moonRoleDeck(count)) counts[role] += 1;
   return counts;
 }
+
+/** Stable role IDs; use the public starting composition, never living players. */
+export function moonNightSteps(count: number, rulesVersion: 1 | 2): number[] {
+  if (rulesVersion === 1) return [0, 1, 2, 3];
+  const counts = moonRoleCounts(count);
+  const roles: MoonRole[] = ['guard', 'wolf', 'seer', 'witch'];
+  return roles.flatMap((role, step) => counts[role] > 0 ? [step] : []);
+}
