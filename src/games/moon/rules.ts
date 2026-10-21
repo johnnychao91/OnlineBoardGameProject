@@ -8,6 +8,20 @@ export interface MoonOptions {
   voteSeconds: number;
 }
 export const DEFAULT_MOON_OPTIONS: MoonOptions = { mode: 'online', sheriff: false, speechSeconds: 60, nightSeconds: 30, voteSeconds: 30 };
+export const MOON_TIME_LIMITS = {
+  speechSeconds: { min: 5, max: 300 },
+  nightSeconds: { min: 5, max: 120 },
+  voteSeconds: { min: 5, max: 120 },
+} as const;
+export type MoonTimeOption = keyof typeof MOON_TIME_LIMITS;
+/** Accept integer input only; both the room form and server use the same bounds. */
+export function normalizeMoonSeconds(key: MoonTimeOption, input: unknown): number {
+  const { min, max } = MOON_TIME_LIMITS[key];
+  if (typeof input !== 'number' || !Number.isFinite(input) || !Number.isInteger(input)) {
+    throw new Error(`${key === 'speechSeconds' ? '發言' : key === 'nightSeconds' ? '夜間階段' : '投票'}秒數必須是 ${min}～${max} 的整數。`);
+  }
+  return Math.max(min, Math.min(max, input));
+}
 export const MOON_FACTIONS: Record<MoonFaction, string> = { town: '好人', wolves: '狼人' };
 export const MOON_ROLES: Record<MoonRole, { name: string; faction: MoonFaction; description: string }> = {
   wolf: { name: '狼人', faction: 'wolves', description: '你認得同車的狼人。夜間共同選擇一位非狼人乘客襲擊，白天隱藏身分並影響放逐表決。' },
@@ -35,11 +49,7 @@ export function normalizeMoonOptions(input: unknown): MoonOptions {
   }
   for (const key of ['speechSeconds', 'nightSeconds', 'voteSeconds'] as const) {
     if (data[key] === undefined) continue;
-    const maximum = key === 'speechSeconds' ? 300 : 120;
-    if (!Number.isInteger(data[key]) || (data[key] as number) < 15 || (data[key] as number) > maximum) {
-      throw new Error(`${key === 'speechSeconds' ? '發言' : key === 'nightSeconds' ? '夜間階段' : '投票'}秒數必須是 15～${maximum} 的整數。`);
-    }
-    result[key] = data[key] as number;
+    result[key] = normalizeMoonSeconds(key, data[key]);
   }
   return result;
 }

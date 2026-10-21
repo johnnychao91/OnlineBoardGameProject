@@ -86,6 +86,10 @@ export interface MoonState {
     afterHunter: 'dawn' | 'vote-review';
     afterTransfer: 'dawn' | 'vote-review';
     sheriffVotes: Record<string, string | null>;
+    /** Shuffled with the game's persisted RNG once per night; never exposed to clients. */
+    attackTieOrder?: string[];
+    /** Kept out of every projection so early completion never changes the visible countdown. */
+    nightAdvance?: { epoch: number; deadline: number; targetID?: string };
   };
 }
 export interface MoonSetupData { startImmediately?: boolean; participantIDs?: string[]; options?: MoonOptions }
@@ -98,10 +102,25 @@ const token = (G: MoonState, id: unknown, epoch: unknown): id is string => seat(
 const beforeDeadline = (G: MoonState) => G.deadline !== null && Date.now() < G.deadline;
 const targetOrSkip = (G: MoonState, id: unknown) => id === null || living(G, id);
 
+/** Authoritative deadline, including a private completed-action grace period. */
+export function moonClockDeadline(G: MoonState): number | null {
+  if (G.deadline === null) return null;
+  const early = G.secret?.nightAdvance;
+  if (G.status === 'night' && early?.epoch === G.epoch && Number.isFinite(early.deadline)) {
+    return Math.min(G.deadline, early.deadline);
+  }
+  return G.deadline;
+}
+function scheduleNightAdvance(G: MoonState, now: number, targetID?: string) {
+  const current = G.secret!.nightAdvance;
+  if (current?.epoch === G.epoch && current.targetID === targetID && Number.isFinite(current.deadline)) return;
+  G.secret!.nightAdvance = { epoch: G.epoch, deadline: now + 3000, ...(targetID === undefined ? {} : { targetID }) };
+}
 function transition(G: MoonState, status: MoonStatus, now: number, seconds?: number) {
   G.status = status;
   G.epoch += 1;
   G.deadline = seconds === undefined ? null : now + seconds * 1000;
+  if (G.secret) delete G.secret.nightAdvance;
   for (const player of Object.values(G.players)) player.acknowledged = false;
 }
 function finish(G: MoonState, winner: MoonFaction, reason: MoonWinReason, now: number) {
@@ -140,9 +159,10 @@ function beginGame(G: MoonState, random: RandomAPI) {
 function emptySecret(): NonNullable<MoonState['secret']> {
   return { guardTarget: null, wolfVotes: {}, attackTarget: null, poisonTarget: null, saved: false, votes: {}, afterHunter: 'dawn', afterTransfer: 'dawn', sheriffVotes: {} };
 }
-function beginNight(G: MoonState, now: number) {
+function beginNight(G: MoonState, now: number, random: RandomAPI) {
   G.nightStep = 0; G.speakerID = null; G.speakingOrder = []; G.speechIndex = 0; G.hunterID = null; G.dawnDeaths = [];
   G.secret = emptySecret();
+  G.secret.attackTieOrder = random.Shuffle(aliveIDs(G).filter(id => G.private[id].role !== 'wolf'));
   for (const info of Object.values(G.private)) {
     info.nightChoice = null; info.nightSubmitted = false; info.witchChoice = null; info.wolfVotes = {}; info.attackedID = null;
     info.ownVote = null; info.voteSubmitted = false;
@@ -211,7 +231,13 @@ function finishNightSlot(G: MoonState, now: number) {
   if (G.nightStep === 0) {
     for (const id of aliveIDs(G)) if (G.private[id].role === 'guard') G.private[id].previousGuard = G.secret!.guardTarget;
   }
-  if (G.nightStep === 1) G.secret!.attackTarget = uniqueHighest(G.secret!.wolfVotes).selected;
+  if (G.nightStep === 1) {
+    const votes = Object.fromEntries(aliveIDs(G).filter(id => G.private[id].role === 'wolf').map(id => [id, G.secret!.wolfVotes[id] ?? null]));
+    const { selected, tied } = uniqueHighest(votes);
+    // Pre-shuffling gives each tied target the same chance without re-rolling after a restart.
+    // An untouched pre-upgrade night has no order and retains its old no-attack-on-tie rule.
+    G.secret!.attackTarget = selected ?? G.secret!.attackTieOrder?.find(id => tied.includes(id)) ?? null;
+  }
   if (G.nightStep === 3) { resolveNight(G, now); return; }
   G.nightStep += 1;
   if (G.nightStep === 3) {
@@ -294,7 +320,8 @@ function resolveBadge(G: MoonState, targetID: string | null, now: number) {
  * At most one deadline is consumed: a restart grants a full next stage, not a cascade.
  */
 export function advanceMoonClock(G: MoonState, now: number): boolean {
-  if (!Number.isFinite(now) || G.deadline === null || now < G.deadline || G.status === 'finished') return false;
+  const deadline = moonClockDeadline(G);
+  if (!Number.isFinite(now) || deadline === null || now < deadline || G.status === 'finished') return false;
   if (G.status === 'night') finishNightSlot(G, now);
   else if (G.status === 'speaking') nextSpeech(G, now);
   else if (G.status === 'voting') resolveVotes(G, now);
@@ -315,43 +342,55 @@ function startGame({ G, playerID, random }: MoveContext) {
   if (G.status !== 'lobby' || playerID !== Object.keys(G.players)[0] || !Object.values(G.players).every(p => p.ready)) return INVALID_MOVE;
   beginGame(G, random);
 }
-function acknowledge({ G, playerID }: MoveContext, epoch: unknown) {
+function acknowledge({ G, playerID, random }: MoveContext, epoch: unknown) {
   if (!['briefing', 'dawn', 'vote-review'].includes(G.status) || !token(G, playerID, epoch)
     || !G.players[playerID].alive || G.players[playerID].acknowledged) return INVALID_MOVE;
   G.players[playerID].acknowledged = true;
   if (!aliveIDs(G).every(id => G.players[id].acknowledged)) return;
   const now = Date.now();
-  if (G.status === 'briefing') beginNight(G, now);
+  if (G.status === 'briefing') beginNight(G, now, random);
   else if (G.status === 'dawn') startDay(G, now);
   else if (G.lastVote?.round === 1 && G.lastVote.tied.length > 1) beginVoting(G, now, 2, G.lastVote.tied);
-  else { G.day += 1; beginNight(G, now); }
+  else { G.day += 1; beginNight(G, now, random); }
 }
-function canNight(G: MoonState, playerID: string, epoch: unknown, role: MoonRole, step: number) {
+function canNight(G: MoonState, playerID: string, epoch: unknown, role: MoonRole, step: number, now: number) {
+  const deadline = moonClockDeadline(G);
   return G.status === 'night' && token(G, playerID, epoch) && living(G, playerID)
-    && G.private[playerID].role === role && G.nightStep === step && beforeDeadline(G);
+    && G.private[playerID].role === role && G.nightStep === step && deadline !== null && now < deadline;
 }
 function guard({ G, playerID }: MoveContext, targetID: unknown, epoch: unknown) {
-  if (!canNight(G, playerID, epoch, 'guard', 0) || !targetOrSkip(G, targetID)
+  const now = Date.now();
+  if (!canNight(G, playerID, epoch, 'guard', 0, now) || !targetOrSkip(G, targetID)
     || (targetID !== null && targetID === G.private[playerID].previousGuard)) return INVALID_MOVE;
   G.secret!.guardTarget = targetID as string | null;
   G.private[playerID].nightChoice = targetID as string | null; G.private[playerID].nightSubmitted = true;
+  scheduleNightAdvance(G, now);
 }
-function wolfVote({ G, playerID }: MoveContext, targetID: unknown, epoch: unknown) {
-  if (!canNight(G, playerID, epoch, 'wolf', 1) || !targetOrSkip(G, targetID)
+function wolfVote({ G, playerID, random }: MoveContext, targetID: unknown, epoch: unknown) {
+  const now = Date.now();
+  if (!canNight(G, playerID, epoch, 'wolf', 1, now) || !targetOrSkip(G, targetID)
     || (targetID !== null && G.private[targetID as string].role === 'wolf')) return INVALID_MOVE;
+  if (!G.secret!.attackTieOrder) G.secret!.attackTieOrder = random.Shuffle(aliveIDs(G).filter(id => G.private[id].role !== 'wolf'));
   G.secret!.wolfVotes[playerID] = targetID as string | null;
   G.private[playerID].nightChoice = targetID as string | null; G.private[playerID].nightSubmitted = true;
   for (const id of Object.keys(G.private)) if (G.private[id].role === 'wolf') G.private[id].wolfVotes = { ...G.secret!.wolfVotes };
+  const wolves = aliveIDs(G).filter(id => G.private[id].role === 'wolf');
+  const target = G.secret!.wolfVotes[wolves[0]];
+  if (target != null && wolves.every(id => G.secret!.wolfVotes[id] === target)) scheduleNightAdvance(G, now, target);
+  else delete G.secret!.nightAdvance;
 }
 function inspect({ G, playerID }: MoveContext, targetID: unknown, epoch: unknown) {
-  if (!canNight(G, playerID, epoch, 'seer', 2) || !targetOrSkip(G, targetID) || targetID === playerID
+  const now = Date.now();
+  if (!canNight(G, playerID, epoch, 'seer', 2, now) || !targetOrSkip(G, targetID) || targetID === playerID
     || G.private[playerID].nightSubmitted) return INVALID_MOVE;
   const info = G.private[playerID];
   info.nightChoice = targetID as string | null; info.nightSubmitted = true;
   if (targetID !== null) info.checks.push({ day: G.day, targetID: targetID as string, isWolf: G.private[targetID as string].role === 'wolf' });
+  scheduleNightAdvance(G, now);
 }
 function witch({ G, playerID }: MoveContext, action: unknown, targetID: unknown, epoch: unknown) {
-  if (!canNight(G, playerID, epoch, 'witch', 3) || !['save', 'poison', 'skip'].includes(action as string)
+  const now = Date.now();
+  if (!canNight(G, playerID, epoch, 'witch', 3, now) || !['save', 'poison', 'skip'].includes(action as string)
     || G.private[playerID].nightSubmitted) return INVALID_MOVE;
   const info = G.private[playerID];
   if (action === 'save') {
@@ -364,6 +403,7 @@ function witch({ G, playerID }: MoveContext, action: unknown, targetID: unknown,
   } else if (targetID !== null) return INVALID_MOVE;
   info.witchChoice = action as MoonWitchAction;
   info.nightChoice = targetID as string | null; info.nightSubmitted = true;
+  scheduleNightAdvance(G, now);
 }
 function finishSpeech({ G, playerID }: MoveContext, epoch: unknown) {
   if (!['speaking', 'sheriff-speech'].includes(G.status) || !token(G, playerID, epoch) || G.speakerID !== playerID || !living(G, playerID) || !beforeDeadline(G)) return INVALID_MOVE;

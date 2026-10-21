@@ -2,8 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Client } from 'boardgame.io/client';
 import { CreateGameReducer, createMatch } from 'boardgame.io/internal';
 import type { State } from 'boardgame.io';
-import { MoonGame, advanceMoonClock, moonObserverView, moonPlayerView, type MoonState } from './game';
-import { DEFAULT_MOON_OPTIONS, MOON_ROLES, moonRoleCounts, moonRoleDeck, normalizeMoonOptions, validateMoonOptions, type MoonOptions, type MoonRole } from './rules';
+import { MoonGame, advanceMoonClock, moonClockDeadline, moonObserverView, moonPlayerView, type MoonState } from './game';
+import { DEFAULT_MOON_OPTIONS, MOON_ROLES, MOON_TIME_LIMITS, moonRoleCounts, moonRoleDeck, normalizeMoonOptions, normalizeMoonSeconds, validateMoonOptions, type MoonOptions, type MoonRole } from './rules';
 
 let now = 1_800_000_000_000;
 beforeEach(() => {
@@ -94,9 +94,9 @@ describe('銀月列車設定與發牌', () => {
     }
     expect(G.status).toBe('briefing'); expect(G.deadline).toBeNull();
   });
-  it('設定嚴格驗證型別、上下限、角色人數和高席位', () => {
+  it('設定嚴格驗證型別、角色人數和高席位', () => {
     expect(normalizeMoonOptions(undefined)).toEqual(DEFAULT_MOON_OPTIONS);
-    for (const bad of [null, [], 'x', { mode: 'judge' }, { sheriff: 'yes' }, { speechSeconds: 14 }, { speechSeconds: 301 }, { speechSeconds: 45.5 }, { nightSeconds: 121 }, { voteSeconds: 0 }, { hidden: true }]) expect(() => normalizeMoonOptions(bad)).toThrow();
+    for (const bad of [null, [], 'x', { mode: 'judge' }, { sheriff: 'yes' }, { speechSeconds: 45.5 }, { nightSeconds: '30' }, { voteSeconds: null }, { speechSeconds: Number.NaN }, { nightSeconds: Infinity }, { voteSeconds: -Infinity }, { hidden: true }]) expect(() => normalizeMoonOptions(bad)).toThrow();
     expect(normalizeMoonOptions({ mode: 'assisted', sheriff: true, speechSeconds: 15, nightSeconds: 120, voteSeconds: 120 }).sheriff).toBe(true);
     expect(validateMoonOptions(DEFAULT_MOON_OPTIONS, 5)).toContain('6～12');
     expect(validateMoonOptions(DEFAULT_MOON_OPTIONS, 13)).toContain('6～12');
@@ -108,6 +108,16 @@ describe('銀月列車設定與發牌', () => {
     const invalid = createMatch({ game: MoonGame, numPlayers: 6, setupData: { participantIDs: ['0', '1', '2', '3', '4', '12'] }, unlisted: true });
     expect(invalid).toHaveProperty('setupDataError');
   });
+  it.each(['speechSeconds', 'nightSeconds', 'voteSeconds'] as const)('%s 的有限整數夾在 5 秒與各自上限之間', key => {
+    const { min, max } = MOON_TIME_LIMITS[key];
+    for (const input of [-1000, 0, 4, 5]) expect(normalizeMoonOptions({ [key]: input })[key]).toBe(5);
+    for (const input of [max, max + 1, 1_000_000]) expect(normalizeMoonOptions({ [key]: input })[key]).toBe(max);
+    expect(normalizeMoonSeconds(key, 17)).toBe(17);
+    expect(min).toBe(5);
+    for (const input of ['5', null, NaN, Infinity, -Infinity, 5.5, true]) expect(() => normalizeMoonSeconds(key, input)).toThrow();
+    const client = makeClient(6, { [key]: -1 });
+    expect(raw(client).options[key]).toBe(5);
+  });
   it('等待室需全員準備且由首席開始；開局不設定時間到全員看完身分', () => {
     const client = Client({ game: MoonGame, numPlayers: 6, playerID: '0', debug: false });
     act(client, '0', 'startGame'); expect(raw(client).status).toBe('lobby');
@@ -117,6 +127,166 @@ describe('銀月列車設定與發牌', () => {
     act(client, '0', 'acknowledge', raw(client).epoch);
     expect(raw(client).deadline).toBeNull();
     ackAll(client); expect(raw(client).deadline).toBe(now + 30000);
+  });
+});
+
+describe('夜間完成後的私有三秒緩衝', () => {
+  it.each([
+    ['guard', 0, false], ['guard', 0, true],
+    ['seer', 2, false], ['seer', 2, true],
+    ['witch', 3, false], ['witch', 3, true],
+  ] as const)('%s 第 %i 階段完成操作（放棄：%s）三秒後才切一階段，公開時間不變', (role, step, skip) => {
+    const client = makeClient(); toNight(client); nextNightStep(client, step);
+    const actor = roleID(client, role), target = skip ? null : villagers(client)[0];
+    const originalDeadline = raw(client).deadline!, originalEpoch = raw(client).epoch;
+    now += 1000;
+    if (role === 'witch') act(client, actor, 'witch', skip ? 'skip' : 'poison', target, originalEpoch);
+    else act(client, actor, role === 'seer' ? 'inspect' : 'guard', target, originalEpoch);
+    const early = now + 3000;
+    expect(raw(client).deadline).toBe(originalDeadline);
+    expect(moonClockDeadline(raw(client))).toBe(early);
+    expect(raw(client).secret!.nightAdvance).toEqual({ epoch: originalEpoch, deadline: early });
+    const restored = JSON.parse(JSON.stringify(raw(client))) as MoonState;
+    expect(advanceMoonClock(restored, early - 1)).toBe(false);
+    expect(advanceMoonClock(restored, early)).toBe(true);
+    expect(restored.epoch).toBe(originalEpoch + 1);
+    expect(restored.secret!.nightAdvance).toBeUndefined();
+    expect(advanceMoonClock(restored, early)).toBe(false);
+    if (step < 3) {
+      expect(restored.nightStep).toBe(step + 1);
+      expect(restored.deadline).toBe(early + 30000);
+    } else expect(restored.status).toBe('dawn');
+  });
+  it('所有視角都保持原始倒數，秘密緩衝及隨機順位不進投影', () => {
+    const client = makeClient(); toNight(client);
+    act(client, roleID(client, 'guard'), 'guard', null, raw(client).epoch);
+    const G = raw(client);
+    expect(G.secret!.nightAdvance).toBeDefined();
+    expect(G.secret!.attackTieOrder).toHaveLength(6);
+    const views = [moonObserverView(G, 'blind'), moonObserverView(G, 'god'),
+      ...Object.keys(G.players).map(id => moonPlayerView({ G, playerID: id }))];
+    for (const view of views) {
+      expect(view.deadline).toBe(G.deadline);
+      expect(view).not.toHaveProperty('secret');
+      expect(JSON.stringify(view)).not.toMatch(/nightAdvance|attackTieOrder/);
+      expect(moonClockDeadline(view)).toBe(G.deadline);
+    }
+  });
+  it('狼人全體選擇同一目標才開始，重送同票不延長，改票或撤回取消並可重建', () => {
+    const client = makeClient(); toNight(client); nextNightStep(client, 1);
+    const [wolfA, wolfB] = wolves(client), [a, b] = villagers(client), epoch = raw(client).epoch;
+    const originalDeadline = raw(client).deadline;
+    act(client, wolfA, 'wolfVote', a, epoch);
+    expect(raw(client).secret!.nightAdvance).toBeUndefined();
+    act(client, wolfB, 'wolfVote', a, epoch);
+    const firstDeadline = moonClockDeadline(raw(client));
+    now += 1000;
+    act(client, wolfB, 'wolfVote', a, epoch);
+    expect(moonClockDeadline(raw(client))).toBe(firstDeadline);
+    act(client, wolfA, 'wolfVote', b, epoch);
+    expect(raw(client).secret!.nightAdvance).toBeUndefined();
+    expect(moonClockDeadline(raw(client))).toBe(originalDeadline);
+    now += 1000;
+    act(client, wolfB, 'wolfVote', b, epoch);
+    expect(moonClockDeadline(raw(client))).toBe(now + 3000);
+    now += 1000;
+    act(client, wolfB, 'wolfVote', null, epoch);
+    expect(raw(client).secret!.nightAdvance).toBeUndefined();
+    act(client, wolfA, 'wolfVote', null, epoch);
+    expect(raw(client).secret!.nightAdvance).toBeUndefined();
+    now += 1000;
+    act(client, wolfA, 'wolfVote', a, epoch); act(client, wolfB, 'wolfVote', a, epoch);
+    expect(moonClockDeadline(raw(client))).toBe(now + 3000);
+    expect(raw(client).deadline).toBe(originalDeadline);
+  });
+  it('只計存活狼人，獨狼改換一致目標重新計三秒', () => {
+    const client = makeClient(); toNight(client); nextNightStep(client, 1);
+    const [wolfA, wolfB] = wolves(client), [a, b] = villagers(client);
+    patch(client, G => { G.players[wolfB].alive = false; });
+    act(client, wolfA, 'wolfVote', a, raw(client).epoch);
+    expect(moonClockDeadline(raw(client))).toBe(now + 3000);
+    now += 1000;
+    act(client, wolfA, 'wolfVote', b, raw(client).epoch);
+    expect(moonClockDeadline(raw(client))).toBe(now + 3000);
+    const state = structuredClone(raw(client));
+    expect(advanceMoonClock(state, now + 3000)).toBe(true);
+    expect(state.secret!.attackTarget).toBe(b);
+  });
+  it.each(['guard', 'wolf'] as const)('%s 在三秒已到而伺服器尚未推進時不能修改已定案結果', role => {
+    const client = makeClient(); toNight(client);
+    const [a, b] = villagers(client);
+    if (role === 'wolf') wolfAttack(client, a);
+    else act(client, roleID(client, 'guard'), 'guard', a, raw(client).epoch);
+    const actor = roleID(client, role), epoch = raw(client).epoch;
+    now = moonClockDeadline(raw(client))!;
+    const before = structuredClone(raw(client));
+    act(client, actor, role === 'wolf' ? 'wolfVote' : 'guard', b, epoch);
+    act(client, actor, role === 'wolf' ? 'wolfVote' : 'guard', null, epoch);
+    expect(raw(client)).toEqual(before);
+    patch(client, G => expect(advanceMoonClock(G, now)).toBe(true));
+    const after = structuredClone(raw(client));
+    act(client, actor, role === 'wolf' ? 'wolfVote' : 'guard', b, epoch);
+    expect(raw(client)).toEqual(after);
+  });
+  it('三秒晚於原本截止時以原時刻為準，重啟後最多推進一階段', () => {
+    const client = makeClient(8, { nightSeconds: 5 }); toNight(client);
+    const deadline = raw(client).deadline!;
+    now = deadline - 1000;
+    act(client, roleID(client, 'guard'), 'guard', null, raw(client).epoch);
+    expect(raw(client).secret!.nightAdvance!.deadline).toBe(deadline + 2000);
+    expect(moonClockDeadline(raw(client))).toBe(deadline);
+    const atOriginalDeadline = JSON.parse(JSON.stringify(raw(client))) as MoonState;
+    expect(advanceMoonClock(atOriginalDeadline, deadline)).toBe(true);
+    expect(atOriginalDeadline.nightStep).toBe(1);
+    const restored = JSON.parse(JSON.stringify(raw(client))) as MoonState;
+    expect(advanceMoonClock(restored, deadline - 1)).toBe(false);
+    expect(advanceMoonClock(restored, deadline + 100_000)).toBe(true);
+    expect(restored.nightStep).toBe(1);
+    expect(restored.deadline).toBe(deadline + 105_000);
+  });
+  it('缺欄位的舊存檔或過期 epoch 不會提前跳階段，死亡神職也不自動跳過', () => {
+    const client = makeClient(); toNight(client);
+    const G = JSON.parse(JSON.stringify(raw(client))) as MoonState;
+    delete G.secret!.attackTieOrder; delete G.secret!.nightAdvance;
+    expect(moonClockDeadline(G)).toBe(G.deadline);
+    G.players[roleID(client, 'guard')].alive = false;
+    G.secret!.nightAdvance = { epoch: G.epoch - 1, deadline: now - 1 };
+    expect(advanceMoonClock(G, now)).toBe(false);
+    expect(advanceMoonClock(G, G.deadline!)).toBe(true);
+    expect(G.nightStep).toBe(1);
+    expect(G.secret!.nightAdvance).toBeUndefined();
+  });
+  it('平票順位來自遊戲隨機器，重啟重現且只選最高票；全棄票不襲擊', () => {
+    const outcomes = new Set<string>();
+    for (let seed = 0; seed < 12; seed++) {
+      const client = makeClient(12, {}, undefined, `tie-${seed}`); toNight(client); nextNightStep(client, 1);
+      const [a, b] = villagers(client), ids = wolves(client), epoch = raw(client).epoch;
+      ids.forEach((id, index) => act(client, id, 'wolfVote', index < 2 ? a : b, epoch));
+      expect(raw(client).secret!.nightAdvance).toBeUndefined();
+      const first = JSON.parse(JSON.stringify(raw(client))) as MoonState, second = structuredClone(first);
+      expect(advanceMoonClock(first, first.deadline!)).toBe(true);
+      expect(advanceMoonClock(second, second.deadline!)).toBe(true);
+      expect(first.secret!.attackTarget).toBe(second.secret!.attackTarget);
+      expect([a, b]).toContain(first.secret!.attackTarget);
+      expect(first.secret!.attackTarget).toBe(raw(client).secret!.attackTieOrder!.find(id => [a, b].includes(id)));
+      outcomes.add(first.secret!.attackTarget === a ? 'a' : 'b');
+    }
+    expect(outcomes).toEqual(new Set(['a', 'b']));
+    const client = makeClient(); toNight(client); wolfAttack(client, null);
+    expect(raw(client).secret!.nightAdvance).toBeUndefined();
+    finishNight(client); expect(raw(client).dawnDeaths).toEqual([]);
+  });
+  it('舊夜晚第一次有效狼票補建順位，無新操作的舊平票保留原有不襲擊結果', () => {
+    const client = makeClient(); toNight(client); nextNightStep(client, 1);
+    const [wolfA, wolfB] = wolves(client), [a, b] = villagers(client);
+    patch(client, G => { delete G.secret!.attackTieOrder; G.secret!.wolfVotes = { [wolfA]: a, [wolfB]: b }; });
+    const legacy = structuredClone(raw(client));
+    expect(advanceMoonClock(legacy, legacy.deadline!)).toBe(true);
+    expect(legacy.secret!.attackTarget).toBeNull();
+    act(client, wolfA, 'wolfVote', a, raw(client).epoch);
+    expect(raw(client).secret!.attackTieOrder).toHaveLength(6);
+    tick(client);
+    expect([a, b]).toContain(raw(client).secret!.attackTarget);
   });
 });
 
@@ -135,7 +305,7 @@ describe('夜間計時、技能與秘密資訊', () => {
     expect(raw(client).deadline).toBeNull();
     expect(raw(client).log.map(e => e.type)).toEqual(['start', 'night', 'dawn']);
   });
-  it('狼人可修改密票並相認；同票或全棄權不襲擊，不得選狼人', () => {
+  it('狼人可修改密票並相認；同票從最高票隨機選擇，不得選狼人', () => {
     const client = makeClient(); toNight(client); nextNightStep(client, 1);
     const [wolfA, wolfB] = wolves(client), [a, b] = villagers(client);
     act(client, wolfA, 'wolfVote', wolfB, raw(client).epoch);
@@ -146,8 +316,9 @@ describe('夜間計時、技能與秘密資訊', () => {
     expect(moonObserverView(raw(client), 'blind').private).toEqual({});
     act(client, wolfA, 'wolfVote', null, raw(client).epoch);
     act(client, wolfA, 'wolfVote', a, raw(client).epoch);
+    const expected = raw(client).secret!.attackTieOrder!.find(id => [a, b].includes(id));
     finishNight(client);
-    expect(raw(client).dawnDeaths).toEqual([]);
+    expect(raw(client).dawnDeaths).toEqual([expected]);
   });
   it('狼人票唯一最高者遇害；不公布原因或死者身分', () => {
     const client = makeClient(); toNight(client);

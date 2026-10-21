@@ -16,7 +16,7 @@ const cleanup: (() => Promise<void>)[] = [];
 afterEach(async () => { for (const fn of cleanup.splice(0).reverse()) await fn(); vi.restoreAllMocks(); });
 const token = (url: string, key = 'invite') => new URLSearchParams(new URL(url).hash.slice(1)).get(key)!;
 const path = (g: Group, route = '') => `/api/rooms/${g.host.roomId}${route ? `/${route}` : ''}`;
-const noSecrets = (value: unknown) => expect(JSON.stringify(value)).not.toMatch(/"(?:secret|seed|prngstate|credentials|credentialHash|inviteHash)"\s*:/);
+const noSecrets = (value: unknown) => expect(JSON.stringify(value)).not.toMatch(/"(?:secret|nightAdvance|attackTieOrder|seed|prngstate|credentials|credentialHash|inviteHash)"\s*:/);
 
 async function fixture() {
   let now = Date.now();
@@ -176,7 +176,7 @@ describe('Silver Moon shared framework and authoritative timers', () => {
     expect((await f.request('/api/stats')).body.completedGames).toBe(0);
   }, 30000);
 
-  it('keeps two timed rooms and another game independent, with private night choices and no early slot skip', async () => {
+  it('advances a unanimous wolf choice after three hidden seconds without affecting other rooms', async () => {
     const f = await fixture(), a = await f.group(), b = await f.group(), c = await f.group('encrypted-call', 2);
     await f.start(a); await f.start(b, { ...DEFAULT_MOON_OPTIONS, mode: 'assisted', nightSeconds: 45 }); await f.start(c);
     await ack(f, a); await ack(f, b);
@@ -194,6 +194,58 @@ describe('Silver Moon shared framework and authoritative timers', () => {
     }
     expect((await f.request(path(a, 'view?perspective=god'), undefined, b.observer)).status).toBe(401);
     const viewed = await f.request(path(a, 'view?perspective=blind'), undefined, a.observer); expect(viewed.body.G.private).toEqual({});
-    expect((await f.request(path(a, 'view?perspective=god'), undefined, a.observer)).body.G.private[wolves[0]].wolfVotes[wolves[0]]).toBe(target);
+    const god = (await f.request(path(a, 'view?perspective=god'), undefined, a.observer)).body;
+    expect(god.G.private[wolves[0]].wolfVotes[wolves[0]]).toBe(target); noSecrets(god);
+    const agreed = await f.state(a);
+    f.advance(2999); await new Promise(ok => setTimeout(ok, 80));
+    expect((await f.state(a))._stateID).toBe(agreed._stateID);
+    expect((await f.state(a)).G.deadline).toBe(G.deadline);
+    f.advance(1);
+    await vi.waitFor(async () => expect((await f.state(a)).G.nightStep).toBe(2), { interval: 10 });
+    expect((await f.state(a)).G.deadline).toBe(Date.now() + 30000);
+    expect((await f.state(b))._stateID).toBe(bBefore._stateID);
+    expect((await f.state(c))._stateID).toBe(cBefore._stateID);
+  }, 30000);
+
+  it.each(['online', 'assisted'] as const)('%s cancels changed wolf consensus and preserves a new hidden deadline across restart', async mode => {
+    const f = await fixture(), g = await f.group();
+    await f.start(g, { ...DEFAULT_MOON_OPTIONS, mode }); await ack(f, g); await f.expire(g);
+    const { G } = await f.state(g), wolves = Object.keys(G.private).filter(id => G.private[id].role === 'wolf');
+    const targets = Object.keys(G.private).filter(id => G.private[id].role !== 'wolf');
+    for (const id of wolves) await f.move(g, id, 'wolfVote', [targets[0], G.epoch]);
+    f.advance(2000);
+    await f.move(g, wolves[0], 'wolfVote', [targets[1], G.epoch]);
+    const changed = await f.state(g);
+    f.advance(1001); await new Promise(ok => setTimeout(ok, 80));
+    expect((await f.state(g))._stateID).toBe(changed._stateID);
+    expect((await f.state(g)).G).toMatchObject({ nightStep: 1, deadline: G.deadline });
+    await f.move(g, wolves[1], 'wolfVote', [targets[1], G.epoch]);
+    const agreedAt = Date.now();
+    f.advance(1000);
+    // A duplicate vote is not a new agreement and must not extend the three seconds.
+    await f.move(g, wolves[1], 'wolfVote', [targets[1], G.epoch]);
+    const beforeRestart = await f.state(g);
+    await f.restart(g);
+    expect((await f.state(g)).G.secret).toEqual(beforeRestart.G.secret);
+    expect((await f.state(g)).G.deadline).toBe(G.deadline);
+    g.sockets.forEach(socket => noSecrets(f.views.get(socket)));
+    f.advance(1999); await new Promise(ok => setTimeout(ok, 80));
+    expect((await f.state(g)).G.nightStep).toBe(1);
+    f.advance(1);
+    await vi.waitFor(async () => expect((await f.state(g)).G.nightStep).toBe(2), { interval: 10 });
+    expect(Date.now()).toBe(agreedAt + 3000);
+    expect((await f.state(g)).G.secret!.attackTarget).toBe(targets[1]);
+    await f.move(g, wolves[0], 'wolfVote', [targets[0], G.epoch], false);
+  }, 30000);
+
+  it('clamps lobby timer settings at the API boundary and uses the saved limits for a new match', async () => {
+    const f = await fixture(), g = await f.group();
+    const invalid = await f.request(path(g, 'options'), { matchID: g.matchID,
+      options: { ...DEFAULT_MOON_OPTIONS, speechSeconds: 5.5 } }, g.host);
+    expect(invalid.status).toBe(400);
+    await f.start(g, { ...DEFAULT_MOON_OPTIONS, speechSeconds: -20, nightSeconds: 999, voteSeconds: 0 });
+    expect((await f.state(g)).G.options).toMatchObject({ speechSeconds: 5, nightSeconds: 120, voteSeconds: 5 });
+    await ack(f, g);
+    expect((await f.state(g)).G.deadline).toBe(Date.now() + 120000);
   }, 30000);
 });

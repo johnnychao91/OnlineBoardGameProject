@@ -75,7 +75,13 @@
 .moon-intelligence { margin-top:12px; padding-top:12px; border-top:1px solid #46556b; }
 .moon-intelligence h3 { margin:0 0 8px; font-size:12px; color:var(--moon-gold); }
 .moon-intelligence p { font-size:12px; line-height:1.7; }
-.moon-cover-button { margin-top:10px; font-size:11px; }
+.moon-wolf-choices { margin:12px 0; }
+.moon-wolf-choices h4 { margin:0 0 7px; font-size:13px; color:var(--moon-gold); }
+.moon-wolf-choices ul { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:6px; margin:0 0 8px; padding:0; list-style:none; }
+.moon-wolf-choices li { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:4px 10px; padding:8px; border:1px solid #655566; border-radius:6px; background:#372c39; font-size:12px; overflow-wrap:anywhere; }
+.moon-wolf-choices li b { color:var(--moon-gold); }
+.moon-wolf-choices li small { white-space:nowrap; }
+.moon-wolf-choices p { font-size:11px; line-height:1.6; }
 .moon-inspector { padding:12px 13px 0; }
 .moon-history-aside { display:flex; flex-direction:column; gap:12px; }
 .moon-log { padding:16px; }

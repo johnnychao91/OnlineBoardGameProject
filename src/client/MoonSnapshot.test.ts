@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { createMatch } from 'boardgame.io/internal';
 import { describe, expect, it } from 'vitest';
 import { MoonGame, moonPlayerView, type MoonState } from '../games/moon/game';
-import { MoonCoverTask, MoonNightAction, MoonPrivatePanel, MoonCountdown, MoonSheriffAction } from './MoonBoard';
+import { MoonCoverTask, MoonNightAction, MoonPrivatePanel, MoonCountdown, MoonSheriffAction, MoonStatus, MoonWolfChoices } from './MoonBoard';
 import { MoonSnapshot } from './MoonSnapshot';
 import type { RoomInfo } from './api';
 
@@ -22,6 +22,35 @@ const nameOf = (id: string) => `乘客 ${id}`;
 const snapshot = (G: MoonState, perspective: 'blind' | 'god') => renderToStaticMarkup(createElement(MoonSnapshot, { G, info, perspective, replay: true }));
 
 describe('Silver Moon read-only and private surfaces', () => {
+  it('shows the same public profession phase without inspecting secret deadlines', () => {
+    const G = fixture();
+    for (const [step, label] of ['守衛', '狼人', '預言家', '女巫'].entries()) {
+      G.nightStep = step;
+      const before = renderToStaticMarkup(createElement(MoonStatus, { G, nameOf, replay: true }));
+      G.secret = { ...G.secret!, nightAdvance: { epoch: G.epoch, deadline: 3 } } as MoonState['secret'];
+      const after = renderToStaticMarkup(createElement(MoonStatus, { G, nameOf, replay: true }));
+      expect(after).toContain(`${label}時段 ${step + 1} / 4`);
+      expect(after).toEqual(before);
+    }
+  });
+  it('lists every living known wolf and distinguishes missing, skipped, and target choices', () => {
+    const G = fixture(); G.nightStep = 1;
+    Object.assign(G.private['0'], { role: 'wolf', faction: 'wolves', knownWolves: ['2', '4', '6'], wolfVotes: { '0': '3', '2': null }, nightSubmitted: true });
+    G.players['6'].alive = false;
+    const show = () => renderToStaticMarkup(createElement(MoonWolfChoices, { G, id: '0', nameOf }));
+    const html = show();
+    expect(html).toContain('乘客 0'); expect(html).toContain('（你）'); expect(html).toContain('乘客 3');
+    expect(html).toContain('放棄襲擊'); expect(html).toContain('尚未選擇'); expect(html).not.toContain('乘客 6');
+    G.private['0'].wolfVotes['2'] = '5';
+    expect(show()).toContain('乘客 5'); expect(show()).not.toContain('放棄襲擊');
+    const coveredAction = renderToStaticMarkup(createElement(MoonNightAction, { G, id: '0', nameOf, disabled: false, send: () => {}, confirm: () => {} }));
+    expect(coveredAction).toContain('狼群目前選擇'); expect(coveredAction).toContain('巡查車票');
+    expect(snapshot(G, 'god')).toContain('狼群目前選擇'); expect(snapshot(G, 'god')).toContain('（目前查看）');
+    expect(snapshot(G, 'blind')).not.toContain('狼群目前選擇');
+    expect(renderToStaticMarkup(createElement(MoonPrivatePanel, { G, playerID: '0', nameOf, observer: true, concealed: true }))).not.toContain('狼群目前選擇');
+    G.private['0'].role = 'seer';
+    expect(show()).toBe('');
+  });
   it('reprojects a cached god payload before showing blind view', () => {
     const html = snapshot(fixture(), 'blind');
     expect(html).toContain('盲視角不顯示秘密身分');
