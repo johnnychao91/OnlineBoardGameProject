@@ -6,11 +6,20 @@ import { BattleReport } from './BattleReport';
 import { RoomContext } from './room-context';
 import { GameSoundControl } from './GameSoundControl';
 import { Icon } from './ui';
+import { fogRosterMarks } from './fog-roster';
 import './fog.css';
 
 export type FogNameOf = (id: string) => string;
 type BoardProps = { G: FogState; playerID: string | null; isConnected?: boolean; moves: Record<string, (...args: any[]) => any> };
 const reviewPhases = ['briefing', 'vote-review', 'quest-review'];
+
+/** Switching away conceals secrets until the user explicitly opens them again. */
+export function useFogPrivacy(): [boolean, (value: boolean) => void] {
+  const [visible, setVisible] = useState(() => typeof document === 'undefined' || !document.hidden);
+  useEffect(() => { const hide = () => { if (document.hidden) setVisible(false); };
+    document.addEventListener('visibilitychange', hide); return () => document.removeEventListener('visibilitychange', hide); }, []);
+  return [visible, setVisible];
+}
 
 export function FogBoard({ G, playerID, moves, isConnected }: BoardProps) {
   const { seat, info } = useContext(RoomContext)!;
@@ -20,6 +29,7 @@ export function FogBoard({ G, playerID, moves, isConnected }: BoardProps) {
   const [pending, setPending] = useState(false);
   const [notice, setNotice] = useState('');
   const [target, setTarget] = useState<string | null>(null);
+  const [secretsVisible, setSecretsVisible] = useFogPrivacy();
   const sending = useRef(false);
   const dialog = useRef<HTMLDialogElement>(null);
   const nameOf: FogNameOf = targetID => {
@@ -34,6 +44,7 @@ export function FogBoard({ G, playerID, moves, isConnected }: BoardProps) {
     return () => window.clearTimeout(timeout);
   }, [pending]);
   useEffect(() => { setTarget(null); }, [G.epoch, G.status, isConnected]);
+  useEffect(() => { if (!secretsVisible) setTarget(null); }, [secretsVisible]);
   useEffect(() => {
     if (target && !dialog.current?.open) dialog.current?.showModal();
     else if (!target && dialog.current?.open) dialog.current.close();
@@ -55,7 +66,7 @@ export function FogBoard({ G, playerID, moves, isConnected }: BoardProps) {
       <section className="game-main fog-main">
         <FogHeading G={G}><GameSoundControl gameID="black-fog" G={G} matchID={info.matchID} playerID={id} connected={isConnected !== false} /></FogHeading><FogStatus G={G} nameOf={nameOf} ownID={id} />
         <FogTrack G={G} />
-        <FogParticipants G={G} nameOf={nameOf} ownID={id} selecting={canNominate} onSelect={targetID => {
+        <FogParticipants G={G} nameOf={nameOf} ownID={id} secretsVisible={secretsVisible} selecting={canNominate} onSelect={targetID => {
           const selected = G.team.includes(targetID);
           if (!selected && G.team.length >= required) return;
           send('selectTeam', selected ? G.team.filter(member => member !== targetID) : [...G.team, targetID]);
@@ -71,18 +82,19 @@ export function FogBoard({ G, playerID, moves, isConnected }: BoardProps) {
             <button className="button primary" disabled={!canAct || own?.voteSubmitted} onClick={() => send('vote', true)}>贊成此隊伍</button>
             <p className="small muted">{own?.voteSubmitted ? '已送出密票；全員完成後一起公開。' : '每人一票，提交後不能修改；同票視為否決。'}</p>
           </div>}
-          {G.status === 'quest' && G.team.includes(id) && <div className="fog-vote-actions">
+          {G.status === 'quest' && G.team.includes(id) && secretsVisible && <div className="fog-vote-actions">
             <button className="button primary" disabled={!canAct || own?.questSubmitted || !allowedCards.includes('success')} onClick={() => send('submitQuest', 'success')}>守護燈塔</button>
             <button className="button danger" disabled={!canAct || own?.questSubmitted || !allowedCards.includes('fail')} onClick={() => send('submitQuest', 'fail')}>侵蝕燈塔</button>
             <p className="small muted">{own?.questSubmitted ? '行動已密封送出，等待其餘隊員。' : forceFail ? '預示模式：目前效忠黑霧使徒的蘭斯洛特必須選「侵蝕燈塔」。' : secret?.faction === 'knights' ? '你目前效忠守夜騎士，只能守護燈塔。' : '你可以守護燈塔以隱藏身分，或選擇侵蝕。'}結果只公布合計，不公開每張牌的主人。</p>
           </div>}
-          {G.status === 'assassination' && secret?.role === 'assassin' && <div className="fog-assassination"><h3>選出你認為的梅林</h3><div className="fog-targets">{Object.keys(G.players).filter(targetID => targetID !== id).map(targetID => <button className="button secondary" key={targetID} disabled={!canAct} onClick={() => setTarget(targetID)}>{nameOf(targetID)}</button>)}</div><p className="small muted">點選後會再確認。只有一次機會，確認即結算勝負。</p></div>}
+          {G.status === 'assassination' && secretsVisible && secret?.role === 'assassin' && <div className="fog-assassination"><h3>選出你認為的梅林</h3><div className="fog-targets">{Object.keys(G.players).filter(targetID => targetID !== id).map(targetID => <button className="button secondary" key={targetID} disabled={!canAct} onClick={() => setTarget(targetID)}>{nameOf(targetID)}</button>)}</div><p className="small muted">點選後會再確認。只有一次機會，確認即結算勝負。</p></div>}
+          {!secretsVisible && ((G.status === 'quest' && G.team.includes(id)) || G.status === 'assassination') && <p className="small muted">秘密行動已遮住；請先展開秘密情報，再查看自己的操作。</p>}
           {notice && <p className="error-message" role="status">{notice}</p>}
           {pending && <p className="small muted" role="status">正在確認行動…</p>}
           {G.status === 'finished' && <p className="small muted">本局已結束，稍後返回原等待室。結果與復盤會保留。</p>}
         </section>
       </section>
-      <aside className="fog-personal-aside"><FogPrivatePanel G={G} playerID={id} nameOf={nameOf} /></aside>
+      <aside className="fog-personal-aside"><FogPrivatePanel G={G} playerID={id} nameOf={nameOf} expanded={secretsVisible} onExpandedChange={setSecretsVisible} /></aside>
       <aside className="game-aside fog-history-aside"><FogLog G={G} nameOf={nameOf} /><details className="panel rules-details"><summary>巡夜規則速查</summary><FogRuleSummary /></details>{G.status === 'finished' && <BattleReport G={G} info={info} perspective="blind" label="製作巡夜戰報" />}</aside>
     </main>
     <dialog ref={dialog} className="confirm-dialog" onCancel={() => setTarget(null)} onClose={() => setTarget(null)}>
@@ -122,7 +134,7 @@ export function FogTrack({ G }: { G: FogState }) {
   return <section className="panel fog-track-panel" aria-label="城郊燈塔進度"><div className="fog-track">{sizes.map((size, index) => {
     const quest = index + 1;
     const result = G.questResults.find(result => result.quest === quest);
-    return <div key={quest} className={`fog-lighthouse ${result ? result.succeeded ? 'lit' : 'lost' : ''} ${G.quest === quest ? 'current' : ''}`} aria-current={G.quest === quest ? 'step' : undefined}><span className="fog-lighthouse-art" aria-hidden="true" /><span>第 {quest} 座</span><strong>{result ? result.succeeded ? '點亮' : '失守' : `${size} 人`}</strong><small>{quest === 4 && Object.keys(G.players).length >= 7 ? '需 2 次侵蝕才失守' : result ? `${result.fails} 次侵蝕` : '1 次侵蝕即失守'}</small></div>;
+    return <div key={quest} className={`fog-lighthouse ${result ? result.succeeded ? 'lit' : 'lost' : ''} ${G.quest === quest ? 'current' : ''}`} aria-label={`第 ${quest} 座燈塔・${result ? result.succeeded ? '已點亮' : '被侵蝕' : '未點亮'}`} aria-current={G.quest === quest ? 'step' : undefined}><span className="fog-lighthouse-art" data-lighthouse-state={result ? result.succeeded ? 'lit' : 'corrupted' : 'unlit'} aria-hidden="true" /><span>第 {quest} 座</span><strong>{result ? result.succeeded ? '點亮' : '失守' : `${size} 人`}</strong><small>{quest === 4 && Object.keys(G.players).length >= 7 ? '需 2 次侵蝕才失守' : result ? `${result.fails} 次侵蝕` : '1 次侵蝕即失守'}</small></div>;
   })}</div><div className="fog-rejections"><span>連續否決</span><strong>{G.rejections} / 5</strong><span className="small muted">第 5 次立即由黑霧使徒獲勝</span></div><FogBells G={G} /></section>;
 }
 
@@ -133,12 +145,15 @@ function FogBells({ G }: { G: FogState }) {
   return <div className="fog-bells"><span className="fog-bell-art" aria-hidden="true" /><div><strong>詛咒之鐘 · {forecast ? '預示模式' : '隨機模式'}</strong><div className="fog-bell-cards">{cards.length ? cards.map(({ quest, card }) => <span key={quest} className={card === 'switch' ? 'switch' : ''}>第 {quest} 座：{card === 'switch' ? '效忠轉換' : '保持效忠'}{forecast && quest > G.quest ? '（預示）' : ''}</span>) : <span>首座燈塔尚未揭鐘</span>}</div></div></div>;
 }
 
-export function FogParticipants({ G, nameOf, ownID, selecting = false, onSelect }: { G: FogState; nameOf: FogNameOf; ownID?: string; selecting?: boolean; onSelect?: (id: string) => void }) {
+export function FogParticipants({ G, nameOf, ownID, secretsVisible = true, godView = false, selecting = false, onSelect }: { G: FogState; nameOf: FogNameOf; ownID?: string; secretsVisible?: boolean; godView?: boolean; selecting?: boolean; onSelect?: (id: string) => void }) {
   const required = fogTeamSizes(Object.keys(G.players).length)[Math.max(0, G.quest - 1)] ?? 0;
+  const marks = fogRosterMarks(G, ownID, secretsVisible, godView);
   return <section className="panel fog-players-panel"><div className="section-heading"><h2>巡夜隊伍</h2><span className="small muted">{G.team.length} / {required} 位入選</span></div><div className="fog-players">{Object.entries(G.players).map(([id, player]) => {
     const selected = G.team.includes(id);
-    const content = <><span className="fog-player-top"><span className="fog-seat">{Number(id) + 1}</span><span className="fog-player-name">{nameOf(id)}{id === ownID ? '（你）' : ''}</span></span><span className="fog-player-tags">{G.leaderID === id && <b>隊長</b>}{selected && <b className="fog-selected-label">出征</b>}{G.status === 'voting' && <span>{player.voteSubmitted ? '已密投' : '待投票'}</span>}{G.status === 'quest' && selected && <span>{player.questSubmitted ? '已行動' : '待行動'}</span>}{reviewPhases.includes(G.status) && <span>{player.acknowledged ? '已確認' : '待確認'}</span>}</span>{G.status === 'finished' && player.revealedRole && <span className={`fog-public-role ${player.revealedFaction}`}>{FOG_ROLES[player.revealedRole].name} · {player.revealedFaction ? FOG_FACTIONS[player.revealedFaction] : ''}</span>}</>;
-    return selecting && onSelect ? <button key={id} className={`fog-player selectable ${selected ? 'selected' : ''}`} aria-pressed={selected} disabled={!selected && G.team.length >= required} onClick={() => onSelect(id)}>{content}</button> : <div key={id} className={`fog-player ${selected ? 'selected' : ''}`}>{content}</div>;
+    const mark = marks[id];
+    const content = <><span className="fog-player-top"><span className="fog-seat">{Number(id) + 1}</span><span className="fog-player-name">{nameOf(id)}{id === ownID ? '（你）' : ''}</span></span><span className="fog-player-tags">{G.leaderID === id && <b>隊長</b>}{selected && <b className="fog-selected-label">出征</b>}{G.status === 'voting' && <span>{player.voteSubmitted ? '已密投' : '待投票'}</span>}{G.status === 'quest' && selected && <span>{player.questSubmitted ? '已行動' : '待行動'}</span>}{reviewPhases.includes(G.status) && <span>{player.acknowledged ? '已確認' : '待確認'}</span>}</span>{mark && <span className="fog-known-faction">{mark.label}</span>}{secretsVisible && G.status === 'finished' && player.revealedRole && <span className="fog-public-role">{FOG_ROLES[player.revealedRole].name}</span>}</>;
+    const classes = `fog-player ${selected ? 'selected' : ''}${mark ? ` fog-known-${mark.kind}` : ''}`;
+    return selecting && onSelect ? <button key={id} className={`${classes} selectable`} aria-pressed={selected} disabled={!selected && G.team.length >= required} onClick={() => onSelect(id)}>{content}</button> : <div key={id} className={classes}>{content}</div>;
   })}</div></section>;
 }
 
@@ -158,21 +173,19 @@ export function FogPublicPhase({ G, nameOf }: { G: FogState; nameOf: FogNameOf }
   </>;
 }
 
-export function FogPrivatePanel({ G, playerID, nameOf, children, observer = false }: { G: FogState; playerID: string; nameOf: FogNameOf; children?: ReactNode; observer?: boolean }) {
-  const [expanded, setExpanded] = useState(true);
-  const [visible, setVisible] = useState(() => typeof document === 'undefined' || !document.hidden);
-  useEffect(() => { const onVisibility = () => setVisible(!document.hidden); document.addEventListener('visibilitychange', onVisibility); return () => document.removeEventListener('visibilitychange', onVisibility); }, []);
+export function FogPrivatePanel({ G, playerID, nameOf, children, observer = false, expanded, onExpandedChange }: { G: FogState; playerID: string; nameOf: FogNameOf; children?: ReactNode; observer?: boolean; expanded?: boolean; onExpandedChange?: (value: boolean) => void }) {
+  const [localExpanded, setLocalExpanded] = useFogPrivacy();
   const secret = G.private?.[playerID];
   const publicPlayer = G.players[playerID];
   const role = G.status === 'finished' ? publicPlayer?.revealedRole ?? secret?.role : secret?.role;
   const faction = G.status === 'finished' ? publicPlayer?.revealedFaction ?? secret?.faction : secret?.faction;
   const counts = fogFactionCounts(Object.keys(G.players).length);
-  const shown = expanded && visible;
+  const shown = expanded ?? localExpanded;
   const subject = observer ? '此巡夜者' : '你';
-  return <section className="panel fog-private-panel"><button className="fog-private-toggle" aria-expanded={shown} onClick={() => setExpanded(!expanded)}><span><Icon type="shield" size={16} />{observer ? '巡夜者情報' : '我的秘密情報'}</span><span>{shown ? '收起 −' : '展開 ＋'}</span></button>{children}{shown ? <div className="fog-private-content"><div className={`fog-role-card ${faction ?? 'unrevealed'}`}>
+  return <section className="panel fog-private-panel"><button className="fog-private-toggle" aria-expanded={shown} onClick={() => (onExpandedChange ?? setLocalExpanded)(!shown)}><span><Icon type="shield" size={16} />{observer ? '巡夜者情報' : '我的秘密情報'}</span><span>{shown ? '收起 −' : '展開 ＋'}</span></button>{children}{shown ? <div className="fog-private-content"><div className={`fog-role-card ${faction ?? 'unrevealed'}`}>
     {role && <span className="fog-role-art" data-fog-role={role} aria-hidden="true" />}
     <span className="small muted">{observer ? `${nameOf(playerID)}的身分` : '你的身分'}</span><h2>{role ? FOG_ROLES[role].name : '尚未公開'}</h2><strong>{faction ? `目前效忠：${FOG_FACTIONS[faction]}` : '盲視角不顯示秘密身分'}</strong>{role && <p>{FOG_ROLES[role].description}</p>}
-  </div><p className="small">全場配置（含自己）<br /><b className="mint">守夜騎士 {counts.knights} 位</b> ／ <b className="fog-apostles-text">黑霧使徒 {counts.apostles} 位</b></p>
+  </div><div className="small fog-composition"><p>全場配置（含自己）</p><div><b className="mint">守夜騎士 {counts.knights} 位</b><b className="fog-apostles-text">黑霧使徒 {counts.apostles} 位</b></div></div>
     {secret && <div className="fog-intelligence"><h3>{subject}在開局獲得的情報</h3><p>{secret.knownEvil.length ? `${subject}看見的黑霧使徒：${secret.knownEvil.map(nameOf).join('、')}。` : '沒有其他黑霧使徒的身分情報。'}</p>{secret.merlinCandidates.length > 0 && <p>梅林候選：<strong>{secret.merlinCandidates.map(nameOf).join('、')}</strong>。{secret.merlinCandidates.length > 1 ? `${subject}無法分辨其中誰是梅林、誰是莫甘娜。` : '本局未加入莫甘娜，這位巡夜者就是梅林。'}</p>}<p className="small muted">詛咒之鐘改變效忠後，開局情報不會更新。</p>{typeof secret.ownVote === 'boolean' && <p>{subject}的密票：{secret.ownVote ? '贊成' : '反對'}</p>}{(secret.ownQuestCard === 'success' || secret.ownQuestCard === 'fail') && <p>{subject}已密封的行動：{secret.ownQuestCard === 'success' ? '守護燈塔' : '侵蝕燈塔'}</p>}</div>}
     {!secret && <p className="small muted">只能查看公開的隊伍、表決結果與燈塔紀錄。</p>}
   </div> : <p className="small muted fog-concealed"><Icon type="shield" size={22} />秘密情報已遮住</p>}</section>;

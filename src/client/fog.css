@@ -1,7 +1,8 @@
 .fog-layout { --fog-gold: #ecd399; --fog-red: #ff8591; --fog-green: #88dec9; align-items: start; }
 .fog-main { min-width: 0; display: flex; flex-direction: column; gap: 14px; }
 .fog-main > * { margin: 0; }
-.fog-heading h1 { margin: 3px 0 0; }
+.fog-heading { flex-wrap: wrap; gap: 10px; }
+.fog-heading h1 { margin: 3px 0 0; white-space: nowrap; }
 .fog-heading-controls { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 9px; }
 .fog-status { display: flex; gap: 13px; padding: 15px 18px; border: 1px solid #60798a; background: #223448; border-radius: 12px; }
 .fog-status strong { color: var(--fog-gold); font-size: 18px; }
@@ -17,7 +18,7 @@
 .fog-lighthouse > span:not(.fog-lighthouse-art) { font-size: 11px; color: #a4b6cc; }
 .fog-lighthouse strong { font-size: 20px; }
 .fog-lighthouse small { font-size: 10px; color: #a4b6cc; line-height: 1.4; }
-.fog-lighthouse.current { border-color: var(--fog-gold); box-shadow: inset 0 0 0 1px #ecd39933; }
+.fog-lighthouse.current { outline: 2px solid var(--fog-gold); outline-offset: 2px; box-shadow: inset 0 0 0 1px #ecd39933; }
 .fog-lighthouse.lit { background: #1c3b36; border-color: #568f7f; color: var(--fog-green); }
 .fog-lighthouse.lost { background: #412b36; border-color: #a25e6b; color: var(--fog-red); }
 .fog-rejections { display: flex; align-items: center; flex-wrap: wrap; gap: 9px; font-size: 12px; padding: 11px 0 8px; }
@@ -39,9 +40,17 @@
 .fog-seat { display: inline-grid; place-items: center; width: 21px; height: 21px; border-radius: 50%; border: 1px solid #6b7f92; font-size: 11px; flex-shrink: 0; color: var(--fog-gold); }
 .fog-player-name { font-weight: 650; font-size: 13px; overflow-wrap: anywhere; }
 .fog-player-tags { display: flex; flex-wrap: wrap; gap: 5px; font-size: 11px; color: #a9bad0; }
+.fog-player-tags > *,.fog-rejections strong,.fog-players-panel .section-heading > span,.fog-quest-result > div > span { white-space: nowrap; }
 .fog-player-tags b { font-size: 10px; font-weight: 650; border-radius: 4px; padding: 1px 5px; background: #554a33; color: var(--fog-gold); }
 .fog-player-tags .fog-selected-label { background: #274e44; color: var(--fog-green); }
 .fog-public-role { font-size: 10px; }
+.fog-known-faction { font-size: 10px; line-height: 1.5; }
+.fog-player.fog-known-knights { border-left: 4px solid var(--fog-green); }
+.fog-player.fog-known-apostles { border-left: 4px solid var(--fog-red); }
+.fog-known-knights .fog-known-faction { color: var(--fog-green); }
+.fog-known-apostles .fog-known-faction { color: var(--fog-red); }
+.fog-player.fog-known-initial-apostles,.fog-player.fog-known-candidate { border-left: 4px dashed #acb9ca; }
+.fog-known-initial-apostles .fog-known-faction,.fog-known-candidate .fog-known-faction { color: #bec9d9; }
 .fog-action-panel p { line-height: 1.65; font-size: 13px; margin: 0 0 11px; }
 .fog-action-panel > :last-child { margin-bottom: 0; }
 .fog-vote-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
@@ -75,6 +84,10 @@
 .fog-intelligence p { font-size: 12px; line-height: 1.75; }
 .fog-concealed { display: flex; align-items: center; justify-content: center; gap: 9px; min-height: 80px; padding: 13px; }
 .fog-inspector { padding: 12px 13px 0; }
+.fog-composition { margin: 13px 0; }
+.fog-composition p { margin: 0 0 6px; }
+.fog-composition > div { display: flex; flex-wrap: wrap; gap: 5px 14px; }
+.fog-composition b { display: inline-block; white-space: nowrap; }
 .fog-log { padding: 16px; }
 .fog-log ol { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column-reverse; }
 .fog-log li { border-top: 1px solid #34475c; padding: 10px 0; }
@@ -113,7 +126,7 @@
 }
 @media (min-width: 1100px) and (min-height: 700px) {
   :is(.room-game,.replay-panel,.shared-replay) .fog-layout { flex: 1; min-height: 0; width: 100%; max-width: none; margin: 0; padding: 0 20px 12px; display: grid; grid-template-columns: var(--game-history-width,190px) minmax(0,1fr) 220px; grid-template-rows: minmax(0,1fr); gap: 14px; align-items: stretch; overflow: hidden; }
-  :is(.room-game,.replay-panel,.shared-replay) .fog-main { grid-column: 2; grid-row: 1; min-height: 0; display: grid; grid-template-rows: auto auto auto minmax(70px,1fr) auto; overflow: hidden; gap: 9px; }
+  :is(.room-game,.replay-panel,.shared-replay) .fog-main { grid-column: 2; grid-row: 1; min-height: 0; display: grid; grid-template-rows: auto auto minmax(0,max-content) minmax(100px,1fr) minmax(70px,.7fr); overflow: hidden; gap: 9px; }
   .fog-personal-aside { grid-column: 3; grid-row: 1; min-height: 0; overflow: auto; }
   .fog-history-aside { grid-column: 1; grid-row: 1; min-height: 0; overflow: hidden; padding-top: 0; }
   .fog-history-aside > * { margin: 0; }
@@ -127,9 +140,10 @@
   .fog-status strong { display: block; font-size: 16px; line-height: 20px; }
   .fog-status p { font-size: 11px; line-height: 15px; margin-top: 2px; }
   .fog-track-panel,.fog-players-panel,.fog-action-panel { padding: 12px; }
-  .fog-lighthouse { padding: 5px 3px; gap: 0; }
+  .fog-track-panel { min-height: 0; max-height: clamp(200px,calc(31vh - 17px),285px); overflow: auto; }
+  .fog-lighthouse { padding: 8px 5px; gap: 3px; }
   .fog-lighthouse > span:not(.fog-lighthouse-art) { font-size: 10px; line-height: 12px; }
-  .fog-lighthouse strong { font-size: 17px; line-height: 22px; }
+  .fog-lighthouse strong { font-size: 22px; line-height: 26px; }
   .fog-lighthouse small { font-size: 9px; line-height: 12px; }
   .fog-rejections { padding: 3px 0; line-height: 19px; }
   .fog-bells { padding-top: 6px; line-height: 1.4; font-size: 10px; }
@@ -144,7 +158,7 @@
   .fog-player-tags { gap: 3px; font-size: 9px; }
   .fog-player-tags b { font-size: 9px; padding: 0 3px; }
   .fog-action-panel p { font-size: 12px; margin-bottom: 8px; }
-  .fog-action-panel { max-height: 255px; overflow: auto; }
+  .fog-action-panel { min-height: 0; max-height: 190px; overflow: auto; }
   .fog-action-panel > .button:last-child { position: sticky; bottom: -1px; z-index: 1; }
   .fog-quest-result { display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: center; gap: 4px 10px; }
   .fog-quest-result > div { margin: 0; gap: 12px; }
@@ -169,7 +183,10 @@
 :root[data-visual-style="art"] .fog-role-art[data-fog-role="minion"] { background-image: url('./assets/art/fog/minion.webp'); }
 :root[data-visual-style="art"] .fog-role-art[data-fog-role="good-lancelot"] { background-image: url('./assets/art/fog/lancelot-good.webp'); }
 :root[data-visual-style="art"] .fog-role-art[data-fog-role="evil-lancelot"] { background-image: url('./assets/art/fog/lancelot-evil.webp'); }
-:root[data-visual-style="art"] .fog-lighthouse-art { display: block; height: 38px; width: 38px; background: url('./assets/art/fog/lighthouse.webp') center / cover; border-radius: 7px; }
+:root[data-visual-style="art"] .fog-lighthouse-art { display: block; height: 60px; width: 100%; background-position: center; background-size: contain; background-repeat: no-repeat; }
+:root[data-visual-style="art"] .fog-lighthouse-art[data-lighthouse-state="unlit"] { background-image: url('./assets/art/fog/lighthouse-unlit.webp'); }
+:root[data-visual-style="art"] .fog-lighthouse-art[data-lighthouse-state="lit"] { background-image: url('./assets/art/fog/lighthouse-lit.webp'); }
+:root[data-visual-style="art"] .fog-lighthouse-art[data-lighthouse-state="corrupted"] { background-image: url('./assets/art/fog/lighthouse-corrupted.webp'); }
 :root[data-visual-style="art"] .fog-bell-art { display: block; height: 37px; width: 37px; flex: 0 0 37px; background: url('./assets/art/fog/bell.webp') center / cover; border-radius: 7px; }
 :root[data-visual-style="art"] .fog-layout .panel { border-color: #716c57; }
 :root[data-visual-style="art"] .fog-status { background: #34382f; border-color: #ac9460; }
@@ -177,6 +194,6 @@
 :root[data-visual-style="art"] .fog-role-card { background-color: #253b31; }
 :root[data-visual-style="art"] .fog-role-card.apostles { background-color: #3d3038; }
 @media (min-width: 1100px) and (min-height: 700px) {
-  :root[data-visual-style="art"] .fog-lighthouse-art { width: 25px; height: 25px; margin-bottom: 3px; }
+  :root[data-visual-style="art"] .fog-lighthouse-art { width: 100%; height: clamp(80px,calc(14vh - 18px),133px); margin-bottom: 3px; }
   :root[data-visual-style="art"] .fog-bell-art { width: 28px; height: 28px; flex-basis: 28px; }
 }

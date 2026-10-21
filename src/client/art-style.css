@@ -109,7 +109,10 @@
 
 /* The existing board grid, dimensions and interaction targets stay in charge. */
 :root[data-visual-style="art"] .game-title {
-  background: linear-gradient(90deg, #142023f5 10%, #142023cc 56%, #14202322), var(--art-scene) right 40% / cover;
+  /* Keep the page illustration continuous. Cropping the same scene into this
+     short, wide heading produced a second enlarged strip behind the title. */
+  background: linear-gradient(110deg, #1d2b2c, #142023);
+  box-shadow: inset 0 -1px 0 #8d91714d;
   border-radius: 7px 11px 7px 11px;
 }
 :root[data-visual-style="art"] :is(.mission-progress, .cipher-metrics) {

@@ -20,9 +20,38 @@
 | `lancelot-good.webp` | 善蘭斯洛特 | 透明 alpha |
 | `lancelot-evil.webp` | 惡蘭斯洛特 | 透明 alpha |
 | `lighthouse.webp` | 城郊燈塔 | 透明 alpha |
+| `lighthouse-unlit.webp` | 未點亮的燈塔 | 透明 alpha |
+| `lighthouse-lit.webp` | 已點亮的燈塔 | 透明 alpha |
+| `lighthouse-corrupted.webp` | 被侵蝕的燈塔 | 透明 alpha |
 | `bell.webp` | 詛咒之鐘 | 透明 alpha |
 
 角色圖的顯示必須遵循遊戲的玩家／觀戰視角資訊權限。不得以預載圖片、圖片名稱或裝飾圖間接顯示尚未公開的他人身分。
+
+## 2026-10-22：燈塔任務狀態
+
+使用內建 `image_gen` 編輯流程，逐張生成三個狀態。`lighthouse-unlit.webp` 以本專案原有 `lighthouse.webp` 為編輯目標；`lighthouse-lit.webp` 與 `lighthouse-corrupted.webp` 分別以這次生成的未點亮 PNG 為編輯目標，維持同座塔與構圖。未使用 API CLI、外部素材、程式修圖、去背或合成。
+
+三張均使用 `transparent_background: true`，保持 1254 × 1254 RGBA。原始 PNG 僅轉換為 WebP（quality 85、method 6、exact true），沒有裁切、縮放或改動構圖；逐像素驗證 alpha 與來源相同，且無 EXIF、XMP 或 ICC 中繼資料。
+
+任務尚未結算使用未點亮狀態，成功使用金色點亮狀態，失敗使用破窗與紫黑霧侵蝕狀態。圖片僅在美術模式載入；介面另保留文字標示，不能只靠顏色辨識結果。
+
+### lighthouse-unlit.webp（未點亮）
+
+```text
+Use case: precise-object-edit. Asset type: transparent game illustration, the UNLIT state of a medieval guardian lighthouse for a digital tabletop game. Input image: edit target and composition/style reference. Preserve this exact single tower's architecture, silhouette, centered full-height composition, pointed crooked slate roof, open lantern gallery, round stone shaft, winding exterior stone stair, arched wooden door and stone footing. Keep all edges comfortably inside a square canvas with a little transparent margin. Change only the illumination: extinguish the lantern completely; its chamber and all windows are dark, cold charcoal blue-gray, with NO green, yellow, orange or red light and NO luminous haze. Preserve the scratchy irregular black ink outlines, dense engraved cross-hatching, weathered parchment-colored stone and original dark storybook style. The entire recognizable tower should remain clear on a dark UI at 80–120 px. True transparent alpha background, no scenery, ground field, text, digits, symbols, labels, borders, logos or watermark.
+```
+
+### lighthouse-lit.webp（已點亮）
+
+```text
+Use case: precise-object-edit. Asset type: transparent game illustration, the LIT/SUCCESS state of the same medieval guardian lighthouse. Input image: exact edit target. Preserve the exact architecture, shape, placement, full-height centered composition and proportions of this single tower: pointed crooked slate roof, lantern gallery, round stone shaft, winding exterior stairs, arched door and footing. Change only its operational state: ignite a powerful warm golden amber beacon inside the top lantern chamber, creating a very bright pale-gold center and warm honey-gold light through every top lantern pane, with a compact golden light aura hugging the gallery. The tower is intact, safe and victorious. A little warm golden light also shines from its narrow lower windows. Retain scratchy black ink outlines, engraved cross-hatching, parchment stone texture and dark storybook hand-drawn treatment. Strong warm-gold success beacon must read at 80–120 px. All tower edges inside square canvas. True transparent alpha outside the tower and small light aura; no scenery, ground plane, background field, text, letters, digits, border, logo or watermark. Do not introduce green, red, or purple light.
+```
+
+### lighthouse-corrupted.webp（被侵蝕）
+
+```text
+Use case: precise-object-edit. Asset type: transparent game illustration, the CORRUPTED/FAILED state of the same medieval guardian lighthouse. Input image: exact edit target. Keep the exact overall single-tower silhouette, centered full-height size, pointed slate roof, round stone shaft, exterior spiral stairs, arched door and stone footing, with all edges inside the square. Transform only its condition to visibly overtaken by black fog: the top lantern glass is broken into jagged panes, the beacon is extinguished into deep violet-black smoke, dark inky tendrils curl tightly around its gallery, and a few thin dull crimson fissures run through the upper stonework. Make cracks and battered missing pieces readable, but keep the tower upright and recognizable. Lower windows are shadowy dark purple, NOT warm or gold. The roof is slightly chipped but retains its shape. Main state cue: large violet-black cloud around a clearly broken lantern chamber, distinct from both a plain intact unlit tower and a golden success beacon. Preserve scratchy irregular black ink outlines, engraved cross-hatching, parchment stone texture and dark hand-drawn storybook style. True transparent alpha around the object and smoke contours; no opaque background field, scenery, text, letters, digits, icons, labels, borders, logo or watermark. No glowing gold, orange flame or green light.
+```
 
 ## 生成記錄
 

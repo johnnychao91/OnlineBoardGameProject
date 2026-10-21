@@ -7,6 +7,7 @@ import { GameSoundControl } from './GameSoundControl';
 import { BattleReport } from './BattleReport';
 import { Icon } from './ui';
 import { serverNow } from './server-clock';
+import { moonKnownFactions, stampMoonTicket } from './moon-view';
 import './moon.css';
 
 export type MoonNameOf = (id: string) => string;
@@ -24,6 +25,7 @@ export function MoonBoard({ G, playerID, moves, isConnected }: BoardProps) {
   const id = playerID || (isPlayer(seat) ? seat.playerID : '');
   const own = G.players[id], secret = G.private?.[id];
   const [pending, setPending] = useState(false), [notice, setNotice] = useState(''), [covered, setCovered] = useState(false);
+  const [privateExpanded, setPrivateExpanded] = useState(true);
   const [confirmation, setConfirmation] = useState<{ move: string; args: unknown[]; text: string } | null>(null);
   const sending = useRef(false), dialog = useRef<HTMLDialogElement>(null);
   const visible = useMoonPrivacy();
@@ -35,7 +37,8 @@ export function MoonBoard({ G, playerID, moves, isConnected }: BoardProps) {
   useEffect(() => { if (!visible) { setConfirmation(null); setCovered(true); } }, [visible]);
   useEffect(() => { if (!pending) return; const timer = window.setTimeout(() => { sending.current = false; setPending(false); setNotice('尚未收到確認，請查看目前時段與連線後再試。'); }, 8000); return () => window.clearTimeout(timer); }, [pending]);
   const canAct = isConnected !== false && !!own && !pending;
-  const privateVisible = visible && !covered;
+  const privateVisible = visible && !covered && privateExpanded;
+  function setSecretsVisible(shown: boolean) { setCovered(!shown); setPrivateExpanded(shown); }
   function send(move: string, ...args: unknown[]) {
     if (!canAct || sending.current) return;
     sending.current = true; setPending(true); setNotice(''); moves[move](...args, G.epoch);
@@ -48,11 +51,11 @@ export function MoonBoard({ G, playerID, moves, isConnected }: BoardProps) {
       <section className="game-main moon-main">
         <MoonHeading G={G}><GameSoundControl gameID="silver-moon" G={G} matchID={info.matchID} playerID={id} connected={isConnected !== false} /></MoonHeading>
         <MoonStatus G={G} nameOf={nameOf} ownID={id} />
-        <MoonParticipants G={G} nameOf={nameOf} ownID={id} />
+        <MoonParticipants G={G} nameOf={nameOf} ownID={id} concealed={!privateVisible} />
         <section className="panel moon-action-panel" aria-label="乘客操作">
           {G.status === 'night' ? <>
-            <div className="moon-privacy-bar"><h3>夜間操作台</h3><button className="text-button" onClick={() => setCovered(!covered)}>{privateVisible ? '遮住操作' : '顯示操作'}</button></div>
-            {privateVisible ? <MoonNightAction key={`${G.epoch}:${id}`} G={G} id={id} nameOf={nameOf} disabled={!canAct} send={send} confirm={(move, args, text) => setConfirmation({ move, args, text })} /> : <div className="moon-privacy-cover"><Icon type="shield" size={28} /><p>秘密操作已遮住</p><button className="button secondary" onClick={() => setCovered(false)}>只有自己能看見時，顯示操作</button></div>}
+            <div className="moon-privacy-bar"><h3>夜間操作台</h3><button className="text-button" onClick={() => setSecretsVisible(!privateVisible)}>{privateVisible ? '遮住操作' : '顯示操作'}</button></div>
+            {privateVisible ? <MoonNightAction key={`${G.epoch}:${id}`} G={G} id={id} nameOf={nameOf} disabled={!canAct} send={send} confirm={(move, args, text) => setConfirmation({ move, args, text })} /> : <div className="moon-privacy-cover"><Icon type="shield" size={28} /><p>秘密操作已遮住</p><button className="button secondary" onClick={() => setSecretsVisible(true)}>只有自己能看見時，顯示操作</button></div>}
           </> : <>
             <MoonPublicPhase G={G} nameOf={nameOf} />
             {review && mayReview && <button className="button primary full" disabled={!canAct || own?.acknowledged} onClick={() => send('acknowledge')}>{own?.acknowledged ? '已確認，等待其他乘客' : G.status === 'briefing' ? '已看過身分，準備出發' : '已看過結果，繼續'}</button>}
@@ -66,7 +69,7 @@ export function MoonBoard({ G, playerID, moves, isConnected }: BoardProps) {
           {pending && <p className="small muted" role="status">正在確認操作…</p>}{notice && <p className="error-message" role="status">{notice}</p>}
         </section>
       </section>
-      <aside className="moon-personal-aside"><MoonPrivatePanel G={G} playerID={id} nameOf={nameOf} concealed={!privateVisible} /><button className="button secondary full moon-cover-button" onClick={() => setCovered(!covered)}>{privateVisible ? '暫時遮住我的秘密' : '顯示我的秘密'}</button></aside>
+      <aside className="moon-personal-aside"><MoonPrivatePanel G={G} playerID={id} nameOf={nameOf} concealed={!visible || covered} expanded={privateExpanded} onExpandedChange={setSecretsVisible} /><button className="button secondary full moon-cover-button" onClick={() => setSecretsVisible(!privateVisible)}>{privateVisible ? '暫時遮住我的秘密' : '顯示我的秘密'}</button></aside>
       <aside className="game-aside moon-history-aside"><MoonLog G={G} nameOf={nameOf} /><details className="panel rules-details"><summary>乘車規則速查</summary><MoonRuleSummary /></details>{G.status === 'finished' && <BattleReport G={G} info={info} perspective="blind" label="製作列車戰報" />}</aside>
     </main>
     <dialog className="confirm-dialog" ref={dialog} onCancel={() => setConfirmation(null)} onClose={() => setConfirmation(null)}><div className="eyebrow">SILVER MOON EXPRESS</div><h2>{confirmation?.text}</h2><p>請確認目前的階段與目標。</p><div className="button-row"><button className="button secondary" onClick={() => setConfirmation(null)}>再想一下</button><button className="button primary" disabled={!canAct} onClick={() => { if (confirmation) send(confirmation.move, ...confirmation.args); setConfirmation(null); }}>確認</button></div></dialog>
@@ -94,8 +97,9 @@ export function MoonStatus({ G, nameOf, ownID, replay = false }: { G: MoonState;
   return <section className={`moon-status ${ownTurn ? 'moon-your-turn' : ''} ${G.status === 'night' ? 'night' : ''}`} aria-label="目前階段"><span className="moon-status-emblem" aria-hidden="true">{G.status === 'night' ? '☾' : '◈'}</span><div><strong>{title}</strong><p>{detail}</p></div><MoonCountdown deadline={G.deadline} replay={replay} /></section>;
 }
 
-export function MoonParticipants({ G, nameOf, ownID }: { G: MoonState; nameOf: MoonNameOf; ownID?: string }) {
-  return <section className="panel moon-passengers-panel"><div className="section-heading"><h2>乘客名冊</h2><span className="small muted">存活 {Object.values(G.players).filter(player => player.alive).length} / {Object.keys(G.players).length}</span></div><div className="moon-passengers">{Object.entries(G.players).map(([id, player]) => <div key={id} className={`moon-passenger ${player.alive ? '' : 'departed'} ${G.speakerID === id && ['speaking', 'sheriff-speech'].includes(G.status) ? 'speaking' : ''}`}><div><span className="moon-seat">{Number(id) + 1}</span><strong>{nameOf(id)}</strong>{id === ownID && <small>你</small>}</div><span className="moon-passenger-state">{!player.alive ? '已離場' : ['speaking', 'sheriff-speech'].includes(G.status) && G.speakerID === id ? '正在發言' : '在車上'}{G.sheriffID === id && <b className="moon-sheriff-tag"> · 警長</b>}{player.revealedRole && <b className={player.revealedFaction === 'wolves' ? 'moon-wolf-text' : ''}> · {MOON_ROLES[player.revealedRole].name}</b>}</span></div>)}</div></section>;
+export function MoonParticipants({ G, nameOf, ownID, concealed = false, omniscient = false }: { G: MoonState; nameOf: MoonNameOf; ownID?: string; concealed?: boolean; omniscient?: boolean }) {
+  const known = moonKnownFactions(G, ownID, concealed, omniscient);
+  return <section className="panel moon-passengers-panel"><div className="section-heading"><h2>乘客名冊</h2><span className="small muted">存活 {Object.values(G.players).filter(player => player.alive).length} / {Object.keys(G.players).length}</span></div><div className="moon-passengers">{Object.entries(G.players).map(([id, player]) => <div key={id} className={`moon-passenger ${known[id] ? `known-${known[id]}` : ''} ${player.alive ? '' : 'departed'} ${G.speakerID === id && ['speaking', 'sheriff-speech'].includes(G.status) ? 'speaking' : ''}`}><div><span className="moon-seat">{Number(id) + 1}</span><strong>{nameOf(id)}</strong>{id === ownID && <small>你</small>}</div><span className="moon-passenger-state">{!player.alive ? '已離場' : ['speaking', 'sheriff-speech'].includes(G.status) && G.speakerID === id ? '正在發言' : '在車上'}{G.sheriffID === id && <b className="moon-sheriff-tag"> · 警長</b>}{player.revealedRole && <b> · {MOON_ROLES[player.revealedRole].name}</b>}</span>{known[id] && <span className="moon-known-faction">{moonFactionLabel(known[id])}</span>}</div>)}</div></section>;
 }
 
 export function MoonTargets({ ids, nameOf, onSelect, selected, disabled }: { ids: string[]; nameOf: MoonNameOf; onSelect: (id: string) => void; selected?: string | null; disabled: boolean }) {
@@ -117,9 +121,9 @@ export function MoonSheriffAction({ G, id, nameOf, disabled, send, confirm }: { 
 
 /** Local-only distraction: no request, acknowledgement, vote, or game-state mutation. */
 export function MoonCoverTask({ count = 12 }: { count?: number }) {
-  const [taps, setTaps] = useState(0);
-  const active = (taps * 7 + 3) % count;
-  return <div className="moon-cover-task"><h3>巡查車票</h3><p>點亮的票券需要蓋章。可以繼續巡查至倒數結束；不影響技能、投票或勝負。</p><div className="moon-targets">{Array.from({ length: count }, (_, index) => <button key={index} className={`moon-target ${index === active ? 'selected' : ''}`} aria-label={`巡查票券 ${index + 1}`} onClick={() => setTaps(value => value + 1)}><span className="moon-seat">{index + 1}</span><span>{index === active ? '蓋上查驗章' : '核對票券'}</span></button>)}</div><p className="small muted">已巡查 {taps} 次 · 這些點擊只留在此畫面</p></div>;
+  const [patrol, setPatrol] = useState({ taps: 0, active: 3 % count });
+  const { taps, active } = patrol;
+  return <div className="moon-cover-task"><h3>巡查車票</h3><p>點中亮起的票券才算巡查一次。可以繼續巡查至倒數結束；不影響技能、投票或勝負。</p><div className="moon-targets">{Array.from({ length: count }, (_, index) => <button key={index} className={`moon-target ${index === active ? 'selected' : ''}`} aria-label={`巡查票券 ${index + 1}`} onClick={() => { const roll = Math.random(); setPatrol(value => stampMoonTicket(value, index, count, roll)); }}><span className="moon-seat">{index + 1}</span><span>{index === active ? '蓋上查驗章' : '核對票券'}</span></button>)}</div><p className="small muted" aria-live="polite">已巡查 {taps} 次 · 這些點擊只留在此畫面</p></div>;
 }
 
 export function MoonNightAction({ G, id, nameOf, disabled, send, confirm }: { G: MoonState; id: string; nameOf: MoonNameOf; disabled: boolean; send: (move: string, ...args: unknown[]) => void; confirm: (move: string, args: unknown[], text: string) => void }) {
@@ -169,14 +173,16 @@ export function MoonPublicPhase({ G, nameOf }: { G: MoonState; nameOf: MoonNameO
   </>;
 }
 
-export function MoonPrivatePanel({ G, playerID, nameOf, observer = false, concealed = false, children }: { G: MoonState; playerID: string; nameOf: MoonNameOf; observer?: boolean; concealed?: boolean; children?: ReactNode }) {
-  const [expanded, setExpanded] = useState(true);
+export function MoonPrivatePanel({ G, playerID, nameOf, observer = false, concealed = false, expanded: controlledExpanded, onExpandedChange, children }: { G: MoonState; playerID: string; nameOf: MoonNameOf; observer?: boolean; concealed?: boolean; expanded?: boolean; onExpandedChange?: (expanded: boolean) => void; children?: ReactNode }) {
+  const [localExpanded, setLocalExpanded] = useState(true);
+  const expanded = controlledExpanded ?? localExpanded;
+  const setExpanded = onExpandedChange ?? setLocalExpanded;
   const visible = useMoonPrivacy();
   const secret = G.private?.[playerID], player = G.players[playerID];
   const role = secret?.role ?? player?.revealedRole, faction = secret?.faction ?? player?.revealedFaction;
   const shown = expanded && visible && !concealed;
   const deck = moonRoleDeck(Math.max(6, Math.min(12, Object.keys(G.players).length)));
-  return <section className="panel moon-private-panel"><button className="moon-private-toggle" aria-expanded={shown} onClick={() => setExpanded(!expanded)}><span><Icon type="shield" size={16} />{observer ? '乘客情報' : '我的秘密情報'}</span><span>{shown ? '收起 −' : '展開 ＋'}</span></button>{children}{shown ? <div className="moon-private-content"><div className={`moon-role-card ${faction ?? ''}`}>{role && <span className="moon-role-art" data-moon-role={role} aria-hidden="true" />}<span className="small muted">{observer ? `${nameOf(playerID)}的身分` : '你的身分'}</span><h2>{role ? MOON_ROLES[role].name : '尚未公開'}</h2><strong>{role ? moonFactionLabel(faction) : '盲視角不顯示秘密身分'}</strong>{role && <p>{MOON_ROLES[role].description}</p>}</div><p className="small">起始配置：狼人 {deck.filter(role => role === 'wolf').length} 位 ／ 好人 {deck.filter(role => role !== 'wolf').length} 位</p>{secret && <div className="moon-intelligence"><h3>私人情報</h3>{secret.knownWolves.length > 0 && <p>狼群同伴：{secret.knownWolves.map(nameOf).join('、')}</p>}{secret.checks.map(check => <p key={`${check.day}:${check.targetID}`}>第 {check.day} 夜查驗 {nameOf(check.targetID)}：<b className={check.isWolf ? 'moon-wolf-text' : 'mint'}>{check.isWolf ? '狼人' : '不是狼人'}</b></p>)}{role === 'witch' && <p>解藥：{secret.antidote ? '尚有 1 瓶' : '已用完'}<br />毒藥：{secret.poison ? '尚有 1 瓶' : '已用完'}</p>}{secret.voteSubmitted && <p>{observer ? '此乘客' : '你'}的密票：{secret.ownVote ? nameOf(secret.ownVote) : '棄票'}</p>}{G.status === 'night' && secret.nightSubmitted && <p>今夜已選擇：{secret.witchChoice === 'save' ? '使用解藥' : secret.witchChoice === 'poison' ? '使用毒藥' : secret.nightChoice ? nameOf(secret.nightChoice) : '不行動'}</p>}{!secret.knownWolves.length && !secret.checks.length && role !== 'witch' && <p>目前沒有其他身分情報，請從公開發言與投票推理。</p>}</div>}<p className="small muted">夜間不要展示畫面。離場後仍請保守秘密，等到遊戲結束再一起復盤。</p></div> : <div className="moon-privacy-cover"><Icon type="shield" size={25} /><p>秘密情報已遮住</p></div>}</section>;
+  return <section className="panel moon-private-panel"><button className="moon-private-toggle" aria-expanded={shown} onClick={() => setExpanded(!shown)}><span><Icon type="shield" size={16} />{observer ? '乘客情報' : '我的秘密情報'}</span><span>{shown ? '收起 −' : '展開 ＋'}</span></button>{children}{shown ? <div className="moon-private-content"><div className={`moon-role-card ${faction ?? ''}`}>{role && <span className="moon-role-art" data-moon-role={role} aria-hidden="true" />}<span className="small muted">{observer ? `${nameOf(playerID)}的身分` : '你的身分'}</span><h2>{role ? MOON_ROLES[role].name : '尚未公開'}</h2><strong>{role ? moonFactionLabel(faction) : '盲視角不顯示秘密身分'}</strong>{role && <p>{MOON_ROLES[role].description}</p>}</div><p className="small moon-composition"><span>起始配置：</span><span>狼人 {deck.filter(role => role === 'wolf').length} 位</span><span>好人 {deck.filter(role => role !== 'wolf').length} 位</span></p>{secret && <div className="moon-intelligence"><h3>私人情報</h3>{secret.knownWolves.length > 0 && <p>狼群同伴：{secret.knownWolves.map(nameOf).join('、')}</p>}{secret.checks.map(check => <p key={`${check.day}:${check.targetID}`}>第 {check.day} 夜查驗 {nameOf(check.targetID)}：<b className={check.isWolf ? 'moon-wolf-text' : 'mint'}>{check.isWolf ? '狼人' : '不是狼人'}</b></p>)}{role === 'witch' && <p>解藥：{secret.antidote ? '尚有 1 瓶' : '已用完'}<br />毒藥：{secret.poison ? '尚有 1 瓶' : '已用完'}</p>}{secret.voteSubmitted && <p>{observer ? '此乘客' : '你'}的密票：{secret.ownVote ? nameOf(secret.ownVote) : '棄票'}</p>}{G.status === 'night' && secret.nightSubmitted && <p>今夜已選擇：{secret.witchChoice === 'save' ? '使用解藥' : secret.witchChoice === 'poison' ? '使用毒藥' : secret.nightChoice ? nameOf(secret.nightChoice) : '不行動'}</p>}{!secret.knownWolves.length && !secret.checks.length && role !== 'witch' && <p>目前沒有其他身分情報，請從公開發言與投票推理。</p>}</div>}<p className="small muted">夜間不要展示畫面。離場後仍請保守秘密，等到遊戲結束再一起復盤。</p></div> : <div className="moon-privacy-cover"><Icon type="shield" size={25} /><p>秘密情報已遮住</p></div>}</section>;
 }
 
 export function MoonLog({ G, nameOf }: { G: MoonState; nameOf: MoonNameOf }) {

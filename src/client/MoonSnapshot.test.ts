@@ -29,6 +29,7 @@ describe('Silver Moon read-only and private surfaces', () => {
     expect(html).not.toContain('第 1 夜查驗');
     expect(html).not.toContain('的密票：');
     expect(html).not.toContain('選擇今晚');
+    expect(html).not.toMatch(/known-wolves|known-town|moon-known-faction/);
   });
   it('shows authorized private information but no actionable night targets in god replay', () => {
     const html = snapshot(fixture(), 'god');
@@ -38,6 +39,7 @@ describe('Silver Moon read-only and private surfaces', () => {
     expect(html).toContain('歷史倒數階段');
     expect(html).not.toContain('確認順序，開始發言');
     expect(html).not.toContain('aria-label="巡查票券');
+    expect(html).toContain('known-town'); expect(html).toContain('moon-known-faction');
   });
   it('conceals all own role artwork and intelligence when privacy cover is enabled', () => {
     const G = fixture();
