@@ -17,6 +17,8 @@ afterEach(async () => { for (const fn of cleanup.splice(0).reverse()) await fn()
 const token = (url: string, key = 'invite') => new URLSearchParams(new URL(url).hash.slice(1)).get(key)!;
 const path = (g: Group, route = '') => `/api/rooms/${g.host.roomId}${route ? `/${route}` : ''}`;
 const noSecrets = (value: unknown) => expect(JSON.stringify(value)).not.toMatch(/"(?:secret|nightAdvance|attackTieOrder|seed|prngstate|credentials|credentialHash|inviteHash)"\s*:/);
+// Real socket delivery and fsync need a separate budget from the simulated game clock.
+const ioWait = { timeout: 10000, interval: 50 };
 
 async function fixture() {
   let now = Date.now();
@@ -27,7 +29,7 @@ async function fixture() {
     await rm(dataDir, { recursive: true, force: true });
   });
   const config = { dataDir, publicOrigin: 'http://localhost:5173', host: '127.0.0.1', port: 0,
-    production: false, createRoomKey: '', lifecycleSweepMs: 60000, clockSweepMs: 20 };
+    production: false, createRoomKey: '', lifecycleSweepMs: 60000, clockSweepMs: 100 };
   let app = await createApplication(config), running = await app.listen();
   const sockets: Socket[] = [], views = new Map<Socket, Snapshot>();
   const setClock = (next: number) => {
@@ -46,7 +48,7 @@ async function fixture() {
   };
   const state = async (g: Group) => (await app.db.fetch(g.matchID, { state: true })).state! as Snapshot;
   const connect = async (g: Group, seat: Member) => {
-    const socket = io(`http://127.0.0.1:${running.port}/${g.gameId}`, { transports: ['websocket'], forceNew: true, reconnection: false, autoConnect: false });
+    const socket = io(`http://127.0.0.1:${running.port}/${g.gameId}`, { transports: ['websocket'], forceNew: true, reconnection: false, autoConnect: false, timeout: ioWait.timeout });
     sockets.push(socket); socket.on('error', () => {});
     const inspectWire = (value: State, log: unknown) => {
       noSecrets(value);
@@ -61,21 +63,30 @@ async function fixture() {
     socket.on('update', (_id: string, value: Snapshot, log: unknown) => { inspectWire(value, log); views.set(socket, value); });
     await new Promise<void>((ok, reject) => { socket.once('connect', ok); socket.once('connect_error', reject); socket.connect(); });
     socket.emit('sync', g.matchID, seat.playerID, seat.credentials, g.seats.length);
-    await vi.waitFor(() => expect(views.has(socket)).toBe(true), { timeout: 3000, interval: 10 });
+    await vi.waitFor(() => expect(views.has(socket)).toBe(true), ioWait);
     return socket;
   };
   const move = async (g: Group, id: string, type: string, args: unknown[], valid = true) => {
     const index = g.seats.findIndex(s => s.playerID === id), before = await state(g);
-    g.sockets[index].emit('update', { type: 'MAKE_MOVE', payload: { type, args, playerID: id, credentials: g.seats[index].credentials } }, before._stateID, g.matchID, id);
-    if (valid) await vi.waitFor(async () => expect((await state(g))._stateID, `${type} by ${id} during ${before.G.status} epoch ${before.G.epoch}`).toBeGreaterThan(before._stateID), { timeout: 3000, interval: 10 });
+    const socket = g.sockets[index];
+    await vi.waitFor(() => expect(views.get(socket)?._stateID).toBeGreaterThanOrEqual(before._stateID), ioWait);
+    expect(socket.connected, `${type} requires a connected player socket`).toBe(true);
+    socket.emit('update', { type: 'MAKE_MOVE', payload: { type, args, playerID: id, credentials: g.seats[index].credentials } }, before._stateID, g.matchID, id);
+    if (valid) {
+      await vi.waitFor(async () => expect((await state(g))._stateID, `${type} by ${id} during ${before.G.status} epoch ${before.G.epoch}`).toBeGreaterThan(before._stateID), ioWait);
+      const after = await state(g);
+      // Persistence finishes before publication. Await the player views as well,
+      // instead of reading a previous packet when storage happens to be faster.
+      await vi.waitFor(() => g.sockets.forEach(s => expect(views.get(s)?._stateID).toBeGreaterThanOrEqual(after._stateID)), ioWait);
+    }
     else { await new Promise(ok => setTimeout(ok, 60)); expect((await state(g))._stateID).toBe(before._stateID); }
     return state(g);
   };
   const expire = async (g: Group) => {
     const before = await state(g); expect(before.G.deadline).not.toBeNull(); setClock(before.G.deadline!);
-    await vi.waitFor(async () => expect((await state(g))._stateID).toBeGreaterThan(before._stateID), { timeout: 3000, interval: 10 });
+    await vi.waitFor(async () => expect((await state(g))._stateID).toBeGreaterThan(before._stateID), ioWait);
     const after = await state(g);
-    await vi.waitFor(() => g.sockets.forEach(s => expect(views.get(s)!._stateID).toBe(after._stateID)), { timeout: 3000, interval: 10 });
+    await vi.waitFor(() => g.sockets.forEach(s => expect(views.get(s)!._stateID).toBe(after._stateID)), ioWait);
     return after;
   };
   return { request, state, move, expire, views, get app() { return app; },
@@ -118,6 +129,21 @@ async function speeches(f: Fixture, g: Group) {
 }
 
 describe('Silver Moon shared framework and authoritative timers', () => {
+  it('waits for a delayed durable move and its socket publication without advancing game time', async () => {
+    const f = await fixture(), g = await f.group(); await f.start(g);
+    const before = await f.state(g), gameTime = Date.now();
+    const persist = f.app.db.setState.bind(f.app.db);
+    vi.spyOn(f.app.db, 'setState').mockImplementationOnce(async (...args) => {
+      await new Promise(ok => setTimeout(ok, 3200));
+      await persist(...args);
+    });
+    const after = await f.move(g, '0', 'acknowledge', [before.G.epoch]);
+    expect(after._stateID).toBe(before._stateID + 1);
+    expect(after.G.players['0'].acknowledged).toBe(true);
+    expect(Date.now()).toBe(gameTime);
+    for (const socket of g.sockets) expect(f.views.get(socket)!.G.players['0'].acknowledged).toBe(true);
+  }, 30000);
+
   it.each(['online', 'assisted'] as const)('%s completes a real socket match and preserves sharing, statistics and lobby', async mode => {
     const f = await fixture(), g = await f.group(); await f.start(g, { ...DEFAULT_MOON_OPTIONS, mode });
     for (let i = 0; i < g.sockets.length; i++) expect(Object.keys(f.views.get(g.sockets[i])!.G.private)).toEqual([g.seats[i].playerID]);
@@ -201,7 +227,7 @@ describe('Silver Moon shared framework and authoritative timers', () => {
     expect((await f.state(a))._stateID).toBe(agreed._stateID);
     expect((await f.state(a)).G.deadline).toBe(G.deadline);
     f.advance(1);
-    await vi.waitFor(async () => expect((await f.state(a)).G.nightStep).toBe(2), { interval: 10 });
+    await vi.waitFor(async () => expect((await f.state(a)).G.nightStep).toBe(2), ioWait);
     expect((await f.state(a)).G.deadline).toBe(Date.now() + 30000);
     expect((await f.state(b))._stateID).toBe(bBefore._stateID);
     expect((await f.state(c))._stateID).toBe(cBefore._stateID);
@@ -232,7 +258,7 @@ describe('Silver Moon shared framework and authoritative timers', () => {
     f.advance(1999); await new Promise(ok => setTimeout(ok, 80));
     expect((await f.state(g)).G.nightStep).toBe(1);
     f.advance(1);
-    await vi.waitFor(async () => expect((await f.state(g)).G.nightStep).toBe(2), { interval: 10 });
+    await vi.waitFor(async () => expect((await f.state(g)).G.nightStep).toBe(2), ioWait);
     expect(Date.now()).toBe(agreedAt + 3000);
     expect((await f.state(g)).G.secret!.attackTarget).toBe(targets[1]);
     await f.move(g, wolves[0], 'wolfVote', [targets[0], G.epoch], false);

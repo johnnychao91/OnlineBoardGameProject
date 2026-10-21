@@ -9,8 +9,11 @@ import { GAME_IDS, gameCatalog } from '../games/catalog';
 
 const NORMAL_KEY = 'ordinary-room-key-for-tests';
 const TEST_KEY = 'virtual-room-key-for-tests';
+// These checks wait for real sockets and atomic JSON writes, not gameplay time.
+// Keep a bounded allowance for slow disks without polling the room queue at 50 Hz.
+const eventually = { timeout: 10000, interval: 50 };
 const cleanup: (() => Promise<void>)[] = [];
-afterEach(async () => { for (const fn of cleanup.splice(0).reverse()) await fn(); });
+afterEach(async () => { for (const fn of cleanup.splice(0).reverse()) await fn(); vi.restoreAllMocks(); });
 const path = (room: any, operation = '') => `/api/rooms/${room.roomId}${operation ? `/${operation}` : ''}`;
 const token = (url: string, key = 'invite') => new URLSearchParams(new URL(url).hash.slice(1)).get(key)!;
 const noSecrets = (value: unknown) => expect(JSON.stringify(value)).not.toMatch(/"(?:credentials|credentialHash|requestHash|botAdmissions|testRoomKey|createRoomKey|inviteHash|secret|seed)"\s*:/);
@@ -23,7 +26,7 @@ async function fixture(overrides: Partial<AppConfig> = {}) {
   });
   const config: AppConfig = { dataDir, publicOrigin: 'http://localhost:5173', host: '127.0.0.1', port: 0,
     production: false, createRoomKey: NORMAL_KEY, testRoomKey: TEST_KEY,
-    lifecycleSweepMs: 60000, botSweepMs: 20, ...overrides };
+    lifecycleSweepMs: 60000, botSweepMs: 100, ...overrides };
   let app = await createApplication(config), running = await app.listen();
   const sockets: Socket[] = [];
   cleanup.push(async () => { sockets.forEach(socket => socket.disconnect()); await running.close(); });
@@ -48,10 +51,15 @@ async function fixture(overrides: Partial<AppConfig> = {}) {
     expect(result.status).toBe(200); return result.body;
   };
   return { request, create, add, joinMember, get app() { return app; },
-    async restart() { sockets.forEach(socket => socket.disconnect()); await running.close(); app = await createApplication(config); running = await app.listen(); },
+    async restart(beforeListen?: (application: Awaited<ReturnType<typeof createApplication>>) => void) {
+      sockets.forEach(socket => socket.disconnect()); await running.close();
+      app = await createApplication(config);
+      beforeListen?.(app);
+      running = await app.listen();
+    },
     async connect(host: any, member = host) {
       const socket = io(`http://127.0.0.1:${running.port}/${host.gameName}`, {
-        transports: ['websocket'], forceNew: true, reconnection: false, autoConnect: false,
+        transports: ['websocket'], forceNew: true, reconnection: false, autoConnect: false, timeout: eventually.timeout,
       });
       sockets.push(socket); socket.on('error', () => {});
       await new Promise<void>((ok, reject) => { socket.once('connect', ok); socket.once('connect_error', reject); socket.connect(); });
@@ -64,9 +72,12 @@ type Fixture = Awaited<ReturnType<typeof fixture>>;
 async function readyAndStart(f: Fixture, host: any, humans = [host]) {
   for (const member of humans) expect((await f.request(path(host, 'ready'), { ready: true, matchID: host.matchID }, member)).status).toBe(200);
   await vi.waitFor(async () => {
-    const current = (await f.request(path(host), undefined, host)).body;
-    expect(current.players.every((player: any) => player.ready)).toBe(true);
-  }, { timeout: 3000, interval: 20 });
+    const current = await f.request(path(host), undefined, host);
+    expect(current.status).toBe(200);
+    expect(current.body.players.every((player: any) => player.ready)).toBe(true);
+  }, eventually);
+  // Model the human browser's presence rather than relying on admission/boot grace.
+  expect((await f.request(path(host, 'heartbeat'), { sessionID: randomUUID() }, host)).status).toBe(200);
   const started = await f.request(path(host, 'start'), { matchID: host.matchID }, host);
   expect(started.status).toBe(200); return { ...host, ...started.body };
 }
@@ -145,7 +156,9 @@ describe('Private test-room admission and virtual-player framework', () => {
   });
 
   it.each(GAME_IDS)('%s preserves testing and bots through start, abort, switching and restart', async gameId => {
-    const f = await fixture(), host = await botGroup(f, gameId);
+    // Bot admission already marks lobby seats ready. Keep the recurring worker
+    // idle until restart so this test always exercises persisted re-readiness.
+    const f = await fixture({ botSweepMs: 60000 }), host = await botGroup(f, gameId);
     const count = gameCatalog[gameId].minPlayers;
     expect(host.testRoom).toBe(true); expect(host.numPlayers).toBe(count);
     const aborted = await f.request(path(host, 'abort'), { matchID: host.matchID }, host);
@@ -156,14 +169,33 @@ describe('Private test-room admission and virtual-player framework', () => {
     }, host);
     expect(changed.status).toBe(200); expect(changed.body.testRoom).toBe(true);
     expect(changed.body.players.filter((player: any) => player.isBot)).toHaveLength(count - 1);
+    expect(changed.body.players.filter((player: any) => player.isBot).every((player: any) => !player.ready)).toBe(true);
     expect((await f.add(host)).status).toBe(409); // Old generation cannot modify the new lobby.
-    await f.restart();
+    f.app.config.botSweepMs = 100;
+    let delayedWrite = false;
+    await f.restart(application => {
+      if (gameId !== 'black-fog') return;
+      const persist = application.db.setState.bind(application.db);
+      // Install before listen() starts the bot interval, including on slow hosts.
+      vi.spyOn(application.db, 'setState').mockImplementation(async (matchID, state, deltalog) => {
+        if (!delayedWrite && matchID === changed.body.matchID && state.G.status === 'lobby') {
+          delayedWrite = true;
+          // Reproduce a slow readiness write exceeding the old three-second wait.
+          await new Promise(ok => setTimeout(ok, 3200));
+        }
+        await persist(matchID, state, deltalog);
+      });
+    });
+    expect((await f.request(path(host, 'heartbeat'), { sessionID: randomUUID() }, host)).status).toBe(200);
     await vi.waitFor(async () => {
-      const lobby = (await f.request(path(host), undefined, host)).body;
+      const result = await f.request(path(host), undefined, host);
+      expect(result.status).toBe(200);
+      const lobby = result.body;
       expect(lobby.testRoom).toBe(true); expect(lobby.matchID).toBe(changed.body.matchID);
       expect(lobby.players.filter((player: any) => player.isBot).every((player: any) => player.ready)).toBe(true);
       expect(lobby.players.find((player: any) => player.id === host.playerID).ready).toBe(false);
-    }, { timeout: 3000, interval: 20 });
+    }, eventually);
+    if (gameId === 'black-fog') expect(delayedWrite).toBe(true);
     expect((await f.request('/api/stats')).body.completedGames).toBe(0);
   });
 
@@ -176,7 +208,7 @@ describe('Private test-room admission and virtual-player framework', () => {
     connection.socket.on('sync', (_id, value) => { updates.push(value.state); noSecrets(value.state.G); });
     connection.socket.on('update', (_id, value) => { liveUpdates++; updates.push(value); noSecrets(value.G); });
     connection.sync();
-    await vi.waitFor(() => expect(updates.length).toBeGreaterThan(0), { timeout: 3000, interval: 20 });
+    await vi.waitFor(() => expect(updates.length).toBeGreaterThan(0), eventually);
     await readyAndStart(f, host);
     await vi.waitFor(async () => {
       const { state } = await f.app.db.fetch(host.matchID, { state: true });
@@ -184,7 +216,7 @@ describe('Private test-room admission and virtual-player framework', () => {
       expect(state!.G.players[host.playerID].acknowledged).toBe(false);
       expect(state!.G.status).toBe('briefing');
       expect(updates.at(-1)._stateID).toBe(state!._stateID);
-    }, { timeout: 3000, interval: 20 });
+    }, eventually);
     expect(liveUpdates).toBeGreaterThan(0);
     for (const value of updates.filter(value => value.G.status !== 'lobby')) expect(Object.keys(value.G.private)).toEqual([host.playerID]);
     expect((await f.app.db.fetch(ordinary.matchID, { state: true })).state).toEqual(untouched);
@@ -236,7 +268,7 @@ describe('Private test-room admission and virtual-player framework', () => {
   it('does not let bots keep a disconnected test room alive', async () => {
     const f = await fixture({ presenceLeaseMs: 250, lifecycleSweepMs: 20 });
     const host = await botGroup(f, 'space-station');
-    await vi.waitFor(() => expect(f.app.rooms.rooms.get(host.roomId)!.history?.at(-1)?.ending).toBe('empty'), { timeout: 3000, interval: 20 });
+    await vi.waitFor(() => expect(f.app.rooms.rooms.get(host.roomId)!.history?.at(-1)?.ending).toBe('empty'), eventually);
     const ended = (await f.app.db.fetch(host.matchID, { state: true })).state!;
     await new Promise(ok => setTimeout(ok, 100));
     expect((await f.app.db.fetch(host.matchID, { state: true })).state).toEqual(ended);
