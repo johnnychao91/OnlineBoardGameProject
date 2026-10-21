@@ -1,0 +1,160 @@
+.moon-layout { --moon-gold:#edcc91; --moon-red:#ff9299; --moon-green:#90dec8; align-items:start; }
+.moon-main { min-width:0; display:flex; flex-direction:column; gap:14px; }
+.moon-main > * { margin:0; }
+.moon-heading h1 { margin:3px 0 0; }
+.moon-heading h1 { white-space:nowrap; }
+.moon-heading-controls { display:flex; align-items:center; justify-content:flex-end; flex-wrap:wrap; gap:8px; }
+.moon-status { display:flex; align-items:center; gap:12px; padding:16px; background:#21344a; border:1px solid #61788e; border-radius:12px; }
+.moon-status > div:not(.moon-countdown) { flex:1; min-width:0; }
+.moon-status strong { color:var(--moon-gold); font-size:18px; }
+.moon-status p { color:#b8c6d7; font-size:12px; line-height:1.6; margin:4px 0 0; }
+.moon-status.night { background:#20253d; }
+.moon-status-emblem { font-size:31px; color:var(--moon-gold); }
+.moon-your-turn { border:2px solid var(--moon-gold); box-shadow:0 0 0 3px #edcc911a; }
+.moon-countdown { display:flex; align-items:baseline; gap:4px; position:relative; flex-shrink:0; padding:0 4px; }
+.moon-countdown strong { font-size:36px; font-variant-numeric:tabular-nums; }
+.moon-countdown > span { color:#adbbcf; font-size:11px; }
+.moon-countdown.urgent strong { color:var(--moon-red); }
+.moon-countdown small { position:absolute; font-size:9px; top:100%; left:0; white-space:nowrap; color:#bcc9d9; }
+.moon-replay-clock { font-size:10px; color:#adbbcf; }
+.moon-passengers-panel,.moon-action-panel { padding:16px; }
+.moon-passengers-panel h2,.moon-log h2,.moon-action-panel h3 { font-size:16px; margin:0 0 10px; }
+.moon-passengers { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:7px; }
+.moon-passenger { padding:10px; border:1px solid #43546a; border-radius:9px; background:#152339; min-width:0; }
+.moon-passenger > div { display:flex; align-items:center; gap:6px; }
+.moon-passenger strong { font-size:12px; overflow-wrap:anywhere; }
+.moon-passenger small { font-size:10px; color:var(--moon-green); }
+.moon-seat { width:21px; height:21px; flex:0 0 21px; display:inline-grid; place-items:center; border:1px solid #7c8490; border-radius:50%; font-size:10px; color:var(--moon-gold); }
+.moon-passenger-state { display:block; margin-top:7px; font-size:10px; color:#a3b4c7; }
+.moon-passenger.departed { opacity:.64; background:#211d2d; }
+.moon-passenger.speaking { border-color:var(--moon-gold); background:#3c392c; }
+.moon-wolf-text { color:var(--moon-red); }
+.moon-action-panel p { font-size:13px; line-height:1.7; margin:0 0 10px; }
+.moon-action-panel .button { font-size:12px; }
+.moon-action-panel > :last-child { margin-bottom:0; }
+.moon-targets { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:7px; margin-bottom:10px; }
+.moon-target { display:flex; align-items:center; justify-content:flex-start; gap:8px; min-width:0; min-height:43px; padding:10px; color:#e4eaf4; font:inherit; font-size:12px; border:1px solid #52637b; border-radius:8px; background:#1b2c42; cursor:pointer; text-align:left; }
+.moon-target > span:last-child { overflow-wrap:anywhere; }
+.moon-target.selected { border-color:var(--moon-gold); background:#47422f; color:#f5dbac; }
+.moon-target:not(:disabled):hover { border-color:#f4d59e; }
+.moon-target:disabled { opacity:.5; cursor:not-allowed; }
+.moon-privacy-bar { display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:10px; }
+.moon-privacy-bar h3 { margin:0; }
+.moon-privacy-cover { padding:25px 10px; text-align:center; color:#a8bcd2; }
+.moon-privacy-cover p { margin:9px 0; font-size:12px; }
+.moon-cover-task { min-height:110px; }
+.moon-cover-task h3 { color:var(--moon-gold); }
+.moon-extra-cover { border-top:1px solid #465267; margin-top:13px; padding-top:10px; }
+.moon-extra-cover summary { color:var(--moon-gold); font-size:12px; cursor:pointer; }
+.moon-extra-cover > div { margin-top:12px; }
+.moon-secret-note { color:var(--moon-green); }
+.moon-waiting { border:1px solid #59647a; background:#243347; border-radius:8px; padding:10px; color:#ced6e4; }
+.moon-current-speaker { color:var(--moon-gold); font-weight:750; }
+.moon-ballots { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px; margin:8px 0 12px; }
+.moon-ballots span { padding:7px; border-radius:6px; background:#24384b; font-size:11px; overflow-wrap:anywhere; }
+.moon-result h3 { color:var(--moon-gold); }
+.moon-private-panel { padding:0; overflow:hidden; }
+.moon-private-toggle { display:flex; justify-content:space-between; align-items:center; gap:7px; border:0; width:100%; padding:13px; background:#203147; color:#dbe5ee; font:inherit; font-size:11px; cursor:pointer; }
+.moon-private-toggle span:first-child { display:flex; align-items:center; gap:6px; font-weight:650; }
+.moon-private-toggle span:last-child { color:var(--moon-green); }
+.moon-private-content { padding:13px; }
+.moon-role-card { padding:13px; border:1px solid #5b7d79; border-radius:10px; background:#203735; }
+.moon-role-card h2 { margin:5px 0 10px; font-size:26px; color:var(--moon-green); }
+.moon-role-card strong { font-size:12px; color:var(--moon-green); }
+.moon-role-card p { font-size:12px; line-height:1.7; margin:10px 0 0; }
+.moon-role-card.wolves { border-color:#a76779; background:#3b2938; }
+.moon-role-card.wolves h2,.moon-role-card.wolves strong { color:var(--moon-red); }
+.moon-intelligence { margin-top:12px; padding-top:12px; border-top:1px solid #46556b; }
+.moon-intelligence h3 { margin:0 0 8px; font-size:12px; color:var(--moon-gold); }
+.moon-intelligence p { font-size:12px; line-height:1.7; }
+.moon-cover-button { margin-top:10px; font-size:11px; }
+.moon-inspector { padding:12px 13px 0; }
+.moon-history-aside { display:flex; flex-direction:column; gap:12px; }
+.moon-log { padding:16px; }
+.moon-log ol { list-style:none; display:flex; flex-direction:column-reverse; padding:0; margin:0; }
+.moon-log li { padding:10px 0; border-top:1px solid #384c60; }
+.moon-log li > span { font-size:10px; color:#94a9bf; }
+.moon-log p { font-size:12px; line-height:1.65; margin:4px 0 0; overflow-wrap:anywhere; }
+.moon-log details { margin-top:6px; font-size:11px; }
+.moon-log summary { cursor:pointer; color:#b8c6d7; }
+.moon-options { margin-top:14px; }
+.moon-options h3 { margin-top:0; }
+.moon-options label { display:block; font-size:13px; }
+.moon-options select { width:100%; margin-top:7px; }
+.moon-option-times { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; margin:16px 0; }
+.moon-option-times label > div { display:flex; align-items:center; gap:7px; margin-top:7px; }
+.moon-option-times input { width:100%; min-width:0; }
+.moon-option-times small { display:block; color:#9fb3c9; margin-top:5px; }
+.moon-role-configuration { color:#d8c69e; font-size:12px; line-height:1.8; }
+.moon-role-art { display:none; }
+.moon-sheriff-toggle { display:flex !important; align-items:center; gap:9px; margin:14px 0; }
+.moon-sheriff-toggle input { width:20px; height:20px; min-height:20px; flex:0 0 20px; padding:0; margin:0; }
+.moon-order-controls { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px; }
+.moon-order-controls label { font-size:12px; }
+.moon-order-controls select { width:100%; margin-top:6px; }
+.moon-sheriff-tag { color:var(--moon-gold); }
+@media (max-width:1099px),(max-height:699px) {
+  .moon-layout { display:flex; flex-direction:column; gap:16px; max-width:800px; }
+  .moon-main,.moon-personal-aside,.moon-history-aside { width:100%; }
+  .moon-personal-aside { order:-1; }
+  .moon-night .moon-action-panel { height:430px; overflow:auto; }
+}
+@media (max-width:600px) {
+  .moon-layout { padding:0 12px; margin-top:14px; }
+  .moon-heading { flex-wrap:wrap; gap:10px; }
+  .moon-heading-controls { width:100%; justify-content:space-between; }
+  .moon-passengers-panel,.moon-action-panel { padding:12px; }
+  .moon-passengers,.moon-targets { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .moon-status { padding:12px; gap:9px; }
+  .moon-status strong { font-size:16px; }
+  .moon-status p { font-size:11px; }
+  .moon-countdown strong { font-size:30px; }
+  .moon-option-times { grid-template-columns:1fr; }
+  .moon-option-times label > div { max-width:180px; }
+}
+@media (min-width:1100px) and (min-height:700px) {
+  :is(.room-game,.replay-panel,.shared-replay) .moon-layout { flex:1; min-height:0; width:100%; max-width:none; margin:0; padding:0 20px 12px; display:grid; grid-template-columns:var(--game-history-width,190px) minmax(0,1fr) 220px; grid-template-rows:minmax(0,1fr); gap:14px; align-items:stretch; overflow:hidden; }
+  :is(.room-game,.replay-panel,.shared-replay) .moon-main { grid-column:2; grid-row:1; min-height:0; display:grid; grid-template-rows:auto auto auto minmax(100px,1fr); gap:9px; overflow:hidden; }
+  .moon-personal-aside { grid-column:3; grid-row:1; min-height:0; overflow:auto; }
+  .moon-history-aside { grid-column:1; grid-row:1; min-height:0; overflow:hidden; padding-top:0; }
+  .moon-history-aside > * { margin:0; }
+  .moon-history-aside > .moon-log { flex:1; min-height:0; overflow:auto; }
+  .moon-history-aside > details { flex-shrink:0; max-height:40%; overflow:auto; }
+  .moon-heading { min-height:43px; }
+  .moon-heading h1 { font-size:23px; }
+  .moon-heading .eyebrow { display:none; }
+  .moon-status { padding:9px 12px; }
+  .moon-status strong { font-size:16px; }
+  .moon-status p { font-size:11px; line-height:1.4; }
+  .moon-countdown strong { font-size:31px; }
+  .moon-passengers-panel,.moon-action-panel { padding:12px; }
+  .moon-passengers-panel { max-height:210px; overflow:auto; }
+  .moon-passengers { grid-template-columns:repeat(4,minmax(0,1fr)); gap:5px; }
+  .moon-passenger { padding:6px; }
+  .moon-passenger strong { font-size:11px; }
+  .moon-passenger-state { margin-top:4px; font-size:9px; }
+  .moon-passenger .moon-seat { width:17px; height:17px; flex-basis:17px; font-size:9px; }
+  .moon-action-panel { min-height:0; overflow:auto; }
+  .moon-action-panel p { font-size:12px; }
+  .moon-action-panel .button { padding:9px 12px; }
+  .moon-target { padding:7px; min-height:35px; font-size:11px; }
+  .moon-passengers-panel h2,.moon-log h2,.moon-action-panel h3 { font-size:14px; margin-bottom:7px; }
+  .moon-passengers-panel .section-heading { margin-bottom:8px; }
+}
+:root[data-visual-style="art"] [data-art-game="silver-moon"] { --art-scene:url('./assets/art/moon/train.webp'); }
+:root[data-visual-style="art"] .moon-role-art { display:block; height:160px; width:100%; margin-bottom:12px; background-position:center 30%; background-size:cover; border:1px solid #aa9068; border-radius:8px; }
+:root[data-visual-style="art"] .moon-role-art[data-moon-role="wolf"] { background-image:url('./assets/art/moon/wolf.webp'); }
+:root[data-visual-style="art"] .moon-role-art[data-moon-role="villager"] { background-image:url('./assets/art/moon/villager.webp'); }
+:root[data-visual-style="art"] .moon-role-art[data-moon-role="seer"] { background-image:url('./assets/art/moon/seer.webp'); }
+:root[data-visual-style="art"] .moon-role-art[data-moon-role="witch"] { background-image:url('./assets/art/moon/witch.webp'); }
+:root[data-visual-style="art"] .moon-role-art[data-moon-role="hunter"] { background-image:url('./assets/art/moon/hunter.webp'); }
+:root[data-visual-style="art"] .moon-role-art[data-moon-role="guard"] { background-image:url('./assets/art/moon/guard.webp'); }
+:root[data-visual-style="art"] .moon-layout .panel { border-color:#73684f; }
+:root[data-visual-style="art"] .moon-status { background:#35332e; border-color:#b89a66; }
+:root[data-visual-style="art"] .moon-status.night { background:#2d293d; }
+:root[data-visual-style="art"] .moon-passenger { background:#302e2d; border-color:#746c58; }
+:root[data-visual-style="art"] .moon-passenger.speaking { background:#48402e; border-color:#e2c691; }
+:root[data-visual-style="art"] .moon-target { border-color:#756d5d; background:#2c3236; }
+:root[data-visual-style="art"] .moon-target.selected { background:#4b422e; border-color:#f1d09d; }
+:root[data-visual-style="art"] .moon-target .moon-seat { width:27px; height:27px; flex-basis:27px; border:0; border-radius:0; background:url('./assets/art/moon/ticket.webp') center / contain no-repeat; color:#fff3c9; font-weight:800; text-shadow:0 1px 2px #000,1px 0 2px #000; }
+:root[data-visual-style="art"] .moon-status-emblem { font-size:0; display:block; width:37px; height:45px; flex:0 0 37px; background:url('./assets/art/moon/lantern.webp') center / contain no-repeat; }

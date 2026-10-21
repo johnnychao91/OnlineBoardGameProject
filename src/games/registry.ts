@@ -3,6 +3,8 @@ import { StationGame, stationObserverView, type StationState } from './station/g
 import { CipherGame, cipherObserverView, type CipherState } from './cipher/game';
 import { FogGame, fogObserverView, type FogState } from './fog/game';
 import { normalizeFogOptions, validateFogOptions } from './fog/rules';
+import { MoonGame, moonObserverView, advanceMoonClock, type MoonState } from './moon/game';
+import { normalizeMoonOptions, validateMoonOptions } from './moon/rules';
 import { gameCatalog, type GameID } from './catalog';
 
 export type ObserverPerspective = 'blind' | 'god';
@@ -31,6 +33,10 @@ export interface GameDefinition {
   getOutcome: (state: any) => GameOutcome | null;
   /** Keep the completed live table visible before the room returns to its lobby. */
   completedDisplayMs?: (state: any) => number;
+  /** Server-only, serialized with moves. Advances at most one expired stage. */
+  advanceClock?: (state: any, now: number) => boolean;
+  /** Omit protocol move names, actors and counters when even an action reveals a role. */
+  hideMoveMetadata?: boolean;
 }
 
 export const gameDefinitions: GameDefinition[] = [{
@@ -68,6 +74,21 @@ export const gameDefinitions: GameDefinition[] = [{
   observerView: fogObserverView,
   completedDisplayMs: () => 8000,
   getOutcome: (state: FogState) => {
+    if (state.status !== 'finished' || !state.winner || !state.winReason) return null;
+    return { winner: state.winner, reason: state.winReason,
+      roles: Object.fromEntries(Object.entries(state.players).map(([id, player]) => [id, player.revealedFaction!])) };
+  },
+}, {
+  id: 'silver-moon', ...gameCatalog['silver-moon'], game: MoonGame,
+  isJoinable: state => state.status === 'lobby',
+  normalizeOptions: options => ({ ...normalizeMoonOptions(options) }),
+  validateOptions: (options, count) => validateMoonOptions(normalizeMoonOptions(options), count),
+  startSetupData: (participantIDs, options) => ({ startImmediately: true, participantIDs, options: normalizeMoonOptions(options) }),
+  observerView: moonObserverView,
+  advanceClock: advanceMoonClock,
+  hideMoveMetadata: true,
+  completedDisplayMs: () => 8000,
+  getOutcome: (state: MoonState) => {
     if (state.status !== 'finished' || !state.winner || !state.winReason) return null;
     return { winner: state.winner, reason: state.winReason,
       roles: Object.fromEntries(Object.entries(state.players).map(([id, player]) => [id, player.revealedFaction!])) };

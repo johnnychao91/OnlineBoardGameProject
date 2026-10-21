@@ -73,7 +73,7 @@ describe('Game framework registration and shared room lifecycle', () => {
     expect(Object.keys(blind.body.G.private ?? {})).toHaveLength(0);
     expect(Object.keys(god.body.G.private)).toHaveLength(gameCatalog[gameID].minPlayers);
     expect(blind.body.G.secret).toBeUndefined();
-    if (gameID === 'black-fog') expect(god.body.G.secret).toBeUndefined();
+    if (gameID === 'black-fog' || gameID === 'silver-moon') expect(god.body.G.secret).toBeUndefined();
     expect((await f.request(path(host, 'abort'), { matchID: observerHost.matchID }, seats[1])).status).toBe(403);
     const aborted = await f.request(path(host, 'abort'), { matchID: observerHost.matchID }, observerHost);
     expect(aborted.status).toBe(200);
@@ -131,20 +131,20 @@ describe('Game framework registration and shared room lifecycle', () => {
     expect((await f.request('/api/stats')).body.completedGames).toBe(0);
   });
 
-  it('supports ten seats and preserves high seat IDs when switching to older games', async () => {
-    const f = await fixture(), { host, seats } = await f.group('black-fog', ROOM_CAPACITY);
+  it('supports full capacity and preserves high seat IDs when switching to older games', async () => {
+    const f = await fixture(), { host, seats } = await f.group('silver-moon', ROOM_CAPACITY);
     expect((await f.request(path(host, 'join'), { inviteToken: token(host), displayName: '滿席' })).status).toBe(409);
-    expect((await start(f, host, seats)).body.numPlayers).toBe(10);
+    expect((await start(f, host, seats)).body.numPlayers).toBe(ROOM_CAPACITY);
     await f.request(path(host, 'abort'), { matchID: host.matchID }, host);
-    // Keep 0, 7, 8 and 9. All games must accept real seat IDs, not just 0..playerCount-1.
-    for (const seat of seats.slice(1, 7)) expect((await f.request(path(host, 'leave'), {}, seat)).status).toBe(200);
+    // Keep the host and final three seats, including two-digit IDs.
+    for (const seat of seats.slice(1, -3)) expect((await f.request(path(host, 'leave'), {}, seat)).status).toBe(200);
     for (const gameID of ['space-station', 'encrypted-call']) {
       const lobby = (await f.request(path(host), undefined, host)).body;
       const selected = await f.request(path(host, 'game'), { gameId: gameID, matchID: lobby.matchID }, host);
       expect(selected.status).toBe(200);
-      expect((await start(f, host, [host, ...seats.slice(7)])).status).toBe(200);
+      expect((await start(f, host, [host, ...seats.slice(-3)])).status).toBe(200);
       const { state } = await f.app.db.fetch(selected.body.matchID, { state: true });
-      expect(Object.keys(state!.G.players)).toEqual(['0', '7', '8', '9']);
+      expect(Object.keys(state!.G.players)).toEqual([host, ...seats.slice(-3)].map(seat => seat.playerID));
       expect((await f.request(path(host, 'abort'), { matchID: selected.body.matchID }, host)).status).toBe(200);
     }
   });

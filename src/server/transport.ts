@@ -1,8 +1,9 @@
 import { isPlayerSeatID } from '../games/catalog';
+import { getGameDefinition } from '../games/registry';
 import { SocketIO } from 'boardgame.io/server';
 import { getFilterPlayerView } from 'boardgame.io/internal';
 import type { IncomingMessage } from 'node:http';
-import type { Game } from 'boardgame.io';
+import type { Game, State } from 'boardgame.io';
 import { RateLimiter, safeEqual, validCredential, validRoomID } from './security';
 import { currentMatchID, type RoomStore } from './rooms';
 import type { RoomPresence } from './presence';
@@ -57,6 +58,17 @@ export class GuardedTransport extends SocketIO {
   async drain(): Promise<void> {
     await Promise.all([...this.perMatchQueue.values()].map((queue) => queue.onIdle()));
   }
+  /** Publish an already persisted server-clock transition through the same privacy filter. */
+  publishState(game: Game<any>, matchID: string, state: State): void {
+    const room = this.rooms.findByMatch(matchID);
+    if (!room || currentMatchID(room) !== matchID || room.gameId !== game.name) return;
+    const filter = getFilterPlayerView(game);
+    for (const binding of this.bindings.values()) {
+      if (binding.revoked || !binding.socket.connected || binding.matchID !== matchID) continue;
+      const payload = filter(binding.playerID, { type: 'update', args: [matchID, state] });
+      binding.socket.emit(payload.type, ...payload.args);
+    }
+  }
   /** Called from the shared match queue after durable membership revocation. */
   removePlayer(matchID: string, playerID: string, credentials: string): void {
     for (const binding of this.bindings.values()) {
@@ -68,8 +80,17 @@ export class GuardedTransport extends SocketIO {
     }
   }
   override init(app: any, games: Game[], origins: any) {
+    for (const game of games) {
+      if (getGameDefinition(game.name!)?.hideMoveMetadata && game.deltaState) throw new Error('Private move metadata requires full state transport.');
+    }
     super.init(app, games, origins);
     for (const game of games) {
+      const hideMoveMetadata = getGameDefinition(game.name!)?.hideMoveMetadata === true;
+      const privateWireState = (state: any) => !state || !hideMoveMetadata ? state : ({
+        ...state, deltalog: undefined, _undo: [], _redo: [],
+        ctx: { ...state.ctx, numMoves: 0,
+          _activePlayersNumMoves: Object.fromEntries(Object.keys(state.ctx?._activePlayersNumMoves ?? {}).map(id => [id, 0])) },
+      });
       const allowedMoves = new Set(Object.keys(game.moves || {}));
       app._io.of(game.name).on('connection', (socket: any) => {
         const rate = new RateLimiter();
@@ -83,6 +104,15 @@ export class GuardedTransport extends SocketIO {
             // seed) untouched. Apply the same server-side player view to both.
             const filtered = filter(binding.playerID, { type: 'update', args: [args[0], args[1].initialState] });
             args[1] = { ...args[1], initialState: filtered.args[1] };
+          }
+          // redact:true only hides args upstream. Names like 'inspect' and the
+          // actor ID/counters would still identify hidden roles. Public history
+          // lives in G.log; no client here needs engine action metadata.
+          if (hideMoveMetadata && event === 'sync' && args[1]) {
+            args[1] = { ...args[1], log: [], state: privateWireState(args[1].state), initialState: privateWireState(args[1].initialState) };
+          }
+          if (hideMoveMetadata && event === 'update') {
+            args[1] = privateWireState(args[1]); args[2] = [];
           }
           return originalEmit(event, ...args);
         };

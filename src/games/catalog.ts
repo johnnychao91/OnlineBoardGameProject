@@ -6,6 +6,8 @@ export const gameCatalog = {
     detail: '2～4 人 · 全員合作 · 8 歲以上', intro: '諜報戰線上，所有人都是友方特務。保持沉默，憑默契把訊號由小到大傳送，避開敵方監聽。' },
   'black-fog': { name: '黑霧襲城', description: '組隊點亮城郊燈塔，在黑霧與詛咒之鐘中辨認真正的同伴。', minPlayers: 5, maxPlayers: 10,
     detail: '5～10 人 · 隱藏陣營 · 組隊與表決', intro: '守夜騎士要點亮城郊燈塔，黑霧使徒則混入隊伍阻止任務。詛咒之鐘響起時，兩位蘭斯洛特可能交換效忠陣營。' },
+  'silver-moon': { name: '銀月列車', description: '夜行列車上，狼人混入乘客。以推理與秘密技能找出誰能平安抵達。', minPlayers: 6, maxPlayers: 12,
+    detail: '6～12 人 · 狼人推理 · 線上／現場輔助', intro: '蒸汽列車穿越月下荒野，餐車是白天的討論席，熄燈後則各自行動。保留狼人、村民與神職名稱，可選警長規則；現場輔助模式由裝置代替裁判。' },
 } as const;
 export type GameID = keyof typeof gameCatalog;
 export const GAME_IDS = Object.keys(gameCatalog) as GameID[];

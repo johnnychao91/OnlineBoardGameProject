@@ -1,3 +1,5 @@
+import { sampleServerClock } from './server-clock';
+
 export interface RoomPlayer { id: number | string; name?: string; isConnected: boolean; ready: boolean; membershipID?: string; departed?: boolean; }
 export interface RoomSpectator { id: string; name: string; }
 export interface RoomHistoryEntry {
@@ -69,6 +71,7 @@ export class ApiError extends Error {
 }
 
 export async function api<T>(path: string, init: RequestInit = {}, seat?: AuthSession): Promise<T> {
+  const sent = performance.now();
   const response = await fetch(path, {
     ...init,
     headers: {
@@ -79,6 +82,7 @@ export async function api<T>(path: string, init: RequestInit = {}, seat?: AuthSe
     credentials: 'same-origin',
     referrerPolicy: 'no-referrer',
   });
+  sampleServerClock(response.headers.get('X-Boardgame-Time'), sent, performance.now());
   const body = await response.json().catch(() => ({}));
   if (!response.ok) throw new ApiError(body.error || '連線暫時沒有成功，請稍後重試。', response.status,
     typeof body.code === 'string' ? body.code : undefined);

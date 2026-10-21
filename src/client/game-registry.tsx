@@ -16,6 +16,12 @@ import { FogSnapshot } from './FogSnapshot';
 import { FogRules } from './FogRules';
 import { FogOptions } from './FogOptions';
 import { createFogPoster } from './fog-poster';
+import { MoonGame, type MoonState } from '../games/moon/game';
+import { MoonBoard } from './MoonBoard';
+import { MoonSnapshot } from './MoonSnapshot';
+import { MoonRules } from './MoonRules';
+import { MoonOptions } from './MoonOptions';
+import { createMoonPoster } from './moon-poster';
 import { createReplayPoster } from './replay-poster';
 import { createCipherPoster } from './cipher-poster';
 import { StationRules, CipherRules } from './game-rules';
@@ -28,6 +34,7 @@ function ConnectingGame() {
 const StationClient = Client({ game: StationGame, board: StationBoard, loading: ConnectingGame, multiplayer: SocketIO({ server: typeof window === 'undefined' ? undefined : window.location.origin }), debug: false });
 const CipherClient = Client({ game: CipherGame, board: CipherBoard, loading: ConnectingGame, multiplayer: SocketIO({ server: typeof window === 'undefined' ? undefined : window.location.origin }), debug: false });
 const FogClient = Client({ game: FogGame, board: FogBoard, loading: ConnectingGame, multiplayer: SocketIO({ server: typeof window === 'undefined' ? undefined : window.location.origin }), debug: false });
+const MoonClient = Client({ game: MoonGame, board: MoonBoard, loading: ConnectingGame, multiplayer: SocketIO({ server: typeof window === 'undefined' ? undefined : window.location.origin }), debug: false });
 
 export interface ClientGameDefinition {
   name: string;
@@ -51,6 +58,21 @@ export interface ClientGameDefinition {
 
 /** Add each game's player client, snapshot renderer and statistics labels together. */
 export const clientGames: Record<GameID, ClientGameDefinition> & Record<string, ClientGameDefinition> = {
+  'silver-moon': {
+    name: gameCatalog['silver-moon'].name,
+    PlayerClient: props => <MoonClient {...props} />,
+    Snapshot: MoonSnapshot, DetailedRules: MoonRules, LobbyOptions: MoonOptions,
+    Rules: () => <p>狼人夜間秘密選擇襲擊目標，神職依序行動；白天依發言倒數討論並投票放逐。房主可選擇警長規則與現場輔助模式，夜間每個人都有不影響結果的掩護操作。</p>,
+    chapters: [['setup', '人數與模式'], ['roles', '角色與技能'], ['night', '夜間與掩護'], ['day', '發言與放逐'], ['sheriff', '警長規則'], ['end', '勝負與復盤']],
+    createPoster: ({ G, info, step, totalSteps }) => createMoonPoster({ G: G as MoonState, players: info.players, step, totalSteps }),
+    // Night sounds are identical for all roles. Never cue a private skill or result.
+    soundAdapter: (G: MoonState) => ({ revision: G.epoch * 1000 + G.log.length,
+      events: G.log.map(entry => JSON.stringify(entry)) }),
+    lobbyTitle: '下一站，誰能平安抵達？',
+    lobbyDescription: gameCatalog['silver-moon'].description,
+    factionLabels: { town: '好人', wolves: '狼人' },
+    reasonLabels: { 'wolves-eliminated': '狼人全數離場', 'wolves-dominate': '狼人數量達到或超過其餘乘客' },
+  },
   'space-station': {
     name: '太空維修站',
     PlayerClient: props => <StationClient {...props} />,

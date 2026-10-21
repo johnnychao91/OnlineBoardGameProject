@@ -33,7 +33,7 @@ export function RoomHistory({ seat, info }: { seat: AuthSession; info: RoomInfo 
         </button>)}
       </details>}
     </div>
-    {current && <div className="room-history-replay">
+    {current && <div className="room-history-replay" data-art-game={current.gameName ?? info.gameName}>
       <button className="button secondary close-history" onClick={() => setSelected(null)}>收起復盤，返回等待室</button>
       <ReplayPanel key={current.matchID} seat={seat} info={info} matchID={current.matchID} initialLast />
     </div>}

@@ -26,6 +26,7 @@ export interface AppConfig {
   clientDir?: string;
   presenceLeaseMs?: number;
   lifecycleSweepMs?: number;
+  clockSweepMs?: number;
 }
 const INVITE_TTL = 24 * 60 * 60 * 1000;
 const REPLAY_SHARE_TTL = 7 * 24 * 60 * 60 * 1000;
@@ -224,6 +225,26 @@ export async function createApplication(config: AppConfig) {
     if (!definition.isJoinable(state.G) && !presence.hasAnyone(room.roomId)) return returnToLobby(room, 'empty');
     return room;
   };
+  // The room queue also owns incoming Socket.IO moves and HTTP lifecycle changes.
+  // A timer never trusts a browser timestamp and cannot race an abort or new match.
+  const advanceRoomClock = async (room: RoomRecord) => {
+    const definition = getGameDefinition(room.gameId)!;
+    if (!definition.advanceClock || !presence.hasAnyone(room.roomId)) return;
+    const matchID = currentMatchID(room);
+    const { state } = await snapshot(room);
+    if (!definition.advanceClock(state.G, Date.now())) return;
+    state._stateID += 1;
+    state._undo = []; state._redo = []; state.deltalog = [];
+    const outcome = definition.getOutcome(state.G);
+    if (outcome) state.ctx.gameover = { winner: outcome.winner, reason: outcome.reason };
+    await db.setState(matchID, state);
+    transport.publishState(definition.game, matchID, state);
+  };
+  let clockInFlight: Promise<void> | undefined;
+  const advanceClocks = () => clockInFlight ??= Promise.all([...rooms.rooms.values()]
+    .filter(room => getGameDefinition(room.gameId)?.advanceClock)
+    .map(room => transport.getRoomQueue(room.roomId).add(() => advanceRoomClock(getRoom(room.roomId)))))
+    .then(() => undefined).finally(() => { clockInFlight = undefined; });
   let sweepInFlight: Promise<void> | undefined;
   const sweep = () => sweepInFlight ??= Promise.all([...rooms.rooms.keys()].map((roomId) =>
     transport.getRoomQueue(roomId).add(async () => { await reconcileRoom(getRoom(roomId)); })
@@ -236,7 +257,10 @@ export async function createApplication(config: AppConfig) {
     ctx.set('X-Frame-Options', 'DENY');
     ctx.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
     if (config.production) ctx.set('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'");
-    if (ctx.path.startsWith('/api')) ctx.set('Cache-Control', 'no-store');
+    if (ctx.path.startsWith('/api')) {
+      ctx.set('Cache-Control', 'no-store');
+      ctx.set('X-Boardgame-Time', String(Date.now()));
+    }
     try {
       const requestOrigin = ctx.get('Origin');
       if (requestOrigin && !origins.includes(requestOrigin)) fail(403, '來源不被允許');
@@ -689,9 +713,15 @@ export async function createApplication(config: AppConfig) {
         void sweep().catch(() => { console.error('Room lifecycle reconciliation failed'); });
       }, config.lifecycleSweepMs ?? 5000);
       timer.unref();
+      const clockTimer = setInterval(() => {
+        void advanceClocks().catch(() => { console.error('Game clock reconciliation failed'); });
+      }, config.clockSweepMs ?? 500);
+      clockTimer.unref();
       return { port, async close() {
         clearInterval(timer);
+        clearInterval(clockTimer);
         if (sweepInFlight) await sweepInFlight;
+        if (clockInFlight) await clockInFlight;
         await new Promise<void>((done) => (server.app as any)._io.close(() => done()));
         if (httpServer.listening) await new Promise<void>((done) => httpServer.close(() => done()));
         await transport.drain();

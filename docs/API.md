@@ -200,3 +200,19 @@ Socket 每連線 180 包／分、單包 16 KiB。每房最多 128 份觀戰身�
 `lancelotMode` 接受 `off`、`random`、`forecast`，預設 `random`；四個角色旗標預設 false，梅林與刺客固定加入。未知欄位、錯誤型別及永遠無法成立的角色配置回 400；非房主回 403；舊對局 ID 或已開局回 409。允許先設定需要較多人數的角色，但開局人數不足時回 409，不刪除已選角色。更改後座位、憑證、觀戰、邀請與歷史保留，所有人重新準備。歷史回放附帶當局設定，不使用房間後來修改的值。
 
 黑霧狀態為 `briefing`、`nomination`、`voting`、`vote-review`、`quest`、`quest-review`、`assassination`、`finished`。`acknowledge(epoch)`、`selectTeam(ids,epoch)`、`confirmTeam(epoch)`、`vote(approve,epoch)`、`submitQuest(card,epoch)`、`assassinate(targetID,epoch)` 皆由已授權 Socket.IO 送出；完整 move 參數遮蔽，不以日誌洩漏投票或任務選擇。普通玩家只收到自己的情報，觀戰須使用獨立身份；隨機模式未來鐘牌在任何視角均不公開。
+
+## 銀月列車與倒數
+
+遊戲 ID／Socket.IO namespace 為 `silver-moon`，參與人數 6～12。沿用同一個房規端點，公開設定如下：
+
+```json
+{"matchID":"目前等待對局ID","options":{"mode":"assisted","sheriff":true,"speechSeconds":60,"nightSeconds":30,"voteSeconds":30}}
+```
+
+`mode` 為 `online` 或 `assisted`，預設 `online`；`sheriff` 預設 false。發言秒數 15～300，夜間與投票秒數 15～120，皆須為整數。未提供的欄位採預設值，未知欄位拒絕。角色依人數自動配置，不接受客戶端指定角色。
+
+狀態包括 `briefing`、`night`、`dawn`、`speaking`、`voting`、`vote-review`、`hunter`、`finished`，以及警長的 `sheriff-signup`、`sheriff-speech`、`sheriff-voting`、`sheriff-order`、`sheriff-transfer`。`deadline` 是伺服器的 Unix 毫秒截止時間，無倒數時為 null。所有 API 回應提供 `X-Boardgame-Time` 給前端校準顯示，瀏覽器時間不參與規則裁定。
+
+操作包含 `acknowledge(epoch)`、`guard(target|null,epoch)`、`wolfVote(target|null,epoch)`、`inspect(target|null,epoch)`、`witch(action,target|null,epoch)`、`finishSpeech(epoch)`、`exileVote(target|null,epoch)`、`hunterShoot(target|null,epoch)`、`standForSheriff(boolean,epoch)`、`sheriffVote(target|null,epoch)`、`chooseOrder(firstID,direction,epoch)` 與 `transferBadge(target|null,epoch)`。秘密動作參數遮蔽；伺服器檢查階段、身分、存活、截止時間及 epoch。沒有供客戶端跳過倒數的 move。掩護點擊不發出遊戲操作。
+
+觀戰、復盤與分享繼續使用既有端點。私人狀態只給本人或已授權上帝觀戰；盲視角不公開夜間目標、技能、票未揭曉前的選擇或死亡原因。終局公開角色；獵人發動時提前公開獵人身分。夜間四個時段不因技能提交、未配置角色或死亡而提前結束。

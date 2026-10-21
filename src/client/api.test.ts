@@ -26,7 +26,7 @@ describe('browser identity and invite boundaries', () => {
   afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 
   it('authenticates observers with an observer ID and never a player ID', async () => {
-    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) });
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, headers: new Headers(), json: async () => ({}) });
     vi.stubGlobal('fetch', fetchMock);
     await api('/api/rooms/room-test/view?perspective=blind', {}, observer);
     const [url, options] = fetchMock.mock.calls[0];
@@ -36,7 +36,7 @@ describe('browser identity and invite boundaries', () => {
   });
 
   it('keeps existing player sessions compatible without an access property', async () => {
-    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) });
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, headers: new Headers(), json: async () => ({}) });
     vi.stubGlobal('fetch', fetchMock);
     await api('/api/rooms/room-test/ready', { method: 'POST', body: '{"ready":true}' }, player);
     expect(fetchMock.mock.calls[0][1].headers).toMatchObject({ 'X-Player-ID': '0' });
@@ -94,7 +94,7 @@ describe('browser identity and invite boundaries', () => {
   });
 
   it('distinguishes revoked identity from a temporary connection or server failure', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 401, json: async () => ({ error: '憑證已失效' }) }));
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 401, headers: new Headers(), json: async () => ({ error: '憑證已失效' }) }));
     await expect(api(`/api/rooms/${room.roomId}`, {}, player)).rejects.toMatchObject({ name: 'ApiError', status: 401 });
     await expect(api(`/api/rooms/${room.roomId}`, {}, player)).rejects.toBeInstanceOf(ApiError);
   });
@@ -122,7 +122,7 @@ describe('browser identity and invite boundaries', () => {
     const previous = pendingRequestID(room.roomId);
     const spectatorRequest = pendingRequestID(room.roomId, 'spectator');
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-      ok: false, status: 403, json: async () => ({ error: '上次加入已移出', code: 'ADMISSION_REMOVED' }),
+      ok: false, status: 403, headers: new Headers(), json: async () => ({ error: '上次加入已移出', code: 'ADMISSION_REMOVED' }),
     }));
     await expect(api('/api/rooms/room-test/join')).rejects.toMatchObject({ status: 403, code: 'ADMISSION_REMOVED' });
     expect(loadSeat(room.roomId)).toBeNull();
