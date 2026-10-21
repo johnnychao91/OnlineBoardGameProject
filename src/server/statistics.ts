@@ -11,6 +11,8 @@ export async function collectStatistics(db: FileStorage, rooms: RoomStore) {
   }));
   let totalPlayerParticipations = 0;
   for (const room of rooms.rooms.values()) {
+    // All matches in a test room stay excluded, even after switching games or removing bots.
+    if (room.testRoom) continue;
     for (const matchID of roomMatchIDs(room)) {
       const gameId = matchGameID(room, matchID);
       const definition = gameDefinitions.find((game) => game.id === gameId);

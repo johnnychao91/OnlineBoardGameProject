@@ -21,6 +21,8 @@ interface StoredMatch extends StorageAPI.FetchFields {
   replayComplete?: boolean;
   /** Revoked admissions must not be restored by retrying their original join request. */
   revokedAdmissions?: string[];
+  /** Idempotent host requests, never included in public metadata or replay frames. */
+  botAdmissions?: { requestHash: string; credentialHash: string }[];
 }
 
 /** 立即複製輸入，避免呼叫端在排隊期間修改尚未寫入的資料。 */
@@ -211,6 +213,36 @@ export class FileStorage extends Async {
       const record = await this.readMatch(matchID);
       if (!record) throw new Error('對局不存在');
       return record.revokedAdmissions?.includes(hashToken(credentials)) ?? false;
+    });
+  }
+
+  async findBotAdmission(matchID: string, requestHash: string): Promise<'present' | 'removed' | undefined> {
+    return this.enqueue(matchID, async () => {
+      const record = await this.readMatch(matchID);
+      if (!record) throw new Error('對局不存在');
+      const receipt = record.botAdmissions?.find(entry => entry.requestHash === requestHash);
+      if (!receipt) return undefined;
+      return Object.values(record.metadata.players).some(player => player.data?.isBot && player.credentials
+        && safeEqual(hashToken(player.credentials), receipt.credentialHash)) ? 'present' : 'removed';
+    });
+  }
+
+  /** Publish membership, automatic readiness and retry receipt in one atomic file update. */
+  async addBot(matchID: string, playerID: string, credentials: string, requestHash: string, state: State): Promise<void> {
+    const incoming = jsonCopy(state);
+    validateStateID(incoming);
+    return this.enqueue(matchID, async () => {
+      const record = await this.readMatch(matchID);
+      if (!record || record.state.G?.status !== 'lobby' || incoming.G?.status !== 'lobby'
+        || record.metadata.players[Number(playerID)]?.credentials
+        || incoming._stateID !== record.state._stateID + 1
+        || record.botAdmissions?.some(entry => entry.requestHash === requestHash)) throw new Error('無法新增虛擬玩家');
+      record.metadata.players[Number(playerID)] = { id: Number(playerID), name: `虛擬玩家 ${Number(playerID) + 1}`,
+        credentials, isConnected: false, data: { isBot: true } };
+      record.metadata.updatedAt = Date.now();
+      record.state = incoming;
+      record.botAdmissions = [...(record.botAdmissions || []), { requestHash, credentialHash: hashToken(credentials) }];
+      await this.writeMatch(matchID, record);
     });
   }
 

@@ -18,6 +18,8 @@ export interface RoleSwitchReceipt {
 
 export interface RoomRecord {
   roomId: string;
+  /** Set only when creating a room with the private test-room key; immutable. */
+  testRoom?: boolean;
   currentMatchID?: string;
   hostPlayerID?: string | null;
   /** The host can stay in the room as an observer instead of occupying a seat. */
@@ -67,6 +69,7 @@ export class RoomStore {
       if (!Array.isArray(records)) throw new Error('房間索引格式錯誤');
       for (const room of records) {
         if (!validRoomID(room.roomId) || typeof room.inviteHash !== 'string'
+          || (room.testRoom !== undefined && typeof room.testRoom !== 'boolean')
           || (room.gameSelected !== undefined && typeof room.gameSelected !== 'boolean')
           || (room.currentMatchID !== undefined && !validRoomID(room.currentMatchID))
           || (room.hostObserverID != null && (!validRoomID(room.hostObserverID)

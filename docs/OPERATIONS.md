@@ -31,6 +31,23 @@ curl --fail --silent --show-error --retry 10 --retry-connrefused --retry-delay 1
 
 兩個健康檢查都應回傳 `{"status":"ok"}`。這只確認服務能回應，無法替代實際遊戲測試。也請確認主網站 `https://example.com` 仍可開啟。
 
+### 啟用測試房間
+
+先更新到支援測試房間的版本，再編輯 Git 外的私有設定：
+
+```bash
+sudo nano /etc/boardgame.env
+```
+
+保留原有設定，新增一行 `TEST_ROOM_KEY=你自己設定的測試密碼`。至少 16 字元，且不能與 `CREATE_ROOM_KEY` 相同；此處文字是說明，請勿使用公開範例作密碼。按 Ctrl+O、Enter、Ctrl+X 儲存離開。確認目前沒有對局需要保留連線後執行：
+
+```bash
+sudo systemctl restart boardgame
+curl --fail --silent --show-error --retry 10 --retry-connrefused --retry-delay 1 --max-time 5 http://127.0.0.1:3001/api/health
+```
+
+在首頁原本的開房密碼欄輸入測試密碼，即建立標記為「測試房間 · 不計戰績」的房間。房主在等待室加入虛擬玩家，自己照常準備及開局；也可以改為觀戰，再加入足夠的虛擬玩家觀察整局。原邀請照常可供朋友加入。移除或清空 `TEST_ROOM_KEY` 並重啟，可停用新測試房間的建立；既有測試房間仍保留標記與統計排除，正常密碼仍建立一般房間。此功能不需要修改 Apache。
+
 ## 2. 做一份停服備份
 
 先與朋友約定維護時間，最好等所有對局結束。備份期間遊戲會暫時無法連線。回放、全站統計與已發出的邀請／回放授權都來自遊戲資料，必須一起保存。

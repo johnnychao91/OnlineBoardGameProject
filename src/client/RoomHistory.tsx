@@ -18,6 +18,7 @@ export function RoomHistory({ seat, info }: { seat: AuthSession; info: RoomInfo 
         ? gameResultLabel(latestGame, latest.winner)
         : '上一局已提前結束'}</h2>
       <span className="history-game-name">{definition?.name || latestGame}</span>
+      {info.testRoom && <p className="small amber">測試房間的結果僅供復盤，不計入全站戰績。</p>}
       <p className="muted">{latest.ending === 'completed'
         ? definition?.reasonLabels[latest.reason ?? ''] ?? '對局已完成，結果已保存。'
         : latest.ending === 'host-ended' ? '房主提前結束本局，不計入勝敗。' : '所有人已離開或離線逾時，本局不計入勝敗。'}</p>

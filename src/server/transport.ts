@@ -160,7 +160,7 @@ export class GuardedTransport extends SocketIO {
               const room = this.rooms.findByMatch(matchID);
               if (!room || currentMatchID(room) !== matchID || room.gameId !== game.name) throw new Error('房間不存在');
               const { metadata } = await app.context.db.fetch(matchID, { metadata: true });
-              if (!metadata || !safeEqual(metadata.players[playerID]?.credentials, credentials)) throw new Error('未授權');
+              if (!metadata || metadata.players[playerID]?.data?.isBot || !safeEqual(metadata.players[playerID]?.credentials, credentials)) throw new Error('未授權');
               // Removal or disconnect can occur while metadata is being read.
               if (!socket.connected || binding?.revoked || currentMatchID(this.rooms.rooms.get(room.roomId)!) !== matchID) throw new Error('未授權');
               if (binding && (binding.matchID !== matchID || binding.playerID !== playerID || !safeEqual(binding.credentials, credentials))) throw new Error('不可切換座位');

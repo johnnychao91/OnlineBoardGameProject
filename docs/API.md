@@ -16,6 +16,12 @@ API 與網頁同源，正式環境使用 HTTPS；開發由 Vite 代理。POST �
 
 ## 端點
 
+`POST /api/rooms` 的 `createKey` 若符合伺服器私有 `TEST_ROOM_KEY`，建立 `testRoom:true` 的測試房間。此設定留空即停用，與一般 `CREATE_ROOM_KEY` 必須不同；API 不接受客戶端指定測試模式，也不回傳任何建房密碼。`RoomInfo.testRoom` 和 `players[].isBot` 是公開標記，房號、邀請、觀戰、歷史及分享仍走相同授權。
+
+新增虛擬玩家的 `requestID` 必須為 UUID v4、`matchID` 必須等於目前等待對局。相同房主憑證的同一請求重試不會重複新增，已移除者不會因舊請求復活。每次新增一席，選遊戲後以該遊戲人數上限檢查，未選時以框架容量檢查；房主可用原移出端點釋出席位。虛擬玩家憑證只留伺服器，HTTP 與 Socket 登入都拒絕虛擬席位，即使持有該憑證亦然。開局、換遊戲與中止仍由真人房主決定。
+
+測試房間的當前與全部歷史對局不納入 `/api/stats`。此屬性不因移除虛擬玩家、換遊戲、回等待室或重啟而改變；測試回放及分享仍可使用。未標記的舊房間一律視為一般房間。
+
 | 方法／路徑 | 授權 | 回應／行為 |
 | --- | --- | --- |
 | `GET /api/health` | 無 | `{"status":"ok"}` |
@@ -30,6 +36,7 @@ API 與網頁同源，正式環境使用 HTTPS；開發由 Vite 代理。POST �
 | `POST /api/rooms/:id/options` | 房主 | `{matchID,options}`，等待室調整當前遊戲房規，重設準備並換新對局 ID；回 `RoomInfo` |
 | `POST /api/rooms/:id/ready` | 玩家 | `{ready:boolean,matchID}`，只在等待室；回 `RoomInfo` |
 | `POST /api/rooms/:id/remove` | 房主 | `{playerID,membershipID}`，只在等待室單次移出其他玩家；回 `RoomInfo` |
+| `POST /api/rooms/:id/bots` | 測試房間房主 | `{matchID,requestID}`，只在等待室新增一位虛擬玩家；回 `RoomInfo` |
 | `POST /api/rooms/:id/start` | 房主 | `{matchID}`，符合該遊戲的人數範圍且全員準備後開始；回 `RoomInfo` |
 | `POST /api/rooms/:id/return` | 房主 | `{matchID}`，正常終局後返回等待室；通常由伺服器自動處理 |
 | `POST /api/rooms/:id/abort` | 房主 | `{matchID}`，提前結束目前局，不計勝敗；回新等待室的 `RoomInfo` |

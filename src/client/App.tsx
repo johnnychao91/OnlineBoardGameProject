@@ -16,6 +16,8 @@ import { RoomHistory } from './RoomHistory';
 import { RoomGamePicker } from './RoomGamePicker';
 import { RoleSwitcher } from './RoleSwitcher';
 import { SpectatorRoster } from './SpectatorRoster';
+import { TestRoomBadge, TestRoomBots } from './TestRoom';
+import { addVirtualPlayer } from './test-room';
 import { isIdentityStorageKey, readRoleSwitch } from './role-switch';
 import { ShareInvite } from './ShareInvite';
 import { initials } from './StationBoard';
@@ -126,17 +128,25 @@ function Lobby({ onUpdate }: { onUpdate: (info: RoomInfo) => void }) {
     catch (e) { if (mounted.current) setError((e as Error).message); }
     finally { if (mounted.current) setBusy(false); }
   }
+  async function addBot() {
+    if (locked) return;
+    setBusy(true); setError('');
+    try { const next = await addVirtualPlayer(seat, info); if (mounted.current) onUpdate(next); }
+    catch (e) { if (mounted.current) setError((e as Error).message); }
+    finally { if (mounted.current) setBusy(false); }
+  }
   return <main className="room-layout"><section className="lobby-player-column">
     <div className="lobby-heading"><div className="eyebrow">FRIENDS AT THE TABLE</div><h1>{!selected ? '先集合，再選遊戲。' : info.gameName === 'encrypted-call' ? '特務到齊，準備接通。' : '隊員到齊，就能出發。'}</h1>
       <p className="muted">{players.length} 位玩家 · {selected ? `這款遊戲需 ${info.minPlayers}～${info.maxPlayers} 人` : '等待房主選擇遊戲'} · {info.spectatorCount} 位已加入觀戰</p>
     </div>
     <RoomGamePicker seat={seat} info={info} disabled={busy} onBusy={setGameBusy} onUpdate={onUpdate} />
     <section className="panel roster"><div className="section-heading"><h2>參與名單</h2><span>{players.length} / {info.roomCapacity ?? ROOM_CAPACITY} 席</span></div>
-      <div className="roster-players">{players.map(player => <div className="roster-row" key={player.membershipID || player.id}><span className={`avatar ${isPlayer(seat) && String(player.id) === seat.playerID ? 'mine' : ''}`}>{initials(player.name || '')}</span><div><strong>{player.name}{isPlayer(seat) && String(player.id) === seat.playerID && <small className="you-label">你</small>}</strong><small>{String(player.id) === hostPlayerID ? '房主' : `隊員 ${Number(player.id) + 1}`}</small></div><span className={`ready-pill ${player.ready ? 'ready' : ''}`}>{player.ready ? '已準備' : selected ? '準備中' : '待選遊戲'}</span>{host && String(player.id) !== hostPlayerID && String(player.id) !== (isPlayer(seat) ? seat.playerID : null) && <RemovePlayer player={player} busy={locked} onRemove={target => action('remove', { playerID: String(target.id), membershipID: target.membershipID })} />}</div>)}</div>
+      <div className="roster-players">{players.map(player => <div className="roster-row" key={player.membershipID || player.id}><span className={`avatar ${isPlayer(seat) && String(player.id) === seat.playerID ? 'mine' : ''}`}>{initials(player.name || '')}</span><div><strong>{player.name}{isPlayer(seat) && String(player.id) === seat.playerID && <small className="you-label">你</small>}{player.isBot && <span className="virtual-player-label">虛擬玩家</span>}</strong><small>{String(player.id) === hostPlayerID ? '房主' : `隊員 ${Number(player.id) + 1}`}</small></div><span className={`ready-pill ${player.ready ? 'ready' : ''}`}>{player.ready ? '已準備' : selected ? '準備中' : '待選遊戲'}</span>{host && String(player.id) !== hostPlayerID && String(player.id) !== (isPlayer(seat) ? seat.playerID : null) && <RemovePlayer player={player} busy={locked} onRemove={target => action('remove', { playerID: String(target.id), membershipID: target.membershipID })} />}</div>)}</div>
       {host && <p className="small muted">開局前可移出隊員；持有效邀請的人仍可重新加入。</p>}
       {overCapacity ? <p className="small amber lobby-missing" role="status">這款遊戲最多 {info.maxPlayers} 人，請 {players.length - info.maxPlayers} 位玩家改為觀戰，或由房主切換遊戲。所有人仍保留在房間內。</p>
         : selected && players.length < info.minPlayers ? <p className="small muted lobby-missing">再邀請 {info.minPlayers - players.length} 位玩家，就達到開局人數。</p>
           : <p className="small muted lobby-missing">{players.length < (info.roomCapacity ?? ROOM_CAPACITY) ? '還有朋友要上場？開始前都能加入。' : '參與席位已滿，其他朋友仍可觀戰。'}</p>}
+      <TestRoomBots seat={seat} info={info} disabled={locked} onAdd={() => void addBot()} />
     </section>
     <ErrorMessage>{error}</ErrorMessage><div className="action-dock">
       {isPlayer(seat) ? <button className={`button full ${own?.ready ? 'secondary' : 'primary'}`} disabled={locked || !selected} onClick={() => action('ready', { ready: !own?.ready })}>
@@ -242,7 +252,7 @@ function Room({ seat, onSwitch }: { seat: AuthSession; onSwitch: (seat: AuthSess
       : <RoomContext.Provider value={{ seat: session, info, inviteUrl, setInviteUrl }}>
         <div className="room-chrome">
         <div className="room-tools">
-          <div className="room-status-line"><span>{host && '房主 · '}{isPlayer(seat) ? '玩家座位' : '觀戰席'} · {info.numPlayers} 位玩家 · {info.spectatorCount} 位已加入觀戰</span></div>
+          <div className="room-status-line"><span>{host && '房主 · '}{isPlayer(seat) ? '玩家座位' : '觀戰席'} · {info.numPlayers} 位玩家 · {info.spectatorCount} 位已加入觀戰<TestRoomBadge info={info} /></span></div>
           {info.status === 'lobby' ? <>
             <RoleSwitcher seat={session} info={info} onChange={onSwitch} />
             <RoomActions seat={session} info={info} onUpdate={acceptInfo} />

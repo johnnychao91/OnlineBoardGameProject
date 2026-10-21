@@ -6,6 +6,8 @@ import type { Context } from 'koa';
 import serve from 'koa-static';
 import { Server } from 'boardgame.io/server';
 import { createMatch } from 'boardgame.io/internal';
+import { Master } from 'boardgame.io/master';
+import { chooseBotAction } from '../games/bots';
 import { gameDefinitions, getGameDefinition, publicGameDefinitions, type GameDefinition } from '../games/registry';
 import { isPlayerSeatID } from '../games/catalog';
 import { GuardedTransport } from './transport';
@@ -23,10 +25,12 @@ export interface AppConfig {
   port: number;
   production: boolean;
   createRoomKey: string;
+  testRoomKey?: string;
   clientDir?: string;
   presenceLeaseMs?: number;
   lifecycleSweepMs?: number;
   clockSweepMs?: number;
+  botSweepMs?: number;
 }
 const INVITE_TTL = 24 * 60 * 60 * 1000;
 const REPLAY_SHARE_TTL = 7 * 24 * 60 * 60 * 1000;
@@ -81,6 +85,9 @@ export async function createApplication(config: AppConfig) {
   const origin = new URL(config.publicOrigin).origin;
   if (config.publicOrigin !== origin) throw new Error('PUBLIC_ORIGIN 必須是完整 origin，不能含路徑或尾斜線');
   if (config.production && (!origin.startsWith('https://') || config.createRoomKey.length < 16)) throw new Error('正式環境需 HTTPS PUBLIC_ORIGIN 與至少 16 字元 CREATE_ROOM_KEY');
+  if (config.testRoomKey && (config.testRoomKey.length < 16 || safeEqual(config.testRoomKey, config.createRoomKey))) {
+    throw new Error('TEST_ROOM_KEY 需至少 16 字元且不能與 CREATE_ROOM_KEY 相同');
+  }
   const origins = config.production ? [origin] : [...new Set([origin, 'http://localhost:5173', 'http://127.0.0.1:5173'])];
   const dataDir = resolve(config.dataDir);
   if (config.clientDir) {
@@ -114,6 +121,7 @@ export async function createApplication(config: AppConfig) {
   };
   const publicRoom = (room: RoomRecord, metadata: any, state: any, matchID = currentMatchID(room), historical = false) => ({
     roomId: room.roomId, matchID, gameName: matchGameID(room, matchID),
+    testRoom: room.testRoom === true,
     gameSelected: historical || room.gameSelected !== false, roomCapacity: ROOM_CAPACITY,
     gameOptions: historical ? state.G.options : room.gameOptions,
     hostPlayerID: historical ? null : hostPlayerID(room),
@@ -126,6 +134,7 @@ export async function createApplication(config: AppConfig) {
       ? { completedDisplayUntil: room.completedDisplay.until } : {}),
     players: Object.values(metadata.players).filter((p: any) => state.G.status === 'lobby' ? p.credentials : state.G.players?.[p.id]).map((p: any) => ({
       id: String(p.id), name: p.name || '', isConnected: historical ? false : !!p.isConnected, ready: historical ? false : !!state.G.players?.[p.id]?.ready,
+      isBot: p.data?.isBot === true,
       ...(!historical && p.credentials ? { membershipID: hashToken(`${room.roomId}:${p.credentials}`).slice(0, 16) } : {}),
       ...(!historical ? { departed: !p.credentials } : {}),
     })),
@@ -136,7 +145,7 @@ export async function createApplication(config: AppConfig) {
     if (ctx.get('X-Observer-ID')) fail(401, '觀戰憑證不能用於玩家操作');
     const playerID = ctx.get('X-Player-ID');
     const credential = ctx.get('Authorization').replace(/^Bearer /, '');
-    if (!isPlayerSeatID(playerID) || !safeEqual(credential, metadata.players[playerID]?.credentials)) fail(401, '此瀏覽器沒有有效的座位憑證');
+    if (!isPlayerSeatID(playerID) || metadata.players[playerID]?.data?.isBot || !safeEqual(credential, metadata.players[playerID]?.credentials)) fail(401, '此瀏覽器沒有有效的座位憑證');
     return playerID;
   };
   const authenticateViewer = (ctx: Context, room: RoomRecord, metadata: any) => {
@@ -154,13 +163,13 @@ export async function createApplication(config: AppConfig) {
     if (!isHost(room, viewer)) fail(403, message);
     return viewer;
   };
-  const retainedHost = (room: RoomRecord, players: Array<{ id: number; credentials?: string }>,
+  const retainedHost = (room: RoomRecord, players: Array<{ id: number; credentials?: string; data?: any }>,
     spectators = room.spectators) => {
     const observerID = hostObserverID(room);
     if (observerID !== null && Object.prototype.hasOwnProperty.call(spectators ?? {}, observerID)) {
       return { hostPlayerID: null, hostObserverID: observerID };
     }
-    const participants = players.filter(player => player.credentials).sort((a, b) => a.id - b.id);
+    const participants = players.filter(player => player.credentials && !player.data?.isBot).sort((a, b) => a.id - b.id);
     const previousPlayerID = hostPlayerID(room);
     const playerID = participants.some(player => String(player.id) === previousPlayerID)
       ? previousPlayerID : participants.length ? String(participants[0].id) : null;
@@ -245,6 +254,50 @@ export async function createApplication(config: AppConfig) {
     .filter(room => getGameDefinition(room.gameId)?.advanceClock)
     .map(room => transport.getRoomQueue(room.roomId).add(() => advanceRoomClock(getRoom(room.roomId)))))
     .then(() => undefined).finally(() => { clockInFlight = undefined; });
+  // Bots never open sockets or create presence leases. Without a human viewer,
+  // the ordinary empty-room lifecycle ends the match instead of playing forever.
+  const advanceRoomBots = async (room: RoomRecord) => {
+    if (!room.testRoom || !presence.hasAnyone(room.roomId)) return;
+    const { metadata, state } = await snapshot(room);
+    const definition = getGameDefinition(room.gameId)!;
+    if (definition.getOutcome(state.G)) return;
+    const bots = Object.values(metadata.players).filter(player => player.credentials && player.data?.isBot);
+    if (!bots.length) return;
+    const matchID = currentMatchID(room);
+    if (definition.isJoinable(state.G)) {
+      if (room.gameSelected === false) return;
+      let changed = false;
+      for (const bot of bots) if (!state.G.players[bot.id]?.ready) {
+        state.G.players[bot.id].ready = true; changed = true;
+      }
+      if (changed) {
+        state._stateID++; await db.setState(matchID, state);
+        transport.publishState(definition.game, matchID, state);
+      }
+      return;
+    }
+    // One legal action per room per tick; a random starting seat prevents a fast
+    // repeatable action from permanently starving the other virtual players.
+    const first = Math.floor(Math.random() * bots.length);
+    for (let n = 0; n < bots.length; n++) {
+      const bot = bots[(first + n) % bots.length], playerID = String(bot.id);
+      const action = chooseBotAction(definition.id, state, playerID);
+      if (!action || action.move === 'startGame' || !definition.game.moves?.[action.move]) continue;
+      // Master runs the same server reducer/validation as a normal player. The
+      // internal transport is silent until persistence succeeds, then publishes
+      // through the normal per-player privacy filters. No client can invoke it.
+      const master = new Master(definition.game, db, { send: () => {}, sendAll: () => {} });
+      await master.onUpdate({ type: 'MAKE_MOVE', payload: { type: action.move, args: action.args,
+        playerID, credentials: bot.credentials! } }, state._stateID, matchID, playerID);
+      const updated = await db.fetch(matchID, { state: true });
+      if (updated.state && updated.state._stateID > state._stateID) transport.publishState(definition.game, matchID, updated.state);
+      return;
+    }
+  };
+  let botsInFlight: Promise<void> | undefined;
+  const advanceBots = () => botsInFlight ??= Promise.all([...rooms.rooms.values()].filter(room => room.testRoom)
+    .map(room => transport.getRoomQueue(room.roomId).add(() => advanceRoomBots(getRoom(room.roomId)))))
+    .then(() => undefined).finally(() => { botsInFlight = undefined; });
   let sweepInFlight: Promise<void> | undefined;
   const sweep = () => sweepInFlight ??= Promise.all([...rooms.rooms.keys()].map((roomId) =>
     transport.getRoomQueue(roomId).add(async () => { await reconcileRoom(getRoom(roomId)); })
@@ -309,7 +362,8 @@ export async function createApplication(config: AppConfig) {
     if (ctx.method === 'POST' && ctx.path === '/api/rooms') {
       if (!limiter.allow(`create:${ctx.ip}`, 12, 600000)) fail(429, '建立房間太頻繁，請稍後重試');
       const body = await jsonBody(ctx);
-      if (config.createRoomKey && !safeEqual(body.createKey, config.createRoomKey)) fail(403, '建立房間密鑰不正確');
+      const testRoom = !!config.testRoomKey && safeEqual(body.createKey, config.testRoomKey);
+      if (!testRoom && config.createRoomKey && !safeEqual(body.createKey, config.createRoomKey)) fail(403, '建立房間密鑰不正確');
       const definition = getGameDefinition(body.gameId === undefined ? gameDefinitions[0].id : body.gameId);
       if (!definition) fail(400, '遊戲不正確');
       if (body.numPlayers !== undefined) fail(400, '不需預選人數，開局時依參與者人數決定');
@@ -324,7 +378,7 @@ export async function createApplication(config: AppConfig) {
       if ('setupDataError' in match) fail(400, '無法使用這組遊戲設定');
       match.metadata.players['0'].name = name;
       match.metadata.players['0'].credentials = credentials;
-      const room: RoomRecord = { roomId, currentMatchID: roomId, hostPlayerID: '0', gameId: definition.id, gameOptions, gameSelected: body.gameId !== undefined, numPlayers: ROOM_CAPACITY, inviteHash: hashToken(invite), inviteExpiresAt: Date.now() + INVITE_TTL, createdAt: Date.now() };
+      const room: RoomRecord = { roomId, testRoom, currentMatchID: roomId, hostPlayerID: '0', gameId: definition.id, gameOptions, gameSelected: body.gameId !== undefined, numPlayers: ROOM_CAPACITY, inviteHash: hashToken(invite), inviteExpiresAt: Date.now() + INVITE_TTL, createdAt: Date.now() };
       await db.createMatch(roomId, match);
       await rooms.save(room);
       presence.touch(roomId, 'player:0', 'admission');
@@ -333,7 +387,7 @@ export async function createApplication(config: AppConfig) {
         inviteUrl: `${origin}/join/${roomId}#invite=${invite}`, expiresAt: room.inviteExpiresAt };
       return;
     }
-    const route = /^\/api\/rooms\/([A-Za-z0-9_-]+)(?:\/(join|watch|invite|ready|remove|start|view|replay|share|revoke-shares|return|abort|leave|heartbeat|switch-role|game|options))?$/.exec(ctx.path);
+    const route = /^\/api\/rooms\/([A-Za-z0-9_-]+)(?:\/(join|watch|invite|ready|remove|start|view|replay|share|revoke-shares|return|abort|leave|heartbeat|switch-role|game|options|bots))?$/.exec(ctx.path);
     if (!route) fail(404, '找不到此功能');
     const room = getRoom(route[1]);
     const operation = route[2];
@@ -440,6 +494,7 @@ export async function createApplication(config: AppConfig) {
         const observerID = ctx.get('X-Observer-ID');
         const sourceAccess = observerID ? 'spectator' : 'player';
         const sourceID = observerID || ctx.get('X-Player-ID');
+        if (!observerID && metadata.players[Number(sourceID)]?.data?.isBot) fail(401, '虛擬玩家不提供登入憑證');
         if ((observerID && (ctx.get('X-Player-ID') || !validRoomID(observerID)))
           || (!observerID && !isPlayerSeatID(sourceID))) fail(401, '房間憑證不正確');
         const sourceHash = hashToken(credentials);
@@ -559,6 +614,25 @@ export async function createApplication(config: AppConfig) {
         await rooms.save(next);
         transport.closeMatch(matchID);
         ctx.body = publicRoom(next, match.metadata, match.initialState);
+      } else if (operation === 'bots') {
+        authenticateHost(ctx, current, metadata, '只有房主可以新增虛擬玩家');
+        if (!current.testRoom) fail(403, '只有測試房間可以新增虛擬玩家');
+        if (body.matchID !== matchID) fail(409, '對局已更新，請重新確認房間狀態');
+        if (!definition.isJoinable(state.G)) fail(409, '只能在等待室新增虛擬玩家');
+        if (typeof body.requestID !== 'string' || !UUID_V4.test(body.requestID)) fail(400, '新增請求識別碼不正確');
+        const requestHash = hashToken(JSON.stringify([ctx.get('Authorization'), body.requestID.toLowerCase()]));
+        const previous = await db.findBotAdmission(matchID, requestHash);
+        if (previous === 'removed') fail(409, '這位虛擬玩家已被移出，請重新新增');
+        if (previous === 'present') { ctx.body = publicRoom(current, metadata, state); return; }
+        if (!limiter.allow(`bots:${current.roomId}`, 60, 60000)) fail(429, '新增虛擬玩家太頻繁');
+        const capacity = current.gameSelected === false ? ROOM_CAPACITY : definition.maxPlayers;
+        if (Object.values(metadata.players).filter(player => player.credentials).length >= capacity) fail(409, '目前遊戲的參與席位已滿');
+        const seatID = Array.from({ length: ROOM_CAPACITY }, (_, id) => id).find(id => !metadata.players[id]?.credentials)!;
+        state.G.players[seatID].ready = current.gameSelected !== false;
+        state._stateID++;
+        await db.addBot(matchID, String(seatID), randomToken(), requestHash, state);
+        const updated = await snapshot(current);
+        ctx.body = publicRoom(current, updated.metadata, updated.state);
       } else if (operation === 'ready') {
         const playerID = authenticate(ctx, metadata);
         if (current.gameSelected === false) fail(409, '請先由房主選擇遊戲');
@@ -655,7 +729,7 @@ export async function createApplication(config: AppConfig) {
         updated = { ...updated, ...retainedHost(updated, Object.values(metadata.players), updated.spectators) };
         await rooms.save(updated);
         presence.remove(current.roomId, `${viewer.access === 'player' ? 'player' : 'spectator'}:${viewer.id}`);
-        const anyoneAdmitted = Object.values(metadata.players).some((entry) => entry.credentials) || Object.keys(updated.spectators || {}).length > 0;
+        const anyoneAdmitted = Object.values(metadata.players).some((entry) => entry.credentials && !entry.data?.isBot) || Object.keys(updated.spectators || {}).length > 0;
         if (!definition.isJoinable(state.G) && (!anyoneAdmitted || !presence.hasAnyone(current.roomId))) {
           await returnToLobby(updated, definition.getOutcome(state.G) ? 'completed' : 'empty');
         }
@@ -717,11 +791,17 @@ export async function createApplication(config: AppConfig) {
         void advanceClocks().catch(() => { console.error('Game clock reconciliation failed'); });
       }, config.clockSweepMs ?? 500);
       clockTimer.unref();
+      const botTimer = setInterval(() => {
+        void advanceBots().catch(() => { console.error('Test room bot reconciliation failed'); });
+      }, config.botSweepMs ?? 2000);
+      botTimer.unref();
       return { port, async close() {
         clearInterval(timer);
         clearInterval(clockTimer);
+        clearInterval(botTimer);
         if (sweepInFlight) await sweepInFlight;
         if (clockInFlight) await clockInFlight;
+        if (botsInFlight) await botsInFlight;
         await new Promise<void>((done) => (server.app as any)._io.close(() => done()));
         if (httpServer.listening) await new Promise<void>((done) => httpServer.close(() => done()));
         await transport.drain();

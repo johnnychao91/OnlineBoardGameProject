@@ -10,6 +10,7 @@ async function main() {
     publicOrigin: process.env.PUBLIC_ORIGIN || 'http://localhost:5173',
     host: process.env.HOST || '127.0.0.1', port, production,
     createRoomKey: process.env.CREATE_ROOM_KEY || '',
+    testRoomKey: process.env.TEST_ROOM_KEY || '',
     clientDir: production ? './dist/client' : undefined,
   });
   const running = await app.listen();

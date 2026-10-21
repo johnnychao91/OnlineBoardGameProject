@@ -20,7 +20,7 @@ export function RemovePlayer({ player, busy, onRemove }: {
       onCancel={() => setConfirming(false)} onClose={() => setConfirming(false)}>
       <h2 id={titleID}>移出這位隊員？</h2>
       <p>將 <strong>{player.name}</strong> 移出等待室，空出這個座位。</p>
-      <p className="small muted">只移出這次加入，不會封鎖本人。對方仍可使用有效邀請重新加入。</p>
+      <p className="small muted">{player.isBot ? '移出後便不再占用席位。需要時，房主可再次新增虛擬玩家。' : '只移出這次加入，不會封鎖本人。對方仍可使用有效邀請重新加入。'}</p>
       <div className="button-row">
         <button type="button" className="button secondary" autoFocus disabled={busy} onClick={() => setConfirming(false)}>取消</button>
         <button type="button" className="button danger" disabled={busy} onClick={async () => {
