@@ -1,7 +1,7 @@
 import type { CipherState } from '../games/cipher/game';
 import type { SnapshotProps } from './game-types';
 import { BattleReport } from './BattleReport';
-import { CipherAgents, CipherHeading, CipherLog, CipherMetrics, CipherRuleSummary, CipherStatus, CipherTransmission } from './CipherBoard';
+import { CipherAgents, CipherCardNumber, CipherHeading, CipherLog, CipherMetrics, CipherRuleSummary, CipherStatus, CipherTransmission } from './CipherBoard';
 import { SnapshotPlayerSelect, useInspectedPlayer } from './SnapshotPlayerSelect';
 import { cipherSnapshotState } from './snapshot-view';
 import './cipher.css';
@@ -24,7 +24,7 @@ export function CipherSnapshot({ G: unknownState, info, perspective, replay = fa
         <SnapshotPlayerSelect playerIDs={playerIDs} value={selectedID} onChange={setSelectedID} nameOf={nameOf} label="查看特務手牌" />
         {count > 0 ? <div className="cipher-hand-cards" aria-label={`${nameOf(selectedID)}的${cards ? '訊號牌，由小到大' : '未公開訊號牌'}`}>
           {(cards ?? Array<null>(count).fill(null)).map((card, index) => <div key={index} className={`cipher-card ${card === null ? 'cipher-card-back' : ''}`}>
-            <span className="cipher-card-mark">SIGNAL</span><strong>{card ?? '?'}</strong><span className="cipher-card-caption">{card === null ? '未公開' : '唯讀'}</span>
+            <span className="cipher-card-mark">SIGNAL</span><CipherCardNumber value={card} /><span className="cipher-card-caption">{card === null ? '未公開' : '唯讀'}</span>
           </div>)}
         </div> : <div className="cipher-concealed"><p>這位特務已無剩餘訊號牌</p><span>公開傳送與棄牌可在通話紀錄查看。</span></div>}
         <p className="small muted cipher-hand-note">{replay ? '歷史畫面 · 唯讀復盤' : '觀戰席 · 不占特務名額'}。{cards ? '切換特務可查看各自手牌，無法傳送訊號。' : '只顯示公開張數，不透露數字。'}</p>

@@ -83,10 +83,10 @@ export function CipherBoard({ G, playerID, moves, isConnected }: BoardProps) {
                   ? <button key={card} className="cipher-card cipher-card-send" type="button"
                     aria-label={`傳送訊號 ${card}`} disabled={!canAct || G.status !== 'playing'}
                     onClick={() => send('playCard', card)}>
-                    <span className="cipher-card-mark">SIGNAL</span><strong>{card}</strong>
+                    <span className="cipher-card-mark">SIGNAL</span><CipherCardNumber value={card} />
                     <span className="cipher-card-caption">{G.status === 'playing' ? pending ? '傳送中' : '點擊傳送' : '最小訊號'}</span>
                   </button>
-                  : <div key={card} className="cipher-card"><span className="cipher-card-mark">SIGNAL</span><strong>{card}</strong><span className="cipher-card-caption">稍後傳送</span></div>)}
+                  : <div key={card} className="cipher-card"><span className="cipher-card-mark">SIGNAL</span><CipherCardNumber value={card} /><span className="cipher-card-caption">稍後傳送</span></div>)}
               </div>
               <p className="small muted cipher-hand-note">只有最小的一張能傳送。點一下就立即送出，沒有確認視窗；請保持安靜，等待你認為合適的時機。</p>
             </> : <div className="cipher-concealed"><Icon type="check" size={26} /><p>你的訊號已全部送出</p><span>保持靜默，等待同伴完成傳送。</span></div>}
@@ -132,6 +132,10 @@ export function CipherBoard({ G, playerID, moves, isConnected }: BoardProps) {
       </aside>
     </main>
   </>;
+}
+
+export function CipherCardNumber({ value }: { value: number | null }) {
+  return <strong className={value === 100 ? 'cipher-number-three-digits' : undefined}>{value ?? '?'}</strong>;
 }
 
 export function CipherHeading({ G }: { G: CipherState }) {

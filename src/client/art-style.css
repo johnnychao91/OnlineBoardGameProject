@@ -197,7 +197,7 @@
   background-size: cover;
   background-position: center;
 }
-:root[data-visual-style="art"] .cipher-card { aspect-ratio: 2 / 3; align-self: start; height: auto; }
+:root[data-visual-style="art"] .cipher-card { aspect-ratio: 2 / 3; align-self: start; height: auto; container-type: inline-size; }
 :root[data-visual-style="art"] .cipher-card:not(.cipher-card-back) {
   background: #d6c6a0 url('./assets/art/ink-cipher-card.png') center / 100% 100% no-repeat;
   border-color: #a99a75;
@@ -207,9 +207,11 @@
 }
 :root[data-visual-style="art"] .cipher-card:not(.cipher-card-back) strong {
   color: #172d28; font-family: Georgia, 'Times New Roman', serif; font-weight: 700;
-  text-shadow: 0 1px 0 #fff2c6; background: #e9dcb6dc; border-radius: 4px;
+  text-shadow: 0 1px 0 #fff2c6; background: transparent;
   padding: 0 3px; line-height: 1.1;
+  font-size: min(64cqi, 112px);
 }
+:root[data-visual-style="art"] .cipher-card:not(.cipher-card-back) strong.cipher-number-three-digits { font-size: min(49cqi, 112px); }
 :root[data-visual-style="art"] .cipher-card:not(.cipher-card-back) :is(.cipher-card-mark, .cipher-card-caption) {
   color: #172d28; background: #e9dcb6e8; padding: 0 3px; border-radius: 3px;
 }
