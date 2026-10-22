@@ -4,7 +4,7 @@ import { CipherGame, cipherObserverView, type CipherState } from './cipher/game'
 import { FogGame, fogObserverView, type FogState } from './fog/game';
 import { normalizeFogOptions, validateFogOptions } from './fog/rules';
 import { MoonGame, moonObserverView, advanceMoonClock, type MoonState } from './moon/game';
-import { normalizeMoonOptions, validateMoonOptions } from './moon/rules';
+import { MOON_PRESETS, normalizeMoonOptions, validateMoonOptions } from './moon/rules';
 import { gameCatalog, type GameID } from './catalog';
 
 export type ObserverPerspective = 'blind' | 'god';
@@ -27,6 +27,8 @@ export interface GameDefinition {
   startSetupData: (participantIDs: string[], options?: Record<string, unknown>) => Record<string, unknown>;
   /** Public lobby options. Secrets and deployment settings never belong here. */
   normalizeOptions?: (options: unknown) => Record<string, unknown>;
+  /** Validate a preset before its participants have all joined the waiting room. */
+  validateLobbyOptions?: (options: Record<string, unknown> | undefined) => string | undefined;
   validateOptions?: (options: Record<string, unknown> | undefined, numPlayers: number) => string | undefined;
   /** The caller must authorize this perspective before returning the projection. */
   observerView: (state: any, perspective: ObserverPerspective) => unknown;
@@ -82,6 +84,11 @@ export const gameDefinitions: GameDefinition[] = [{
   id: 'silver-moon', ...gameCatalog['silver-moon'], game: MoonGame,
   isJoinable: state => state.status === 'lobby',
   normalizeOptions: options => ({ ...normalizeMoonOptions(options) }),
+  validateLobbyOptions: options => {
+    const normalized = normalizeMoonOptions(options);
+    const count = MOON_PRESETS.find(preset => preset.id === normalized.presetId)?.count ?? gameCatalog['silver-moon'].maxPlayers;
+    return validateMoonOptions(normalized, count);
+  },
   validateOptions: (options, count) => validateMoonOptions(normalizeMoonOptions(options), count),
   startSetupData: (participantIDs, options) => ({ startImmediately: true, participantIDs, options: normalizeMoonOptions(options) }),
   observerView: moonObserverView,

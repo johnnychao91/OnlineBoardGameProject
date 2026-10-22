@@ -21,6 +21,7 @@ import { MoonBoard } from './MoonBoard';
 import { MoonSnapshot } from './MoonSnapshot';
 import { MoonRules } from './MoonRules';
 import { MoonOptions } from './MoonOptions';
+import { normalizeMoonOptions, validateMoonOptions } from '../games/moon/rules';
 import { createMoonPoster } from './moon-poster';
 import { createReplayPoster } from './replay-poster';
 import { createCipherPoster } from './cipher-poster';
@@ -47,6 +48,7 @@ export interface ClientGameDefinition {
   createPoster: (options: PosterOptions) => Promise<Blob>;
   soundAdapter: SoundAdapter;
   LobbyOptions?: ComponentType<LobbyOptionsProps>;
+  validateLobby?: (options: unknown, count: number) => string | undefined;
   lobbyTitle?: string;
   lobbyDescription?: string;
   factionLabels: Record<string, string>;
@@ -62,6 +64,7 @@ export const clientGames: Record<GameID, ClientGameDefinition> & Record<string, 
     name: gameCatalog['silver-moon'].name,
     PlayerClient: props => <MoonClient {...props} />,
     Snapshot: MoonSnapshot, DetailedRules: MoonRules, LobbyOptions: MoonOptions,
+    validateLobby: (options, count) => { try { return validateMoonOptions(normalizeMoonOptions(options), count); } catch (error) { return (error as Error).message; } },
     Rules: () => <p>狼人夜間秘密選擇襲擊目標，神職依序行動；白天依發言倒數討論並投票放逐。房主可選擇警長規則與現場輔助模式，夜間每個人都有不影響結果的掩護操作。</p>,
     chapters: [['setup', '人數與模式'], ['roles', '角色與技能'], ['night', '夜間與掩護'], ['day', '發言與放逐'], ['sheriff', '警長規則'], ['end', '勝負與復盤']],
     createPoster: ({ G, info, step, totalSteps }) => createMoonPoster({ G: G as MoonState, players: info.players, step, totalSteps }),
@@ -71,7 +74,8 @@ export const clientGames: Record<GameID, ClientGameDefinition> & Record<string, 
     lobbyTitle: '下一站，誰能平安抵達？',
     lobbyDescription: gameCatalog['silver-moon'].description,
     factionLabels: { town: '好人', wolves: '狼人' },
-    reasonLabels: { 'wolves-eliminated': '狼人全數離場', 'wolves-dominate': '狼人數量達到或超過其餘乘客' },
+    reasonLabels: { 'wolves-eliminated': '狼人全數離場', 'wolves-dominate': '狼人數量達到或超過其餘乘客', 'town-eliminated': '全部好人離場', 'villagers-eliminated': '全部村民離場', 'specials-eliminated': '全部神職離場', 'mutual-elimination': '雙方全數離場' },
+    resultLabels: { town: '好人獲勝', wolves: '狼人獲勝', draw: '平局' },
   },
   'space-station': {
     name: '太空維修站',

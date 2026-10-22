@@ -5,9 +5,9 @@ import { matchGameID, roomMatchIDs, type RoomStore } from './rooms';
 /** Derive each completed match once, so reconnects and restarts cannot double-count wins. */
 export async function collectStatistics(db: FileStorage, rooms: RoomStore) {
   const byGame = gameDefinitions.map((definition) => ({
-    gameId: definition.id, name: definition.name, completed: 0,
+    gameId: definition.id, name: definition.name, completed: 0, draws: 0,
     wins: {} as Record<string, number>, reasons: {} as Record<string, number>,
-    byPlayerCount: [] as { numPlayers: number; completed: number; wins: Record<string, number> }[],
+    byPlayerCount: [] as { numPlayers: number; completed: number; draws: number; wins: Record<string, number> }[],
   }));
   let totalPlayerParticipations = 0;
   for (const room of rooms.rooms.values()) {
@@ -25,12 +25,14 @@ export async function collectStatistics(db: FileStorage, rooms: RoomStore) {
       const numPlayers = state.ctx.numPlayers;
       summary.completed += 1;
       totalPlayerParticipations += numPlayers;
-      summary.wins[outcome.winner] = (summary.wins[outcome.winner] || 0) + 1;
+      if (outcome.winner === 'draw') summary.draws += 1;
+      else summary.wins[outcome.winner] = (summary.wins[outcome.winner] || 0) + 1;
       summary.reasons[outcome.reason] = (summary.reasons[outcome.reason] || 0) + 1;
       let group = summary.byPlayerCount.find((entry) => entry.numPlayers === numPlayers);
-      if (!group) { group = { numPlayers, completed: 0, wins: {} }; summary.byPlayerCount.push(group); }
+      if (!group) { group = { numPlayers, completed: 0, draws: 0, wins: {} }; summary.byPlayerCount.push(group); }
       group.completed += 1;
-      group.wins[outcome.winner] = (group.wins[outcome.winner] || 0) + 1;
+      if (outcome.winner === 'draw') group.draws += 1;
+      else group.wins[outcome.winner] = (group.wins[outcome.winner] || 0) + 1;
     }
   }
   byGame.forEach((game) => game.byPlayerCount.sort((a, b) => a.numPlayers - b.numPlayers));

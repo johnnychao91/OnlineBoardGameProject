@@ -8,7 +8,7 @@ import { CipherGame, cipherPlayerView } from './cipher/game';
 import { FogGame, fogPlayerView } from './fog/game';
 import { normalizeFogOptions } from './fog/rules';
 import { MoonGame, advanceMoonClock, moonPlayerView } from './moon/game';
-import { normalizeMoonOptions } from './moon/rules';
+import { MOON_PRESETS, normalizeMoonOptions } from './moon/rules';
 
 let now = 1_800_000_000_000;
 beforeEach(() => { now = 1_800_000_000_000; vi.spyOn(Date, 'now').mockImplementation(() => now); });
@@ -99,6 +99,86 @@ describe('Test-room bot adapters', () => {
       for (const name of expected) expect(moves.has(name), `${game.name} did not exercise ${name}`).toBe(true);
     });
   }
+
+  const presetScenarios = MOON_PRESETS.filter(preset => preset.count !== null).flatMap(preset =>
+    (['online', 'assisted'] as const).map(mode => ({ preset, mode })));
+  it.each(presetScenarios)('$preset.id / $mode finishes using legal moves from each bot’s own view', ({ preset, mode }) => {
+    const count = preset.count!;
+    const ids = Array.from({ length: count }, (_, i) => String(12 - count + i));
+    const f = match(MoonGame, count, normalizeMoonOptions({ presetId: preset.id, mode }), `bot-preset-${preset.id}-${mode}`, ids);
+    const random = seeded(mode === 'online' ? 271 : 819);
+    let steps = 0;
+    while (f.state.G.status !== 'finished' && steps++ < 3000) {
+      const start = Math.floor(random() * ids.length);
+      let acted = false;
+      for (let i = 0; i < ids.length; i += 1) {
+        const id = ids[(start + i) % ids.length];
+        const salt = Math.floor(random() * 1_000_000);
+        const move = chooseBotAction('silver-moon', f.state, id, seeded(salt));
+        const view = { G: moonPlayerView({ G: f.state.G, playerID: id }), ctx: f.state.ctx };
+        expect(chooseBotAction('silver-moon', view, id, seeded(salt))).toEqual(move);
+        if (move) { f.move(id, move); acted = true; break; }
+      }
+      if (!acted) f.clock();
+    }
+    expect(f.state.G.status, `${preset.id} stalled at ${f.state.G.status}`).toBe('finished');
+    expect(['town', 'wolves', 'draw']).toContain(f.state.G.winner);
+    expect(f.state.ctx.gameover).toBeTruthy();
+  });
+
+  it('respects first-night peace, revealed-idiot voting restrictions and mandatory hunter shots', () => {
+    const peaceful = match(MoonGame, 6, normalizeMoonOptions({ presetId: 'six-hunters' }));
+    for (const id of Object.keys(peaceful.state.G.players)) peaceful.move(id, chooseBotAction('silver-moon', peaceful.state, id)!);
+    expect(peaceful.state.G).toMatchObject({ status: 'night', nightStep: 1, day: 1 });
+    for (const id of Object.keys(peaceful.state.G.private).filter(id => peaceful.state.G.private[id].faction === 'wolves')) {
+      expect(chooseBotAction('silver-moon', peaceful.state, id, () => 0)).toBeNull();
+    }
+    const shotState = clone(peaceful.state);
+    const hunter = Object.keys(shotState.G.private).find(id => shotState.G.private[id].role === 'hunter')!;
+    shotState.G.players[hunter].alive = false;
+    shotState.G.status = 'hunter'; shotState.G.hunterID = hunter;
+    peaceful.state = shotState;
+    const shot = chooseBotAction('silver-moon', peaceful.state, hunter, () => 0.999)!;
+    expect(shot.move).toBe('hunterShoot'); expect(shot.args[0]).not.toBeNull();
+
+    const f = match(MoonGame, 6, normalizeMoonOptions({ presetId: 'six-idiot', sheriff: true }));
+    const state = clone(f.state);
+    const idiot = Object.keys(state.G.private).find(id => state.G.private[id].role === 'idiot')!;
+    state.G.players[idiot].voteDisabled = true;
+    state.G.deadline = now + 30000;
+    state.G.sheriffCandidates = ['0', '1'].filter(id => id !== idiot);
+    for (const status of ['voting', 'sheriff-signup', 'sheriff-voting']) {
+      state.G.status = status; f.state = clone(state);
+      expect(chooseBotAction('silver-moon', f.state, idiot, () => 0)).toBeNull();
+    }
+    state.G.status = 'speaking'; state.G.speakerID = idiot; f.state = state;
+    expect(chooseBotAction('silver-moon', f.state, idiot, () => 0)?.move).toBe('finishSpeech');
+  });
+
+  it('recognizes special wolves without requiring an ordinary wolf and never explodes a ghost rider', () => {
+    const f = match(MoonGame, 8, normalizeMoonOptions({ presetId: 'eight-ragnarok' }));
+    const state = clone(f.state);
+    state.G.status = 'night'; state.G.nightStep = 1; state.G.deadline = now + 30000;
+    f.state = state;
+    const wolves = Object.keys(state.G.private).filter(id => state.G.private[id].faction === 'wolves');
+    expect(wolves).toHaveLength(3);
+    for (const id of wolves) {
+      const move = chooseBotAction('silver-moon', f.state, id, () => 0)!;
+      expect(move.move).toBe('wolfVote');
+      expect(move.args[0]).not.toBeNull();
+      expect(state.G.private[move.args[0] as string].role).not.toBe('ghost-rider');
+    }
+    state.G.status = 'speaking'; state.G.speakerID = Object.keys(state.G.private).find(id => state.G.private[id].faction === 'town');
+    f.state = state;
+    for (const id of wolves) {
+      const move = chooseBotAction('silver-moon', f.state, id, () => 0);
+      if (state.G.private[id].role === 'ghost-rider') expect(move).toBeNull();
+      else {
+        expect(move?.move).toBe('wolfExplode');
+        expect(move?.args[0] === null).toBe(state.G.private[id].role === 'wolf-king');
+      }
+    }
+  });
 
   it.each([
     { game: StationGame, project: stationPlayerView },

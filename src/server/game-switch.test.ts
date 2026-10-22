@@ -1,4 +1,5 @@
 import { ROOM_CAPACITY } from '../games/catalog';
+import { MOON_PRESETS } from '../games/moon/rules';
 import { randomUUID } from 'node:crypto';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -75,6 +76,43 @@ async function readyStart(f: Fixture, host: any, seats: Member[]) {
 }
 
 describe('Selecting a game within a persistent shared room', () => {
+  it('selects every fixed Moon preset before its players arrive and enforces the exact count only at start', async () => {
+    const f = await fixture(), g = await group(f, 6, 'silver-moon');
+    const before = f.app.rooms.rooms.get(g.host.roomId)!;
+    let current = (await f.request(path(g.host), undefined, g.host)).body;
+    expect((await f.request(path(g.host, 'ready'), { ready: true, matchID: current.matchID }, g.host)).status).toBe(200);
+    for (const preset of MOON_PRESETS.filter(item => item.count !== null)) {
+      const changed = await f.request(path(g.host, 'options'), { matchID: current.matchID, options: { presetId: preset.id } }, g.host);
+      expect(changed.status, preset.id).toBe(200);
+      current = changed.body;
+      expect(current).toMatchObject({ status: 'lobby', gameOptions: { presetId: preset.id }, numPlayers: 6, spectatorCount: 1, roomCapacity: 12 });
+      expect(current.players.every((player: any) => !player.ready)).toBe(true);
+      expect((await f.request(path(g.host), undefined, g.observer)).status).toBe(200);
+    }
+    expect(current.gameOptions.presetId).toBe('eight-ragnarok');
+    const validOptions = { matchID: current.matchID, options: { presetId: 'eight-ragnarok' } };
+    expect((await f.request(path(g.host, 'options'), validOptions, g.observer)).status).toBe(403);
+    expect((await f.request(path(g.host, 'options'), { ...validOptions, options: { presetId: 'not-a-preset' } }, g.host)).status).toBe(400);
+    expect((await f.request(path(g.host, 'options'), { ...validOptions, options: { presetId: 'eight-ragnarok', sheriff: true } }, g.host)).status).toBe(400);
+    expect((await readyStart(f, g.host, g.seats)).status).toBe(409);
+    for (let i = 6; i < 8; i++) {
+      const joined = await f.request(path(g.host, 'join'), { displayName: `乘客${i}`, inviteToken: token(g.host.inviteUrl), requestID: randomUUID() });
+      expect(joined.status).toBe(200); g.seats.push(joined.body);
+    }
+    const started = await readyStart(f, g.host, g.seats);
+    expect(started.status).toBe(200);
+    const state = (await f.app.db.fetch(started.body.matchID, { state: true })).state!;
+    expect(state.G).toMatchObject({ rulesVersion: 3, status: 'briefing', configuration: { presetId: 'eight-ragnarok', victory: 'city', sheriffAllowed: false } });
+    expect(state.G.configuration.roles).toHaveLength(8);
+    expect(state.G.configuration.roles).not.toContain('wolf');
+    expect(f.app.rooms.rooms.get(g.host.roomId)).toMatchObject({ inviteHash: before.inviteHash, inviteExpiresAt: before.inviteExpiresAt });
+    const denied = await f.request(path(g.host, 'options'), { matchID: started.body.matchID, options: { presetId: 'classic' } }, g.host);
+    expect(denied.status).toBe(409);
+    const snapshot = state.G.configuration;
+    await f.restart();
+    expect((await f.app.db.fetch(started.body.matchID, { state: true })).state!.G.configuration).toEqual(snapshot);
+  }, 30000);
+
   it('creates an unselected room, blocks readiness and starting, and preserves old explicit game creation', async () => {
     const f = await fixture(), g = await group(f);
     expect(g.host).toMatchObject({ status: 'lobby', gameSelected: false, roomCapacity: ROOM_CAPACITY });

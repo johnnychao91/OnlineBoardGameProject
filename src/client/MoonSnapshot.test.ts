@@ -38,7 +38,7 @@ describe('Silver Moon read-only and private surfaces', () => {
   });
   it.each([6, 7, 9])('uses three public stages for a new %i-player game in player, observer and replay views', count => {
     const G = fixture(count);
-    expect(G.rulesVersion).toBe(2);
+    expect(G.rulesVersion).toBe(3);
     for (const [index, label] of ['狼人', '預言家', '女巫'].entries()) {
       G.nightStep = index + 1;
       const ownView = moonPlayerView({ G, playerID: '0' });

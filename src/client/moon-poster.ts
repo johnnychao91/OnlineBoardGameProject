@@ -8,16 +8,16 @@ const bounded = (n: number, max: number, fallback = 0) => Number.isFinite(n) ? M
 export function buildMoonPosterModel({ G, players, step, totalSteps }: MoonPosterOptions) {
   const nameOf = (id: string) => clean(players.find(player => String(player.id) === id)?.name || '乘客');
   const total = Math.max(1, bounded(totalSteps, 999999, 1));
-  const latest = G.log.filter(entry => ['dawn', 'vote', 'hunter', 'sheriff-election', 'sheriff-transfer'].includes(entry.type)).at(-1);
+  const latest = G.log.filter(entry => ['dawn', 'vote', 'hunter', 'explosion', 'idiot', 'sheriff-election', 'sheriff-transfer'].includes(entry.type)).at(-1);
   return {
     day: Math.max(1, bounded(G.day, 999, 1)), step: Math.min(Math.max(1, bounded(step, 999999, 1)), total), totalSteps: total,
     living: Object.values(G.players).filter(player => player.alive === true).length,
     passengers: Object.keys(G.players).length,
-    outcome: G.status === 'finished' && (G.winner === 'town' || G.winner === 'wolves') ? G.winner : 'ongoing',
+    outcome: G.status === 'finished' && (G.winner === 'town' || G.winner === 'wolves' || G.winner === 'draw') ? G.winner : 'ongoing',
     sheriff: G.sheriffID ? nameOf(G.sheriffID) : null,
     latest: latest ? {
-      type: latest.type, day: Math.max(1, bounded(latest.day, 999, 1)),
-      actor: latest.type === 'hunter' || latest.type === 'sheriff-transfer' ? latest.actorID ? nameOf(latest.actorID) : null : null,
+      type: latest.type, shooter: latest.type === 'hunter' && latest.role === 'wolf-king' ? '狼王' : '獵人', day: Math.max(1, bounded(latest.day, 999, 1)),
+      actor: ['hunter', 'explosion', 'idiot', 'sheriff-transfer'].includes(latest.type) ? latest.actorID ? nameOf(latest.actorID) : null : null,
       target: latest.type !== 'dawn' && latest.targetID ? nameOf(latest.targetID) : null,
       deaths: latest.type === 'dawn' ? (latest.deaths ?? []).slice(0, 12).map(nameOf) : [],
       ballots: latest.type === 'vote' || latest.type === 'sheriff-election' ? Object.entries(latest.votes ?? {}).slice(0, 12).map(([id, target]) => ({ voter: nameOf(id), target: target ? nameOf(target) : '棄票', weight: latest.type === 'vote' && latest.weights?.[id] === 3 ? 1.5 : 1 })) : [],
@@ -56,7 +56,9 @@ export async function createMoonPoster(options: MoonPosterOptions): Promise<Blob
   let title = '列車即將出發。';
   if (latest?.type === 'dawn') title = latest.deaths.length ? '晨光照見空下來的座位。' : '平安夜，列車仍有希望。';
   if (latest?.type === 'vote') title = latest.target ? `餐車的決定：放逐 ${latest.target}` : latest.tied.length ? '票數相同，信任仍未落定。' : '這一次，沒有人被放逐。';
-  if (latest?.type === 'hunter') title = latest.target ? '獵人的最後一槍。' : '獵人放下了槍。';
+  if (latest?.type === 'hunter') title = latest.target ? latest.shooter + '的最後一槍。' : latest.shooter + '放下了槍。';
+  if (latest?.type === 'explosion') title = latest.target ? '白狼王自爆，帶走一位乘客。' : '狼人自爆離場。';
+  if (latest?.type === 'idiot') title = '白癡翻牌，留場繼續推理。';
   if (latest?.type === 'sheriff-election') title = latest.target ? `${latest.target} 接過警徽。` : '警長選舉未選出人選。';
   if (latest?.type === 'sheriff-transfer') title = latest.target ? `警徽交到 ${latest.target} 手中。` : '警徽已被銷毀。';
   text(ctx, title, 94, 704, 39, '#edcf97', 750, 885);
@@ -67,11 +69,11 @@ export async function createMoonPoster(options: MoonPosterOptions): Promise<Blob
     text(ctx, latest.deaths.length ? '昨夜離場的乘客' : '沒有乘客在昨夜離場', 94, 779, 25, '#b5c1d0');
     latest.deaths.slice(0, 8).forEach((name, i) => text(ctx, name, 94 + (i % 2) * 441, 830 + Math.floor(i / 2) * 46, 28, '#e6e6e9', 600, 415));
     if (!latest.deaths.length) text(ctx, '謎團尚未解開，下一段對話正要開始。', 94, 874, 28, '#95d9c3');
-  } else if (latest?.type === 'hunter' || latest?.type === 'sheriff-transfer') {
-    text(ctx, `${latest.actor ?? '乘客'} → ${latest.target ?? '放棄'}`, 94, 822, 37, '#e4e7ed', 650, 870);
+  } else if (latest && ['hunter', 'explosion', 'idiot', 'sheriff-transfer'].includes(latest.type)) {
+    text(ctx, latest.type === 'idiot' ? `${latest.actor ?? '乘客'} · 永久失去投票權` : `${latest.actor ?? '乘客'} → ${latest.target ?? (latest.type === 'explosion' ? '自爆離場' : '放棄')}`, 94, 822, 37, '#e4e7ed', 650, 870);
     text(ctx, '一個決定，改變這班列車的方向。', 94, 917, 28, '#b5c1d0');
   } else text(ctx, '每段發言、每張公開選票，都會留下線索。', 94, 833, 28, '#b5c1d0', 500, 870);
-  const result = model.outcome === 'town' ? '好人獲勝 · 列車駛向晨光' : model.outcome === 'wolves' ? '狼人獲勝 · 滿月掌握列車' : '旅程仍在繼續 · 留下這一刻';
+  const result = model.outcome === 'town' ? '好人獲勝 · 列車駛向晨光' : model.outcome === 'wolves' ? '狼人獲勝 · 滿月掌握列車' : model.outcome === 'draw' ? '平局 · 雙方全數離場' : '旅程仍在繼續 · 留下這一刻';
   text(ctx, result, 70, 1158, 36, model.outcome === 'wolves' ? '#ff9ca3' : '#e7c98f', 700, 950);
   ctx.strokeStyle = '#786f5e'; ctx.beginPath(); ctx.moveTo(70, 1227); ctx.lineTo(1010, 1227); ctx.stroke();
   text(ctx, '捷寶桌遊室', 70, 1290, 26, '#eee8d9', 650);

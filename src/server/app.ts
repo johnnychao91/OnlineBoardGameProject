@@ -587,7 +587,9 @@ export async function createApplication(config: AppConfig) {
           if (current.gameSelected === false || !selected.normalizeOptions) fail(400, '這個遊戲沒有可調整的規則');
           try { options = selected.normalizeOptions(body.options); }
           catch (error) { fail(400, (error as Error).message); }
-          const invalid = selected.validateOptions?.(options, selected.maxPlayers);
+          const invalid = selected.validateLobbyOptions
+            ? selected.validateLobbyOptions(options)
+            : selected.validateOptions?.(options, selected.maxPlayers);
           if (invalid) fail(400, invalid);
         } else options = selected.normalizeOptions?.(undefined);
         if (current.gameSelected !== false && selected.id === current.gameId

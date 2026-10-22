@@ -31,13 +31,14 @@ describe('Moon passenger intelligence', () => {
     expect(moonKnownFactions(G, '1')['5']).toBeUndefined();
     expect(moonKnownFactions(G)).toEqual({});
   });
-  it('marks public reveals but hides all faction labels and classes when concealed', () => {
+  it('keeps public reveals while concealing private faction knowledge', () => {
     const G = fixture(); G.players['6'].revealedFaction = 'town'; G.players['6'].revealedRole = 'hunter';
     expect(moonKnownFactions(G, '0')['6']).toBe('town');
-    expect(moonKnownFactions(G, '0', true, true)).toEqual({});
+    expect(moonKnownFactions(G, '0', true, true)).toEqual({ '6': 'town' });
     const html = renderToStaticMarkup(createElement(MoonParticipants, { G, nameOf: id => `乘客 ${id}`, ownID: '0', concealed: true, omniscient: true }));
-    expect(html).not.toMatch(/known-wolves|known-town|moon-known-faction|moon-wolf-text|狼人陣營|好人陣營/);
-    expect(html).toContain('獵人'); // The already public role remains public, without color.
+    expect(html).not.toMatch(/known-wolves|moon-wolf-text|狼人陣營/);
+    expect(html).toContain('known-town'); expect(html).toContain('好人陣營');
+    expect(html).toContain('獵人'); // A public reveal remains visible even when private intelligence is covered.
   });
   it('god colors require explicit authorization and vanish on blind reprojection', () => {
     const G = fixture();

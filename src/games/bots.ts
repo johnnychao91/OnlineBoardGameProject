@@ -84,13 +84,20 @@ function moonAction(G: MoonState, id: string, random: Random): BotAction | null 
   if (['briefing', 'dawn', 'vote-review'].includes(G.status) && own.alive && !own.acknowledged) return action('acknowledge', G.epoch);
   // Deadline advancement belongs exclusively to the shared server clock.
   if (G.deadline === null || Date.now() >= G.deadline) return null;
-  if (G.status === 'hunter' && G.hunterID === id) return action('hunterShoot', pick([...living, null], random), G.epoch);
-  if (G.status === 'sheriff-transfer' && G.sheriffTransferID === id) return action('transferBadge', pick([...living, null], random), G.epoch);
+  if (G.status === 'hunter' && G.hunterID === id) {
+    const targets = G.configuration?.forcedHunter && info?.role === 'hunter' && living.length ? living : [...living, null];
+    return action('hunterShoot', pick(targets, random), G.epoch);
+  }
+  if (G.status === 'sheriff-transfer' && G.sheriffTransferID === id) {
+    return action('transferBadge', pick([...living.filter(other => !G.players[other].voteDisabled), null], random), G.epoch);
+  }
   if (!own.alive || !info) return null;
   if (G.status === 'night' && !info.nightSubmitted) {
     if (G.nightStep === 0 && info.role === 'guard') return action('guard', pick([...living.filter(other => other !== info.previousGuard), null], random), G.epoch);
-    if (G.nightStep === 1 && info.role === 'wolf') {
-      const targets = others.filter(other => !info.knownWolves.includes(other));
+    if (G.nightStep === 1 && info.faction === 'wolves' && !(G.configuration?.firstNightPeace && G.day === 1)) {
+      // The authorized view supplies legal targets without inspecting another
+      // seat's role. Legacy matches keep their non-wolf-only targeting rule.
+      const targets = info.wolfTargets ?? others.filter(other => !info.knownWolves.includes(other));
       const teammateChoices = Object.values(info.wolfVotes).filter((other): other is string => other !== null && targets.includes(other));
       const target = teammateChoices.length && random() < 0.8 ? pick(teammateChoices, random) : pick([...targets, null], random);
       return action('wolfVote', target, G.epoch);
@@ -107,17 +114,21 @@ function moonAction(G: MoonState, id: string, random: Random): BotAction | null 
       return action('witch', 'skip', null, G.epoch);
     }
   }
+  if (G.status === 'speaking' && G.configuration?.allowWolfExplosion && info.faction === 'wolves' && info.role !== 'ghost-rider' && random() < 0.03) {
+    if (info.role === 'white-wolf-king' && others.length) return action('wolfExplode', pick(others, random), G.epoch);
+    if (info.role === 'wolf' || info.role === 'wolf-king') return action('wolfExplode', null, G.epoch);
+  }
   if (['speaking', 'sheriff-speech'].includes(G.status) && G.speakerID === id) return action('finishSpeech', G.epoch);
-  if (G.status === 'voting' && !info.voteSubmitted) {
+  if (G.status === 'voting' && !own.voteDisabled && !info.voteSubmitted) {
     const candidates = G.voteCandidates.filter(other => other !== id);
     return action('exileVote', pick([...candidates, null], random), G.epoch);
   }
   // Leave enough non-candidates to exercise an election, instead of eventually
   // signing every bot up as the scheduler revisits the same timed stage.
-  if (G.status === 'sheriff-signup' && !G.sheriffCandidates.includes(id) && G.sheriffCandidates.length < 2 && random() < 0.4) {
+  if (G.status === 'sheriff-signup' && !own.voteDisabled && !G.sheriffCandidates.includes(id) && G.sheriffCandidates.length < 2 && random() < 0.4) {
     return action('standForSheriff', true, G.epoch);
   }
-  if (G.status === 'sheriff-voting' && !G.sheriffCandidates.includes(id) && !info.voteSubmitted) {
+  if (G.status === 'sheriff-voting' && !own.voteDisabled && !G.sheriffCandidates.includes(id) && !info.voteSubmitted) {
     return action('sheriffVote', pick([...G.sheriffCandidates, null], random), G.epoch);
   }
   if (G.status === 'sheriff-order' && G.sheriffID === id) {

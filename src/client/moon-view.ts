@@ -3,11 +3,12 @@ import type { MoonFaction, MoonState } from '../games/moon/game';
 /** Derive labels only from this viewer's authorized information, never by
  * eliminating unlisted players or reading another player's private record. */
 export function moonKnownFactions(G: MoonState, ownID?: string, concealed = false, omniscient = false): Record<string, MoonFaction> {
-  if (concealed) return {};
   const known: Record<string, MoonFaction> = {};
   const mark = (id: string, faction: MoonFaction | undefined) => {
     if (G.players[id] && (faction === 'town' || faction === 'wolves')) known[id] = faction;
   };
+  for (const [id, player] of Object.entries(G.players)) mark(id, player.revealedFaction);
+  if (concealed) return known;
   if (omniscient) {
     for (const [id, secret] of Object.entries(G.private ?? {})) mark(id, secret.faction);
   } else if (ownID && G.private?.[ownID]) {

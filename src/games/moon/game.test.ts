@@ -313,7 +313,7 @@ describe('夜間計時、技能與秘密資訊', () => {
   it.each([6, 7, 8, 9, 10, 11, 12].flatMap(count => (['online', 'assisted'] as const).map(mode => ({ count, mode }))))('$mode 模式 $count 人新局每晚只排已配置職業，保留完整時段與公開投影', ({ count, mode }) => {
     const client = makeClient(count, { mode, nightSeconds: 17 }); toNight(client);
     const expectedSteps = [6, 7, 9].includes(count) ? [1, 2, 3] : [0, 1, 2, 3];
-    expect(raw(client).rulesVersion).toBe(2);
+    expect(raw(client).rulesVersion).toBe(3);
     expect(moonNightSteps(count, 2)).toEqual(expectedSteps);
     for (const step of expectedSteps) {
       const G = raw(client);
@@ -323,7 +323,7 @@ describe('夜間計時、技能與秘密資訊', () => {
       expect(advanceMoonClock(restored, now + 16999)).toBe(false);
       expect(advanceMoonClock(restored, Number.NaN)).toBe(false);
       for (const view of [moonPlayerView({ G, playerID: '0' }), moonObserverView(G, 'blind'), moonObserverView(G, 'god')]) {
-        expect(view).toMatchObject({ rulesVersion: 2, nightStep: step, deadline: G.deadline });
+        expect(view).toMatchObject({ rulesVersion: 3, nightStep: step, deadline: G.deadline });
         expect(view).not.toHaveProperty('secret');
         expect(moonNightSteps(Object.keys(view.players).length, view.rulesVersion)).toEqual(expectedSteps);
       }
@@ -596,6 +596,7 @@ describe('可選警長', () => {
 describe('隔離、唯讀投影與框架防護', () => {
   it('投影採白名單，無跨人情報、秘密或意外新增欄位，且無共用參照', () => {
     const client = makeClient(), G = structuredClone(raw(client)), expected = structuredClone(G.private);
+    for (const info of Object.values(expected)) if (info.faction === 'wolves') info.wolfTargets = Object.keys(G.players).filter(id => G.private[id].faction !== 'wolves');
     Object.assign(G, { hiddenToken: 'hidden-root' }); Object.assign(G.options, { hidden: 'hidden-option' });
     Object.assign(G.players['0'], { hidden: 'hidden-player' }); Object.assign(G.private['0'], { hidden: 'hidden-private' });
     Object.assign(G.log[0], { hidden: 'hidden-log' }); G.private.unseated = { ...G.private['0'] };

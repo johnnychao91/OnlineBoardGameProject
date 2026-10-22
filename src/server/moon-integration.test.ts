@@ -117,7 +117,7 @@ async function quietNight(f: Fixture, g: Group, inspectDuringSeer = false) {
   expect(g.seats).toHaveLength(6);
   for (const slot of [1, 2, 3]) {
     const before = await f.state(g); expect(before.G).toMatchObject({ status: 'night', nightStep: slot });
-    for (const socket of g.sockets) expect(f.views.get(socket)!.G).toMatchObject({ rulesVersion: 2, status: 'night', nightStep: slot, deadline: before.G.deadline });
+    for (const socket of g.sockets) expect(f.views.get(socket)!.G).toMatchObject({ rulesVersion: 3, status: 'night', nightStep: slot, deadline: before.G.deadline });
     if (slot === 2 && inspectDuringSeer) {
       const seer = Object.keys(before.G.private).find(id => before.G.private[id].role === 'seer')!;
       const target = Object.keys(before.G.players).find(id => id !== seer && before.G.players[id].alive)!;
@@ -143,6 +143,46 @@ async function speeches(f: Fixture, g: Group) {
 }
 
 describe('Silver Moon shared framework and authoritative timers', () => {
+  it('counts a persisted draw separately from wins and keeps its rules and blind replay through restart', async () => {
+    const f = await fixture(), g = await f.group();
+    await f.start(g, { ...DEFAULT_MOON_OPTIONS, presetId: 'six-wolf-king' });
+    const state = await f.state(g);
+    // The rules suite exercises the lethal chain; this fixture tests the
+    // completed-state storage, statistics and authorized replay boundary.
+    state.G.status = 'finished'; state.G.winner = 'draw'; state.G.winReason = 'mutual-elimination';
+    state.G.deadline = null;
+    for (const [id, player] of Object.entries(state.G.players)) {
+      player.alive = false; player.revealedRole = state.G.private[id].role; player.revealedFaction = state.G.private[id].faction;
+    }
+    state.G.log.push({ type: 'finish', day: 1, winner: 'draw', reason: 'mutual-elimination' });
+    state.ctx.gameover = { winner: 'draw', reason: 'mutual-elimination' }; state._stateID += 1;
+    await f.app.db.setState(g.matchID, state);
+    const stats = (await f.request('/api/stats')).body;
+    expect(stats).toMatchObject({ completedGames: 1, totalPlayerParticipations: 6 });
+    expect(stats.byGame.find((game: any) => game.gameId === 'silver-moon')).toMatchObject({
+      completed: 1, draws: 1, wins: {}, reasons: { 'mutual-elimination': 1 },
+      byPlayerCount: [{ numPlayers: 6, completed: 1, draws: 1, wins: {} }],
+    });
+    await f.app.db.setState(g.matchID, state);
+    expect((await f.request('/api/stats')).body).toEqual(stats);
+    const replay = await f.request(path(g, 'replay?perspective=blind'), undefined, g.observer);
+    expect(replay.status).toBe(200);
+    expect(replay.body.frames.at(-1).G).toMatchObject({ winner: 'draw', private: {}, configuration: { presetId: 'six-wolf-king', victory: 'city' } });
+    const shared = await f.request(path(g, 'share'), { matchID: g.matchID, frameIndex: 0, perspective: 'blind' }, g.host);
+    expect(shared.status).toBe(200);
+    await f.restart(g);
+    const publicReplay = await f.request(`/api/replays/${g.host.roomId}`, undefined, undefined, { 'X-Replay-Token': token(shared.body.url, 'share') });
+    expect(publicReplay.status).toBe(200);
+    publicReplay.body.frames.forEach((frame: any) => { expect(frame.G.private).toEqual({}); noSecrets(frame.G); });
+    expect(publicReplay.body.frames.at(-1).G.winner).toBe('draw');
+    expect((await f.request('/api/stats')).body).toEqual(stats);
+    await f.request(path(g), undefined, g.host); f.advance(8001);
+    const lobby = (await f.request(path(g), undefined, g.host)).body;
+    expect(lobby).toMatchObject({ status: 'lobby', gameOptions: { presetId: 'six-wolf-king' } });
+    expect(lobby.history.at(-1)).toMatchObject({ matchID: g.matchID, ending: 'completed', winner: 'draw', reason: 'mutual-elimination' });
+    expect((await f.request('/api/stats')).body).toEqual(stats);
+  }, 30000);
+
   it('waits for a delayed durable move and its socket publication without advancing game time', async () => {
     const f = await fixture(), g = await f.group(); await f.start(g);
     const before = await f.state(g), gameTime = Date.now();
@@ -168,7 +208,7 @@ describe('Silver Moon shared framework and authoritative timers', () => {
     for (const perspective of ['blind', 'god']) {
       const night = await f.request(path(g, `view?perspective=${perspective}`), undefined, g.observer);
       expect(night.status).toBe(200);
-      expect(night.body.G).toMatchObject({ rulesVersion: 2, status: 'night', nightStep: 1 });
+      expect(night.body.G).toMatchObject({ rulesVersion: 3, status: 'night', nightStep: 1 });
       expect(Object.keys(night.body.G.private)).toHaveLength(perspective === 'blind' ? 0 : 6);
       noSecrets(night.body.G);
     }
@@ -195,7 +235,7 @@ describe('Silver Moon shared framework and authoritative timers', () => {
     shared.body.frames.forEach((frame: any) => { expect(frame.G.private).toEqual({}); noSecrets(frame.G); });
     const nightFrames = shared.body.frames.filter((frame: any) => frame.G.status === 'night');
     expect([...new Set(nightFrames.map((frame: any) => frame.G.nightStep))]).toEqual([1, 2, 3]);
-    nightFrames.forEach((frame: any) => expect(frame.G.rulesVersion).toBe(2));
+    nightFrames.forEach((frame: any) => expect(frame.G.rulesVersion).toBe(3));
     expect((await f.request('/api/stats')).body.completedGames).toBe(1);
     await f.request(path(g), undefined, g.host); f.advance(8001);
     const lobby = (await f.request(path(g), undefined, g.host)).body;
@@ -231,8 +271,8 @@ describe('Silver Moon shared framework and authoritative timers', () => {
     await f.start(a); await f.start(b, { ...DEFAULT_MOON_OPTIONS, mode: 'assisted', nightSeconds: 45 }); await f.start(c);
     await ack(f, a); await ack(f, b);
     const bBefore = await f.state(b), cBefore = await f.state(c);
-    expect((await f.state(a)).G).toMatchObject({ rulesVersion: 2, nightStep: 0 });
-    expect(bBefore.G).toMatchObject({ rulesVersion: 2, nightStep: 1 });
+    expect((await f.state(a)).G).toMatchObject({ rulesVersion: 3, nightStep: 0 });
+    expect(bBefore.G).toMatchObject({ rulesVersion: 3, nightStep: 1 });
     await f.expire(a);
     expect((await f.state(b))._stateID).toBe(bBefore._stateID); expect((await f.state(c))._stateID).toBe(cBefore._stateID);
     const { G } = await f.state(a), wolves = Object.keys(G.private).filter(id => G.private[id].role === 'wolf');
@@ -263,7 +303,7 @@ describe('Silver Moon shared framework and authoritative timers', () => {
     const f = await fixture(), g = await f.group();
     await f.start(g, { ...DEFAULT_MOON_OPTIONS, mode }); await ack(f, g);
     const { G } = await f.state(g), wolves = Object.keys(G.private).filter(id => G.private[id].role === 'wolf');
-    expect(G).toMatchObject({ rulesVersion: 2, status: 'night', nightStep: 1 });
+    expect(G).toMatchObject({ rulesVersion: 3, status: 'night', nightStep: 1 });
     const targets = Object.keys(G.private).filter(id => G.private[id].role !== 'wolf');
     for (const id of wolves) await f.move(g, id, 'wolfVote', [targets[0], G.epoch]);
     f.advance(2000);
@@ -280,10 +320,10 @@ describe('Silver Moon shared framework and authoritative timers', () => {
     const beforeRestart = await f.state(g);
     await f.restart(g);
     expect((await f.state(g)).G.secret).toEqual(beforeRestart.G.secret);
-    expect((await f.state(g)).G).toMatchObject({ rulesVersion: 2, status: 'night', nightStep: 1, deadline: G.deadline });
+    expect((await f.state(g)).G).toMatchObject({ rulesVersion: 3, status: 'night', nightStep: 1, deadline: G.deadline });
     g.sockets.forEach(socket => {
       noSecrets(f.views.get(socket));
-      expect(f.views.get(socket)!.G).toMatchObject({ rulesVersion: 2, status: 'night', nightStep: 1, deadline: G.deadline });
+      expect(f.views.get(socket)!.G).toMatchObject({ rulesVersion: 3, status: 'night', nightStep: 1, deadline: G.deadline });
     });
     f.advance(1999); await new Promise(ok => setTimeout(ok, 80));
     expect((await f.state(g)).G.nightStep).toBe(1);
