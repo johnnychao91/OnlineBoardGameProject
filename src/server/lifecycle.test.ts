@@ -7,6 +7,7 @@ import { io, type Socket } from 'socket.io-client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { StationState } from '../games/station/game';
 import { createApplication, type AppConfig } from './app';
+import type { GuardedTransport } from './transport';
 
 interface Seat { playerID: string; credentials: string }
 interface Observer { observerID: string; credentials: string }
@@ -18,6 +19,11 @@ interface Group {
 type Snapshot = State<StationState>;
 const origin = 'http://localhost:5173';
 const cleanups: (() => Promise<void>)[] = [];
+// Socket delivery and durable writes have their own real-time budget. Presence
+// deadlines below use a controlled clock, so slow disks cannot expire a room
+// while the test is still reconnecting its players.
+const ioWait = { timeout: 10000, interval: 25 };
+const scenarioTimeout = 30000;
 
 afterEach(async () => {
   for (const cleanup of cleanups.splice(0).reverse()) await cleanup();
@@ -33,6 +39,11 @@ const packet = (seat: Seat, type: string, args: unknown[] = []) => ({
   type: 'MAKE_MOVE', payload: { type, args, playerID: seat.playerID, credentials: seat.credentials },
 });
 const pause = (ms: number) => new Promise((done) => setTimeout(done, ms));
+function presenceClock() {
+  let now = Date.now();
+  vi.spyOn(Date, 'now').mockImplementation(() => now);
+  return { advance(ms: number) { now += ms; } };
+}
 function expectNoSecrets(value: unknown) {
   expect(JSON.stringify(value)).not.toMatch(/"(?:seed|prngstate|unusedRoles|credentials|credentialHash|inviteHash|inviteToken|metadata)"\s*:/);
 }
@@ -87,31 +98,63 @@ async function fixture(overrides: Partial<AppConfig> = {}) {
       views.set(socket, state);
     });
     await new Promise<void>((ok, reject) => {
-      const timeout = setTimeout(() => reject(new Error('Socket connect timed out')), 3000);
-      socket.once('connect', () => { clearTimeout(timeout); ok(); });
-      socket.once('connect_error', (error) => { clearTimeout(timeout); reject(error); });
+      const cleanup = () => { clearTimeout(timeout); socket.off('connect', connected); socket.off('connect_error', failed); };
+      const connected = () => { cleanup(); ok(); };
+      const failed = (error: Error) => { cleanup(); reject(error); };
+      const timeout = setTimeout(() => failed(new Error('Socket connect timed out')), ioWait.timeout);
+      socket.once('connect', connected);
+      socket.once('connect_error', failed);
       socket.connect();
     });
     return socket;
   };
   const sync = async (socket: Socket, matchID: string, seat: Seat, count = 4) => {
     const result = new Promise<SyncInfo>((ok, reject) => {
-      const timeout = setTimeout(() => reject(new Error(`Authorized sync timed out: ${matchID}/${seat.playerID}`)), 3000);
-      socket.once('sync', (_id: string, info: SyncInfo) => { clearTimeout(timeout); ok(info); });
+      const received = (id: string, info: SyncInfo) => {
+        if (id !== matchID) return;
+        clearTimeout(timeout); socket.off('sync', received); ok(info);
+      };
+      const timeout = setTimeout(() => {
+        socket.off('sync', received);
+        reject(new Error(`Authorized sync timed out: ${matchID}/${seat.playerID}`));
+      }, ioWait.timeout);
+      socket.on('sync', received);
     });
     socket.emit('sync', matchID, seat.playerID, seat.credentials, count);
-    return result;
+    const info = await result;
+    // The sync packet precedes the framework's connection metadata write and
+    // the presence registration. Establish both before moving the test clock.
+    await (app.server.transport as GuardedTransport).drain();
+    return info;
   };
   const state = async (matchID: string) => (await app.db.fetch(matchID, { state: true })).state! as Snapshot;
   const move = async (group: Group, index: number, type: string, args: unknown[] = []) => {
     const before = await state(group.matchID);
     const seat = group.seats[index];
     group.clients[index].emit('update', packet(seat, type, args), before._stateID, group.matchID, seat.playerID);
-    await vi.waitFor(async () => expect((await state(group.matchID))._stateID).toBeGreaterThan(before._stateID), { timeout: 4000 });
+    await vi.waitFor(async () => expect((await state(group.matchID))._stateID).toBeGreaterThan(before._stateID), ioWait);
     return state(group.matchID);
   };
   return {
     get app() { return app; }, request, connect, sync, state, move, views, events,
+    async disconnect(...clients: Socket[]) {
+      // Client.disconnect() returns before the server receives the packet. Wait
+      // for its event and queued metadata write before advancing lease time.
+      await Promise.all(clients.map((client) => {
+        const serverSocket = (app.server.app as any)._io.of('space-station').sockets.get(client.id);
+        if (!serverSocket) { client.disconnect(); return; }
+        return new Promise<void>((ok, reject) => {
+          const disconnected = () => { clearTimeout(timeout); ok(); };
+          const timeout = setTimeout(() => {
+            serverSocket.off('disconnect', disconnected);
+            reject(new Error('Server disconnect timed out'));
+          }, ioWait.timeout);
+          serverSocket.once('disconnect', disconnected);
+          client.disconnect();
+        });
+      }));
+      await (app.server.transport as GuardedTransport).drain();
+    },
     async restart() {
       for (const socket of sockets.splice(0)) socket.disconnect();
       const previous = running;
@@ -303,7 +346,7 @@ describe('Reusable rooms and match lifecycle', () => {
       path(unrelated.host, `replay?matchID=${firstID}`), undefined, unrelated.host,
     )).status);
     expect((await f.request(`/api/replays/${unrelated.host.roomId}`, undefined, undefined, shareHeaders)).status).toBe(403);
-  }, 20000);
+  }, scenarioTimeout);
 
   it('allows only the current host to end the expected active game, without counting a win or changing another room', async () => {
     const f = await fixture();
@@ -342,7 +385,7 @@ describe('Reusable rooms and match lifecycle', () => {
     const foreignReplay = await f.request(path(other.host, `replay?matchID=${activeID}`), undefined, other.host);
     expect([403, 404]).toContain(foreignReplay.status);
     expect(await f.state(other.matchID)).toEqual(otherState);
-  }, 20000);
+  }, scenarioTimeout);
 
   it('transfers host authority when the host leaves and permanently revokes the departed membership', async () => {
     const f = await fixture();
@@ -388,67 +431,77 @@ describe('Reusable rooms and match lifecycle', () => {
     expect((await f.request(path(g.host, 'join'), rejoinAdmission)).status).toBe(403);
     expect((await f.request(path(g.host), undefined, g.host)).status).toBe(401);
     expect((await f.request(path(g.host), undefined, nextHost)).body.hostPlayerID).toBe(nextHost.playerID);
-  }, 10000);
+  }, scenarioTimeout);
 
   it('keeps a game alive while any tab is connected and allows reconnection within the disconnect grace', async () => {
+    const clock = presenceClock();
     const f = await fixture({ presenceLeaseMs: 350, lifecycleSweepMs: 25 });
     const g = await group(f);
     await start(f, g);
     const activeID = g.matchID;
     const secondTab = await f.connect();
     await f.sync(secondTab, activeID, g.host);
-    g.clients.forEach((client) => client.disconnect());
-    await pause(750);
+    await f.disconnect(...g.clients);
+    clock.advance(750);
     expect((await f.request(path(g.host), undefined, g.host)).body).toMatchObject({ matchID: activeID, status: 'playing' });
     expect((await f.state(activeID)).G.status).toBe('playing');
-    secondTab.disconnect();
-    await pause(90);
+    await f.disconnect(secondTab);
+    clock.advance(90);
     const refreshedTab = await f.connect();
     await f.sync(refreshedTab, activeID, g.host);
-    await pause(450);
+    clock.advance(450);
     expect((await f.request(path(g.host), undefined, g.host)).body.matchID).toBe(activeID);
-    refreshedTab.disconnect();
+    await f.disconnect(refreshedTab);
+    clock.advance(349);
+    expect((await f.request(path(g.host), undefined, g.host)).body.matchID).toBe(activeID);
+    clock.advance(1);
     await vi.waitFor(async () => {
       const info = await f.request(path(g.host), undefined, g.host);
       expect(info.body.status).toBe('lobby');
       expect(info.body.matchID).not.toBe(activeID);
       expect(info.body.history).toContainEqual(expect.objectContaining({ matchID: activeID, ending: 'empty' }));
-    }, { timeout: 3000, interval: 40 });
+    }, ioWait);
     expect((await f.request('/api/stats')).body.completedGames).toBe(0);
-  }, 10000);
+  }, scenarioTimeout);
 
   it('counts observers as presence and gives every persisted active room a fresh reconnect grace after restart', async () => {
+    const clock = presenceClock();
     const f = await fixture({ presenceLeaseMs: 350, lifecycleSweepMs: 25 });
     const g = await group(f);
     await start(f, g);
     const activeID = g.matchID;
-    g.clients.forEach((client) => client.disconnect());
+    await f.disconnect(...g.clients);
     const sessionID = randomUUID();
     for (let beat = 0; beat < 8; beat++) {
       expect((await f.request(path(g.host, 'heartbeat'), { sessionID }, g.observer)).status).toBe(200);
-      await pause(80);
+      clock.advance(80);
     }
     expect((await f.request(path(g.host), undefined, g.observer)).body).toMatchObject({ matchID: activeID, status: 'playing' });
     expect((await f.request(path(g.host, 'heartbeat'), { sessionID: randomUUID() }, {
       observerID: g.observer.observerID, credentials: g.host.credentials,
     })).status).toBe(401);
     await f.restart();
-    await pause(100);
+    // Simulate a slow restart/client setup taking longer than the short test
+    // lease. Only the explicitly advanced presence clock should expire it.
+    await pause(400);
+    clock.advance(100);
     expect((await f.request(path(g.host), undefined, g.observer)).body.matchID).toBe(activeID);
     const connected = await f.connect();
     await f.sync(connected, activeID, g.host);
-    await pause(450);
+    clock.advance(450);
     expect((await f.request(path(g.host), undefined, g.host)).body.matchID).toBe(activeID);
-    connected.disconnect();
+    await f.disconnect(connected);
+    clock.advance(350);
     await vi.waitFor(async () => {
       const info = await f.request(path(g.host), undefined, g.host);
       expect(info.body.history).toContainEqual(expect.objectContaining({ matchID: activeID, ending: 'empty' }));
       expect(info.body.status).toBe('lobby');
-    }, { timeout: 3000, interval: 40 });
+    }, ioWait);
     expect((await f.request('/api/stats')).body.completedGames).toBe(0);
-  }, 10000);
+  }, scenarioTimeout);
 
   it('revokes explicit player and observer departures, and ends immediately when the final observer leaves', async () => {
+    presenceClock();
     const f = await fixture({ presenceLeaseMs: 30000, lifecycleSweepMs: 25 });
     const g = await group(f);
     await start(f, g);
@@ -470,7 +523,7 @@ describe('Reusable rooms and match lifecycle', () => {
       const record = f.app.rooms.rooms.get(g.host.roomId)!;
       expect(record.history).toContainEqual(expect.objectContaining({ matchID: activeID, ending: 'empty' }));
       expect(record.currentMatchID).not.toBe(activeID);
-    }, { timeout: 2000, interval: 25 });
+    }, ioWait);
     expect((await f.request(path(g.host), undefined, g.observer)).status).toBe(401);
     expect((await f.request(path(g.host, 'watch'), g.observerAdmission)).status).toBe(403);
     await f.restart();
@@ -482,9 +535,10 @@ describe('Reusable rooms and match lifecycle', () => {
     expect(replacement.body).toMatchObject({ numPlayers: 1, status: 'lobby', hostPlayerID: '0' });
     expect(replacement.body.credentials).not.toBe(g.host.credentials);
     expect((await f.request('/api/stats')).body.completedGames).toBe(0);
-  }, 10000);
+  }, scenarioTimeout);
 
   it('does not treat a public replay recipient as a live room member during a later game', async () => {
+    const clock = presenceClock();
     const f = await fixture({ presenceLeaseMs: 350, lifecycleSweepMs: 25 });
     const g = await group(f);
     await start(f, g);
@@ -500,18 +554,18 @@ describe('Reusable rooms and match lifecycle', () => {
     const shareHeaders = { 'X-Replay-Token': token(shared.body.url, 'share') };
     await start(f, g);
     const activeID = g.matchID;
-    g.clients.forEach((client) => client.disconnect());
+    await f.disconnect(...g.clients);
     for (let visit = 0; visit < 12; visit++) {
       const publicReplay = await f.request(`/api/replays/${g.host.roomId}`, undefined, undefined, shareHeaders);
       expect(publicReplay.status).toBe(200);
       expect(publicReplay.body.frames).toEqual(replay.body.frames);
-      await pause(80);
+      clock.advance(80);
     }
     const lobby = await f.request(path(g.host), undefined, g.host);
     expect(lobby.body.status).toBe('lobby');
     expect(lobby.body.history).toContainEqual(expect.objectContaining({ matchID: activeID, ending: 'empty' }));
     expect((await f.request('/api/stats')).body.completedGames).toBe(1);
-  }, 10000);
+  }, scenarioTimeout);
 
   it('rechecks a queued player operation after that membership has left the still-active game', async () => {
     const f = await fixture();
@@ -544,5 +598,5 @@ describe('Reusable rooms and match lifecycle', () => {
     expect((await f.state(g.matchID)).G.log).toEqual(before.G.log);
     expect((await f.request(path(g.host), undefined, g.seats.find((seat) => seat.playerID !== actor.playerID)!)).body.status).toBe('playing');
     expect((await f.request(path(g.host), undefined, actor)).status).toBe(401);
-  }, 10000);
+  }, scenarioTimeout);
 });
