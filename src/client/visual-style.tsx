@@ -2,14 +2,15 @@ import { useSyncExternalStore } from 'react';
 
 export type VisualStyle = 'simple' | 'art';
 export const VISUAL_STYLE_KEY = 'friends-table.visual-style';
+const DEFAULT_VISUAL_STYLE: VisualStyle = 'art';
 
 export function parseVisualStyle(value: unknown): VisualStyle {
-  return value === 'art' ? 'art' : 'simple';
+  return value === 'simple' ? 'simple' : DEFAULT_VISUAL_STYLE;
 }
 
 export function readVisualStyle(): VisualStyle {
   try { return parseVisualStyle(localStorage.getItem(VISUAL_STYLE_KEY)); }
-  catch { return 'simple'; }
+  catch { return DEFAULT_VISUAL_STYLE; }
 }
 
 export function saveVisualStyle(value: VisualStyle): VisualStyle {
@@ -19,11 +20,11 @@ export function saveVisualStyle(value: VisualStyle): VisualStyle {
   return style;
 }
 
-let currentStyle: VisualStyle = 'simple';
+let currentStyle: VisualStyle = DEFAULT_VISUAL_STYLE;
 let initialized = false;
 const listeners = new Set<() => void>();
 const getSnapshot = () => currentStyle;
-const getServerSnapshot = (): VisualStyle => 'simple';
+const getServerSnapshot = (): VisualStyle => DEFAULT_VISUAL_STYLE;
 function subscribe(listener: () => void) {
   listeners.add(listener);
   return () => { listeners.delete(listener); };

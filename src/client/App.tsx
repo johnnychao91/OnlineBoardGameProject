@@ -172,6 +172,7 @@ function Room({ seat, onSwitch }: { seat: AuthSession; onSwitch: (seat: AuthSess
   const [error, setError] = useState('');
   const [loaded, setLoaded] = useState(false);
   const [invalidSeat, setInvalidSeat] = useState(false);
+  const [managementContainer, setManagementContainer] = useState<HTMLDivElement | null>(null);
   const acceptedRevision = useRef(0);
   const rememberedOptionsRevision = useRef('');
   const sessionID = useRef(crypto.randomUUID());
@@ -257,7 +258,7 @@ function Room({ seat, onSwitch }: { seat: AuthSession; onSwitch: (seat: AuthSess
     <Header room={seat.roomId} rulesGame={info.gameSelected !== false ? info.gameName : undefined} />
     {error && <div className="room-error"><ErrorMessage>{error}</ErrorMessage><p className="small muted">連線恢復後會自動重試。請保留這個頁面。</p></div>}
     {!loaded ? !error && <main className="narrow"><p className="loading" role="status">正在確認你的房間身分…</p></main>
-      : <RoomContext.Provider value={{ seat: session, info, inviteUrl, setInviteUrl, onUpdate: acceptInfo }}>
+      : <RoomContext.Provider value={{ seat: session, info, inviteUrl, setInviteUrl, onUpdate: acceptInfo, managementContainer }}>
         <div className="room-chrome">
         <div className="room-tools">
           <div className="room-status-line"><span>{host && '房主 · '}{isPlayer(seat) ? '玩家座位' : '觀戰席'} · {info.numPlayers} 位玩家 · {info.spectatorCount} 位已加入觀戰<TestRoomBadge info={info} /></span></div>
@@ -266,6 +267,7 @@ function Room({ seat, onSwitch }: { seat: AuthSession; onSwitch: (seat: AuthSess
             <RoomActions seat={session} info={info} onUpdate={acceptInfo} />
           </> : <details className="station-room-menu"><summary>房間管理</summary><div className="station-room-menu-content">
             <RoleSwitcher seat={session} info={info} onChange={onSwitch} />
+            <div className="room-game-management" ref={setManagementContainer} />
             <RoomActions seat={session} info={info} onUpdate={acceptInfo} />
             {host && info.status !== 'lobby' && <details className="post-start-invite"><summary>邀請朋友觀戰</summary><ShareInvite active /></details>}
           </div></details>}

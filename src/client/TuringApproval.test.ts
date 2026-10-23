@@ -6,6 +6,7 @@ import { TuringGame, type TuringState } from '../games/turing/game';
 import { TuringBoard, turingEventText } from './TuringBoard';
 import { TuringOptions } from './TuringOptions';
 import { TuringLiveObservation } from './TuringLiveObservation';
+import { TuringPolicySettings } from './TuringPolicySettings';
 import { TuringSnapshot } from './TuringSnapshot';
 import { RoomContext } from './room-context';
 import type { AuthSession, RoomInfo } from './api';
@@ -65,8 +66,8 @@ describe('Turing approval settings and authority surfaces', () => {
     const host = board(G, info, '1');
     expect(button(host, '房主確認排序')).not.toBe(''); expect(button(host, '房主確認排序')).not.toContain('disabled');
     expect(button(host, '房主重抽題目')).not.toBe('');
-    expect(host).toContain('<details class="turing-policy-details">');
-    expect(host).not.toContain('<details class="turing-policy-details" open');
+    // Live settings are portalled into the room menu, never duplicated on the game board.
+    expect(host).not.toContain('turing-policy-details');
     const guest = board(G, info);
     expect(button(guest, '等待房主確認排序')).toContain('disabled=""');
     expect(button(guest, '房主重抽題目')).toBe('');
@@ -126,8 +127,13 @@ describe('Turing approval settings and authority surfaces', () => {
     const host = live(observer(info));
     expect(button(host, '房主確認排序')).toBe(''); expect(button(host, '房主重抽題目')).toBe('');
     expect(button(host, '檢查完畢，下一題')).toBe('');
-    expect(button(host, '以目前成績結束')).not.toBe(''); expect(host).toContain('turing-policy-details');
-    for (const label of labels) expect(select(host, label)).toContain('value="host" disabled=""');
+    expect(button(host, '以目前成績結束')).not.toBe(''); expect(host).not.toContain('turing-policy-details');
+    const menu = renderToStaticMarkup(createElement(TuringPolicySettings, { seat: observer(info), info, policies: G.options, epoch: G.epoch, compact: true }));
+    expect(menu).toContain('<details class="turing-policy-details">');
+    for (const label of labels) {
+      expect(select(menu, label)).toContain('value="host" disabled=""');
+      expect(select(menu, label)).not.toMatch(/<select[^>]*disabled=""/);
+    }
     expect(table(host)).not.toContain('<button');
     expect(table(host).match(/class="turing-desk-number">\?/g)).toHaveLength(3);
     const ordinary = live(observer(info, 'ordinary-observer'));

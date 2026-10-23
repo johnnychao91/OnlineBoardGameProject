@@ -2,7 +2,7 @@ import { useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { isTuringSharedTable, turingCards, turingCardNumber, type TuringState, type TuringEvent } from '../games/turing/game';
 import { normalizeTuringAnswer, TURING_ANSWER_MAX, TURING_DECKS, type TuringQuestion } from '../games/turing/rules';
 import { isPlayer, isRoomHost, roomHostPlayerID, type RoomInfo } from './api';
-import { RoomContext } from './room-context';
+import { RoomContext, RoomManagementContent } from './room-context';
 import { GameSoundControl } from './GameSoundControl';
 import { BattleReport } from './BattleReport';
 import { Icon } from './ui';
@@ -82,7 +82,7 @@ export function TuringBoard({ G, playerID, moves, isConnected }: Props) {
     {notice && <p className="error-message" role="status">{notice}</p>}
     {hostAction.error && <p className="error-message" role="status">{hostAction.error}</p>}
     {(pending || hostAction.pending) && <p className="small muted" role="status">正在確認操作…</p>}
-    {host && G.rulesVersion >= 4 && <TuringPolicySettings seat={seat} info={info} policies={G.options} epoch={G.epoch} disabled={isConnected === false || pending || hostAction.pending} onBusy={setPolicyPending} compact />}
+    {host && G.rulesVersion >= 4 && <RoomManagementContent><TuringPolicySettings seat={seat} info={info} policies={G.options} epoch={G.epoch} disabled={isConnected === false || pending || hostAction.pending} onBusy={setPolicyPending} compact /></RoomManagementContent>}
     {host && <TuringFinishControl G={G} canAct={canAct} onFinish={() => void hostAction.send('finish')} />}
   </>;
   return <>

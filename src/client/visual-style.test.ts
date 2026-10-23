@@ -4,10 +4,11 @@ import { parseVisualStyle, readVisualStyle, saveVisualStyle, VISUAL_STYLE_KEY } 
 afterEach(() => vi.unstubAllGlobals());
 
 describe('local visual style preference', () => {
-  it('defaults to the existing simple appearance for missing, malformed or unknown preferences', () => {
-    for (const value of [null, undefined, '', 'simple', 'ART', ' art ', 'future-style', '{}', 1]) {
-      expect(parseVisualStyle(value)).toBe('simple');
+  it('defaults to art for missing, malformed or unknown preferences and preserves saved choices', () => {
+    for (const value of [null, undefined, '', 'ART', ' art ', 'future-style', '{}', 1]) {
+      expect(parseVisualStyle(value)).toBe('art');
     }
+    expect(parseVisualStyle('simple')).toBe('simple');
     expect(parseVisualStyle('art')).toBe('art');
   });
 
@@ -15,7 +16,7 @@ describe('local visual style preference', () => {
     const values = new Map<string, string>();
     const storage = { getItem: vi.fn((key: string) => values.get(key) ?? null), setItem: vi.fn((key: string, value: string) => values.set(key, value)) };
     vi.stubGlobal('localStorage', storage);
-    expect(readVisualStyle()).toBe('simple');
+    expect(readVisualStyle()).toBe('art');
     expect(saveVisualStyle('art')).toBe('art');
     expect(storage.setItem).toHaveBeenCalledWith(VISUAL_STYLE_KEY, 'art');
     expect(readVisualStyle()).toBe('art');
@@ -26,7 +27,7 @@ describe('local visual style preference', () => {
 
   it('keeps style switching available when browser storage is blocked', () => {
     vi.stubGlobal('localStorage', { getItem: () => { throw new Error('blocked'); }, setItem: () => { throw new Error('blocked'); } });
-    expect(readVisualStyle()).toBe('simple');
+    expect(readVisualStyle()).toBe('art');
     expect(saveVisualStyle('art')).toBe('art');
     expect(saveVisualStyle('simple')).toBe('simple');
   });

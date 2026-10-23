@@ -260,6 +260,9 @@ button.turing-desk-card:active { cursor: grabbing; }
 .turing-policy-details { margin-top: 14px; }
 .turing-policy-details > summary { cursor: pointer; font-size: .85rem; }
 .turing-policy-details[open] .turing-policy-fields { margin-top: 10px; grid-template-columns: 1fr; gap: 8px; }
+.room-game-management .turing-policy-details { margin: 14px 0; }
+.room-game-management .turing-policy-fields label { display: block; font-size: 13px; }
+.room-game-management .turing-policy-fields select { margin-top: 6px; }
 .turing-finish-control { margin-top: 12px; }
 .turing-finish-control > p { margin: 0 0 8px; }
 @media (max-width: 520px) { .turing-policy-fields { grid-template-columns: 1fr; gap: 10px; } }

@@ -5,6 +5,7 @@ import { SnapshotPlayerSelect, useInspectedPlayer } from './SnapshotPlayerSelect
 import { TuringLayout, turingNameOf, useTuringPrivacy } from './TuringBoard';
 import { TuringFinishControl, useTuringHostAction } from './TuringApprovalControls';
 import { TuringPolicySettings } from './TuringPolicySettings';
+import { RoomManagementContent } from './room-context';
 
 /** Only the authenticated live observer surface supplies authority; snapshots remain read-only. */
 export function TuringLiveObservation({ G: state, info, seat, perspective, onRefresh }: {
@@ -16,12 +17,14 @@ export function TuringLiveObservation({ G: state, info, seat, perspective, onRef
   const nameOf = turingNameOf(info), host = isRoomHost(seat, info);
   const action = useTuringHostAction(seat, info.matchID, G.epoch, onRefresh);
   const [policyPending, setPolicyPending] = useState(false);
-  const controls = host && G.status !== 'finished' ? <>
-    {G.rulesVersion >= 4 && <TuringPolicySettings seat={seat} info={info} policies={G.options} epoch={G.epoch} disabled={action.pending} onBusy={setPolicyPending} onRefresh={onRefresh} compact />}
+  const controls = host && G.status !== 'finished' && (G.targetRounds === null || action.pending || action.error) ? <>
     <TuringFinishControl G={G} canAct={!action.pending && !policyPending} onFinish={() => void action.send('finish')} />
     {action.pending && <p className="small muted" role="status">正在確認操作…</p>}
     {action.error && <p className="error-message" role="status">{action.error}</p>}
   </> : undefined;
-  return <TuringLayout G={G} info={info} nameOf={nameOf} ownID={selectedID} visible={visible} onVisible={setVisible} readonly controls={controls}
-    inspector={<SnapshotPlayerSelect playerIDs={Object.keys(G.players)} value={selectedID} onChange={setSelectedID} nameOf={nameOf} label={`查看情報（${perspective === 'god' ? '上帝視角' : '盲視角'}）`} />} />;
+  return <>
+    {host && G.status !== 'finished' && G.rulesVersion >= 4 && <RoomManagementContent><TuringPolicySettings seat={seat} info={info} policies={G.options} epoch={G.epoch} disabled={action.pending} onBusy={setPolicyPending} onRefresh={onRefresh} compact /></RoomManagementContent>}
+    <TuringLayout G={G} info={info} nameOf={nameOf} ownID={selectedID} visible={visible} onVisible={setVisible} readonly controls={controls}
+      inspector={<SnapshotPlayerSelect playerIDs={Object.keys(G.players)} value={selectedID} onChange={setSelectedID} nameOf={nameOf} label={`查看情報（${perspective === 'god' ? '上帝視角' : '盲視角'}）`} />} />
+  </>;
 }
