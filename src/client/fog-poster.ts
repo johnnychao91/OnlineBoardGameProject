@@ -71,8 +71,8 @@ export async function createFogPoster(options: FogPosterOptions): Promise<Blob> 
     text(ctx, '密票尚未揭曉前，戰報不會顯示選擇。', 98, 811, 23, muted);
   } else if (latest?.type === 'assassination') {
     text(ctx, '最後一次指認，決定城中命運。', 98, 585, 40, gold, 750, 865);
-    text(ctx, `${latest.actor ?? '刺客'}  →  ${latest.target ?? '巡夜者'}`, 98, 666, 39, ink, 650, 865);
-    text(ctx, model.outcome === 'apostles' ? '梅林被找出，黑霧使徒逆轉。' : '梅林安全，守夜騎士守住城門。', 98, 755, 29, model.outcome === 'apostles' ? red : green, 650, 865);
+    text(ctx, `${latest.actor ?? '深海之刃'}  →  ${latest.target ?? '巡夜者'}`, 98, 666, 39, ink, 650, 865);
+    text(ctx, model.outcome === 'apostles' ? '逐星神諭者被找出，黑霧使徒逆轉。' : '逐星神諭者安全，守夜騎士守住城門。', 98, 755, 29, model.outcome === 'apostles' ? red : green, 650, 865);
   } else {
     text(ctx, '巡夜隊已集結。', 98, 596, 48, gold, 750);
     text(ctx, '燈塔之外，是黑霧；身旁的人，未必是同伴。', 98, 681, 27, muted, 500, 865);

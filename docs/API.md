@@ -204,7 +204,7 @@ Socket 每連線 180 包／分、單包 16 KiB。每房最多 128 份觀戰身�
 {"matchID":"目前等待對局ID","options":{"lancelotMode":"forecast","percival":true,"morgana":false,"mordred":false,"oberon":false}}
 ```
 
-`lancelotMode` 接受 `off`、`random`、`forecast`，預設 `random`；四個角色旗標預設 false，梅林與刺客固定加入。未知欄位、錯誤型別及永遠無法成立的角色配置回 400；非房主回 403；舊對局 ID 或已開局回 409。允許先設定需要較多人數的角色，但開局人數不足時回 409，不刪除已選角色。更改後座位、憑證、觀戰、邀請與歷史保留，所有人重新準備。歷史回放附帶當局設定，不使用房間後來修改的值。
+`lancelotMode` 接受 `off`、`random`、`forecast`，預設 `random`；四個角色旗標預設 false，逐星神諭者與深海之刃固定加入。未知欄位、錯誤型別及永遠無法成立的角色配置回 400；非房主回 403；舊對局 ID 或已開局回 409。允許先設定需要較多人數的角色，但開局人數不足時回 409，不刪除已選角色。更改後座位、憑證、觀戰、邀請與歷史保留，所有人重新準備。歷史回放附帶當局設定，不使用房間後來修改的值。
 
 黑霧狀態為 `briefing`、`nomination`、`voting`、`vote-review`、`quest`、`quest-review`、`assassination`、`finished`。`acknowledge(epoch)`、`selectTeam(ids,epoch)`、`confirmTeam(epoch)`、`vote(approve,epoch)`、`submitQuest(card,epoch)`、`assassinate(targetID,epoch)` 皆由已授權 Socket.IO 送出；完整 move 參數遮蔽，不以日誌洩漏投票或任務選擇。普通玩家只收到自己的情報，觀戰須使用獨立身份；隨機模式未來鐘牌在任何視角均不公開。
 

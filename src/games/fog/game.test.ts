@@ -95,7 +95,7 @@ describe('黑霧襲城設定與夜間情報', () => {
     for (const bad of [null, [], 'x', { lancelotMode: 'third' }, { percival: 'yes' }, { extra: true }]) {
       expect(() => normalizeFogOptions(bad)).toThrow();
     }
-    expect(validateFogOptions({ ...DEFAULT_FOG_OPTIONS, morgana: true }, 7)).toContain('派西維爾');
+    expect(validateFogOptions({ ...DEFAULT_FOG_OPTIONS, morgana: true }, 7)).toContain('聆諭騎士');
     expect(validateFogOptions({ ...DEFAULT_FOG_OPTIONS, percival: true, morgana: true }, 5)).toContain('超過');
     expect(validateFogOptions({ ...DEFAULT_FOG_OPTIONS, percival: true, morgana: true }, 7)).toBeUndefined();
     expect(() => fogRoleDeck(4, DEFAULT_FOG_OPTIONS)).toThrow();
@@ -112,7 +112,7 @@ describe('黑霧襲城設定與夜間情報', () => {
     expect(Object.keys(raw(client).lastVote!.votes)).toEqual(['1', '3', '5', '8', '9']);
   });
 
-  it('梅林看不見莫德雷德；派西維爾無法區分梅林與莫甘娜；奧伯倫隔離於邪方情報', () => {
+  it('逐星神諭者看不見黑潮隱主；聆諭騎士無法區分逐星神諭者與幻淵祭司；離群信徒隔離於邪方情報', () => {
     const client = makeClient(10, { lancelotMode: 'off', percival: true, morgana: true, mordred: true, oberon: true });
     const G = raw(client);
     const merlin = roleID(client, 'merlin');
@@ -133,7 +133,7 @@ describe('黑霧襲城設定與夜間情報', () => {
     expect(raw(noMorgana).private[roleID(noMorgana, 'percival')].merlinCandidates).toEqual([roleID(noMorgana, 'merlin')]);
   });
 
-  it('蘭斯洛特互不相認，邪蘭斯洛特不認識使徒而使徒認得他，轉換後保留初始情報', () => {
+  it('雙鐘騎士互不相認，沉鐘騎士不認識使徒而使徒認得他，轉換後保留初始情報', () => {
     const client = makeClient();
     const good = roleID(client, 'good-lancelot');
     const evil = roleID(client, 'evil-lancelot');
@@ -258,7 +258,7 @@ describe('燈塔任務、詛咒之鐘與結算', () => {
     expect(raw(client).log.at(-1)).not.toHaveProperty('actorID');
   });
 
-  it('預告模式公開五張排程、每輪套用且目前邪方的蘭斯洛特必須破壞', () => {
+  it('預告模式公開五張排程、每輪套用且目前邪方的雙鐘騎士必須破壞', () => {
     const client = makeClient(5, { lancelotMode: 'forecast' });
     expect(raw(client).bellForecast).toHaveLength(5);
     expect(raw(client).bellForecast.filter((card) => card === 'switch').length).toBeLessThanOrEqual(2);
@@ -281,7 +281,7 @@ describe('燈塔任務、詛咒之鐘與結算', () => {
     expect(raw(client).questResults[0].succeeded).toBe(false);
   });
 
-  it.each([true, false])('三次成功後先保留任務，再由刺客指認，命中=%s', (hit) => {
+  it.each([true, false])('三次成功後先保留任務，再由深海之刃指認，命中=%s', (hit) => {
     const client = makeClient(5, { lancelotMode: 'off' });
     ackAll(client);
     for (let round = 1; round <= 3; round += 1) {

@@ -191,7 +191,7 @@
 
 /* Original art loads only when the player selects the art style. */
 :root[data-visual-style="art"] [data-art-game="black-fog"] { --art-scene: url('./assets/art/fog/city.webp'); }
-:root[data-visual-style="art"] .fog-role-art { display: block; width: 100%; height: 154px; margin-bottom: 11px; background-position: center 26%; background-size: cover; border-radius: 8px; border: 1px solid #b49e6c; }
+:root[data-visual-style="art"] .fog-role-art { display: block; width: 100%; height: 154px; margin-bottom: 11px; background-position: center; background-size: contain; background-repeat: no-repeat; border-radius: 8px; border: 1px solid #b49e6c; }
 :root[data-visual-style="art"] .fog-role-art[data-fog-role="merlin"] { background-image: url('./assets/art/fog/merlin.webp'); }
 :root[data-visual-style="art"] .fog-role-art[data-fog-role="percival"] { background-image: url('./assets/art/fog/percival.webp'); }
 :root[data-visual-style="art"] .fog-role-art[data-fog-role="loyal-servant"] { background-image: url('./assets/art/fog/loyal.webp'); }

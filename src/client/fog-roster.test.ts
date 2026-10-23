@@ -70,7 +70,7 @@ describe('Fog roster respects the viewer’s knowledge and secret visibility', (
     } }
     const html = renderToStaticMarkup(createElement(FogParticipants, { G, nameOf, ownID: '0', secretsVisible: false, godView: true }));
     expect(fogRosterMarks(G, '0', false, true)).toEqual({});
-    expect(html).not.toMatch(/fog-known-|fog-public-role|黑霧使徒|守夜騎士|梅林候選/);
+    expect(html).not.toMatch(/fog-known-|fog-public-role|黑霧使徒|守夜騎士|逐星神諭者候選/);
     expect(html).toContain('巡夜者 0');
     expect(renderToStaticMarkup(createElement(FogPrivatePanel, { G, nameOf, playerID: '0', expanded: false }))).not.toContain('data-fog-role');
   });

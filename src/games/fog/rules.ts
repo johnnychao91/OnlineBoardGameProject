@@ -15,17 +15,18 @@ export const DEFAULT_FOG_OPTIONS: FogOptions = {
   lancelotMode: 'random', percival: false, morgana: false, mordred: false, oberon: false,
 };
 export const FOG_FACTIONS: Record<FogFaction, string> = { knights: '守夜騎士', apostles: '黑霧使徒' };
+export const FOG_TWIN_KNIGHTS_LORE = '晨鐘騎士與沉鐘騎士曾在同一座燈塔立誓。晨鐘騎士追隨破曉的鐘鳴，守護通往城門的燈火；沉鐘騎士回應海底的鐘聲，迎接黑霧中的低語。如今黑霧遮去了彼此的面容，兩人卻仍共繫於詛咒之鐘：每當鐘聲喚起詛咒，守燈與迎霧的誓約便可能交換。名字依舊，效忠卻未必如初。';
 export const FOG_ROLES: Record<FogRole, { name: string; description: string; faction: FogFaction }> = {
-  merlin: { name: '梅林', faction: 'knights', description: '你能辨認最初潛伏的黑霧使徒，唯獨看不穿莫德雷德。引導隊伍守住城郊燈塔，也要藏好自己的身分：三座燈塔點亮後，刺客仍能逆轉戰局。' },
-  percival: { name: '派西維爾', faction: 'knights', description: '你能看見梅林與莫甘娜的身影，卻無法區分誰是真正的引路人。若沒有莫甘娜，你便能直接辨認梅林。' },
-  'loyal-servant': { name: '忠臣', faction: 'knights', description: '你沒有額外的夜間情報。觀察提名與表決，與守夜騎士一同點亮城郊燈塔。' },
-  assassin: { name: '刺客', faction: 'apostles', description: '你認得其他可見的黑霧使徒。若守夜騎士點亮三座燈塔，你有最後一次機會指認梅林；命中便由黑霧使徒獲勝。' },
-  morgana: { name: '莫甘娜', faction: 'apostles', description: '你在派西維爾的眼中與梅林呈現相同的輪廓，能利用這份混淆誤導守夜騎士。你仍會被梅林與其他可見使徒辨認。' },
-  mordred: { name: '莫德雷德', faction: 'apostles', description: '你隱藏在最濃的黑霧中，梅林的夜間情報無法看見你；其他可見的黑霧使徒仍認得你。' },
-  oberon: { name: '奧伯倫', faction: 'apostles', description: '你獨自行動，不知道其他使徒是誰，他們也看不見你。梅林仍能在夜間辨認你的黑霧陣營。' },
-  minion: { name: '爪牙', faction: 'apostles', description: '你與其他可見的黑霧使徒共享夜間情報，可在燈塔任務中選擇暗中破壞或暫時協助。' },
-  'good-lancelot': { name: '正義蘭斯洛特', faction: 'knights', description: '你最初效忠守夜騎士。詛咒之鐘可能改變你的陣營；角色名稱保留，任務限制與最終勝敗則依目前陣營判定。你不知道另一位蘭斯洛特是誰。' },
-  'evil-lancelot': { name: '邪惡蘭斯洛特', faction: 'apostles', description: '你最初效忠黑霧使徒，但不知道其他使徒與另一位蘭斯洛特是誰；可見使徒認得最初的你。詛咒之鐘可能改變你的陣營與任務限制。' },
+  merlin: { name: '逐星神諭者', faction: 'knights', description: '你循城堡上方的星跡辨認開局的黑霧使徒，唯獨看不穿黑潮隱主。引導隊伍守住城郊燈塔，也要藏好自己的身分：三座燈塔點亮後，深海之刃仍能藉最後指認逆轉戰局。' },
+  percival: { name: '聆諭騎士', faction: 'knights', description: '你聽見逐星神諭者的指引，卻也聽見幻淵祭司模仿的神諭。開局能看見這兩位候選，無法辨明誰是誰；若未加入幻淵祭司，便能直接辨認逐星神諭者。' },
+  'loyal-servant': { name: '城郊守衛', faction: 'knights', description: '你巡守城門與燈塔之間的小徑，沒有額外的開局情報。觀察提名、發言與表決，找出同伴，一同守住城外的燈火。' },
+  assassin: { name: '深海之刃', faction: 'apostles', description: '你帶著深海的殺意潛入巡夜隊，認得其他可互認的黑霧使徒。三座燈塔點亮後，你能進行最後指認，指定一位其他玩家；若命中逐星神諭者，黑霧使徒便逆轉獲勝。' },
+  morgana: { name: '幻淵祭司', faction: 'apostles', description: '你將深淵低語編成神諭，在聆諭騎士的情報中偽裝成逐星神諭者。真正的逐星神諭者與其他可互認使徒仍能辨認你的初始陣營。' },
+  mordred: { name: '黑潮隱主', faction: 'apostles', description: '你潛藏在星光照不到的黑潮之下，逐星神諭者的開局情報看不見你。其他可互認的黑霧使徒仍認得你的初始陣營。' },
+  oberon: { name: '離群信徒', faction: 'apostles', description: '你獨自回應霧海的召喚，不知道其他使徒是誰，他們也看不見你。逐星神諭者仍能辨認你在開局時的黑霧陣營。' },
+  minion: { name: '迷霧信徒', faction: 'apostles', description: '你混在巡夜隊中，與其他可互認使徒共享開局情報。出征時可秘密侵蝕燈塔，也可暫時守護燈火來掩飾身分。' },
+  'good-lancelot': { name: '晨鐘騎士', faction: 'knights', description: '你循破曉鐘聲守燈，最初效忠守夜騎士，卻不知道沉鐘騎士是誰。詛咒之鐘可能交換兩人的效忠；名字仍是晨鐘騎士，任務限制與最終勝敗依目前效忠判定。' },
+  'evil-lancelot': { name: '沉鐘騎士', faction: 'apostles', description: '你回應海底鐘聲，最初效忠黑霧使徒，卻不認識同伴與晨鐘騎士；可互認使徒認得最初的你。詛咒之鐘可能交換兩人的效忠；名字仍是沉鐘騎士，任務限制與最終勝敗依目前效忠判定。' },
 };
 
 /** Strict shape checking keeps malformed lobby options out of saved matches. */
@@ -67,7 +68,7 @@ export function fogTeamSizes(numPlayers: number): number[] {
 export function validateFogOptions(options: FogOptions, numPlayers: number): string | undefined {
   if (!Number.isInteger(numPlayers) || numPlayers < 5 || numPlayers > 10) return '黑霧襲城需要 5～10 位玩家。';
   try { normalizeFogOptions(options); } catch (error) { return (error as Error).message; }
-  if (options.morgana && !options.percival) return '啟用莫甘娜時也需要派西維爾。';
+  if (options.morgana && !options.percival) return '啟用幻淵祭司時也需要聆諭騎士。';
   const counts = fogFactionCounts(numPlayers);
   const lancelots = options.lancelotMode === 'off' ? 0 : 1;
   if (1 + Number(options.percival) + lancelots > counts.knights) return '選擇的守夜騎士角色超過目前玩家人數可容納的席位。';

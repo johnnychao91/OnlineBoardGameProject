@@ -23,7 +23,7 @@ export function fogRosterMarks(G: FogState, viewerID: string | undefined, visibl
     } else if (own?.merlinCandidates.includes(id)) {
       result[id] = own.merlinCandidates.length === 1 && !G.options.morgana
         ? { kind: 'knights', label: FOG_FACTIONS.knights }
-        : { kind: 'candidate', label: '梅林候選・陣營未明' };
+        : { kind: 'candidate', label: '逐星神諭者候選・陣營未明' };
     }
   }
   return result;

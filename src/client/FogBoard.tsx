@@ -83,9 +83,9 @@ export function FogBoard({ G, playerID, moves, isConnected }: BoardProps) {
           {G.status === 'quest' && G.team.includes(id) && secretsVisible && <div className="fog-vote-actions">
             <button className="button primary" disabled={!canAct || own?.questSubmitted || !allowedCards.includes('success')} onClick={() => send('submitQuest', 'success')}>守護燈塔</button>
             <button className="button danger" disabled={!canAct || own?.questSubmitted || !allowedCards.includes('fail')} onClick={() => send('submitQuest', 'fail')}>侵蝕燈塔</button>
-            <p className="small muted">{own?.questSubmitted ? '行動已密封送出，等待其餘隊員。' : forceFail ? '預示模式：目前效忠黑霧使徒的蘭斯洛特必須選「侵蝕燈塔」。' : secret?.faction === 'knights' ? '你目前效忠守夜騎士，只能守護燈塔。' : '你可以守護燈塔以隱藏身分，或選擇侵蝕。'}結果只公布合計，不公開每張牌的主人。</p>
+            <p className="small muted">{own?.questSubmitted ? '行動已密封送出，等待其餘隊員。' : forceFail ? '預示模式：目前效忠黑霧使徒的雙鐘騎士必須選「侵蝕燈塔」。' : secret?.faction === 'knights' ? '你目前效忠守夜騎士，只能守護燈塔。' : '你可以守護燈塔以隱藏身分，或選擇侵蝕。'}結果只公布合計，不公開每張牌的主人。</p>
           </div>}
-          {G.status === 'assassination' && secretsVisible && secret?.role === 'assassin' && <div className="fog-assassination"><h3>選出你認為的梅林</h3><div className="fog-targets">{Object.keys(G.players).filter(targetID => targetID !== id).map(targetID => <button className="button secondary" key={targetID} disabled={!canAct} onClick={() => setTarget(targetID)}>{nameOf(targetID)}</button>)}</div><p className="small muted">點選後會再確認。只有一次機會，確認即結算勝負。</p></div>}
+          {G.status === 'assassination' && secretsVisible && secret?.role === 'assassin' && <div className="fog-assassination"><h3>選出你認為的逐星神諭者</h3><div className="fog-targets">{Object.keys(G.players).filter(targetID => targetID !== id).map(targetID => <button className="button secondary" key={targetID} disabled={!canAct} onClick={() => setTarget(targetID)}>{nameOf(targetID)}</button>)}</div><p className="small muted">點選後會再確認。只有一次機會，確認即結算勝負。</p></div>}
           {!secretsVisible && ((G.status === 'quest' && G.team.includes(id)) || G.status === 'assassination') && <p className="small muted">秘密行動已遮住；請先展開秘密情報，再查看自己的操作。</p>}
           {notice && <p className="error-message" role="status">{notice}</p>}
           {pending && <p className="small muted" role="status">正在確認行動…</p>}
@@ -102,7 +102,7 @@ export function FogBoard({ G, playerID, moves, isConnected }: BoardProps) {
       <aside className="game-aside fog-history-aside"><FogLog G={G} nameOf={nameOf} /><details className="panel rules-details"><summary>巡夜規則速查</summary><FogRuleSummary /></details>{G.status === 'finished' && <BattleReport G={G} info={info} perspective="blind" label="製作巡夜戰報" />}</aside>
     </main>
     <dialog ref={dialog} className="confirm-dialog" onCancel={() => setTarget(null)} onClose={() => setTarget(null)}>
-      <div className="eyebrow">FINAL ACCUSATION</div><h2>確定指認 {target ? nameOf(target) : ''}？</h2><p>若他是梅林，黑霧使徒逆轉獲勝。確認後無法撤回。</p><div className="button-row"><button className="button secondary" onClick={() => setTarget(null)}>重新考慮</button><button className="button danger" disabled={!canAct} onClick={() => { if (target) send('assassinate', target); setTarget(null); }}>確認指認</button></div>
+      <div className="eyebrow">FINAL ACCUSATION</div><h2>確定指認 {target ? nameOf(target) : ''}？</h2><p>若他是逐星神諭者，黑霧使徒逆轉獲勝。確認後無法撤回。</p><div className="button-row"><button className="button secondary" onClick={() => setTarget(null)}>重新考慮</button><button className="button danger" disabled={!canAct} onClick={() => { if (target) send('assassinate', target); setTarget(null); }}>確認指認</button></div>
     </dialog>
   </>;
 }
@@ -122,7 +122,7 @@ export function FogStatus({ G, nameOf, ownID }: { G: FogState; nameOf: FogNameOf
     'vote-review': [G.lastVote?.approved ? '隊伍獲准出征' : '隊伍遭到否決', '表決結果暫時保留。所有巡夜者確認後繼續。'],
     quest: ['巡夜隊已抵達城郊燈塔', '入選成員秘密行動；其他人等待燈塔回報。'],
     'quest-review': ['燈塔結果已揭曉', '先看清這次任務與詛咒之鐘；全員確認後繼續。'],
-    assassination: ['三座燈塔亮起 · 刺客最後指認', '守夜騎士尚未獲勝。刺客可與同伴討論，並指認一次梅林。'],
+    assassination: ['三座燈塔亮起 · 深海之刃最後指認', '守夜騎士尚未獲勝。深海之刃可與同伴討論，並指認一次逐星神諭者。'],
     finished: [G.winner ? `${FOG_FACTIONS[G.winner]}獲勝` : '本局已結束', fogReason(G.winReason)],
   };
   const [title, description] = labels[G.status];
@@ -130,7 +130,7 @@ export function FogStatus({ G, nameOf, ownID }: { G: FogState; nameOf: FogNameOf
 }
 
 export function fogReason(reason: FogState['winReason']) {
-  return reason ? ({ 'three-fails': '三座城郊燈塔失守，黑霧湧入城中。', 'five-rejections': '同一座燈塔連續五次組隊遭否決，黑霧使徒獲勝。', 'merlin-found': '刺客成功找出梅林，黑霧使徒逆轉戰局。', 'merlin-safe': '三座燈塔點亮，而且梅林躲過指認。' } as const)[reason] : '巡夜結果已記錄。';
+  return reason ? ({ 'three-fails': '三座城郊燈塔失守，黑霧湧入城中。', 'five-rejections': '同一座燈塔連續五次組隊遭否決，黑霧使徒獲勝。', 'merlin-found': '深海之刃成功找出逐星神諭者，黑霧使徒逆轉戰局。', 'merlin-safe': '三座燈塔點亮，而且逐星神諭者躲過指認。' } as const)[reason] : '巡夜結果已記錄。';
 }
 
 export function FogTrack({ G }: { G: FogState }) {
@@ -143,7 +143,7 @@ export function FogTrack({ G }: { G: FogState }) {
 }
 
 function FogBells({ G }: { G: FogState }) {
-  if (G.options.lancelotMode === 'off') return <p className="small muted fog-bell-line">本局未加入蘭斯洛特與詛咒之鐘。</p>;
+  if (G.options.lancelotMode === 'off') return <p className="small muted fog-bell-line">本局未加入雙鐘騎士與詛咒之鐘。</p>;
   const forecast = G.options.lancelotMode === 'forecast';
   const cards = forecast ? G.bellForecast.map((card, index) => ({ quest: index + 1, card })) : G.bellHistory;
   return <div className="fog-bells"><span className="fog-bell-art" aria-hidden="true" /><div><strong>詛咒之鐘 · {forecast ? '預示模式' : '隨機模式'}</strong><div className="fog-bell-cards">{cards.length ? cards.map(({ quest, card }) => <span key={quest} className={card === 'switch' ? 'switch' : ''}>第 {quest} 座：{card === 'switch' ? '效忠轉換' : '保持效忠'}{forecast && quest > G.quest ? '（預示）' : ''}</span>) : <span>首座燈塔尚未揭鐘</span>}</div></div></div>;
@@ -176,7 +176,7 @@ export function FogPublicPhase({ G, nameOf, showWaiting = true }: { G: FogState;
     {G.status === 'quest' && <p className="fog-submission-count">已密封行動 <strong>{G.team.filter(id => G.players[id]?.questSubmitted).length} / {G.team.length}</strong> 位。只揭曉匿名合計。</p>}
     {G.status === 'quest-review' && result && <div className={`fog-quest-result ${result.succeeded ? 'lit' : 'lost'}`}><h3>第 {result.quest} 座燈塔{result.succeeded ? '成功點亮' : '失守'}</h3><div><span>守護 <strong>{result.successes}</strong></span><span>侵蝕 <strong>{result.fails}</strong></span></div><p className="small muted">出征：{result.team.map(nameOf).join('、')}。行動牌的主人不會公開。</p></div>}
     {showWaiting && reviewPhases.includes(G.status) && <FogReviewFooter G={G} nameOf={nameOf} />}
-    {G.status === 'assassination' && <p>所有人可討論；只有刺客能提交最後指認。其他玩家請等待。</p>}
+    {G.status === 'assassination' && <p>所有人可討論；只有深海之刃能提交最後指認。其他玩家請等待。</p>}
     {G.status === 'finished' && <p>{G.assassinationTarget ? `最後指認：${nameOf(G.assassinationTarget)}。` : ''}{fogReason(G.winReason)}</p>}
   </>;
 }
@@ -194,7 +194,7 @@ export function FogPrivatePanel({ G, playerID, nameOf, children, observer = fals
     {role && <span className="fog-role-art" data-fog-role={role} aria-hidden="true" />}
     <span className="small muted">{observer ? `${nameOf(playerID)}的身分` : '你的身分'}</span><h2>{role ? FOG_ROLES[role].name : '尚未公開'}</h2><strong>{faction ? `目前效忠：${FOG_FACTIONS[faction]}` : '盲視角不顯示秘密身分'}</strong>{role && <p>{FOG_ROLES[role].description}</p>}
   </div><div className="small fog-composition"><p>全場配置（含自己）</p><div><b className="mint">守夜騎士 {counts.knights} 位</b><b className="fog-apostles-text">黑霧使徒 {counts.apostles} 位</b></div></div>
-    {secret && <div className="fog-intelligence"><h3>{subject}在開局獲得的情報</h3><p>{secret.knownEvil.length ? `${subject}看見的黑霧使徒：${secret.knownEvil.map(nameOf).join('、')}。` : '沒有其他黑霧使徒的身分情報。'}</p>{secret.merlinCandidates.length > 0 && <p>梅林候選：<strong>{secret.merlinCandidates.map(nameOf).join('、')}</strong>。{secret.merlinCandidates.length > 1 ? `${subject}無法分辨其中誰是梅林、誰是莫甘娜。` : '本局未加入莫甘娜，這位巡夜者就是梅林。'}</p>}<p className="small muted">詛咒之鐘改變效忠後，開局情報不會更新。</p>{typeof secret.ownVote === 'boolean' && <p>{subject}的密票：{secret.ownVote ? '贊成' : '反對'}</p>}{(secret.ownQuestCard === 'success' || secret.ownQuestCard === 'fail') && <p>{subject}已密封的行動：{secret.ownQuestCard === 'success' ? '守護燈塔' : '侵蝕燈塔'}</p>}</div>}
+    {secret && <div className="fog-intelligence"><h3>{subject}在開局獲得的情報</h3><p>{secret.knownEvil.length ? `${subject}看見的黑霧使徒：${secret.knownEvil.map(nameOf).join('、')}。` : '沒有其他黑霧使徒的身分情報。'}</p>{secret.merlinCandidates.length > 0 && <p>逐星神諭者候選：<strong>{secret.merlinCandidates.map(nameOf).join('、')}</strong>。{secret.merlinCandidates.length > 1 ? `${subject}無法分辨其中誰是逐星神諭者、誰是幻淵祭司。` : '本局未加入幻淵祭司，這位巡夜者就是逐星神諭者。'}</p>}<p className="small muted">詛咒之鐘改變效忠後，開局情報不會更新。</p>{typeof secret.ownVote === 'boolean' && <p>{subject}的密票：{secret.ownVote ? '贊成' : '反對'}</p>}{(secret.ownQuestCard === 'success' || secret.ownQuestCard === 'fail') && <p>{subject}已密封的行動：{secret.ownQuestCard === 'success' ? '守護燈塔' : '侵蝕燈塔'}</p>}</div>}
     {!secret && <p className="small muted">只能查看公開的隊伍、表決結果與燈塔紀錄。</p>}
   </div> : <p className="small muted fog-concealed"><Icon type="shield" size={22} />秘密情報已遮住</p>}</section>;
 }
@@ -203,7 +203,7 @@ export function fogEventText(event: FogState['log'][number], nameOf: FogNameOf) 
   const actor = event.actorID ? nameOf(event.actorID) : '巡夜隊';
   switch (event.type) {
     case 'start': return '巡夜隊集結，各自取得秘密身分。';
-    case 'bell': return `詛咒之鐘：${event.card === 'switch' ? '兩位蘭斯洛特轉換效忠' : '效忠保持不變'}。`;
+    case 'bell': return `詛咒之鐘：${event.card === 'switch' ? '雙鐘騎士轉換效忠' : '效忠保持不變'}。`;
     case 'team': return `${actor}提名：${(event.team ?? []).map(nameOf).join('、')}。`;
     case 'vote': return `隊伍${event.approved ? '通過' : '遭否決'}（贊成 ${Object.values(event.votes ?? {}).filter(Boolean).length}／反對 ${Object.values(event.votes ?? {}).filter(v => !v).length}）。`;
     case 'quest': return `燈塔${event.succeeded ? '點亮' : '失守'}：守護 ${event.successes ?? 0}、侵蝕 ${event.fails ?? 0}。`;
@@ -217,5 +217,5 @@ export function FogLog({ G, nameOf }: { G: FogState; nameOf: FogNameOf }) {
 }
 
 export function FogRuleSummary() {
-  return <div className="small"><p>5～10 位巡夜者，隊長輪流組隊。全員密投表決，過半贊成才出征；同票否決，同一燈塔連續五次否決由黑霧使徒獲勝。</p><p>出征者秘密選擇守護或侵蝕。守夜騎士只能守護；黑霧使徒可擇一，預示模式中效忠黑霧的蘭斯洛特必須侵蝕。</p><p>一般 1 次侵蝕就失守；7～10 人的第 4 座需 2 次。三座失守由黑霧使徒獲勝；三座點亮後，還需躲過刺客對梅林的最後指認。</p><p>每次表決、任務結果皆保留到全員確認。蘭斯洛特模式與角色配置由房主開局前設定。</p><a href="/rules/black-fog" target="_blank" rel="noopener noreferrer">閱讀完整規則 →</a></div>;
+  return <div className="small"><p>5～10 位巡夜者，隊長輪流組隊。全員密投表決，過半贊成才出征；同票否決，同一燈塔連續五次否決由黑霧使徒獲勝。</p><p>出征者秘密選擇守護或侵蝕。守夜騎士只能守護；黑霧使徒可擇一，預示模式中效忠黑霧的雙鐘騎士必須侵蝕。</p><p>一般 1 次侵蝕就失守；7～10 人的第 4 座需 2 次。三座失守由黑霧使徒獲勝；三座點亮後，還需躲過深海之刃對逐星神諭者的最後指認。</p><p>每次表決、任務結果皆保留到全員確認。雙鐘騎士模式與角色配置由房主開局前設定。</p><a href="/rules/black-fog" target="_blank" rel="noopener noreferrer">閱讀完整規則 →</a></div>;
 }
