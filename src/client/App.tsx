@@ -140,7 +140,6 @@ function Lobby({ onUpdate }: { onUpdate: (info: RoomInfo) => void }) {
     <div className="lobby-heading"><div className="eyebrow">FRIENDS AT THE TABLE</div><h1>{!selected ? '先集合，再選遊戲。' : info.gameName === 'encrypted-call' ? '特務到齊，準備接通。' : '隊員到齊，就能出發。'}</h1>
       <p className="muted">{players.length} 位玩家 · {selected ? `這款遊戲需 ${info.minPlayers}～${info.maxPlayers} 人` : '等待房主選擇遊戲'} · {info.spectatorCount} 位已加入觀戰</p>
     </div>
-    <RoomGamePicker seat={seat} info={info} disabled={busy} onBusy={setGameBusy} onUpdate={onUpdate} />
     <section className="panel roster"><div className="section-heading"><h2>參與名單</h2><span>{players.length} / {info.roomCapacity ?? ROOM_CAPACITY} 席</span></div>
       <div className="roster-players">{players.map(player => <div className="roster-row" key={player.membershipID || player.id}><span className={`avatar ${isPlayer(seat) && String(player.id) === seat.playerID ? 'mine' : ''}`}>{initials(player.name || '')}</span><div><strong>{player.name}{isPlayer(seat) && String(player.id) === seat.playerID && <small className="you-label">你</small>}{player.isBot && <span className="virtual-player-label">虛擬玩家</span>}</strong><small>{String(player.id) === hostPlayerID ? '房主' : `隊員 ${Number(player.id) + 1}`}</small></div><span className={`ready-pill ${player.ready ? 'ready' : ''}`}>{player.ready ? '已準備' : selected ? '準備中' : '待選遊戲'}</span>{host && String(player.id) !== hostPlayerID && String(player.id) !== (isPlayer(seat) ? seat.playerID : null) && <RemovePlayer player={player} busy={locked} onRemove={target => action('remove', { playerID: String(target.id), membershipID: target.membershipID })} />}</div>)}</div>
       {host && <p className="small muted">開局前可移出隊員；持有效邀請的人仍可重新加入。</p>}
@@ -160,6 +159,7 @@ function Lobby({ onUpdate }: { onUpdate: (info: RoomInfo) => void }) {
       {(isPlayer(seat) || host) && <p className="small muted center">{selected ? `${ready} / ${players.length} 位已準備 · ${host ? '開始時鎖定隊員名單與本局人數。' : '全員準備後，等待房主開始。'}` : '先選遊戲，再一起準備；切換遊戲後需要重新準備。'}</p>}
     </div>
   </section><aside className="lobby-info-column">{host ? <ShareInvite active /> : <Note>邀請由房主管理。遊戲開始後，仍可邀請其他朋友來觀戰。</Note>}
+    <RoomGamePicker seat={seat} info={info} disabled={busy} onBusy={setGameBusy} onUpdate={onUpdate} />
     {Rules && presentation && <div className="panel mission-brief"><div className="section-label">任務簡報</div><h2>{presentation.lobbyTitle || '遊戲簡介'}</h2><p>{presentation.lobbyDescription}</p><button className="text-button" onClick={() => setRules(!rules)}>{rules ? '收起玩法' : '展開玩法說明'} ↓</button>{rules && <Rules />}<a className="full-rules-link" href={`/rules/${info.gameName}`} target="_blank" rel="noopener noreferrer">閱讀完整詳細規則 ↗</a></div>}
     {!selected && <div className="panel mission-brief"><div className="section-label">同一桌，隨時換玩法</div><h2>朋友先到，遊戲慢慢選。</h2><p>房主可在等待室切換遊戲，成員與邀請連結都會保留。開始後先完成或提前結束本局，再回到這裡換下一款。</p></div>}
   </aside></main>;
