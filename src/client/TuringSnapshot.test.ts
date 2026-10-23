@@ -41,17 +41,17 @@ function voiceFixture(): TuringState {
   return G;
 }
 
-function sharedFixture(count: 2 | 3): TuringState {
-  const created = createMatch({ game: TuringGame, numPlayers: count, setupData: { startImmediately: true }, unlisted: true });
+function sharedFixture(count: number): TuringState {
+  const created = createMatch({ game: TuringGame, numPlayers: count, setupData: { startImmediately: true, options: { sortingMode: 'group' } }, unlisted: true });
   if ('setupDataError' in created) throw new Error(created.setupDataError);
   const G = structuredClone(created.initialState.G) as TuringState;
   G.status = 'sorting';
   G.cards = Object.fromEntries(Array.from({ length: count }, (_, index) => [String(index), { playerID: String(index), slot: 'A' as const, spoken: true }]));
-  G.private = Object.fromEntries(Array.from({ length: count }, (_, index) => [String(index), { number: [2, 8, 5][index], cards: [{ id: String(index), number: [2, 8, 5][index] }] }]));
+  G.private = Object.fromEntries(Array.from({ length: count }, (_, index) => [String(index), { number: [2, 8, 5, 1, 3, 4, 6, 7, 9, 10][index], cards: [{ id: String(index), number: [2, 8, 5, 1, 3, 4, 6, 7, 9, 10][index] }] }]));
   G.tableOrder = ['1', '0']; G.orderApprovals = ['0'];
   return G;
 }
-const sharedInfo = (count: number): RoomInfo => ({ ...info, numPlayers: count, players: info.players.slice(0, count) });
+const sharedInfo = (count: number): RoomInfo => ({ ...info, numPlayers: count, maxPlayers: 10, players: Array.from({ length: count }, (_, id) => ({ id, name: nameOf(String(id)), isConnected: true, ready: true })) });
 const sharedSurface = (html: string) => html.match(/<section class="panel turing-table turing-shared-table[\s\S]*?<\/section>/)?.[0] ?? '';
 const buttonWithLabel = (html: string, label: string) => [...html.matchAll(/<button\b[^>]*>[\s\S]*?<\/button>/g)].find(match => match[0].includes(label))?.[0] ?? '';
 const rightControls = (html: string) => html.match(/<section class="panel turing-controls">([\s\S]*?)<\/section>/)?.[1] ?? '';
@@ -156,13 +156,13 @@ describe('Turing read-only and private surfaces', () => {
     const strip = html.match(/<div class="turing-reveal-strip">([\s\S]*?)<\/div>/)?.[1];
     expect(strip).toContain('受測者 0 · B 卡'); expect(strip).not.toContain('受測者 2 · B 卡');
   });
-  it.each([2, 3] as const)('renders %i shared-table cards with cached god-to-blind reprojection and no spectator moves', count => {
+  it.each([2, 3, 4, 10] as const)('renders %i shared-table cards with cached god-to-blind reprojection and no spectator moves', count => {
     const G = sharedFixture(count), before = structuredClone(G);
-    expect(G.rulesVersion).toBe(4); expect(G.examinerID).toBe('');
+    expect(G.rulesVersion).toBe(5); expect(G.examinerID).toBe('');
     const god = sharedSurface(snapshot(G, 'god', sharedInfo(count)));
     const blind = sharedSurface(snapshot(G, 'blind', sharedInfo(count)));
     expect(god).toContain('共同排序桌面'); expect(god).not.toContain('檢測員');
-    for (const number of [2, 8, 5].slice(0, count)) {
+    for (const number of [2, 8, 5, 1, 3, 4, 6, 7, 9, 10].slice(0, count)) {
       expect(god).toContain(`<strong class="turing-desk-number">${number}</strong>`);
       expect(blind).not.toContain(`<strong class="turing-desk-number">${number}</strong>`);
     }

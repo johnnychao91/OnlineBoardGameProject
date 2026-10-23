@@ -115,7 +115,7 @@ async function connectGroup(f: Fixture, g: Group) {
     expect(info.state.deltalog).toBeUndefined(); expect(info.initialState.deltalog).toBeUndefined();
   }
 }
-async function start(f: Fixture, g: Group, legacy?: 1 | 2 | 3) {
+async function start(f: Fixture, g: Group, legacy?: 1 | 2 | 3 | 4) {
   const current = (await f.request(path(g.host), undefined, g.host)).body;
   for (const seat of g.seats) expect((await f.request(path(g.host, 'ready'), { ready: true, matchID: current.matchID }, seat)).status).toBe(200);
   const started = await f.request(path(g.host, 'start'), { matchID: current.matchID }, g.host);
@@ -125,7 +125,7 @@ async function start(f: Fixture, g: Group, legacy?: 1 | 2 | 3) {
     // replace its rules, pending answers, number assignments or question order.
     const saved = await f.state(g.matchID), G = saved.G;
     G.rulesVersion = legacy;
-    G.status = 'briefing';
+    if (legacy < 4) G.status = 'briefing';
     for (const player of Object.values(G.players)) player.answered = false;
     for (const card of Object.values(G.cards ?? {})) card.spoken = false;
     delete G.redrawApprovals;
@@ -197,16 +197,21 @@ async function archive(f: Fixture, g: Group, member: Seat | Observer = g.host) {
 }
 
 describe('Turing custom questions, private answers and replay integration', () => {
-  it.each([{ count: 2, version: 2 }, { count: 3, version: 2 }, { count: 2, version: 3 }, { count: 3, version: 3 }, { count: 2, version: 4 }, { count: 3, version: 4 }, { count: 4, version: 4 }])('$count-player v$version voice play authorizes each card, isolates rooms, survives restart and records its mode-specific result', async ({ count, version }) => {
+  it.each([
+    { count: 2, version: 2, sortingMode: 'examiner' }, { count: 3, version: 2, sortingMode: 'examiner' },
+    { count: 2, version: 3, sortingMode: 'examiner' }, { count: 3, version: 3, sortingMode: 'examiner' },
+    { count: 2, version: 4, sortingMode: 'examiner' }, { count: 3, version: 4, sortingMode: 'examiner' }, { count: 4, version: 4, sortingMode: 'examiner' },
+    { count: 4, version: 5, sortingMode: 'group' }, { count: 10, version: 5, sortingMode: 'group' }, { count: 10, version: 5, sortingMode: 'examiner' },
+  ])('$count-player v$version $sortingMode play authorizes each card, isolates rooms, survives restart and records its mode-specific result', async ({ count, version, sortingMode }) => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
     const f = await fixture(), g = await group(f, count), other = await group(f, 2);
-    const mode = count === 3 ? 'endless' : 'standard';
-    const settings = { deck: 'custom', customQuestions, mode, lives: 1 };
+    const mode = count === 3 || (count === 4 && version === 5) ? 'endless' : 'standard';
+    const settings = { deck: 'custom', customQuestions, mode, lives: 1, sortingMode };
     expect((await f.request(path(g.host, 'options'), { matchID: g.matchID, options: settings }, g.host)).status).toBe(200);
-    await start(f, other); await start(f, g, version < 4 ? version as 2 | 3 : undefined); await ack(f, g);
+    await start(f, other); await start(f, g, version < 5 ? version as 2 | 3 | 4 : undefined); await ack(f, g);
     const untouched = (await f.state(other.matchID)).G;
     const first = (await f.state(g.matchID)).G, entries = Object.entries(turingCards(first));
-    const sharedTable = version >= 3 && count <= 3;
+    const sharedTable = version >= 3 && (count <= 3 || (version >= 5 && sortingMode === 'group'));
     expect(entries).toHaveLength(sharedTable ? count : (count - 1) * (version === 2 ? 2 : 1));
     expect(first).toMatchObject({ rulesVersion: version, targetRounds: mode === 'endless' ? null : 5, completedRounds: 0 });
     const [cardID, card] = entries[0];
@@ -259,7 +264,7 @@ describe('Turing custom questions, private answers and replay integration', () =
     const final = (await f.state(g.matchID)).G;
     expect(final).toMatchObject(mode === 'endless'
       ? { status: 'finished', completedRounds: 6, round: 7, integrity: 0, winner: 'system', winReason: 'endless-exhausted' }
-      : { status: 'finished', completedRounds: 5, integrity: Math.max(3, count), winner: 'humans', winReason: 'calibrated' });
+      : { status: 'finished', completedRounds: 5, integrity: Math.min(8, Math.max(3, count)), winner: 'humans', winReason: 'calibrated' });
     const lobby = await archive(f, g);
     expect(lobby.history.at(-1)).toMatchObject(mode === 'endless'
       ? { challenge: { mode: sharedTable ? 'endless-table' : 'endless', completedRounds: 6, startingLives: 1 } } : { winner: 'humans' });
@@ -290,7 +295,7 @@ describe('Turing custom questions, private answers and replay integration', () =
     const result = stats.byGame.find((entry: any) => entry.gameId === 'turing-test');
     expect(stats).toMatchObject({ completedGames: 1, totalPlayerParticipations: count });
     expect(result).toMatchObject(mode === 'endless'
-      ? { completed: 1, rankedCompleted: 0, wins: {}, reasons: {}, byPlayerCount: [], challenges: [{ mode: sharedTable ? 'endless-table' : 'endless', numPlayers: 3, startingLives: 1, runs: 1, bestCompletedRounds: 6, averageCompletedRounds: 6 }] }
+      ? { completed: 1, rankedCompleted: 0, wins: {}, reasons: {}, byPlayerCount: [], challenges: [{ mode: sharedTable ? 'endless-table' : 'endless', numPlayers: count, startingLives: 1, runs: 1, bestCompletedRounds: 6, averageCompletedRounds: 6 }] }
       : { completed: 1, rankedCompleted: 1, wins: { humans: 1 }, challenges: [] });
     await f.restart();
     expect((await f.request('/api/stats')).body).toEqual(stats);
@@ -455,7 +460,7 @@ describe('Turing custom questions, private answers and replay integration', () =
     await start(f, g); await start(f, other);
     const ids = g.seats.map(seat => seat.playerID);
     const original = (await f.state(g.matchID)).G, untouched = await f.state(other.matchID);
-    expect(original).toMatchObject({ rulesVersion: 4, status: 'sorting', round: 1 });
+    expect(original).toMatchObject({ rulesVersion: 5, status: 'sorting', round: 1 });
     expect(original.tableOrder).toEqual(ids);
     await f.move(g, ids[0], 'approveOrder', [(await f.state(g.matchID)).G.epoch]);
     const before = (await f.state(g.matchID)).G;

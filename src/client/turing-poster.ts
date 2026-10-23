@@ -58,7 +58,7 @@ export async function createTuringPoster(options: PosterOptions): Promise<Blob> 
   text('HUMANITY CALIBRATION / 公開檢測戰報', 64, 80, 20, '#bdcda2');
   text('圖靈測試', 64, 180, 72); text(model.voice ? '用聲音校準，靠默契過關。' : '用文字校準，靠默契過關。', 68, 234, 28, '#a8c0bb');
   box(64, 274, 952, 116); text(model.roundLabel, 92, 322, 28); text(`${life} ${model.integrity} / ${model.maxIntegrity}`, 650, 322, 28, '#a8ead4');
-  lines(model.shared ? `共用排序桌 · ${model.examiner}` : `檢測員：${model.examiner}`, 92, 365, 850, 22, 1);
+  lines(model.shared ? `群體校準 · ${model.examiner}` : `檢測員：${model.examiner}`, 92, 365, 850, 22, 1);
   box(64, 420, 952, 264); text(model.voice ? '本關題目' : '本輪題目', 90, 464, 21, '#bdcda2'); lines(model.prompt, 90, 514, 900, 30, 3);
   lines(`1：${model.low}　→　10：${model.high}`, 90, 652, 900, 20, 1, '#a8c0bb');
   box(64, 714, 952, 310); text(model.table && !model.latest ? '桌面預排順序 · 數字尚未公開' : '剛剛揭曉的這一張', 90, 758, 21, '#bdcda2');
@@ -66,7 +66,8 @@ export async function createTuringPoster(options: PosterOptions): Promise<Blob> 
   else if (model.table) { lines(model.table.order.join(' → ') || '等待大家放入卡牌。', 92, 825, 890, 28, 3); if (model.approval) text(model.approval.description, 92, 993, 24, '#a8c0bb'); }
   else { text('所有強度仍在等待揭曉。', 92, 843, 34); text('未公開答案與數字不會放入戰報。', 92, 917, 24, '#a8c0bb'); if (model.approval) text(model.approval.description, 92, 993, 24, '#a8c0bb'); }
   text('揭曉順序', 65, 1070, 23, '#a8c0bb');
-  model.sequence.forEach((entry, i) => { box(64 + i * 117, 1092, 99, 64, entry.error ? '#593743' : '#24453e'); text(String(entry.number), 96 + i * 117, 1136, 32, entry.error ? '#ffb2bb' : '#c0f4de'); });
+  const sequenceStep = Math.min(117, 952 / Math.max(1, model.sequence.length));
+  model.sequence.forEach((entry, i) => { box(64 + i * sequenceStep, 1092, Math.min(99, sequenceStep - 12), 64, entry.error ? '#593743' : '#24453e'); text(String(entry.number), 84 + i * sequenceStep, 1136, 32, entry.error ? '#ffb2bb' : '#c0f4de'); });
   text(model.result, 64, 1220, 32); text('捷寶桌遊室', 64, 1300, 23); text(`復盤 ${model.step} / ${model.totalSteps}`, 770, 1300, 20, '#a8c0bb');
   return new Promise((resolve, reject) => canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('戰報產生失敗，請重試。')), 'image/png'));
 }

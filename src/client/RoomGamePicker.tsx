@@ -11,9 +11,13 @@ export function RoomGamePicker({ seat, info, disabled, onBusy, onUpdate }: {
 }) {
   const [games, setGames] = useState<GameInfo[]>([]);
   const [busy, setBusy] = useState(false);
+  const [optionsBusy, setOptionsBusy] = useState(false);
   const [error, setError] = useState('');
   const mounted = useRef(true);
   const sending = useRef(false);
+  const optionsLocked = useRef(false);
+  const currentMatch = useRef(info.matchID); currentMatch.current = info.matchID;
+  const callbacks = useRef({ onBusy, onUpdate }); callbacks.current = { onBusy, onUpdate };
   const host = isRoomHost(seat, info);
   const selected = info.gameSelected !== false;
   const game = selected ? games.find(game => game.id === info.gameName) : undefined;
@@ -24,23 +28,28 @@ export function RoomGamePicker({ seat, info, disabled, onBusy, onUpdate }: {
     api<{ games: GameInfo[] }>('/api/games', { signal: controller.signal })
       .then(result => { if (!controller.signal.aborted) setGames(result.games); })
       .catch(error => { if (!controller.signal.aborted) setError(error.message); });
-    return () => { mounted.current = false; controller.abort(); };
+    return () => { mounted.current = false; controller.abort(); callbacks.current.onBusy(false); };
   }, []);
+  function optionsLock(value: boolean) {
+    optionsLocked.current = value; setOptionsBusy(value);
+    callbacks.current.onBusy(sending.current || value);
+  }
   async function choose(gameId: string) {
-    if (!host || disabled || sending.current || info.status !== 'lobby' || (selected && gameId === info.gameName)) return;
-    sending.current = true; setBusy(true); setError(''); onBusy(true);
+    if (!host || disabled || sending.current || optionsLocked.current || info.status !== 'lobby' || (selected && gameId === info.gameName)) return;
+    const submitted = info.matchID;
+    sending.current = true; setBusy(true); setError(''); callbacks.current.onBusy(true);
     try {
       const next = await api<RoomInfo>(`/api/rooms/${seat.roomId}/game`, {
         method: 'POST', body: JSON.stringify({ matchID: info.matchID, gameId, options: rememberedGameOptions(gameId) }),
       }, seat);
-      if (mounted.current) onUpdate(next);
-    } catch (error) { if (mounted.current) setError((error as Error).message); }
-    finally { sending.current = false; if (mounted.current) { setBusy(false); onBusy(false); } }
+      if (mounted.current && currentMatch.current === submitted) callbacks.current.onUpdate(next);
+    } catch (error) { if (mounted.current && currentMatch.current === submitted) setError((error as Error).message); }
+    finally { sending.current = false; if (mounted.current) { setBusy(false); callbacks.current.onBusy(optionsLocked.current); } }
   }
   return <section className="panel room-game-picker" aria-label="本房遊戲">
     <div className="room-game-picker-heading"><label htmlFor="room-game">這一局玩什麼</label><span>{busy ? '正在切換…' : selected ? '已選擇' : '尚未選擇'}</span></div>
     {host ? <select id="room-game" aria-label="選擇房間遊戲" value={selected ? info.gameName : ''}
-      disabled={disabled || busy || !games.length} onChange={event => void choose(event.target.value)}>
+      disabled={disabled || busy || optionsBusy || !games.length} onChange={event => void choose(event.target.value)}>
       <option value="" disabled>請選擇遊戲</option>
       {games.map(game => <option key={game.id} value={game.id}>{game.name} · {game.minPlayers}～{game.maxPlayers} 人</option>)}
     </select> : <strong className="room-game-name">{game?.name || (selected ? '正在讀取遊戲…' : '等待房主選擇遊戲')}</strong>}
@@ -48,6 +57,6 @@ export function RoomGamePicker({ seat, info, disabled, onBusy, onUpdate }: {
     <p className="small muted">{host ? '選擇後即時套用；切換會清除全員準備，成員與邀請連結保留。' : '房主可在開局前切換遊戲；切換後請重新準備。'}</p>
     {host && Options && <p className="small muted">已套用的設定會保留在本房間；同一瀏覽器下次開房選擇這款遊戲時，也會沿用。</p>}
     <ErrorMessage>{error}</ErrorMessage>
-    {Options && <Options seat={seat} info={info} disabled={disabled || busy} onBusy={onBusy} onUpdate={onUpdate} />}
+    {Options && <Options seat={seat} info={info} disabled={disabled || busy} onBusy={optionsLock} onUpdate={onUpdate} />}
   </section>;
 }

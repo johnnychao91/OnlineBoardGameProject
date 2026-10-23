@@ -13,7 +13,7 @@ import type { AuthSession, RoomInfo } from './api';
 
 const room: RoomInfo = {
   roomId: 'approval-room', matchID: 'approval-match', gameName: 'turing-test', status: 'lobby',
-  numPlayers: 3, minPlayers: 2, maxPlayers: 9, spectatorCount: 2, godViewAllowed: true, hostPlayerID: '0',
+  numPlayers: 3, minPlayers: 2, maxPlayers: 10, spectatorCount: 2, godViewAllowed: true, hostPlayerID: '0',
   players: ['0', '1', '2'].map(id => ({ id, name: `玩家 ${id}`, isConnected: true, ready: true })),
 };
 const seat = (info = room, playerID = '0'): AuthSession => ({ ...info, access: 'player', playerID, credentials: 'local-test-credential' });
@@ -45,6 +45,21 @@ describe('Turing approval settings and authority surfaces', () => {
       expect(select(html, label)).not.toContain('disabled');
     }
     expect(html).toContain('切換即儲存');
+    expect(button(html, '套用測試設定')).toBe('');
+    expect(button(html, '套用自訂題目')).toContain('disabled');
+  });
+  it('shows the saved challenge and sorting modes separately, including observer-host options', () => {
+    const info: RoomInfo = { ...room, hostPlayerID: null, hostObserverID: 'observer-host', gameOptions: { mode: 'endless', lives: 7, sortingMode: 'group', deck: 'protocol' } };
+    const html = options(info, observer(info));
+    expect(select(html, '挑戰模式')).toContain('<option value="endless" selected="">');
+    expect(select(html, '排序玩法')).toContain('<option value="group" selected="">群體校準');
+    expect(select(html, '題庫模式')).toContain('<option value="protocol" selected="">');
+    expect(html).toMatch(/<input[^>]*min="1"[^>]*max="20"[^>]*value="7"/);
+    expect(html).toContain('2～10 人'); expect(html).toContain('2～3 人固定使用群體校準');
+    for (const label of ['挑戰模式', '排序玩法', '題庫模式']) {
+      expect(select(html, label)).not.toContain('disabled');
+      expect(select(options(info, seat(info)), label)).toContain('disabled');
+    }
   });
   it('renders independent saved choices and prevents an observing host from choosing host approval', () => {
     const info: RoomInfo = { ...room, hostPlayerID: null, hostObserverID: 'observer-host', gameOptions: { redrawApproval: 'any', orderApproval: 'all', nextApproval: 'any' } };

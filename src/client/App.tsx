@@ -108,6 +108,8 @@ function Lobby({ onUpdate }: { onUpdate: (info: RoomInfo) => void }) {
   const [error, setError] = useState('');
   const [rules, setRules] = useState(false);
   const mounted = useRef(true);
+  const sending = useRef(false), gameLocked = useRef(false), currentMatch = useRef(info.matchID);
+  currentMatch.current = info.matchID;
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
   const players = info.players.filter(p => p.name);
   const own = isPlayer(seat) ? players.find(p => String(p.id) === seat.playerID) : undefined;
@@ -119,23 +121,29 @@ function Lobby({ onUpdate }: { onUpdate: (info: RoomInfo) => void }) {
   const eligible = selected && !configurationError && players.length >= info.minPlayers && !overCapacity && ready === players.length;
   const locked = busy || gameBusy;
   async function action(endpoint: 'ready' | 'start' | 'remove', body: object) {
+    if (sending.current || gameLocked.current || info.status !== 'lobby') return;
+    const submitted = info.matchID;
+    sending.current = true;
     setBusy(true); setError('');
     try {
       const next = await api<RoomInfo>(`/api/rooms/${seat.roomId}/${endpoint}`, {
         method: 'POST', body: JSON.stringify({ ...(endpoint === 'remove' ? {} : { matchID: info.matchID }), ...body }),
       }, seat);
-      // A game or role change remounts the lobby. Late replies belong to the old room state.
-      if (mounted.current) onUpdate(next);
+      // Option updates retain this lobby's editor. Replies from its previous
+      // match must not overwrite the newer authoritative settings.
+      if (mounted.current && currentMatch.current === submitted) onUpdate(next);
     }
-    catch (e) { if (mounted.current) setError((e as Error).message); }
-    finally { if (mounted.current) setBusy(false); }
+    catch (e) { if (mounted.current && currentMatch.current === submitted) setError((e as Error).message); }
+    finally { sending.current = false; if (mounted.current) setBusy(false); }
   }
   async function addBot() {
-    if (locked) return;
+    if (sending.current || gameLocked.current || info.status !== 'lobby') return;
+    const submitted = info.matchID;
+    sending.current = true;
     setBusy(true); setError('');
-    try { const next = await addVirtualPlayer(seat, info); if (mounted.current) onUpdate(next); }
-    catch (e) { if (mounted.current) setError((e as Error).message); }
-    finally { if (mounted.current) setBusy(false); }
+    try { const next = await addVirtualPlayer(seat, info); if (mounted.current && currentMatch.current === submitted) onUpdate(next); }
+    catch (e) { if (mounted.current && currentMatch.current === submitted) setError((e as Error).message); }
+    finally { sending.current = false; if (mounted.current) setBusy(false); }
   }
   return <main className="room-layout"><section className="lobby-player-column">
     <div className="lobby-heading"><div className="eyebrow">FRIENDS AT THE TABLE</div><h1>{!selected ? '先集合，再選遊戲。' : info.gameName === 'encrypted-call' ? '特務到齊，準備接通。' : '隊員到齊，就能出發。'}</h1>
@@ -160,7 +168,7 @@ function Lobby({ onUpdate }: { onUpdate: (info: RoomInfo) => void }) {
       {(isPlayer(seat) || host) && <p className="small muted center">{selected ? `${ready} / ${players.length} 位已準備 · ${host ? '開始時鎖定隊員名單與本局人數。' : '全員準備後，等待房主開始。'}` : '先選遊戲，再一起準備；切換遊戲後需要重新準備。'}</p>}
     </div>
   </section><aside className="lobby-info-column">{host ? <ShareInvite active /> : <Note>邀請由房主管理。遊戲開始後，仍可邀請其他朋友來觀戰。</Note>}
-    <RoomGamePicker seat={seat} info={info} disabled={busy} onBusy={setGameBusy} onUpdate={onUpdate} />
+    <RoomGamePicker seat={seat} info={info} disabled={busy} onBusy={value => { gameLocked.current = value; setGameBusy(value); }} onUpdate={onUpdate} />
     {Rules && presentation && <div className="panel mission-brief"><div className="section-label">任務簡報</div><h2>{presentation.lobbyTitle || '遊戲簡介'}</h2><p>{presentation.lobbyDescription}</p><button className="text-button" onClick={() => setRules(!rules)}>{rules ? '收起玩法' : '展開玩法說明'} ↓</button>{rules && <Rules />}<a className="full-rules-link" href={`/rules/${info.gameName}`} target="_blank" rel="noopener noreferrer">閱讀完整詳細規則 ↗</a></div>}
     {!selected && <div className="panel mission-brief"><div className="section-label">同一桌，隨時換玩法</div><h2>朋友先到，遊戲慢慢選。</h2><p>房主可在等待室切換遊戲，成員與邀請連結都會保留。開始後先完成或提前結束本局，再回到這裡換下一款。</p></div>}
   </aside></main>;
@@ -274,7 +282,7 @@ function Room({ seat, onSwitch }: { seat: AuthSession; onSwitch: (seat: AuthSess
         </div>
         <SpectatorRoster info={info} seat={session} />
         </div>
-        {info.status === 'lobby' ? <><RoomHistory seat={session} info={info} /><Lobby key={info.matchID} onUpdate={acceptInfo} /></>
+        {info.status === 'lobby' ? <><RoomHistory seat={session} info={info} /><Lobby key={info.gameSelected === false ? 'unselected' : info.gameName} onUpdate={acceptInfo} /></>
           : isPlayer(seat) ? PlayerClient
             ? <PlayerClient key={info.matchID} matchID={info.matchID} playerID={seat.playerID} credentials={seat.credentials} />
             : <main className="narrow"><ErrorMessage>此遊戲尚未提供玩家介面。</ErrorMessage></main>

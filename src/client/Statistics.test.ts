@@ -22,7 +22,7 @@ describe('Challenge score presentation', () => {
     expect(html).toContain('最高通關'); expect(html).toContain('平均通關');
     expect(html).toContain('不算入五關模式勝敗'); expect(html).toContain('0 關'); expect(html).toContain('6 關');
     expect(html).toContain('1 點'); expect(html).toContain('5 點'); expect(html).not.toMatch(/\d+ 敗/);
-    expect(html).toContain('檢測員'); expect(html).toContain('共排桌'); expect(html).not.toContain('endless-table');
+    expect(html).toContain('檢測員'); expect(html).toContain('群體校準'); expect(html).not.toContain('endless-table');
   });
   it.each(['endless', 'endless-table'])('shows the preserved score and %s mode in waiting-room history instead of an ordinary defeat', mode => {
     const info: RoomInfo = { roomId: 'room', matchID: 'current', gameName: 'turing-test', status: 'lobby',
@@ -33,6 +33,6 @@ describe('Challenge score presentation', () => {
     const html = renderToStaticMarkup(createElement(RoomHistory, { info, seat: { ...info, playerID: '0', credentials: 'test' } }));
     expect(html).toContain('挑戰結束'); expect(html).toContain('通過 6 關'); expect(html).toContain('第 7 關');
     expect(html).toContain('起始 1 點生命'); expect(html).not.toContain('測試失敗');
-    expect(html).toContain(mode === 'endless-table' ? '共排桌' : '檢測員');
+    expect(html).toContain(mode === 'endless-table' ? '群體校準' : '檢測員');
   });
 });

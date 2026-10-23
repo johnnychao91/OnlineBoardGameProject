@@ -91,7 +91,9 @@
 .turing-layout { --turing-card-width: 150px; --turing-card-height: 225px; --turing-private-width: 150px; --turing-private-height: 225px; }
 .turing-main > .turing-shared-table { display: flex; flex-direction: column; gap: 8px; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
 .turing-shared-table > .turing-scale { width: 100%; flex: none; padding: 3px 0 7px; }
-.turing-order-slots { display: flex; justify-content: center; align-items: center; gap: 18px; flex: 1 0 auto; min-height: 0; padding: 10px 5px; width: 100%; }
+.turing-table-scroll { flex: 1 1 auto; min-width: 0; min-height: 0; overflow: auto; overscroll-behavior-x: contain; scrollbar-color: #91b5a3 #162d32; }
+.turing-table-scroll:focus-visible { outline: 2px solid var(--mint); outline-offset: -2px; }
+.turing-order-slots { display: flex; justify-content: center; align-items: center; gap: 18px; min-height: 100%; padding: 10px 5px; width: max-content; min-width: 100%; }
 .turing-order-slot { flex: 0 0 var(--turing-card-width); display: flex; flex-direction: column; align-items: center; gap: 5px; position: relative; min-width: 0; border: 0; background: transparent; }
 .turing-desk-card { display: flex; flex: none; flex-direction: column; align-items: center; gap: 5px; width: var(--turing-card-width); min-height: 0; max-width: none; margin: 0; border: 0; border-radius: 5px; background: transparent; color: #d8f5f0; padding: 0; text-align: center; font-family: inherit; box-shadow: none; }
 button.turing-desk-card { cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none; }
@@ -206,7 +208,7 @@ button.turing-desk-card:active { cursor: grabbing; }
   .turing-layout .turing-chip strong { font-size: 42px; }
 }
 @media (min-width: 1100px) and (min-height: 700px) {
-  .turing-main > .turing-shared-table { flex: 1 0 auto; overflow: hidden; padding: 6px 12px; gap: 5px; }
+  .turing-main > .turing-shared-table { flex: 1 1 0; overflow: hidden; padding: 6px 12px; gap: 5px; }
   .turing-main:has(.turing-shared-table) > .turing-question { flex-shrink: 1; min-height: 74px; }
   .turing-main > .turing-heading { margin-bottom: 0; }
   .turing-order-slots { padding-block: 4px; }

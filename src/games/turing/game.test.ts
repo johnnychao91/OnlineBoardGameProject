@@ -4,6 +4,7 @@ import type { State } from 'boardgame.io';
 import { TuringGame, TuringHostGame, isTuringSharedTable, turingCards, turingTableOrder, turingCardNumber, turingObserverView, turingPlayerView, type TuringState } from './game';
 import { normalizeTuringOptions, validateTuringOptions, type TuringOptions } from './rules';
 import { turingQuestionPool } from './questions';
+import { getGameDefinition } from '../registry';
 
 const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value));
 const customQuestions = Array.from({ length: 6 }, (_, index) => ({
@@ -106,13 +107,13 @@ beforeEach(() => vi.spyOn(console, 'error').mockImplementation(() => {}));
 afterEach(() => vi.restoreAllMocks());
 
 describe('圖靈測試合作流程與快照', () => {
-  it.each([2, 3, 4, 5, 6, 7, 8, 9])('%i 人隨機開場、輪換檢測員、五輪通關且題目不重複', count => {
+  it.each([2, 3, 4, 5, 6, 7, 8, 9, 10])('%i 人隨機開場、輪換檢測員、五輪通關且題目不重複', count => {
     const ids = Array.from({ length: count }, (_, index) => String(12 - count + index));
     const f = match(count, { participantIDs: ids });
     const firstExaminer = f.G.examinerID;
     const questions = new Set<string>();
     for (let round = 1; round <= 5; round += 1) {
-      expect(f.G).toMatchObject({ rulesVersion: 4, status: 'sorting', round, completedRounds: round - 1, integrity: Math.max(3, Math.min(count, 8)), targetRounds: 5 });
+      expect(f.G).toMatchObject({ rulesVersion: 5, status: 'sorting', round, completedRounds: round - 1, integrity: Math.max(3, Math.min(count, 8)), targetRounds: 5 });
       expect(f.G.examinerID).toBe(count <= 3 ? '' : ids[(ids.indexOf(firstExaminer) + round - 1) % ids.length]);
       expect(f.G.private[f.G.examinerID]).toBeUndefined();
       expect(f.G.secretQuestionQueue).toBeUndefined();
@@ -404,7 +405,7 @@ describe('圖靈測試有限生命無盡挑戰與舊局相容', () => {
   });
 });
 
-describe('圖靈測試雙人與三人共同排序桌', () => {
+describe('圖靈測試群體校準共同排序桌', () => {
   it.each([2, 3])('%i players can approve the complete initial table without placing a card first', count => {
     const f = match(count), ids = Object.keys(f.G.players), epoch = f.G.epoch;
     expect(f.G.tableOrder).toEqual(ids);
@@ -463,13 +464,14 @@ describe('圖靈測試雙人與三人共同排序桌', () => {
     expect(f.G.orderApprovals).toEqual([]);
     expect(f.G.revealed).toEqual([]);
   });
-  it.each([2, 3])('%i players place any face-down card and reveal atomically only after everyone agrees', count => {
-    const ids = count === 2 ? ['2', '11'] : ['1', '7', '11'];
-    const f = match(count, { participantIDs: ids });
+  it.each([2, 3, 4, 10])('%i players place any face-down card and reveal atomically only after everyone agrees', count => {
+    const ids = Array.from({ length: count }, (_, index) => String(12 - count + index));
+    const f = match(count, { participantIDs: ids, options: normalizeTuringOptions({ sortingMode: 'group' }) });
     expect(isTuringSharedTable(f.G)).toBe(true);
     expect(f.G.examinerID).toBe('');
     expect(Object.keys(f.G.private)).toEqual(ids);
     expect(Object.keys(turingCards(f.G))).toEqual(ids);
+    expect(new Set(ids.map(id => turingCardNumber(f.G, id))).size).toBe(count);
     for (const id of ids) {
       expect(f.G.private[id].cards).toHaveLength(1);
       const own = turingPlayerView({ G: f.G, playerID: id });
@@ -597,7 +599,7 @@ describe('圖靈測試直接排序與全員重抽', () => {
   it.each([2, 3, 4, 9])('%i seats enter sorting immediately and redraw unanimously without redealing or charging lives', count => {
     const ids = Array.from({ length: count }, (_, index) => String(12 - count + index));
     const f = match(count, { participantIDs: ids, options: normalizeTuringOptions({ deck: 'custom', customQuestions, mode: 'endless', lives: 7 }) });
-    expect(f.G).toMatchObject({ rulesVersion: 4, status: 'sorting', redrawApprovals: [] });
+    expect(f.G).toMatchObject({ rulesVersion: 5, status: 'sorting', redrawApprovals: [] });
     const before = clone(f.G), firstQuestion = clone(f.G.question!);
     for (const id of ids) {
       expect(f.act(id, 'acknowledge', f.G.epoch)).toBe(false);
@@ -939,13 +941,96 @@ describe('即時同意方式、下一題與保留成績結束', () => {
   });
 });
 
+describe('圖靈測試 v5 群體校準與檢測員玩法', () => {
+  it.each([2, 3])('%i-player rooms always use group calibration even with an examiner preference', count => {
+    const f = match(count, { options: normalizeTuringOptions({ sortingMode: 'examiner' }) });
+    expect(isTuringSharedTable(f.G)).toBe(true);
+    expect(f.G.examinerID).toBe('');
+    expect(Object.keys(turingCards(f.G))).toHaveLength(count);
+  });
+  it.each([
+    { count: 4, mode: 'standard' as const, rounds: 5 },
+    { count: 10, mode: 'endless' as const, rounds: 6 },
+  ])('$count-player group calibration preserves its table, privacy and challenge type across rounds and reloads', ({ count, mode, rounds }) => {
+    const f = match(count, { options: normalizeTuringOptions({ sortingMode: 'group', mode, lives: 20 }) });
+    const ids = Object.keys(f.G.players);
+    for (let round = 1; round <= rounds; round++) {
+      expect(f.G).toMatchObject({ rulesVersion: 5, examinerID: '', round, completedRounds: round - 1,
+        targetRounds: mode === 'endless' ? null : 5, tableOrder: ids, orderApprovals: [] });
+      expect(Object.keys(f.G.private)).toEqual(ids);
+      expect(new Set(ids.map(id => turingCardNumber(f.G, id))).size).toBe(count);
+      expect(turingObserverView(f.G, 'blind').private).toEqual({});
+      expect(turingObserverView(f.G, 'blind').options.sortingMode).toBe('group');
+      expect(f.act(ids[0], 'revealAnswer', ids[1], f.G.epoch)).toBe(false);
+      sortedReveal(f); f.reload();
+      if (round < rounds) acknowledgeAll(f);
+    }
+    if (mode === 'endless') {
+      expect(f.G).toMatchObject({ status: 'round-review', completedRounds: rounds, integrity: 20 });
+      expect(f.hostAction(ids[0], 'serverFinishChallenge', f.G.epoch, undefined)).toBe(true);
+      expect(getGameDefinition('turing-test')!.getOutcome(f.G)?.challenge)
+        .toEqual({ mode: 'endless-table', completedRounds: rounds, startingLives: 20 });
+    } else {
+      expect(f.G).toMatchObject({ status: 'finished', winner: 'humans', completedRounds: rounds });
+      expect(getGameDefinition('turing-test')!.getOutcome(f.G)?.challenge).toBeUndefined();
+    }
+  });
+  it.each([
+    { count: 4, policy: 'any' as const }, { count: 10, policy: 'host' as const },
+  ])('$count-player group calibration honors $policy redraw and ordering without waiting for extra votes', ({ count, policy }) => {
+    const f = match(count, { options: normalizeTuringOptions({ sortingMode: 'group', redrawApproval: policy, orderApproval: policy }) });
+    const ids = Object.keys(f.G.players), before = clone(f.G), actor = ids.at(-1)!;
+    const act = (move: 'Order' | 'Redraw') => policy === 'host'
+      ? f.hostAction(ids[0], `serverApprove${move}`, f.G.epoch, actor)
+      : f.act(actor, `approve${move}`, f.G.epoch);
+    expect(act('Redraw')).toBe(true);
+    expect(f.G.question!.id).not.toBe(before.question!.id);
+    expect(f.G.private).toEqual(before.private); expect(f.G.integrity).toBe(before.integrity);
+    expect(f.G.tableOrder).toEqual(ids); expect(f.G.orderApprovals).toEqual([]);
+    const sorted = [...ids].sort((a, b) => turingCardNumber(f.G, a)! - turingCardNumber(f.G, b)!);
+    sorted.forEach((id, index) => expect(f.act(ids[0], 'placeCard', id, index, f.G.epoch)).toBe(true));
+    if (policy === 'host') expect(f.act(actor, 'approveOrder', f.G.epoch)).toBe(false);
+    expect(act('Order')).toBe(true);
+    expect(f.G).toMatchObject({ status: 'round-review', completedRounds: 1, orderApprovals: [actor] });
+    expect(f.G.revealed).toHaveLength(count);
+  });
+  it.each([3, 4] as const)('saved v%i four-player games keep their examiner despite a stray group option', version => {
+    const f = match(4, { options: normalizeTuringOptions({ mode: 'endless', lives: 7 }) });
+    f.patch({ rulesVersion: version, options: { ...f.G.options, sortingMode: 'group' } });
+    const firstExaminer = f.G.examinerID, ids = Object.keys(f.G.players);
+    for (let round = 1; round <= 2; round++) {
+      expect(isTuringSharedTable(f.G)).toBe(false);
+      expect(f.G.examinerID).toBe(ids[(ids.indexOf(firstExaminer) + round - 1) % ids.length]);
+      expect(Object.keys(turingCards(f.G))).toHaveLength(3);
+      expect(f.act(ids[0], 'placeCard', Object.keys(turingCards(f.G))[0], 0, f.G.epoch)).toBe(false);
+      if (f.G.status === 'briefing') prepareSorting(f);
+      sortedReveal(f); f.reload();
+      if (round === 1) acknowledgeAll(f);
+    }
+    expect(f.hostAction(ids[0], 'serverFinishChallenge', f.G.epoch, undefined)).toBe(true);
+    expect(getGameDefinition('turing-test')!.getOutcome(f.G)?.challenge)
+      .toEqual({ mode: 'endless', completedRounds: 2, startingLives: 7 });
+  });
+  it('ten-player examiner play deals nine cards and keeps examiner challenge statistics', () => {
+    const f = match(10, { options: normalizeTuringOptions({ sortingMode: 'examiner', mode: 'endless', lives: 6 }) });
+    const ids = Object.keys(f.G.players);
+    expect(isTuringSharedTable(f.G)).toBe(false);
+    expect(Object.keys(turingCards(f.G))).toHaveLength(9);
+    expect(f.G.private[f.G.examinerID]).toBeUndefined();
+    sortedReveal(f);
+    expect(f.hostAction(ids[0], 'serverFinishChallenge', f.G.epoch, undefined)).toBe(true);
+    expect(getGameDefinition('turing-test')!.getOutcome(f.G)?.challenge)
+      .toEqual({ mode: 'endless', completedRounds: 1, startingLives: 6 });
+  });
+});
+
 describe('圖靈測試公開房規驗證', () => {
   it('normalizes independent defaults and trimmed custom cards without truncation', () => {
     const a = normalizeTuringOptions(undefined), b = normalizeTuringOptions(undefined);
     a.customQuestions.push(customQuestions[0]);
-    expect(b).toEqual({ deck: 'standard', customQuestions: [], mode: 'standard', lives: 5, redrawApproval: 'all', orderApproval: 'all', nextApproval: 'all' });
+    expect(b).toEqual({ deck: 'standard', customQuestions: [], mode: 'standard', lives: 5, sortingMode: 'examiner', redrawApproval: 'all', orderApproval: 'all', nextApproval: 'all' });
     expect(normalizeTuringOptions({ customQuestions: [{ prompt: '  請說一句歡迎詞。  ', low: ' 冷淡 ', high: ' 熱情 ' }] })).toEqual({
-      deck: 'standard', customQuestions: [{ prompt: '請說一句歡迎詞。', low: '冷淡', high: '熱情' }], mode: 'standard', lives: 5, redrawApproval: 'all', orderApproval: 'all', nextApproval: 'all',
+      deck: 'standard', customQuestions: [{ prompt: '請說一句歡迎詞。', low: '冷淡', high: '熱情' }], mode: 'standard', lives: 5, sortingMode: 'examiner', redrawApproval: 'all', orderApproval: 'all', nextApproval: 'all',
     });
     expect(validateTuringOptions({ deck: 'custom', customQuestions: customQuestions.slice(0, 5) }, 4)).toBeUndefined();
     expect(validateTuringOptions({ deck: 'custom', customQuestions: customQuestions.slice(0, 4) }, 4)).toContain('至少');
@@ -955,6 +1040,7 @@ describe('圖靈測試公開房規驗證', () => {
     { redrawApproval: null }, { orderApproval: null }, { redrawApproval: 'everyone' }, { orderApproval: 'owner' },
     { redrawApproval: true }, { orderApproval: 1 }, { redrawApproval: [] }, { orderApproval: {} },
     { nextApproval: 'owner' }, { nextApproval: null }, { nextApproval: false },
+    { sortingMode: 'all' }, { sortingMode: null }, { sortingMode: false }, { sortingMode: [] }, { sortingMode: {} },
     { mode: 'unknown' }, { mode: null }, { lives: '5' }, { lives: NaN }, { lives: Infinity }, { lives: 1.5 },
     { customQuestions: null }, { customQuestions: {} }, { customQuestions: [null] },
     { customQuestions: [{ ...customQuestions[0], id: 'injected' }] },
@@ -973,7 +1059,7 @@ describe('圖靈測試公開房規驗證', () => {
   it('rejects inherited settings, invalid counts and malformed seat lists', () => {
     expect(() => normalizeTuringOptions(Object.create({ deck: 'standard' }))).toThrow();
     expect(() => normalizeTuringOptions(JSON.parse('{"__proto__":{"polluted":true}}'))).toThrow();
-    for (const count of [0, 1, 10, 4.5, NaN]) expect(validateTuringOptions(undefined, count)).toBeTypeOf('string');
+    for (const count of [0, 1, 11, 4.5, NaN]) expect(validateTuringOptions(undefined, count)).toBeTypeOf('string');
     for (const ids of [['0', '0', '1', '2'], ['0', '1', '2'], ['0', '1', '2', '__proto__'], ['0', '1', '2', '12']]) {
       const result = createMatch({ game: TuringGame, numPlayers: 4, setupData: { participantIDs: ids }, unlisted: true });
       expect(result).toHaveProperty('setupDataError');

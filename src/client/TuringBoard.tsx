@@ -141,7 +141,7 @@ export function TuringLayout({ G, info, nameOf, ownID, visible, onVisible, contr
       {controls && <section className="panel turing-controls">{controls}</section>}
       {sharedTable && readonly && <p className="small muted turing-observer-note">{replay ? '唯讀復盤' : '觀戰席，不占參與人數'} · {replay ? '保留題目與揭牌順序，不含語音或逐字稿。' : '觀戰者不需作答或確認；語音需另外加入。'}</p>}
     </aside>
-    <aside className="game-aside turing-history-aside"><TuringLog G={G} nameOf={nameOf} /><details className="panel rules-details"><summary>檢測守則</summary><TuringRuleSummary legacy={legacy} legacyDual={dualCards} direct={(G.rulesVersion ?? 1) >= 4} /></details>
+    <aside className="game-aside turing-history-aside"><TuringLog G={G} nameOf={nameOf} /><details className="panel rules-details"><summary>檢測守則</summary><TuringRuleSummary group={sharedTable} legacy={legacy} legacyDual={dualCards} direct={(G.rulesVersion ?? 1) >= 4} /></details>
       {G.status === 'finished' && !replay && <BattleReport G={G} info={info} perspective="blind" label="製作檢測戰報" />}
     </aside>
   </div>;
@@ -175,7 +175,7 @@ function TuringStatus({ G, nameOf }: { G: TuringState; nameOf: TuringNameOf }) {
     lobby: ['檢測室準備中', '等待房主開始。'],
     briefing: ['校準開始 · 全員確認', sharedTable ? '先加入語音通話，每人查看自己的一張秘密強度牌。這一關由全員共同排序。' : legacy ? `本輪檢測員是 ${nameOf(G.examinerID)}，其餘玩家查看自己的秘密強度。` : `先加入語音通話。${nameOf(G.examinerID)} 擔任檢測員，其餘玩家查看秘密強度。`],
     answering: legacy ? ['回答封存中', '各自用文字作答。送出後不可修改，全員完成才一起公開。'] : ['語音回答中', '在外部語音中作答，再按「我已口頭回答」。題目若提到寫下，也直接說出內容；本站不錄音、不轉成文字。'],
-    sorting: sharedTable ? [`共同排列強度 · 等待${turingApprovalText(G.options.orderApproval)}`, `把所有卡牌由左到右排好。每個人都能拖曳調整；${turingApprovalText(G.options.orderApproval)}後一次揭曉，下降會失去生命。`] : [`${nameOf(G.examinerID)} 正在排序`, `從你認為最低的強度開始。每張只和前一張比較，下降會失去一點${legacy ? '容錯' : '生命'}。`],
+    sorting: sharedTable ? [`群體校準 · 等待${turingApprovalText(G.options.orderApproval)}`, `把所有卡牌由左到右排好。每個人都能拖曳調整；${turingApprovalText(G.options.orderApproval)}後一次揭曉，下降會失去生命。`] : [`${nameOf(G.examinerID)} 正在排序`, `從你認為最低的強度開始。每張只和前一張比較，下降會失去一點${legacy ? '容錯' : '生命'}。`],
     'round-review': [legacy ? '本輪檢測完成' : '本關檢測完成', `先看看最後結果；${turingApprovalText(G.options.nextApproval)}後換題，生命不會回復。`],
     finished: endless ? [`無盡挑戰結束 · 已通過 ${G.completedRounds ?? 0} 關`, G.winReason === 'endless-stopped' ? '房主已結算目前成績，保留已通過關數。稍後返回原房間。' : `在第 ${G.round} 關耗盡生命，本關不算通過。稍後返回原房間。`] : G.winner === 'humans' ? ['人性校準完成 · 全隊成功', '你們用不同的答案，找到了彼此的默契。稍後返回原房間。'] : ['系統誤判 · 本次檢測失敗', `${legacy ? '容錯' : '生命'}已耗盡，保留這份紀錄，下次重新校準。稍後返回原房間。`],
   };
@@ -184,7 +184,7 @@ function TuringStatus({ G, nameOf }: { G: TuringState; nameOf: TuringNameOf }) {
 }
 export function turingEventText(event: TuringEvent, nameOf: TuringNameOf, { legacy = false, dualCards = true }: { legacy?: boolean; dualCards?: boolean } = {}): string {
   const unit = legacy ? '輪' : '關', life = legacy ? '容錯' : '生命';
-  if (event.type === 'round-start') return event.examinerID === '' ? `第 ${event.round} ${unit} · 全員共同排序` : `第 ${event.round} ${unit} · ${event.examinerID ? nameOf(event.examinerID) : '檢測員'} 接手檢測`;
+  if (event.type === 'round-start') return event.examinerID === '' ? `第 ${event.round} ${unit} · 群體校準 · 全員共同排序` : `第 ${event.round} ${unit} · ${event.examinerID ? nameOf(event.examinerID) : '檢測員'} 接手檢測`;
   if (event.type === 'answers') return '所有回答已公開，開始排序';
   if (event.type === 'spoken') return '全員已確認口頭回答，開始排序';
   if (event.type === 'question-redraw') return '已重抽題目，保留強度牌並重新排序';
@@ -199,6 +199,6 @@ function TuringLog({ G, nameOf }: { G: TuringState; nameOf: TuringNameOf }) {
   const legacy = G.rulesVersion === 1, dualCards = G.rulesVersion === 2 && Object.keys(G.players).length <= 3;
   return <section className="panel event-log turing-log"><div className="section-heading"><h2>檢測紀錄</h2><span>公開資訊</span></div><ol>{G.log.slice(-40).reverse().map((event, i) => <li key={G.log.length - i}><span className={`log-dot ${event.error ? 'hazard' : 'repair'}`} /><div><p>{turingEventText(event, nameOf, { legacy, dualCards })}</p>{event.question && <p>{event.question.prompt}</p>}<small>第 {event.round} {legacy ? '輪' : '關'}</small></div></li>)}</ol></section>;
 }
-export function TuringRuleSummary({ legacy = false, legacyDual = false, direct = true }: { legacy?: boolean; legacyDual?: boolean; direct?: boolean }) {
-  return <div className="rule-summary">{legacy ? <><p>這是仍依舊規則進行的文字局：4～9 人合作五輪，受測者各有一張強度牌，回答封存至全員送出才公開。</p><p>檢測員逐張揭牌；比前一張小扣一點容錯。歸零失敗，完成五輪仍有容錯則成功。</p></> : <><p>2～9 人全員合作。請先透過語音軟體建立通話，以口頭回答傳達秘密強度。{direct ? '抽題後直接開始排牌，不需逐人確認已回答。' : '這是舊版進行局，仍需完成原有的開場與口頭回答確認。'}</p>{legacyDual ? <p>這是舊版雙卡局：檢測員不抽牌，其餘玩家各有 A、B 兩張牌；依每張卡的回答由低到高逐張揭曉。</p> : <p>2～3 人每人一張牌，共同拖曳排序；任何人都能調整，依房規由房主、全員或任一玩家確認後一次揭曉。調整位置會取消先前的排序同意。4～9 人輪流擔任檢測員，其餘每人一張，由檢測員逐張揭牌。</p>}{direct && <p>尚未揭牌時，依房規由房主、全員或任一玩家同意重抽；換題會保留強度牌、關數與生命，並重新排牌。房主模式需由入座房主確認。輪末依「檢查完畢下一題」的同意方式換關；房主可在遊戲中即時切換三項設定。</p>}<p>比前一張小扣一點生命，生命不會回復。標準模式挑戰五關；無盡模式持續到生命歸零，或由房主選擇以目前成績結束，紀錄成功通過幾關。</p><p>題目提到「寫下」也直接口頭回答。網站不錄音或轉錄語音。</p></>}<p>可以虛構，不必透露真實經歷。不得直接說出秘密數字或用約定暗號；本遊戲沒有敵對玩家。</p><a href="/rules/turing-test" target="_blank" rel="noopener noreferrer">完整規則與圖鑑 →</a></div>;
+export function TuringRuleSummary({ legacy = false, legacyDual = false, direct = true, group = false }: { legacy?: boolean; legacyDual?: boolean; direct?: boolean; group?: boolean }) {
+  return <div className="rule-summary">{legacy ? <><p>這是仍依舊規則進行的文字局：4～9 人合作五輪，受測者各有一張強度牌，回答封存至全員送出才公開。</p><p>檢測員逐張揭牌；比前一張小扣一點容錯。歸零失敗，完成五輪仍有容錯則成功。</p></> : <><p>2～10 人全員合作。請先透過語音軟體建立通話，以口頭回答傳達秘密強度。{direct ? '抽題後直接開始排牌，不需逐人確認已回答。' : '這是舊版進行局，仍需完成原有的開場與口頭回答確認。'}</p>{legacyDual ? <p>這是舊版雙卡局：檢測員不抽牌，其餘玩家各有 A、B 兩張牌；依每張卡的回答由低到高逐張揭曉。</p> : group ? <p>本局採「群體校準」：每人一張牌，任何人都能調整任何人的牌，依房規由房主、全員或任一玩家確認後一次揭曉。調整位置會取消先前的排序同意。牌桌可左右捲動，牌面保持固定尺寸。</p> : <p>本局採「檢測員玩法」：輪流擔任檢測員，其餘每人一張牌，由檢測員逐張揭牌。</p>}{direct && <p>尚未揭牌時，依房規由房主、全員或任一玩家同意重抽；換題會保留強度牌、關數與生命，並重新排牌。房主模式需由入座房主確認。輪末依「檢查完畢下一題」的同意方式換關；房主可在遊戲中即時切換三項設定。</p>}<p>比前一張小扣一點生命，生命不會回復。標準模式挑戰五關；無盡模式持續到生命歸零，或由房主選擇以目前成績結束，紀錄成功通過幾關。</p><p>題目提到「寫下」也直接口頭回答。網站不錄音或轉錄語音。</p></>}<p>可以虛構，不必透露真實經歷。不得直接說出秘密數字或用約定暗號；本遊戲沒有敵對玩家。</p><a href="/rules/turing-test" target="_blank" rel="noopener noreferrer">完整規則與圖鑑 →</a></div>;
 }

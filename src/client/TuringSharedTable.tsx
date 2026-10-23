@@ -18,6 +18,7 @@ export function TuringSharedTable({ G, ownID, visible, readonly, nameOf, actions
   const order = turingTableOrder(G);
   const editable = !readonly && G.status === 'sorting' && !!actions;
   const root = useRef<HTMLElement>(null);
+  const scrollArea = useRef<HTMLDivElement>(null);
   const dragging = useRef<Drag | null>(null);
   const suppressClickUntil = useRef(0);
   const keyboardFocus = useRef<string | null>(null);
@@ -28,7 +29,9 @@ export function TuringSharedTable({ G, ownID, visible, readonly, nameOf, actions
   useEffect(() => {
     if (!editable || !keyboardFocus.current) return;
     const button = [...(root.current?.querySelectorAll<HTMLButtonElement>('button[data-card-id]') ?? [])].find(element => element.dataset.cardId === keyboardFocus.current);
-    button?.focus(); keyboardFocus.current = null;
+    button?.focus({ preventScroll: true });
+    button?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    keyboardFocus.current = null;
   }, [editable, G.epoch]);
 
   function dropAt(x: number, y: number): DropTarget | null {
@@ -65,6 +68,12 @@ export function TuringSharedTable({ G, ownID, visible, readonly, nameOf, actions
     if (!current || current.pointerID !== event.pointerId || !editable) return;
     if (!current.active && Math.hypot(event.clientX - current.startX, event.clientY - current.startY) < 6) return;
     current.active = true;
+    const area = scrollArea.current;
+    if (area) {
+      const bounds = area.getBoundingClientRect();
+      if (event.clientX < bounds.left + 48) area.scrollLeft -= 24;
+      else if (event.clientX > bounds.right - 48) area.scrollLeft += 24;
+    }
     setSelected(current.cardID);
     setDrag({ cardID: current.cardID, x: event.clientX, y: event.clientY, target: dropAt(event.clientX, event.clientY) });
   }
@@ -110,12 +119,14 @@ export function TuringSharedTable({ G, ownID, visible, readonly, nameOf, actions
       {body}
     </button> : <div className={className} data-card-id={cardID} aria-label={label}>{body}</div>;
   }
-  return <section className={`panel turing-table turing-shared-table turing-shared-${ids.length}`} ref={root} aria-label="共同排序桌面">
+  return <section className={`panel turing-table turing-shared-table turing-shared-${ids.length}`} ref={root} aria-label="群體校準共同排序桌面">
     {scale}
+    <div className="turing-table-scroll" ref={scrollArea} tabIndex={0} role="region" aria-label="橫向牌桌，可左右捲動">
     <div className={`turing-order-slots turing-slots-${ids.length}`} aria-label="由左到右排列的桌面">
       {order.map((cardID, index) => <div className={`turing-order-slot${drag?.target && (drag.target.marker ?? drag.target.index) === index ? ' is-drop-target' : ''}${drag?.target?.marker === ids.length && index === ids.length - 1 ? ' is-drop-after' : ''}`} data-turing-slot={index} key={cardID}>
         {card(cardID)}
       </div>)}
+    </div>
     </div>
     {drag && cards[drag.cardID] && <div className="turing-drag-ghost" aria-hidden="true" style={{ left: drag.x, top: drag.y }}>{nameOf(cards[drag.cardID].playerID)}<span>放到想排的位置</span></div>}
   </section>;

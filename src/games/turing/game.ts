@@ -32,7 +32,7 @@ export interface TuringEvent {
   policies?: TuringPolicies;
 }
 export interface TuringState {
-  rulesVersion: 1 | 2 | 3 | 4;
+  rulesVersion: 1 | 2 | 3 | 4 | 5;
   status: TuringStatus;
   players: Record<string, TuringPlayer>;
   private: Record<string, TuringPrivateInfo>;
@@ -45,7 +45,7 @@ export interface TuringState {
   question: TuringQuestion | null;
   answers: Record<string, string>;
   cards?: Record<string, TuringCard>;
-  /** Voice v3 small groups arrange face-down cards on a shared table. */
+  /** Voice v3 small groups and v5 group calibration use a shared table. */
   tableOrder?: string[];
   orderApprovals?: string[];
   redrawApprovals?: string[];
@@ -63,7 +63,8 @@ export interface TuringState {
 
 export function isTuringSharedTable(G: TuringState): boolean {
   const count = Object.keys(G.players).length;
-  return G.rulesVersion >= 3 && count >= 2 && count <= 3;
+  return G.rulesVersion >= 3 && count >= 2 && count <= 10
+    && (count <= 3 || (G.rulesVersion >= 5 && G.options.sortingMode === 'group'));
 }
 
 /** Public answer slots, including the single slot used by persisted v1 games. */
@@ -395,6 +396,7 @@ export function turingPlayerView({ G, playerID }: { G: TuringState; playerID: st
       ...(cardID === undefined ? {} : { cardID }), ...(slot === undefined ? {} : { slot }) })),
     epoch: G.epoch, options: { deck: G.options.deck, customQuestions: G.options.customQuestions.map(({ prompt, low, high }) => ({ prompt, low, high })),
       ...(G.options.mode === undefined ? {} : { mode: G.options.mode }), ...(G.options.lives === undefined ? {} : { lives: G.options.lives }),
+      ...(G.options.sortingMode === undefined ? {} : { sortingMode: G.options.sortingMode }),
       ...(G.options.redrawApproval === undefined ? {} : { redrawApproval: G.options.redrawApproval }),
       ...(G.options.orderApproval === undefined ? {} : { orderApproval: G.options.orderApproval }),
       ...(G.options.nextApproval === undefined ? {} : { nextApproval: G.options.nextApproval }) },
@@ -411,7 +413,7 @@ export function turingObserverView(G: TuringState, perspective: 'blind' | 'god')
 
 const simultaneousMove = { ignoreStaleStateID: true, client: false, undoable: false, redact: true } as const;
 export const TuringGame: Game<TuringState, Record<string, unknown>, TuringSetupData> = {
-  name: 'turing-test', minPlayers: 2, maxPlayers: 9,
+  name: 'turing-test', minPlayers: 2, maxPlayers: 10,
   validateSetupData: (data, numPlayers) => {
     if (data !== undefined && (!data || typeof data !== 'object' || Array.isArray(data)
       || (data.startImmediately !== undefined && typeof data.startImmediately !== 'boolean'))) return '遊戲開始設定不正確。';
@@ -429,7 +431,7 @@ export const TuringGame: Game<TuringState, Record<string, unknown>, TuringSetupD
     const options = normalizeTuringOptions(data?.options);
     const integrity = options.mode === 'endless' ? options.lives! : Math.max(3, Math.min(ctx.numPlayers, 8));
     const G: TuringState = {
-      rulesVersion: 4, status: 'lobby',
+      rulesVersion: 5, status: 'lobby',
       players: Object.fromEntries(ids.map(id => [id, { ready: data?.startImmediately === true, acknowledged: false, answered: false }])),
       private: {}, cards: {}, round: 0, completedRounds: 0, targetRounds: options.mode === 'endless' ? null : TURING_ROUNDS, integrity, maxIntegrity: integrity,
       examinerID: '', question: null, answers: {}, revealed: [], epoch: 0,

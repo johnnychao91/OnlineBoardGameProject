@@ -52,5 +52,5 @@ export function TuringPolicySettings({ seat, info, policies, epoch, disabled = f
   const fields = <><div className="turing-policy-fields">{TURING_APPROVAL_KEYS.map(field => <label key={field}>{turingPolicyLabels[field]}<select aria-label={turingPolicyLabels[field]} value={pending?.key === field ? pending.value : policies[field] ?? 'all'} disabled={disabled || !!pending || !host || info.status === 'finished'} onChange={event => void save(field, event.target.value as TuringApproval)}>
     <option value="host" disabled={!hostAvailable}>房主同意</option><option value="all">所有人同意</option><option value="any">任何人同意</option>
   </select></label>)}</div><p className="small muted turing-policy-status" role="status">{error || (pending ? '儲存並同步中…' : message || (host ? '切換即儲存' : '由房主設定'))}{!hostAvailable && ' · 房主入座後才可選房主同意'}</p></>;
-  return compact ? <details className="turing-policy-details"><summary>同意方式</summary>{fields}</details> : <div className="turing-policy-settings">{fields}<p className="small muted">排序同意僅適用 2～3 人；4～9 人仍由檢測員揭牌。</p></div>;
+  return compact ? <details className="turing-policy-details"><summary>同意方式</summary>{fields}</details> : <div className="turing-policy-settings">{fields}<p className="small muted">排序同意適用「群體校準」；檢測員玩法仍由檢測員逐張揭牌。</p></div>;
 }
