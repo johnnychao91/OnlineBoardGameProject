@@ -1,6 +1,6 @@
 import { useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { isTuringSharedTable, turingCards, turingCardNumber, type TuringState, type TuringEvent } from '../games/turing/game';
-import { normalizeTuringAnswer, TURING_ANSWER_MAX, TURING_DECKS } from '../games/turing/rules';
+import { normalizeTuringAnswer, TURING_ANSWER_MAX, TURING_DECKS, type TuringQuestion } from '../games/turing/rules';
 import { isPlayer, type RoomInfo } from './api';
 import { RoomContext } from './room-context';
 import { GameSoundControl } from './GameSoundControl';
@@ -55,12 +55,12 @@ export function TuringBoard({ G, playerID, moves, isConnected }: Props) {
   const review = G.status === 'briefing' || G.status === 'round-review';
   const redrawApprovals = G.redrawApprovals ?? [];
   const canRedraw = (G.rulesVersion ?? 1) >= 4 && G.status === 'sorting' && G.revealed.length === 0;
-  const questionControls = G.question && <div className="turing-question-actions">
-    <TuringQuestionFeedback question={G.question} round={G.round} />
-    {canRedraw && <div className="turing-redraw-controls">
+  const questionFeedback = G.question && <TuringQuestionFeedback question={G.question} round={G.round} />;
+  const questionControls = canRedraw && <div className="turing-question-actions">
+    <div className="turing-redraw-controls">
       <button className="button secondary" type="button" disabled={!canAct} onClick={() => send(redrawApprovals.includes(id) ? 'withdrawRedraw' : 'approveRedraw')}>{redrawApprovals.includes(id) ? '撤回重抽同意' : redrawApprovals.length ? '同意重抽題目' : '提議重抽題目'}</button>
       {redrawApprovals.length > 0 && <div className="turing-redraw-status" role="status"><p>同意重抽：{redrawApprovals.map(nameOf).join('、')}</p><p>等待：{Object.keys(G.players).filter(player => !redrawApprovals.includes(player)).map(nameOf).join('、')}</p><small>全員同意才換題，保留強度牌與生命；提議完成或撤回後才能揭牌。</small></div>}
-    </div>}
+    </div>
   </div>;
   const controls = <>
     {review && <button className="button primary full" disabled={!canAct || own?.acknowledged} onClick={() => send('acknowledge')}>
@@ -83,16 +83,16 @@ export function TuringBoard({ G, playerID, moves, isConnected }: Props) {
   return <>
     <div className={`connection-banner ${isConnected === false ? 'offline' : ''}`} role="status"><Icon type="signal" size={15} />{isConnected === false ? '連線中斷，操作暫停；重連後同步最新進度。' : '人性檢測連線已建立'}</div>
     <TuringLayout G={G} info={info} nameOf={nameOf} ownID={id} visible={visible} onVisible={setVisible} controls={G.status === 'finished' ? undefined : controls}
-      questionControls={questionControls}
+      questionFeedback={questionFeedback} questionControls={questionControls}
       sound={<GameSoundControl gameID="turing-test" G={G} matchID={info.matchID} playerID={id} connected={isConnected !== false} />}
       tableActions={sharedTable && canAct ? { place: (cardID, index) => send('placeCard', cardID, index), remove: cardID => send('removeCard', cardID), approve: () => send('approveOrder'), withdraw: () => send('withdrawApproval') } : undefined}
       onReveal={examiner && canAct && !redrawApprovals.length ? target => send('revealAnswer', target) : undefined} />
   </>;
 }
 
-export function TuringLayout({ G, info, nameOf, ownID, visible, onVisible, controls, questionControls, sound, onReveal, tableActions, inspector, readonly = false, replay = false }: {
+export function TuringLayout({ G, info, nameOf, ownID, visible, onVisible, controls, questionFeedback, questionControls, sound, onReveal, tableActions, inspector, readonly = false, replay = false }: {
   G: TuringState; info: RoomInfo; nameOf: TuringNameOf; ownID: string; visible: boolean; onVisible: (value: boolean) => void;
-  controls?: ReactNode; questionControls?: ReactNode; sound?: ReactNode; onReveal?: (id: string) => void; tableActions?: TuringTableActions; inspector?: ReactNode; readonly?: boolean; replay?: boolean;
+  controls?: ReactNode; questionFeedback?: ReactNode; questionControls?: ReactNode; sound?: ReactNode; onReveal?: (id: string) => void; tableActions?: TuringTableActions; inspector?: ReactNode; readonly?: boolean; replay?: boolean;
 }) {
   const legacy = G.rulesVersion === 1;
   const sharedTable = isTuringSharedTable(G);
@@ -104,11 +104,11 @@ export function TuringLayout({ G, info, nameOf, ownID, visible, onVisible, contr
       <div className="game-title turing-heading"><div><div className="eyebrow">HUMANITY CALIBRATION</div><h1>圖靈測試</h1></div><div className="station-title-actions">{sound}<span className="round-badge">{G.targetRounds === null ? '無盡挑戰' : '測試'} <strong>{G.round || '—'}</strong>{G.targetRounds === null ? ' 關' : ` / ${G.targetRounds}`}</span>{G.targetRounds === null && <span className="turing-score-badge">已通過 {G.completedRounds ?? 0} 關</span>}</div></div>
       <TuringStatus G={G} nameOf={nameOf} />
       <section className="panel turing-question"><div className="section-heading"><span>{TURING_DECKS[G.options.deck]} · {G.question?.category ?? '等待開始'}</span><span>{legacy ? '容錯' : '生命'} <strong className={G.integrity <= 1 ? 'rules-danger' : 'mint'}>{G.integrity} / {G.maxIntegrity}</strong></span></div>
-        <h2>{G.question?.prompt ?? '準備好後，讓我們看看你有多了解人類。'}</h2>
-        {G.question && <div className="turing-scale"><div><b>1</b><span>{G.question.low}</span></div><span className="turing-scale-line" aria-hidden="true" /><div><b>10</b><span>{G.question.high}</span></div></div>}
+        <div className="turing-question-prompt"><h2>{G.question?.prompt ?? '準備好後，讓我們看看你有多了解人類。'}</h2>{!readonly && !replay && questionFeedback}</div>
+        {!sharedTable && <TuringScale question={G.question} />}
         {!readonly && !replay && questionControls}
       </section>
-      {sharedTable ? <TuringSharedTable G={G} ownID={ownID} visible={visible} readonly={readonly} nameOf={nameOf} actions={tableActions} /> : <section className="panel turing-table"><div className="section-heading"><h2>{legacy ? '受測者回答' : '口頭回答卡'}</h2><span>檢測員：{nameOf(G.examinerID)}</span></div>
+      {sharedTable ? <TuringSharedTable G={G} ownID={ownID} visible={visible} readonly={readonly} nameOf={nameOf} actions={tableActions} scale={<TuringScale question={G.question} />} /> : <section className="panel turing-table"><div className="section-heading"><h2>{legacy ? '受測者回答' : '口頭回答卡'}</h2><span>檢測員：{nameOf(G.examinerID)}</span></div>
         <div className="turing-answers">{Object.entries(cards).map(([cardID, card]) => {
           const id = card.playerID;
           const result = G.revealed.find(entry => legacy ? entry.playerID === id : entry.cardID === cardID);
@@ -136,6 +136,11 @@ export function TuringLayout({ G, info, nameOf, ownID, visible, onVisible, contr
       {G.status === 'finished' && !replay && <BattleReport G={G} info={info} perspective="blind" label="製作檢測戰報" />}
     </aside>
   </div>;
+}
+
+function TuringScale({ question }: { question: TuringQuestion | null }) {
+  if (!question) return null;
+  return <div className="turing-scale"><div><b>1</b><span>{question.low}</span></div><span className="turing-scale-line" aria-hidden="true" /><div><b>10</b><span>{question.high}</span></div></div>;
 }
 
 function TuringPrivate({ G, id, visible, onVisible, nameOf, readonly, children }: { G: TuringState; id: string; visible: boolean; onVisible: (value: boolean) => void; nameOf: TuringNameOf; readonly: boolean; children?: ReactNode }) {

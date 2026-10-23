@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type PointerEvent } from 'react';
+import { useEffect, useRef, useState, type PointerEvent, type ReactNode } from 'react';
 import { turingCards, turingCardNumber, type TuringState } from '../games/turing/game';
 
 export interface TuringTableActions {
@@ -9,13 +9,13 @@ export interface TuringTableActions {
 }
 type Props = {
   G: TuringState; ownID: string; visible: boolean; readonly: boolean;
-  nameOf: (id: string) => string; actions?: TuringTableActions;
+  nameOf: (id: string) => string; actions?: TuringTableActions; scale?: ReactNode;
 };
 type DropTarget = { type: 'slot'; index: number; marker?: number } | { type: 'pool' };
 type Drag = { cardID: string; pointerID: number; startX: number; startY: number; epoch: number; active: boolean };
 
 /** A public order with locally projected card faces; no browser-generated ordering is authoritative. */
-export function TuringSharedTable({ G, ownID, visible, readonly, nameOf, actions }: Props) {
+export function TuringSharedTable({ G, ownID, visible, readonly, nameOf, actions, scale }: Props) {
   const cards = turingCards(G), ids = Object.keys(cards);
   const order = G.tableOrder ?? [];
   const pool = ids.filter(id => !order.includes(id));
@@ -101,14 +101,7 @@ export function TuringSharedTable({ G, ownID, visible, readonly, nameOf, actions
   const currentSelection = selected && cards[selected] ? selected : null;
   const selectedIndex = currentSelection ? order.indexOf(currentSelection) : -1;
   return <section className={`panel turing-table turing-shared-table turing-shared-${ids.length}`} ref={root} aria-label="共同排序桌面">
-    <div className="section-heading"><h2>共同排序桌面</h2><span>每人一張 · 移牌後重新同意</span>
-      {editable && <div className={`turing-card-pool${drag?.target?.type === 'pool' ? ' is-drop-target' : ''}`} data-turing-pool="true" aria-label="移回待排">
-        <button className="text-button" type="button" disabled={!currentSelection || selectedIndex < 0} onClick={() => currentSelection && actions!.remove(currentSelection)}>移回待排</button>
-        {currentSelection && <button className="text-button" type="button" onClick={() => setSelected(null)}>取消選取</button>}
-      </div>}
-    </div>
-    <p className="turing-table-instruction">{G.status === 'sorting' ? readonly ? '所有玩家可共同調整，待全員同意後一次揭曉。' : '邊說答案邊排牌；拖曳卡牌到想放的位置，或先點卡再選第幾位。' : G.status === 'briefing' || G.status === 'answering' ? '這是舊版進行局；完成本輪確認後即可排牌。' : '保留剛才共同決定的順序與揭曉結果。'}</p>
-    <div className="turing-order-direction" aria-hidden="true"><span>低強度</span><span>→</span><span>高強度</span></div>
+    {scale}
     <div className={`turing-order-slots turing-slots-${ids.length}`} aria-label="由左到右排列的桌面">
       {displayOrder.map((cardID, index) => <div className={`turing-order-slot${index >= order.length ? ' is-unplaced' : ''}${drag?.target?.type === 'slot' && (drag.target.marker ?? drag.target.index) === index ? ' is-drop-target' : ''}${drag?.target?.type === 'slot' && drag.target.marker === ids.length && index === ids.length - 1 ? ' is-drop-after' : ''}`} data-turing-slot={index} key={cardID}>
         <span className="turing-slot-label">{index < order.length ? `第 ${index + 1} 位${index === 0 ? ' · 最低' : complete && index === ids.length - 1 ? ' · 最高' : ''}` : '待排'}</span>
@@ -116,6 +109,10 @@ export function TuringSharedTable({ G, ownID, visible, readonly, nameOf, actions
         {editable && <button className="turing-place-button" type="button" style={{ visibility: index > order.filter(id => id !== currentSelection).length ? 'hidden' : undefined }} disabled={!currentSelection || selectedIndex === index} onClick={() => currentSelection && place(currentSelection, index)} aria-label={`將選取的卡放到第 ${index + 1} 位`}>放第 {index + 1} 位</button>}
       </div>)}
     </div>
+    {editable && <div className={`turing-card-pool${drag?.target?.type === 'pool' ? ' is-drop-target' : ''}`} style={{ visibility: currentSelection ? 'visible' : 'hidden' }} data-turing-pool="true" aria-label="移回待排">
+      <button className="text-button" type="button" disabled={!currentSelection || selectedIndex < 0} onClick={() => currentSelection && actions!.remove(currentSelection)}>移回待排</button>
+      {currentSelection && <button className="text-button" type="button" onClick={() => setSelected(null)}>取消選取</button>}
+    </div>}
     {G.status === 'sorting' && <div className="turing-order-approval"><p className="small">{complete ? `尚未同意：${Object.keys(G.players).filter(id => !approvals.includes(id)).map(nameOf).join('、') || '全員已同意'}` : `還有 ${pool.length} 張牌待排。`}</p>
       <p className="small muted">調整任何卡牌位置，都會取消全員先前的同意；最後一人同意後立即揭牌。</p>
       {!readonly && <button className="button primary" type="button" disabled={!actions || !complete || !!G.redrawApprovals?.length} onClick={() => approvals.includes(ownID) ? actions?.withdraw() : actions?.approve()}>{G.redrawApprovals?.length ? '先決定是否重抽' : approvals.includes(ownID) ? '撤回同意' : '同意這個順序'}</button>}

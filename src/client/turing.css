@@ -9,6 +9,9 @@
 .turing-layout .turing-question { padding: 18px; margin-bottom: 14px; }
 .turing-question .section-heading { font-size: 12px; gap: 12px; margin-bottom: 10px; flex-wrap: wrap; }
 .turing-question h2 { font-size: 20px; line-height: 1.7; overflow-wrap: anywhere; }
+.turing-question-prompt { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 14px; }
+.turing-question-prompt > h2 { flex: 0 1 auto; min-width: 0; margin: 0; }
+.turing-question-prompt > .turing-question-feedback { flex: 0 1 auto; }
 .turing-scale { display: flex; align-items: center; gap: 12px; }
 .turing-scale > div { display: flex; align-items: center; gap: 10px; max-width: 45%; }
 .turing-scale b { color: #8ae5d1; font-size: 26px; flex: 0 0 auto; }
@@ -84,12 +87,9 @@
 .turing-custom-list .button { font-size: 12px; min-height: 38px; padding: 7px 12px; }
 .turing-import-label { cursor: pointer; }
 .turing-import-label input { display: block; max-width: 100%; font-size: 12px; margin-top: 8px; }
-.turing-layout { --turing-card-width: 120px; --turing-card-height: 180px; }
-.turing-table-instruction { margin: 0; font-size: 12px; line-height: 1.5; color: var(--muted); }
+.turing-layout { --turing-card-width: 150px; --turing-card-height: 225px; }
 .turing-main > .turing-shared-table { display: flex; flex-direction: column; gap: 8px; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
-.turing-shared-table > .section-heading { margin: 0; }
-.turing-order-direction { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: min(100%,460px); margin: 0 auto; font-size: 11px; color: #b3d8cf; }
-.turing-order-direction > span:nth-child(2) { flex: 1; text-align: center; border-bottom: 1px solid #59756f; line-height: .7; }
+.turing-shared-table > .turing-scale { width: 100%; flex: none; padding: 3px 0 7px; }
 .turing-order-slots { display: flex; justify-content: center; align-items: center; gap: 18px; flex: 1 0 auto; min-height: 0; padding: 10px 5px; width: 100%; }
 .turing-order-slot { flex: 0 0 var(--turing-card-width); display: flex; flex-direction: column; align-items: center; gap: 5px; position: relative; min-width: 0; border: 0; background: transparent; }
 .turing-slot-label { min-height: 14px; text-align: center; color: var(--mint); font-size: 10px; }
@@ -100,7 +100,7 @@ button.turing-desk-card:active { cursor: grabbing; }
 .turing-desk-owner { display: flex; align-items: center; justify-content: center; gap: 4px; width: 100%; height: 27px; flex: none; min-width: 0; font-size: 11px; line-height: 1.2; overflow: hidden; overflow-wrap: anywhere; }
 .turing-desk-owner .you-label { flex: none; margin: 0; }
 .turing-desk-face { display: flex; flex: none; flex-direction: column; align-items: center; justify-content: center; gap: 6px; width: var(--turing-card-width); height: var(--turing-card-height); min-height: 0; border: 1px solid #7395a1; border-radius: 9px; background: #18313c; box-shadow: 0 3px 5px #08151a66; }
-.turing-desk-number { font-size: 56px; line-height: 1.1; }
+.turing-desk-number { font-size: 72px; line-height: 1.1; }
 .turing-desk-face > small { font-size: 9px; line-height: 1.4; max-width: 85%; }
 .turing-desk-card.is-selected .turing-desk-face { outline: 3px solid #a4ecce; outline-offset: 2px; }
 .turing-desk-card:focus-visible, .turing-place-button:focus-visible { outline: 3px solid #a4ecce; outline-offset: 3px; }
@@ -151,7 +151,10 @@ button.turing-desk-card:active { cursor: grabbing; }
   .turing-desk-owner { font-size: 10px; }
   .turing-desk-face > small { font-size: 8px; }
   .turing-order-approval > .button { width: 100%; }
-  .turing-table-instruction { font-size: 11px; }
+  .turing-question-prompt { gap: 8px; }
+  .turing-question-prompt > h2 { flex-basis: 100%; }
+  .turing-shared-table > .turing-scale { align-items: flex-start; }
+  .turing-shared-table > .turing-scale > .turing-scale-line { margin-top: 20px; }
 
 }
 @media (min-width: 1100px) and (min-height: 700px) {
@@ -198,7 +201,7 @@ button.turing-desk-card:active { cursor: grabbing; }
 :root[data-visual-style="art"] .turing-main > .turing-shared-table { background: transparent; border: 0; box-shadow: none; }
 .turing-layout .turing-private-cards { display: flex; justify-content: center; gap: 8px; }
 .turing-layout .turing-chip { flex: none; width: var(--turing-card-width); height: var(--turing-card-height); min-height: 0; padding: 12px 6px; margin: 0; }
-.turing-layout .turing-chip strong { font-size: 56px; line-height: 1.1; }
+.turing-layout .turing-chip strong { font-size: 72px; line-height: 1.1; }
 .turing-layout .turing-chip > span { font-size: 10px; }
 .turing-layout .turing-double-cards { --turing-card-width: 90px; --turing-card-height: 135px; }
 .turing-layout .turing-double-cards .turing-chip strong { font-size: 42px; }
@@ -208,9 +211,8 @@ button.turing-desk-card:active { cursor: grabbing; }
 }
 @media (min-width: 1100px) and (min-height: 700px) {
   .turing-main > .turing-shared-table { flex: 1 0 auto; overflow: hidden; padding: 6px 12px; gap: 5px; }
-  .turing-main:has(.turing-shared-table) > .turing-question { flex-shrink: 1; min-height: 100px; }
-  .turing-shared-table .turing-table-instruction { font-size: 10px; }
-  .turing-shared-table > .section-heading { margin-bottom: 0; }
+  .turing-main:has(.turing-shared-table) > .turing-question { flex-shrink: 1; min-height: 74px; }
+  .turing-main > .turing-heading { margin-bottom: 0; }
   .turing-order-slots { padding-block: 4px; }
   .turing-shared-table .turing-order-approval p.muted { display: none; }
   .turing-shared-table .turing-order-approval { padding-top: 4px; }
@@ -218,22 +220,23 @@ button.turing-desk-card:active { cursor: grabbing; }
   .turing-main:has(.turing-shared-table) .turing-status p { display: none; }
 }
 @media (min-width: 1100px) and (min-height: 700px) and (max-height: 850px) {
-  .turing-layout { --turing-card-width: 96px; --turing-card-height: 144px; }
-  .turing-desk-number, .turing-layout .turing-chip strong { font-size: 44px; }
-  .turing-main > .turing-shared-table { gap: 3px; }
-  .turing-main:has(.turing-shared-table) { gap: 6px; }
+  .turing-layout { --turing-card-width: 120px; --turing-card-height: 180px; }
+  .turing-desk-number, .turing-layout .turing-chip strong { font-size: 58px; }
+  .turing-main > .turing-shared-table { gap: 2px; padding-block: 4px; }
+  .turing-main:has(.turing-shared-table) { gap: 3px; }
   .turing-main > .turing-heading { margin-bottom: 0; }
   .turing-main:has(.turing-shared-table) .turing-heading h1 { margin-bottom: 0; }
   .turing-main:has(.turing-shared-table) .turing-status { padding: 5px 10px; }
   .turing-main:has(.turing-shared-table) .turing-question { padding: 8px 10px; max-height: 29vh; }
   .turing-main:has(.turing-shared-table) .turing-question .section-heading { margin-bottom: 3px; }
   .turing-main:has(.turing-shared-table) .turing-question h2 { margin: 3px 0; font-size: 15px; line-height: 1.4; }
-  .turing-main:has(.turing-shared-table) .turing-scale b { font-size: 21px; }
-  .turing-shared-table .section-heading h2 { font-size: 13px; }
-  .turing-shared-table .section-heading > span { font-size: 10px; }
-  .turing-shared-table .turing-table-instruction { display: none; }
-  .turing-shared-table .turing-order-direction { display: none; }
-  .turing-shared-table .section-heading > span { display: none; }
+  .turing-main:has(.turing-shared-table) .turing-scale b { font-size: 21px; line-height: 1.2; }
+  .turing-main:has(.turing-shared-table) .turing-question-actions { margin-top: 5px; }
+  .turing-question-prompt { flex-wrap: nowrap; gap: 10px; }
+  .turing-question-prompt > .turing-question-feedback { flex-shrink: 0; font-size: 11px; gap: 5px; }
+  .turing-question-prompt .turing-question-feedback button { padding: 3px 7px; min-height: 28px; font-size: 11px; }
+  .turing-shared-table > .turing-scale { padding: 0; }
+  .turing-shared-table > .turing-scale span { font-size: 11px; }
   .turing-desk-owner { height: 20px; }
   .turing-desk-card { height: calc(var(--turing-card-height) + 25px); }
   .turing-card-pool { min-height: 24px; padding-block: 0; }
@@ -244,4 +247,15 @@ button.turing-desk-card:active { cursor: grabbing; }
   .turing-main:has(.turing-shared-table) .turing-reveal-strip > span:not(:first-child) { padding: 1px 6px; }
   .turing-redraw-status p { display: inline; margin-right: 8px; }
   .turing-redraw-status small { display: block; }
+}
+@media (min-width: 1100px) and (min-height: 1000px) {
+  .turing-layout { --turing-card-width: 180px; --turing-card-height: 270px; }
+  .turing-desk-number, .turing-layout .turing-chip strong { font-size: 88px; }
+  .turing-order-slots { gap: 28px; }
+  .turing-desk-owner { font-size: 13px; }
+  .turing-desk-face > small { font-size: 11px; }
+}
+@media (min-width: 1500px) and (min-height: 1200px) {
+  .turing-layout { --turing-card-width: 200px; --turing-card-height: 300px; }
+  .turing-desk-number, .turing-layout .turing-chip strong { font-size: 100px; }
 }
