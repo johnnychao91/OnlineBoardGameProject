@@ -40,7 +40,7 @@ export function RulesPage({ gameID }: { gameID?: RulesGameID }) {
     </nav>
     {!game && <div className="rules-game-cards">{Object.entries(games).map(([id, entry]) => <article className="panel rules-game-card" data-art-game={id} key={id}>
       <Icon type={id === 'space-station' ? 'orbit' : 'signal'} size={30} /><h2><a href={`/rules/${id}`}>{entry.name}</a></h2><p className="rules-game-meta">{entry.detail}</p><p>{entry.intro}</p>
-      <div className="rules-game-card-links"><a href={`/rules/${id}`}>閱讀詳細規則 →</a>{clientGames[id].roleGalleryChapter && <a href={`/rules/${id}#${encodeURIComponent(clientGames[id].roleGalleryChapter)}`}>角色圖鑑 →</a>}</div>
+      <div className="rules-game-card-links"><a href={`/rules/${id}`}>閱讀詳細規則 →</a><a href={`/rules/${id}#${encodeURIComponent(clientGames[id].gallery.chapter)}`}>{clientGames[id].gallery.label} →</a></div>
     </article>)}</div>}
     <div className={`rules-reading-layout${game ? '' : ' rules-overview'}`}>
       {game && <nav className="rules-toc" aria-label="本頁章節"><strong>快速前往</strong>

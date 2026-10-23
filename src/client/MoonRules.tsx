@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { MOON_PRESETS, MOON_ROLES, moonRoleCounts, type MoonRole } from '../games/moon/rules';
+import { MoonRoleGallery } from './MoonRoleGallery';
 
 function Chapter({ id, title, children }: { id: string; title: string; children: ReactNode }) { return <section id={id} className="rules-chapter panel"><h2>{title}</h2>{children}</section>; }
 const classicRoles: MoonRole[] = ['wolf', 'villager', 'seer', 'witch', 'hunter', 'guard'];
@@ -15,8 +16,9 @@ export function MoonRules() {
       <details><summary>原有經典自動配置（6～12 人）</summary><p>經典模式保留人數壓制勝利、暗牌、首夜正常襲擊，不能襲擊狼隊或自爆。同守同救預設存活。</p><div className="rules-table-wrap"><table><caption>經典模式依實際人數自動配置</caption><thead><tr><th>玩家</th>{classicRoles.map(role => <th key={role}>{MOON_ROLES[role].name}</th>)}</tr></thead><tbody>{[6, 7, 8, 9, 10, 11, 12].map(count => { const roles = moonRoleCounts(count); return <tr key={count}><th>{count} 人</th>{classicRoles.map(role => <td key={role}>{roles[role] || '—'}</td>)}</tr>; })}</tbody></table></div></details>
       <p><strong>明牌是「出局時公開身分」，不是開場公開所有身分。</strong>暗牌的一般離場者不公開身分；開槍、自爆、白癡翻牌等技能仍會公開必要資訊。所有人確認自己的秘密身分後，列車才進入第一晚。</p>
     </Chapter>
-    <Chapter id="roles" title="2. 狼人、村民與神職">
-      <div className="rules-table-wrap"><table><thead><tr><th>角色</th><th>陣營</th><th>能力</th></tr></thead><tbody>{Object.values(MOON_ROLES).map(role => <tr key={role.name}><th>{role.name}</th><td>{role.faction === 'wolves' ? '狼人' : '好人神職／村民'}</td><td>{role.description}</td></tr>)}</tbody></table></div>
+    <Chapter id="roles" title="2. 角色圖鑑與技能">
+      <p>圖鑑收錄全部十種角色；每局實際登場角色以開局配置為準。警長是額外職務，不替換原本角色，也不增加人數。</p>
+      <MoonRoleGallery />
       <p>所有特殊狼人都與狼隊相認、參加夜間襲擊，也會被預言家查為狼人。新增配置允許狼隊選擇自己或同伴作為襲擊目標，但<strong>惡靈騎士永遠不能成為狼刀目標</strong>。狼隊的操作面板只提供合法目標。經典模式仍不能襲擊任何狼人。</p>
       <p>女巫每晚最多用一瓶藥，第一晚可自救，之後不能自救，也不能毒自己。解藥用完後不再看見襲擊對象。守衛不能連續兩晚守同一人，不能阻擋毒藥或惡靈反傷。</p>
       <p>等待室的「同守同救」決定被狼刀者同時受到守護與解藥時，最後存活或死亡。經典預設存活，新配置預設死亡；房主可以明確切換，全員重新準備。這項規則不改變毒藥或反傷的判定。</p>

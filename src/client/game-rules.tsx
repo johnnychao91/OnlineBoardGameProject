@@ -1,5 +1,7 @@
 import type { ReactNode } from 'react';
 import { possibleRoleCounts, stationRolePool } from '../games/station/view-model';
+import { StationRulesGallery } from './StationRulesGallery';
+import { CipherRulesGallery } from './CipherRulesGallery';
 function Chapter({ id, title, children }: { id: string; title: string; children: ReactNode }) {
   return <section className="rules-chapter panel" id={id}><h2>{title}</h2>{children}</section>;
 }
@@ -13,10 +15,9 @@ export function StationRules() {
       </tbody></table></div>
       <p>身分牌洗勻後每人取一張；多出的一張不發出，也不公開。因此 4 人、7 人局的實際陣營比例不一定相同。身分整局固定，畫面列出的可能人數包含你自己。</p>
     </Chapter>
-    <Chapter id="goals" title="2. 陣營與勝負">
-      <ul><li><strong className="mint">維修員：</strong>在期限內找齊全部 N 張維修模組，立即獲勝。</li>
-        <li><strong className="rules-danger">干擾者：</strong>反應爐危機被揭開，或第四輪的檢修額度用盡仍未找齊全部維修模組，即獲勝。</li>
-        <li><strong>穩定設備：</strong>不增加維修進度，但仍消耗一次檢修額度。</li></ul>
+    <Chapter id="goals" title="2. 角色、設備與勝負">
+      <p>圖鑑介紹兩種身分與三種設備。N 代表本局參與人數；設備會發給任一陣營，持有哪種設備不代表玩家的身分。</p>
+      <StationRulesGallery />
       <p>勝敗屬於整個陣營。若第四輪最後一次檢修找到最後一張維修模組，維修員仍然獲勝；牌面結果先於輪數限制判定。</p>
     </Chapter>
     <Chapter id="round" title="3. 每輪先確認，再宣稱">
@@ -51,6 +52,10 @@ export function CipherRules() {
         <tr><th>2 人</th><td>12</td><td>2</td><td>1</td></tr><tr><th>3 人</th><td>10</td><td>3</td><td>1</td></tr><tr><th>4 人</th><td>8</td><td>4</td><td>1</td></tr>
       </tbody></table></div>
       <p>通過所有目標頻段，全隊獲勝；掩護降到 0，立即全隊失敗。掩護與脈衝跨頻段保留，不會每輪重設。</p>
+    </Chapter>
+    <Chapter id="gallery" title="訊號與道具圖鑑">
+      <p>所有玩家都是同一隊的友方特務，沒有互相對立的角色。這裡展示公開牌面與共用道具，範例數字不代表任何對局中的手牌。</p>
+      <CipherRulesGallery />
     </Chapter>
     <Chapter id="silence" title="2. 保持沉默的通訊限制">
       <p>你們要在不透露手牌資訊的前提下，讓所有訊號依照數字由小到大傳送。沒有輪流順序，也沒有要求等待幾秒的固定時刻。</p>

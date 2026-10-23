@@ -19,6 +19,6 @@ const images: Record<FogRole, string> = {
 export function FogRoleGallery() {
   return <RoleGallery idPrefix="fog-guide" entries={(Object.keys(images) as FogRole[]).map(id => ({
     id, name: FOG_ROLES[id].name, image: images[id], description: FOG_ROLES[id].description,
-    faction: FOG_FACTIONS[FOG_ROLES[id].faction], tone: FOG_ROLES[id].faction === 'knights' ? 'friendly' : 'hostile',
+    category: `初始陣營 · ${FOG_FACTIONS[FOG_ROLES[id].faction]}`, tone: FOG_ROLES[id].faction === 'knights' ? 'friendly' : 'hostile',
   }))} />;
 }

@@ -15,6 +15,8 @@ describe('Every registered game supplies the entire client framework', () => {
       for (const key of ['PlayerClient', 'Snapshot', 'DetailedRules', 'createPoster', 'soundAdapter'] as const) expect(typeof definition[key], `${id}: ${key}`).toBe('function');
       expect(definition.chapters.length).toBeGreaterThan(0);
       expect(new Set(definition.chapters.map(([id]) => id)).size).toBe(definition.chapters.length);
+      expect(definition.gallery.label.trim().length, `${id}: gallery label`).toBeGreaterThan(0);
+      expect(definition.chapters.map(([chapter]) => chapter), `${id}: gallery chapter`).toContain(definition.gallery.chapter);
     }
   });
   it.each(gameDefinitions)('$id renders shared blind / god snapshots without actions and bases spectator audio only on public events', definition => {

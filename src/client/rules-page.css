@@ -25,13 +25,17 @@
 .rules-role-gallery { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 16px; margin: 24px 0; }
 .rules-role-card { min-width: 0; border: 1px solid #4c726a; border-radius: 12px; overflow: hidden; background: #182d2b; }
 .rules-role-card[data-tone="hostile"] { border-color: #80545e; background: #30252e; }
+.rules-role-card[data-tone="neutral"] { border-color: #6e6b56; background: #2a2d2b; }
 .rules-role-portrait { height: 208px; padding: 12px; background: #101c2580; }
 .rules-role-portrait img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.rules-signal-example { position: relative; height: 100%; aspect-ratio: 2 / 3; max-width: 100%; margin: auto; container-type: inline-size; }
+.rules-signal-number { position: absolute; inset: 0; display: grid; place-items: center; color: #16362f; font: 800 clamp(36px, 42cqi, 88px) / 1 Georgia, serif; text-shadow: 0 1px #fff3c7; }
 .rules-role-copy { padding: 16px; }
 .rules-role-copy h3 { margin: 0 0 8px; font-size: 20px; color: #88dec9; overflow-wrap: anywhere; }
 .rules-role-card[data-tone="hostile"] h3 { color: #ff929b; }
 .rules-role-copy .rules-role-faction { margin: 0 0 12px; color: #88dec9; font-size: 12px; }
 .rules-role-card[data-tone="hostile"] .rules-role-faction { color: #ff929b; }
+.rules-role-card[data-tone="neutral"] h3, .rules-role-card[data-tone="neutral"] .rules-role-faction { color: #e8d19b; }
 .rules-role-copy > p:last-child { margin: 0; font-size: 13px; line-height: 1.85; }
 .rules-chapter { margin-bottom: 20px; scroll-margin-top: 20px; }
 .rules-chapter h2 { font-size: 22px; margin-bottom: 17px; }

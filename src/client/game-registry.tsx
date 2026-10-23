@@ -45,8 +45,8 @@ export interface ClientGameDefinition {
   Rules?: ComponentType;
   DetailedRules: ComponentType;
   chapters: readonly (readonly [string, string])[];
-  /** Optional public role gallery anchor inside DetailedRules. */
-  roleGalleryChapter?: string;
+  /** Every game exposes a public role, equipment or card gallery in its rulebook. */
+  gallery: { chapter: string; label: string };
   createPoster: (options: PosterOptions) => Promise<Blob>;
   soundAdapter: SoundAdapter;
   LobbyOptions?: ComponentType<LobbyOptionsProps>;
@@ -68,7 +68,8 @@ export const clientGames: Record<GameID, ClientGameDefinition> & Record<string, 
     Snapshot: MoonSnapshot, DetailedRules: MoonRules, LobbyOptions: MoonOptions,
     validateLobby: (options, count) => { try { return validateMoonOptions(normalizeMoonOptions(options), count); } catch (error) { return (error as Error).message; } },
     Rules: () => <p>狼人夜間秘密選擇襲擊目標，神職依序行動；白天依發言倒數討論並投票放逐。房主可選擇警長規則與現場輔助模式，夜間每個人都有不影響結果的掩護操作。</p>,
-    chapters: [['setup', '人數與模式'], ['roles', '角色與技能'], ['night', '夜間與掩護'], ['day', '發言與放逐'], ['sheriff', '警長規則'], ['end', '勝負與復盤']],
+    chapters: [['setup', '人數與模式'], ['roles', '角色圖鑑與技能'], ['night', '夜間與掩護'], ['day', '發言與放逐'], ['sheriff', '警長規則'], ['end', '勝負與復盤']],
+    gallery: { chapter: 'roles', label: '角色圖鑑' },
     createPoster: ({ G, info, step, totalSteps }) => createMoonPoster({ G: G as MoonState, players: info.players, step, totalSteps }),
     // Night sounds are identical for all roles. Never cue a private skill or result.
     soundAdapter: (G: MoonState) => ({ revision: G.epoch * 1000 + G.log.length,
@@ -85,7 +86,8 @@ export const clientGames: Record<GameID, ClientGameDefinition> & Record<string, 
     Snapshot: StationSnapshot,
     Rules: RuleSummary,
     DetailedRules: StationRules,
-    chapters: [['setup', '人數與配置'], ['goals', '陣營與勝負'], ['round', '每輪流程'], ['inspect', '如何檢修'], ['review', '換輪與結束']],
+    chapters: [['setup', '人數與配置'], ['goals', '角色與設備圖鑑'], ['round', '每輪流程'], ['inspect', '如何檢修'], ['review', '換輪與結束']],
+    gallery: { chapter: 'goals', label: '角色與設備圖鑑' },
     createPoster: ({ G, info, step, totalSteps }) => createReplayPoster({ G: G as StationObserverState, players: info.players, step, totalSteps }),
     soundAdapter: (G, id) => ({ revision: G.round * 1000 + G.log.length, events: G.log.map((entry: unknown) => JSON.stringify(entry)),
       attention: id && G.status === 'playing' && G.activePlayer === id ? `${G.round}:${G.log.length}:${id}` : undefined }),
@@ -100,7 +102,8 @@ export const clientGames: Record<GameID, ClientGameDefinition> & Record<string, 
     Snapshot: CipherSnapshot,
     Rules: CipherRuleSummary,
     DetailedRules: CipherRules,
-    chapters: [['setup', '人數與配牌'], ['silence', '通訊限制'], ['transmit', '同步與傳送'], ['mistakes', '順序錯誤'], ['pulse', '靜默脈衝'], ['levels', '進階與補給']],
+    chapters: [['setup', '人數與配牌'], ['gallery', '訊號與道具圖鑑'], ['silence', '通訊限制'], ['transmit', '同步與傳送'], ['mistakes', '順序錯誤'], ['pulse', '靜默脈衝'], ['levels', '進階與補給']],
+    gallery: { chapter: 'gallery', label: '訊號與道具圖鑑' },
     createPoster: ({ G, info, step, totalSteps }) => createCipherPoster({ G: G as CipherState, players: info.players, step, totalSteps }),
     // No ticking or transmission cue: audio must not become a timing guide.
     soundAdapter: (G: CipherState, id) => ({ revision: G.epoch * 1000 + G.log.length,
@@ -119,7 +122,7 @@ export const clientGames: Record<GameID, ClientGameDefinition> & Record<string, 
     Snapshot: FogSnapshot, DetailedRules: FogRules, LobbyOptions: FogOptions,
     Rules: () => <p>輪流組隊前往城郊燈塔，全員表決後由隊員秘密執行任務。守夜騎士要完成三次任務並保住逐星神諭者，黑霧使徒則要破壞任務或找出逐星神諭者。雙鐘騎士可能隨詛咒之鐘交換陣營。</p>,
     chapters: [['setup', '人數與配置'], ['roles', '角色圖鑑與情報'], ['flow', '組隊、表決與任務'], ['bell', '詛咒之鐘'], ['end', '勝敗與刺殺']],
-    roleGalleryChapter: 'roles',
+    gallery: { chapter: 'roles', label: '角色圖鑑' },
     createPoster: ({ G, info, step, totalSteps }) => createFogPoster({ G: G as FogState, players: info.players, step, totalSteps }),
     soundAdapter: (G: FogState, id) => ({ revision: G.epoch * 1000 + G.log.length,
       events: G.log.filter(entry => ['vote', 'quest', 'bell', 'finish'].includes(entry.type)).map(entry => JSON.stringify(entry)),
