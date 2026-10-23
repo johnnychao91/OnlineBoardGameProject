@@ -16,6 +16,7 @@ interface Room extends Seat { roomId: string; matchID: string; inviteUrl: string
 interface Group { host: Room; seats: Seat[]; observer: Observer; clients: Socket[]; matchID: string }
 type Snapshot = State<TuringState>;
 const origin = 'http://localhost:5173';
+const ioWait = { timeout: 10000, interval: 25 };
 const cleanups: (() => Promise<void>)[] = [];
 afterEach(async () => { for (const cleanup of cleanups.splice(0).reverse()) await cleanup(); vi.restoreAllMocks(); });
 const path = (room: Room, action = '') => `/api/rooms/${room.roomId}${action ? `/${action}` : ''}`;
@@ -36,6 +37,7 @@ async function fixture() {
   const config = { dataDir, publicOrigin: origin, host: '127.0.0.1', port: 0, production: false, createRoomKey: '', testRoomKey: 'turing-test-room-only-key', lifecycleSweepMs: 60000 };
   let app = await createApplication(config), running = await app.listen();
   const sockets: Socket[] = [], views = new Map<Socket, Snapshot>(), wireLogs = new Map<Socket, unknown[]>();
+  const broadcasts = new Map<Socket, number>(), socketErrors = new Map<Socket, unknown[]>();
   cleanups.push(async () => { sockets.forEach(socket => socket.disconnect()); await running.close(); });
   const request = async (url: string, body?: unknown, member?: Seat | Observer, extraHeaders: Record<string, string> = {}) => {
     const response = await fetch(`http://127.0.0.1:${running.port}${url}`, {
@@ -49,21 +51,28 @@ async function fixture() {
   };
   const connect = async () => {
     const socket = io(`http://127.0.0.1:${running.port}/turing-test`, { transports: ['websocket'], forceNew: true, reconnection: false, extraHeaders: { Origin: origin }, autoConnect: false });
-    sockets.push(socket); socket.on('error', () => {});
+    sockets.push(socket); socketErrors.set(socket, []);
+    socket.on('error', error => socketErrors.get(socket)!.push(error));
     socket.on('sync', (_id: string, info: SyncInfo) => { views.set(socket, info.state as Snapshot); wireLogs.set(socket, info.log); });
-    socket.on('update', (_id: string, state: Snapshot, log: unknown[]) => { views.set(socket, state); wireLogs.set(socket, log); });
+    socket.on('update', (_id: string, state: Snapshot, log: unknown[]) => {
+      views.set(socket, state); wireLogs.set(socket, log); broadcasts.set(socket, state._stateID);
+    });
     await new Promise<void>((ok, reject) => {
-      const timer = setTimeout(() => reject(new Error('Socket connect timed out')), 3000);
+      const timer = setTimeout(() => reject(new Error('Socket connect timed out')), ioWait.timeout);
       socket.once('connect', () => { clearTimeout(timer); ok(); });
       socket.once('connect_error', error => { clearTimeout(timer); reject(error); });
       socket.connect();
     });
     return socket;
   };
-  const sync = async (socket: Socket, group: Group, seat: Seat) => {
+  const sync = async (socket: Socket, group: Group, seat: Seat, context = 'Authorized sync') => {
     const response = new Promise<SyncInfo>((ok, reject) => {
-      const timer = setTimeout(() => reject(new Error('Authorized sync timed out')), 3000);
-      socket.once('sync', (_id: string, info: SyncInfo) => { clearTimeout(timer); ok(info); });
+      const receive = (_id: string, info: SyncInfo) => { clearTimeout(timer); ok(info); };
+      const timer = setTimeout(() => {
+        socket.off('sync', receive);
+        reject(new Error(`${context} timed out; connected=${socket.connected}; socket errors=${JSON.stringify(socketErrors.get(socket))}`));
+      }, ioWait.timeout);
+      socket.once('sync', receive);
     });
     socket.emit('sync', group.matchID, seat.playerID, seat.credentials, group.seats.length);
     return response;
@@ -76,10 +85,20 @@ async function fixture() {
   const move = async (group: Group, id: string, type: string, args: unknown[]) => {
     const before = await state(group.matchID);
     const context = `${type} by ${id}; rules v${before.G.rulesVersion}, round ${before.G.round}, ${before.G.status}, epoch ${before.G.epoch}`;
+    const index = group.seats.findIndex(seat => seat.playerID === id), socket = group.clients[index];
+    expect(socket.connected, `Connected before move: ${context}`).toBe(true);
     emitMove(group, id, type, args, before._stateID);
-    await vi.waitFor(async () => expect((await state(group.matchID))._stateID, `Persisted move: ${context}`).toBeGreaterThan(before._stateID), { timeout: 4000, interval: 10 });
+    // The engine broadcasts before persisting. A sync on this socket is queued
+    // behind the move and acknowledges completion of both state and metadata writes.
+    const committed = await sync(socket, group, group.seats[index], `Move completion: ${context}`);
+    expect(committed.state._stateID, `Committed move: ${context}`).toBe(before._stateID + 1);
     const after = await state(group.matchID);
-    await vi.waitFor(() => group.clients.forEach((socket, index) => expect(views.get(socket)?._stateID, `Broadcast to ${group.seats[index].playerID}: ${context}`).toBe(after._stateID)), { timeout: 4000, interval: 10 });
+    expect(after._stateID, `Persisted move: ${context}`).toBe(before._stateID + 1);
+    await vi.waitFor(() => group.clients.forEach((client, clientIndex) => {
+      // Keep update delivery separate from sync so the barrier cannot mask a lost broadcast.
+      expect(broadcasts.get(client), `Broadcast to ${group.seats[clientIndex].playerID}: ${context}`).toBe(after._stateID);
+      expect(views.get(client)?._stateID).toBe(after._stateID);
+    }), ioWait);
     return after;
   };
   const rejectMove = async (group: Group, id: string, type: string, args: unknown[]) => {
@@ -197,6 +216,41 @@ async function archive(f: Fixture, g: Group, member: Seat | Observer = g.host) {
 }
 
 describe('Turing custom questions, private answers and replay integration', () => {
+  it('waits for a slow durable group move after its broadcast and still rejects an invalid epoch', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const f = await fixture(), g = await group(f, 10);
+    expect((await f.request(path(g.host, 'options'), { matchID: g.matchID, options: { sortingMode: 'group' } }, g.host)).status).toBe(200);
+    await start(f, g);
+    const before = await f.state(g.matchID), order = turingTableOrder(before.G), cardID = order[9];
+    const persist = f.app.db.setState.bind(f.app.db);
+    let releaseWrite!: () => void;
+    const writeGate = new Promise<void>(resolve => { releaseWrite = resolve; });
+    vi.spyOn(f.app.db, 'setState').mockImplementationOnce(async (...args) => {
+      // The engine broadcasts before awaiting storage. Reproduce a write slower
+      // than the old four-second polling limit without changing any game rule.
+      await writeGate;
+      await new Promise(resolve => setTimeout(resolve, 4250));
+      await persist(...args);
+    });
+    let settled = false;
+    const moving = f.move(g, g.seats[8].playerID, 'placeCard', [cardID, 0, before.G.epoch])
+      .then(value => ({ value, error: undefined }), error => ({ value: undefined, error }))
+      .finally(() => { settled = true; });
+    try {
+      await vi.waitFor(() => g.clients.forEach(socket => expect(f.views.get(socket)?._stateID).toBe(before._stateID + 1)), ioWait);
+      expect((await f.state(g.matchID))._stateID).toBe(before._stateID);
+      expect(settled).toBe(false);
+    } finally { releaseWrite(); }
+    const result = await moving;
+    expect(result.error).toBeUndefined();
+    expect(result.value!._stateID).toBe(before._stateID + 1);
+    expect(result.value!.G).toMatchObject({ epoch: before.G.epoch + 1, tableOrder: [cardID, ...order.slice(0, 9)] });
+    for (const socket of g.clients) expect(f.views.get(socket)?._stateID).toBe(result.value!._stateID);
+    await expect(f.move(g, g.seats[8].playerID, 'placeCard', [cardID, 9, before.G.epoch]))
+      .rejects.toThrow('Committed move: placeCard by 8;');
+    expect(await f.state(g.matchID)).toEqual(result.value);
+  }, 30000);
+
   it.each([
     { count: 2, version: 2, sortingMode: 'examiner' }, { count: 3, version: 2, sortingMode: 'examiner' },
     { count: 2, version: 3, sortingMode: 'examiner' }, { count: 3, version: 3, sortingMode: 'examiner' },
