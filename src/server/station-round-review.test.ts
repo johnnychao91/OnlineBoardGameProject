@@ -7,6 +7,7 @@ import { io, type Socket } from 'socket.io-client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { StationState } from '../games/station/game';
 import { createApplication } from './app';
+import type { GuardedTransport } from './transport';
 
 type Snapshot = State<StationState>;
 interface Seat { playerID: string; credentials: string }
@@ -78,6 +79,25 @@ async function fixture(lifecycleSweepMs = 60000) {
     await vi.waitFor(async () => expect((await state(group))._stateID).toBeGreaterThan(before._stateID), { timeout: 4000 });
     return state(group);
   };
+  const settlePackets = async (group: Group, seats = group.seats) => {
+    // An unchanged snapshot cannot prove an invalid packet has been processed.
+    // Sync on each sending socket is queued after its preceding move packets.
+    await Promise.all(seats.map(seat => new Promise<void>((ok, reject) => {
+      const socket = group.clients[group.seats.findIndex(entry => entry.playerID === seat.playerID)];
+      const received = (matchID: string) => {
+        if (matchID !== group.room.matchID) return;
+        clearTimeout(timer); socket.off('sync', received); ok();
+      };
+      const timer = setTimeout(() => {
+        socket.off('sync', received);
+        reject(new Error(`Authorized packet barrier timed out for seat ${seat.playerID}`));
+      }, 8000);
+      socket.on('sync', received);
+      socket.emit('sync', group.room.matchID, seat.playerID, seat.credentials, group.seats.length);
+    })));
+    // A sync reply is sent before its connection metadata write completes.
+    await (app.server.transport as GuardedTransport).drain();
+  };
   const group = async (count = 4, briefingOnly = false) => {
     const created = await request('/api/rooms', { gameId: 'space-station', displayName: '房主' });
     expect(created.status).toBe(201);
@@ -111,7 +131,7 @@ async function fixture(lifecycleSweepMs = 60000) {
     return move(group, actor, 'reveal', [chosen.targetID, chosen.slot, selected.G.pendingReveal!.selectionID]);
   };
   return {
-    get app() { return app; }, request, state, group, move, reveal, connect,
+    get app() { return app; }, request, state, group, move, reveal, connect, settlePackets,
     async finish(group: Group) {
       const before = await state(group);
       if (before.G.secret!.cards[before.G.activePlayer!].includes('hazard')) await reveal(group, 'stable');
@@ -145,7 +165,7 @@ describe('Station final-card review and completed-table retention', () => {
       }
     };
     broadcast(initial, 2);
-    await new Promise((done) => setTimeout(done, 80));
+    await f.settlePackets(group);
     expect(await f.state(group)).toEqual(initial);
     broadcast(initial, 1);
     await vi.waitFor(async () => {
@@ -162,11 +182,11 @@ describe('Station final-card review and completed-table retention', () => {
     expect(second.G).toMatchObject({ status: 'briefing', round: 2 });
     broadcast(initial, 1);
     broadcast(second, 1);
-    await new Promise((done) => setTimeout(done, 80));
+    await f.settlePackets(group);
     expect(await f.state(group)).toEqual(second);
     const firstConfirmed = await f.move(group, group.seats[0].playerID, 'acknowledgeBriefing', [2]);
     broadcast(firstConfirmed, 2, [group.seats[0]]);
-    await new Promise((done) => setTimeout(done, 80));
+    await f.settlePackets(group, [group.seats[0]]);
     expect(await f.state(group)).toEqual(firstConfirmed);
     broadcast(firstConfirmed, 2, group.seats.slice(1));
     await vi.waitFor(async () => {
