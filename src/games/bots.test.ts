@@ -99,12 +99,37 @@ describe('Test-room bot adapters', () => {
       const expected = game.name === 'space-station' ? ['acknowledgeBriefing', 'declareRepairs', 'selectCard', 'reveal']
         : game.name === 'encrypted-call' ? ['readySync', 'playCard', 'acknowledgeLevel']
         : game.name === 'black-fog' ? ['acknowledge', 'selectTeam', 'confirmTeam', 'vote', 'submitQuest']
-        : game.name === 'turing-test' ? ['acknowledge', 'confirmSpoken', 'revealAnswer']
+        : game.name === 'turing-test' ? ['acknowledge', 'confirmSpoken', ...(count <= 3 ? ['placeCard', 'approveOrder'] : ['revealAnswer'])]
         : ['acknowledge', 'wolfVote', 'inspect', 'witch', 'finishSpeech', 'exileVote'];
       if (game.name === 'silver-moon' && count === 12) expected.push('guard', 'standForSheriff', 'sheriffVote', 'chooseOrder');
       for (const name of expected) expect(moves.has(name), `${game.name} did not exercise ${name}`).toBe(true);
     });
   }
+
+  it.each([2, 3])('saved v2 Turing %i-seat bots retain examiner sorting and dual voice cards', count => {
+    const f = match(TuringGame, count);
+    const saved = clone(f.state), G = saved.G;
+    G.rulesVersion = 2; G.examinerID = '0'; G.cards = {}; G.private = {};
+    delete G.tableOrder; delete G.orderApprovals;
+    G.log[0].examinerID = '0';
+    for (let index = 1; index < count; index += 1) {
+      const id = String(index), cards = [{ id: `${id}-a`, number: index * 2 }, { id: `${id}-b`, number: index * 2 + 1 }];
+      G.private[id] = { number: cards[0].number, cards };
+      for (const [slot, card] of cards.entries()) G.cards[card.id] = { playerID: id, slot: slot ? 'B' : 'A', spoken: false };
+    }
+    f.state = saved;
+    const random = seeded(77), moves = new Set<string>(), ids = Object.keys(G.players);
+    for (let step = 0; step < 300 && f.state.G.status !== 'finished'; step += 1) {
+      for (const id of ids) {
+        const move = chooseBotAction('turing-test', f.state, id, random);
+        if (move) { moves.add(move.move); f.move(id, move); break; }
+      }
+    }
+    expect(f.state.G.status).toBe('finished');
+    expect(moves.has('confirmSpoken')).toBe(true); expect(moves.has('revealAnswer')).toBe(true);
+    expect(moves.has('placeCard')).toBe(false); expect(moves.has('approveOrder')).toBe(false);
+    expect(f.state.G.rulesVersion).toBe(2);
+  });
 
   const presetScenarios = MOON_PRESETS.filter(preset => preset.count !== null).flatMap(preset =>
     (['online', 'assisted'] as const).map(mode => ({ preset, mode })));

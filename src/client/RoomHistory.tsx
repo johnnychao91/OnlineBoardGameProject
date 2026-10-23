@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { AuthSession, RoomInfo } from './api';
 import { clientGames, gameResultLabel } from './game-registry';
 import { ReplayPanel } from './ReplayViewer';
+import { challengeModeLabel } from './challenge-labels';
 
 export function RoomHistory({ seat, info }: { seat: AuthSession; info: RoomInfo }) {
   const [selected, setSelected] = useState<string | null>(null);
@@ -19,7 +20,7 @@ export function RoomHistory({ seat, info }: { seat: AuthSession; info: RoomInfo 
         : '上一局已提前結束'}</h2>
       <span className="history-game-name">{definition?.name || latestGame}</span>
       {latest.ending === 'completed' && latest.challenge && <p className="mint">
-        通過 {latest.challenge.completedRounds} 關 · 挑戰至第 {latest.challenge.completedRounds + 1} 關 · 起始 {latest.challenge.startingLives} 點生命
+        {challengeModeLabel(latest.challenge.mode)} · 通過 {latest.challenge.completedRounds} 關 · 挑戰至第 {latest.challenge.completedRounds + 1} 關 · 起始 {latest.challenge.startingLives} 點生命
       </p>}
       {info.testRoom && <p className="small amber">測試房間的結果僅供復盤，不計入全站戰績。</p>}
       <p className="muted">{latest.ending === 'completed'
@@ -33,7 +34,7 @@ export function RoomHistory({ seat, info }: { seat: AuthSession; info: RoomInfo 
         <summary>這個房間的已完成對局</summary>
         {history.map((entry, index) => entry.ending === 'completed' && <button className="text-button" key={entry.matchID}
           onClick={() => setSelected(entry.matchID)}>
-          第 {index + 1} 局 · {clientGames[entry.gameName ?? info.gameName]?.name || entry.gameName} · {entry.numPlayers} 人 · <span className={(entry.gameName ?? info.gameName) === 'space-station' && entry.winner === 'saboteur' ? 'role-saboteur' : undefined}>{entry.challenge ? `通過 ${entry.challenge.completedRounds} 關（${entry.challenge.startingLives} 點生命）` : gameResultLabel(entry.gameName ?? info.gameName, entry.winner)}</span>
+          第 {index + 1} 局 · {clientGames[entry.gameName ?? info.gameName]?.name || entry.gameName} · {entry.numPlayers} 人 · <span className={(entry.gameName ?? info.gameName) === 'space-station' && entry.winner === 'saboteur' ? 'role-saboteur' : undefined}>{entry.challenge ? `${challengeModeLabel(entry.challenge.mode)} · 通過 ${entry.challenge.completedRounds} 關（${entry.challenge.startingLives} 點生命）` : gameResultLabel(entry.gameName ?? info.gameName, entry.winner)}</span>
         </button>)}
       </details>}
     </div>

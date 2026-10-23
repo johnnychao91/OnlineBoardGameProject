@@ -5,7 +5,7 @@ import { FogGame, fogObserverView, type FogState } from './fog/game';
 import { normalizeFogOptions, validateFogOptions } from './fog/rules';
 import { MoonGame, moonObserverView, advanceMoonClock, type MoonState } from './moon/game';
 import { MOON_PRESETS, normalizeMoonOptions, validateMoonOptions } from './moon/rules';
-import { TuringGame, turingObserverView, type TuringState } from './turing/game';
+import { TuringGame, isTuringSharedTable, turingObserverView, type TuringState } from './turing/game';
 import { normalizeTuringOptions, validateTuringOptions } from './turing/rules';
 import { gameCatalog, type GameID } from './catalog';
 
@@ -116,8 +116,8 @@ export const gameDefinitions: GameDefinition[] = [{
   getOutcome: (state: TuringState) => {
     if (state.status !== 'finished' || !state.winner || !state.winReason) return null;
     return { winner: state.winner, reason: state.winReason,
-      ...(state.rulesVersion === 2 && state.options.mode === 'endless' ? { challenge: {
-        mode: 'endless', completedRounds: state.completedRounds ?? 0, startingLives: state.maxIntegrity,
+      ...(state.rulesVersion >= 2 && state.options.mode === 'endless' ? { challenge: {
+        mode: isTuringSharedTable(state) ? 'endless-table' : 'endless', completedRounds: state.completedRounds ?? 0, startingLives: state.maxIntegrity,
       } } : {}),
       roles: Object.fromEntries(Object.keys(state.players).map(id => [id, 'humans'])) };
   },

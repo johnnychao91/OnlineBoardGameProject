@@ -27,7 +27,7 @@ import { createReplayPoster } from './replay-poster';
 import { createCipherPoster } from './cipher-poster';
 import { StationRules, CipherRules } from './game-rules';
 import type { SoundAdapter } from './sound-cues';
-import { TuringGame, type TuringState } from '../games/turing/game';
+import { isTuringSharedTable, TuringGame, type TuringState } from '../games/turing/game';
 import { TuringBoard, TuringRuleSummary } from './TuringBoard';
 import { TuringSnapshot } from './TuringSnapshot';
 import { TuringOptions } from './TuringOptions';
@@ -80,7 +80,7 @@ export const clientGames: Record<GameID, ClientGameDefinition> & Record<string, 
     createPoster: createTuringPoster,
     soundAdapter: (G: TuringState, id) => ({ revision: G.epoch * 1000 + G.log.length,
       events: G.log.filter(event => event.type === 'reveal' || event.type === 'round-complete' || event.type === 'finish').map(event => JSON.stringify(event)),
-      attention: id && ((G.status === 'sorting' && G.examinerID === id) || ((G.status === 'briefing' || G.status === 'round-review') && !G.players[id]?.acknowledged)) ? `${G.round}:${G.status}:${id}` : undefined }),
+      attention: id && G.players[id] && ((G.status === 'sorting' && (isTuringSharedTable(G) ? !(G.orderApprovals ?? []).includes(id) : G.examinerID === id)) || ((G.status === 'briefing' || G.status === 'round-review') && !G.players[id].acknowledged)) ? `${G.round}:${G.status}:${id}` : undefined }),
     lobbyTitle: '用聲音校準，靠默契過關。', lobbyDescription: gameCatalog['turing-test'].description,
     cooperative: true, factionLabels: { humans: '校準小隊' },
     resultLabels: { humans: '全隊校準成功', system: '全隊檢測失敗' },

@@ -63,7 +63,7 @@ export function TuringOptions({ seat, info, disabled, onBusy, onUpdate }: LobbyO
     <p className="small">{draft.mode === 'endless' ? `以 ${draftLives} 點生命不斷挑戰，生命不會回復；歸零時記錄已通過幾關。題庫用完會重新抽取，避免連續同題。` : '標準模式共五關。2～3 人起始 3 點生命，4～8 人等於參與人數，9 人為 8 點；生命不會回復。'}</p>
     <label>題庫模式<select value={draft.deck} disabled={blocked} onChange={event => setDraft({ ...draft, deck: event.target.value as Options['deck'] })}>{Object.entries(TURING_DECKS).map(([id, name]) => <option key={id} value={id}>{name}{id === 'standard' ? ' · 1,000 題' : id === 'protocol' ? ' · 1,000 題 · 無審查' : id === 'mixed' ? ' · 2,000 題 · 含無審查' : ''}</option>)}</select></label>
     <p className="small muted">{draft.deck === 'protocol' || draft.deck === 'mixed' ? '失控協定含成人曖昧、社交尷尬與黑色幽默，請由成年且接受此風格的朋友一起玩。所有情境都可以虛構，無需分享私事。' : '人性校準涵蓋生活、想像與人類情緒；題目可以直接口頭作答，不需要開鏡頭或表演。'}題目若提到「寫下」，也直接說出內容即可。</p>
-    <p className="small">2～9 人全員合作，檢測員輪流擔任且不抽牌。2～3 人時，每位受測者各有 A、B 兩張牌；4～9 人各一張。故事中的機器人不是玩家的秘密身分。</p>
+    <p className="small">2～3 人每人一張強度牌，在共同桌面拖曳排序，全員同意才揭牌；任何位置調整都會取消先前的同意。4～9 人輪流擔任不抽牌的檢測員，其餘每人一張。所有玩家同隊，機器人只是故事背景。</p>
     <details><summary>自訂題目 · {draft.customQuestions.length} / {TURING_CUSTOM_MAX} 題</summary>
       <p className="small muted">自訂題目會混入所選內建題庫；同題幹採自訂版本，不重複抽取。選「自訂題庫」可只玩自己的題目，至少需 5 題。內容會提供房間成員查看，請勿填入密碼或私人資料。</p>
       {host && <div className="turing-custom-editor"><h4>{editing === null ? '新增一道題目' : `編輯第 ${editing + 1} 題`}</h4>

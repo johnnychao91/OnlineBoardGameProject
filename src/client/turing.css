@@ -84,6 +84,50 @@
 .turing-custom-list .button { font-size: 12px; min-height: 38px; padding: 7px 12px; }
 .turing-import-label { cursor: pointer; }
 .turing-import-label input { display: block; max-width: 100%; font-size: 12px; margin-top: 8px; }
+.turing-shared-table { --turing-seat-count: 3; }
+.turing-shared-2 { --turing-seat-count: 2; }
+.turing-table-instruction { margin: 0 0 12px; font-size: 12px; line-height: 1.6; color: var(--muted); }
+.turing-card-pool { display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 8px 12px; border: 1px dashed #577582; border-radius: 10px; background: #142a32; margin-bottom: 10px; }
+.turing-pool-label { flex: 0 0 auto; font-size: 11px; color: var(--muted); writing-mode: vertical-rl; letter-spacing: .15em; }
+.turing-pool-cards { display: flex; justify-content: center; align-items: center; gap: 10px; width: 100%; min-width: 0; }
+.turing-pool-cards > div { width: 90px; min-width: 0; }
+.turing-desk-card { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; width: 100%; max-width: 160px; min-height: 154px; margin: 0 auto; border: 1px solid #7a9eaa; border-radius: 9px; background: #1b3b47; color: #d8f5f0; padding: 8px 6px; text-align: center; font-family: inherit; box-shadow: 0 3px 0 #0b171e; }
+button.turing-desk-card { cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none; }
+button.turing-desk-card:active { cursor: grabbing; }
+.turing-desk-owner { width: 100%; min-width: 0; font-size: 12px; line-height: 1.35; overflow-wrap: anywhere; }
+.turing-desk-number { font-size: 52px; line-height: 1.1; }
+.turing-desk-face { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; width: 100%; min-height: 100px; border: 1px solid #7395a155; border-radius: 5px; background: #122d36; }
+.turing-desk-face > small, .turing-desk-spoken { font-size: 10px; line-height: 1.4; }
+.turing-desk-spoken { color: var(--muted); }
+.turing-pool-cards .turing-desk-card { min-height: 96px; padding: 7px 5px; gap: 3px; }
+.turing-pool-cards .turing-desk-number { font-size: 34px; }
+.turing-pool-cards .turing-desk-face { min-height: 60px; }
+.turing-pool-cards .turing-desk-owner { font-size: 10px; }
+.turing-pool-cards .turing-desk-spoken { display: none; }
+.turing-desk-card.is-selected { outline: 3px solid #a4ecce; outline-offset: 2px; }
+.turing-desk-card:focus-visible, .turing-place-button:focus-visible { outline: 3px solid #a4ecce; outline-offset: 3px; }
+.turing-desk-card.is-dragging { opacity: .45; }
+.turing-desk-card.is-error { border-color: #f297a2; background: #472c35; color: #ffd5db; }
+.turing-order-direction { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 8px 0; font-size: 11px; color: #b3d8cf; }
+.turing-order-direction > span:nth-child(2) { flex: 1; text-align: center; border-bottom: 1px solid #59756f; line-height: .7; }
+.turing-order-slots { display: grid; grid-template-columns: repeat(var(--turing-seat-count),minmax(0,1fr)); gap: 12px; }
+.turing-order-slot { display: flex; flex-direction: column; align-items: stretch; gap: 8px; min-width: 0; padding: 8px; border: 2px solid #55717b; border-radius: 12px; background: #11252d; }
+.turing-slot-label { text-align: center; color: var(--muted); font-size: 10px; }
+.turing-empty-slot { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 154px; color: #70919c; gap: 8px; border: 1px dashed #46626c; border-radius: 8px; }
+.turing-empty-slot > span { font-size: 32px; font-weight: 300; }
+.turing-empty-slot > small { font-size: 11px; }
+.turing-place-button { width: 100%; border: 1px solid #6e9c98; border-radius: 5px; background: #274842; color: #cef2e4; min-height: 34px; padding: 6px 4px; font: inherit; font-size: 11px; }
+.turing-place-button:disabled { opacity: .5; cursor: default; }
+.turing-pool-return { display: none; border: 1px solid #749c94; border-radius: 5px; background: #274842; color: #cef2e4; min-height: 28px; padding: 4px; font: inherit; font-size: 10px; }
+.turing-order-slot.is-drop-target, .turing-card-pool.is-drop-target { border-color: #c9f5c4; background: #234b3d; box-shadow: 0 0 0 2px #83bfa555 inset; }
+.turing-table-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 10px; font-size: 11px; }
+.turing-table-tools .button { min-height: 32px; padding: 5px 9px; font-size: 11px; }
+.turing-table-tools > span { flex: 1 0 100%; overflow-wrap: anywhere; }
+.turing-order-approval { margin-top: 12px; padding-top: 10px; border-top: 1px solid #46616a; }
+.turing-order-approval p { margin: 0 0 7px; overflow-wrap: anywhere; }
+.turing-order-approval > .button { width: 100%; min-height: 40px; }
+.turing-drag-ghost { position: fixed; z-index: 1000; transform: translate(-50%,-50%) rotate(-4deg); pointer-events: none; max-width: 190px; padding: 14px 18px; border: 2px solid #c4f4d5; border-radius: 10px; background: #254d46; color: #e6fff0; box-shadow: 0 12px 28px #0008; font-size: 13px; overflow-wrap: anywhere; }
+.turing-drag-ghost > span { display: block; margin-top: 5px; font-size: 10px; }
 @media (max-width: 1099px), (max-height: 699px) {
   .turing-layout { display: flex; flex-direction: column; width: min(900px,100%); }
   .turing-main, .turing-personal-aside, .turing-history-aside { width: 100%; }
@@ -104,6 +148,17 @@
   .turing-double-cards .turing-chip { width: 100%; }
   .turing-mode-settings { grid-template-columns: minmax(0,1fr); }
   .turing-scale > div { gap: 6px; }
+  .turing-order-slots { gap: 6px; }
+  .turing-order-slot { padding: 5px; gap: 6px; }
+  .turing-desk-card { min-height: 140px; padding: 8px 4px; }
+  .turing-desk-number { font-size: 42px; }
+  .turing-desk-owner { font-size: 10px; }
+  .turing-desk-face > small, .turing-desk-spoken { font-size: 9px; }
+  .turing-empty-slot { min-height: 140px; }
+  .turing-card-pool { padding: 8px; gap: 8px; }
+  .turing-pool-cards { gap: 7px; }
+  .turing-pool-cards > div { flex: 1; max-width: 90px; }
+  .turing-place-button { font-size: 10px; }
 }
 @media (min-width: 1100px) and (min-height: 700px) {
   :is(.room-game,.replay-panel,.shared-replay) .turing-layout { flex: 1; min-height: 0; width: 100%; max-width: none; margin: 0; padding: 0 20px 12px; display: grid; grid-template-columns: var(--game-history-width,190px) minmax(0,1fr) 240px; grid-template-rows: minmax(0,1fr); gap: 14px; align-items: stretch; overflow: hidden; }
@@ -142,3 +197,42 @@
 :root[data-visual-style="art"] .turing-double-cards .turing-chip > small { font-size: 8px; }
 :root[data-visual-style="art"] .turing-response { background: #1c3231; border-color: #8a8664; }
 :root[data-visual-style="art"] .turing-response-error { background: #412e31; border-color: #d48484; }
+:root[data-visual-style="art"] .turing-desk-card { border-color: #a39564; background: #1c3330; color: #e6ecd3; }
+:root[data-visual-style="art"] .turing-desk-face { min-height: 140px; border: 0; background: #decba0 url('./assets/art/turing/chip.png') center / 100% 100% no-repeat; color: #18382f; padding: 22px 9px; }
+:root[data-visual-style="art"] .turing-desk-number { font-family: Georgia,serif; color: #18382f; }
+:root[data-visual-style="art"] .turing-desk-spoken { color: #b5c7ac; }
+:root[data-visual-style="art"] .turing-pool-cards .turing-desk-face { min-height: 90px; padding: 16px 6px; }
+:root[data-visual-style="art"] .turing-desk-card.is-error { border-color: #e29a9b; box-shadow: 0 0 0 3px #b3494988 inset; }
+:root[data-visual-style="art"] .turing-card-pool, :root[data-visual-style="art"] .turing-order-slot { background: #172b28cc; border-color: #91865d; }
+:root[data-visual-style="art"] .turing-order-slot.is-drop-target, :root[data-visual-style="art"] .turing-card-pool.is-drop-target { border-color: #d7e9af; background: #3d5a3f; }
+@media (min-width: 1100px) and (min-height: 700px) {
+  .turing-main > .turing-shared-table { display: grid; grid-template-columns: minmax(96px,20%) minmax(0,1fr); grid-template-rows: auto minmax(0,1fr) auto; gap: 8px; overflow: hidden; }
+  .turing-shared-table > .section-heading { grid-column: 1 / -1; margin: 0; }
+  .turing-shared-table .turing-table-instruction, .turing-shared-table .turing-order-direction, .turing-shared-table .turing-table-tools { display: none; }
+  .turing-shared-table .turing-card-pool { grid-column: 1; grid-row: 2; flex-direction: column; align-items: stretch; gap: 5px; min-height: 0; padding: 6px; margin: 0; overflow: auto; }
+  .turing-shared-table .turing-pool-label { writing-mode: initial; text-align: center; font-size: 10px; }
+  .turing-shared-table .turing-pool-cards { flex: 1; min-height: 0; flex-direction: column; gap: 5px; }
+  .turing-shared-table .turing-pool-cards > div { flex: 1; width: 100%; min-height: 0; max-height: 105px; }
+  .turing-shared-table .turing-pool-cards > p { font-size: 10px; margin: 0; }
+  .turing-shared-table .turing-pool-return { display: block; flex-shrink: 0; }
+  .turing-shared-table .turing-order-slots { grid-column: 2; grid-row: 2; min-height: 0; gap: 8px; }
+  .turing-shared-table.turing-no-pool .turing-order-slots { grid-column: 1 / -1; justify-self: center; width: min(100%,640px); }
+  .turing-shared-table.turing-no-pool .turing-desk-card { max-width: 160px; }
+  .turing-shared-table .turing-order-slot { min-height: 0; padding: 6px; gap: 5px; }
+  .turing-shared-table .turing-desk-card { flex: 1; min-height: 0; width: 100%; max-width: none; height: 100%; padding: 5px; gap: 3px; overflow: hidden; }
+  .turing-shared-table .turing-desk-owner { font-size: 10px; line-height: 1.2; flex-shrink: 0; overflow: hidden; max-height: 2.4em; }
+  :root .turing-shared-table .turing-desk-face { flex: 1; min-height: 0; padding: 10px 8px; gap: 2px; }
+  .turing-shared-table .turing-desk-number { font-size: clamp(30px,3.7vh,48px); }
+  .turing-shared-table .turing-desk-spoken { display: none; }
+  .turing-shared-table .turing-pool-cards .turing-desk-card { display: grid; grid-template-columns: minmax(0,1fr) 32px; grid-template-rows: minmax(0,1fr); align-items: center; gap: 3px; }
+  :root .turing-shared-table .turing-pool-cards .turing-desk-face { height: 100%; min-height: 0; padding: 3px; background-size: 100% 100%; }
+  .turing-shared-table .turing-pool-cards .turing-desk-number { font-size: 23px; }
+  .turing-shared-table .turing-pool-cards .turing-desk-face > small { display: none; }
+  .turing-shared-table .turing-slot-label { line-height: 1.2; flex-shrink: 0; }
+  .turing-shared-table .turing-empty-slot { flex: 1; min-height: 0; }
+  .turing-shared-table .turing-place-button { min-height: 26px; padding: 3px; flex-shrink: 0; font-size: 10px; }
+  .turing-shared-table .turing-order-approval { grid-column: 1 / -1; grid-row: 3; display: flex; align-items: center; gap: 10px; padding: 5px 0 0; margin: 0; min-height: 36px; }
+  .turing-shared-table .turing-order-approval > p:first-child { flex: 1; font-size: 10px; line-height: 1.4; margin: 0; }
+  .turing-shared-table .turing-order-approval > p.muted { display: none; }
+  .turing-shared-table .turing-order-approval > .button { width: auto; min-width: 130px; min-height: 32px; padding: 5px 12px; font-size: 11px; flex-shrink: 0; }
+}

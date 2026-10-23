@@ -5,7 +5,7 @@ import { cipherPlayerView, type CipherState } from './cipher/game';
 import { fogAllowedQuestCards, fogPlayerView, type FogState } from './fog/game';
 import { fogTeamSizes } from './fog/rules';
 import { moonPlayerView, type MoonState } from './moon/game';
-import { turingCards, turingPlayerView, type TuringState } from './turing/game';
+import { isTuringSharedTable, turingCards, turingPlayerView, type TuringState } from './turing/game';
 
 export interface BotAction { move: string; args: unknown[] }
 type Random = () => number;
@@ -142,7 +142,7 @@ function turingAction(G: TuringState, id: string, random: Random): BotAction | n
   const own = G.players[id];
   if (['briefing', 'round-review'].includes(G.status) && !own.acknowledged) return action('acknowledge', G.epoch);
   if (G.status === 'answering' && id !== G.examinerID && !own.answered && G.private[id]) {
-    if (G.rulesVersion === 2) {
+    if (G.rulesVersion >= 2) {
       const pending = Object.entries(turingCards(G)).filter(([, card]) => card.playerID === id && !card.spoken);
       return pending.length ? action('confirmSpoken', pick(pending, random)[0], G.epoch) : null;
     }
@@ -150,6 +150,12 @@ function turingAction(G: TuringState, id: string, random: Random): BotAction | n
     // their private number. They are intentionally not strategy assistants.
     const replies = ['我會先觀察一下，再慢慢回應。', '這讓我忍不住多想了一會。', '我大概會露出一個微妙的表情。', '我想先聽聽其他人的想法。', '我會認真想像自己在這個情境。'];
     return action('submitAnswer', pick(replies, random), G.epoch);
+  }
+  if (G.status === 'sorting' && isTuringSharedTable(G)) {
+    const order = G.tableOrder ?? [];
+    const unplaced = Object.keys(turingCards(G)).filter(cardID => !order.includes(cardID));
+    if (unplaced.length) return action('placeCard', pick(unplaced, random), Math.floor(random() * (order.length + 1)), G.epoch);
+    return G.orderApprovals?.includes(id) ? null : action('approveOrder', G.epoch);
   }
   if (G.status === 'sorting' && G.examinerID === id) {
     const remaining = Object.keys(turingCards(G)).filter(other => !G.revealed.some(entry => (entry.cardID ?? entry.playerID) === other));

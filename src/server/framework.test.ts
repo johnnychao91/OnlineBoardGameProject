@@ -71,7 +71,7 @@ describe('Game framework registration and shared room lifecycle', () => {
     const god = await f.request(path(host, 'view?perspective=god'), undefined, observerHost);
     expect(blind.status).toBe(200); expect(god.status).toBe(200);
     expect(Object.keys(blind.body.G.private ?? {})).toHaveLength(0);
-    expect(Object.keys(god.body.G.private)).toHaveLength(gameCatalog[gameID].minPlayers - (gameID === 'turing-test' ? 1 : 0));
+    expect(Object.keys(god.body.G.private)).toHaveLength(gameCatalog[gameID].minPlayers);
     expect(blind.body.G.secret).toBeUndefined();
     if (gameID === 'black-fog' || gameID === 'silver-moon') expect(god.body.G.secret).toBeUndefined();
     expect(blind.body.G.secretQuestionQueue).toBeUndefined();

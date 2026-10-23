@@ -45,4 +45,18 @@ describe('Turing public poster projection', () => {
     expect(JSON.stringify(model)).not.toMatch(/unrecorded-voice-marker|private|future|secret/);
     expect(buildTuringPosterModel({ ...args, G: { ...G, private: {}, secretQuestionQueue: undefined } })).toEqual(model);
   });
+  it('shows the shared table order and consent without disclosing anyone’s unrevealed number', () => {
+    const G = fixture(); G.rulesVersion = 3; delete G.players['3']; G.examinerID = '';
+    G.tableOrder = ['2', '0', '1']; G.orderApprovals = ['0']; G.revealed = [];
+    const args = { G, info, step: 2, totalSteps: 8 };
+    const model = buildTuringPosterModel(args);
+    expect(model.voice).toBe(true); expect(model.shared).toBe(true);
+    expect(model.examiner).toBe('全員共同排序');
+    expect(model.table).toEqual({ order: ['成員 2', '成員 0', '成員 1'], approved: 1, total: 3 });
+    expect(model.latest).toBeNull(); expect(model.sequence).toEqual([]);
+    expect(buildTuringPosterModel({ ...args, G: { ...G, private: {}, secretQuestionQueue: undefined } })).toEqual(model);
+    expect(JSON.stringify(model)).not.toMatch(/sealed-private|future|secret|test-room|test-match/);
+    G.revealed = [{ playerID: '2', cardID: '2', slot: 'A', number: 6, error: false }];
+    expect(buildTuringPosterModel(args).latest?.name).toBe('成員 2');
+  });
 });

@@ -5,14 +5,15 @@ import type { RoomRecord, RoomStore } from './rooms';
 
 describe('Challenge score aggregation', () => {
   it('separates life and player-count groups from ranked wins, includes zero scores and counts each stored match only once', async () => {
-    const state = (count: number, rounds: number, lives: number, endless = true) => ({
-      ctx: { numPlayers: count }, G: { rulesVersion: 2, status: 'finished', players: Object.fromEntries(Array.from({ length: count }, (_, id) => [id, {}])),
+    const state = (count: number, rounds: number, lives: number, endless = true, rulesVersion = 2) => ({
+      ctx: { numPlayers: count }, G: { rulesVersion, status: 'finished', players: Object.fromEntries(Array.from({ length: count }, (_, id) => [id, {}])),
         winner: endless ? 'system' : 'humans', winReason: endless ? 'endless-exhausted' : 'calibrated',
         options: { mode: endless ? 'endless' : 'standard' }, completedRounds: rounds, maxIntegrity: lives },
     });
     const states = new Map<string, unknown>([
       ['normal', state(2, 5, 3, false)], ['zero', state(2, 0, 1)], ['six', state(2, 6, 1)],
       ['eight', state(2, 8, 1)], ['more-lives', state(2, 12, 5)], ['three-players', state(3, 7, 1)],
+      ['table', state(2, 4, 1, true, 3)],
       ['test', state(2, 99, 1)], ['ongoing', { ...state(2, 5, 1), G: { status: 'round-review' } }],
     ]);
     const room = (id: string, matchIDs: string[], testRoom = false) => ({
@@ -20,19 +21,20 @@ describe('Challenge score aggregation', () => {
       history: matchIDs.map(matchID => ({ matchID, gameName: 'turing-test', ending: 'completed' })),
     } as RoomRecord);
     const rooms = { rooms: new Map([
-      ['main', room('main', ['normal', 'zero', 'six', 'eight', 'more-lives', 'three-players'])],
+      ['main', room('main', ['normal', 'zero', 'six', 'eight', 'more-lives', 'three-players', 'table'])],
       ['test', room('test', ['test'], true)], ['ongoing', room('ongoing', ['ongoing'])],
     ]) } as RoomStore;
     const db = { fetch: async (id: string) => ({ state: states.get(id) }) } as unknown as FileStorage;
     const result = await collectStatistics(db, rooms);
-    expect(result).toMatchObject({ completedGames: 6, totalPlayerParticipations: 13 });
+    expect(result).toMatchObject({ completedGames: 7, totalPlayerParticipations: 15 });
     const summary = result.byGame.find(game => game.gameId === 'turing-test')!;
-    expect(summary).toMatchObject({ completed: 6, rankedCompleted: 1, wins: { humans: 1 }, reasons: { calibrated: 1 },
+    expect(summary).toMatchObject({ completed: 7, rankedCompleted: 1, wins: { humans: 1 }, reasons: { calibrated: 1 },
       byPlayerCount: [{ numPlayers: 2, completed: 1, draws: 0, wins: { humans: 1 } }],
       challenges: [
         { mode: 'endless', numPlayers: 2, startingLives: 1, runs: 3, bestCompletedRounds: 8, totalCompletedRounds: 14, averageCompletedRounds: 4.67 },
         { mode: 'endless', numPlayers: 2, startingLives: 5, runs: 1, bestCompletedRounds: 12, averageCompletedRounds: 12 },
         { mode: 'endless', numPlayers: 3, startingLives: 1, runs: 1, bestCompletedRounds: 7, averageCompletedRounds: 7 },
+        { mode: 'endless-table', numPlayers: 2, startingLives: 1, runs: 1, bestCompletedRounds: 4, averageCompletedRounds: 4 },
       ] });
     expect(await collectStatistics(db, rooms)).toEqual(result);
   });

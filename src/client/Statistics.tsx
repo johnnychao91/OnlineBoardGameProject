@@ -2,6 +2,7 @@ import { useEffect, useState, type CSSProperties } from 'react';
 import { api } from './api';
 import { clientGames } from './game-registry';
 import { ErrorMessage } from './ui';
+import { challengeModeLabel } from './challenge-labels';
 import './statistics.css';
 
 export interface GameStatistics {
@@ -29,11 +30,11 @@ export function factionRecord(game: Pick<GameStatistics, 'completed' | 'rankedCo
 export function ChallengeStandings({ challenges }: { challenges: NonNullable<GameStatistics['challenges']> }) {
   if (!challenges.length) return null;
   return <section className="challenge-statistics">
-    <h4>無盡挑戰成績</h4><p className="small muted">只比較相同人數與起始生命；成績採完整通過的關數，不算入五關模式勝敗。</p>
+    <h4>無盡挑戰成績</h4><p className="small muted">只比較相同玩法、人數與起始生命；成績採完整通過的關數，不算入五關模式勝敗。</p>
     <div className="table-scroll"><table><caption className="visually-hidden">無盡挑戰各組成績</caption>
-      <thead><tr><th>玩家</th><th>起始生命</th><th>挑戰局數</th><th>最高通關</th><th>平均通關</th></tr></thead>
+      <thead><tr><th>玩法</th><th>玩家</th><th>起始生命</th><th>挑戰局數</th><th>最高通關</th><th>平均通關</th></tr></thead>
       <tbody>{challenges.map(row => <tr key={`${row.mode}-${row.numPlayers}-${row.startingLives}`}>
-        <td>{row.numPlayers} 人</td><td>{row.startingLives} 點</td><td>{row.runs}</td><td>{row.bestCompletedRounds} 關</td><td>{row.averageCompletedRounds} 關</td>
+        <td>{challengeModeLabel(row.mode)}</td><td>{row.numPlayers} 人</td><td>{row.startingLives} 點</td><td>{row.runs}</td><td>{row.bestCompletedRounds} 關</td><td>{row.averageCompletedRounds} 關</td>
       </tr>)}</tbody>
     </table></div>
   </section>;

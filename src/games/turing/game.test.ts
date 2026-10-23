@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CreateGameReducer, createMatch } from 'boardgame.io/internal';
 import type { State } from 'boardgame.io';
-import { TuringGame, turingCards, turingCardNumber, turingObserverView, turingPlayerView, type TuringState } from './game';
+import { TuringGame, isTuringSharedTable, turingCards, turingCardNumber, turingObserverView, turingPlayerView, type TuringState } from './game';
 import { normalizeTuringOptions, validateTuringOptions, type TuringOptions } from './rules';
 import { turingQuestionPool } from './questions';
 
@@ -9,12 +9,12 @@ const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value));
 const customQuestions = Array.from({ length: 6 }, (_, index) => ({
   prompt: `請替第 ${index + 1} 段測試對話寫一句情境回應。`, low: '從容不迫', high: '緊張得說不出話',
 }));
-function match(count = 4, setup: { participantIDs?: string[]; options?: TuringOptions; startImmediately?: boolean } = {}, seed = 'turing-tests', legacy = false) {
+function match(count = 4, setup: { participantIDs?: string[]; options?: TuringOptions; startImmediately?: boolean } = {}, seed = 'turing-tests', legacy: boolean | 2 = false) {
   const game = { ...TuringGame, seed };
   const created = createMatch({ game, numPlayers: count, setupData: { startImmediately: true, ...setup }, unlisted: true });
   if ('setupDataError' in created) throw new Error(created.setupDataError);
   let state = clone(created.initialState) as State<TuringState>;
-  if (legacy) {
+  if (legacy === true) {
     // A serialized v1 match retains its preselected question snapshots, text
     // answers and original lives instead of inheriting the new setup defaults.
     state.G.rulesVersion = 1;
@@ -22,6 +22,19 @@ function match(count = 4, setup: { participantIDs?: string[]; options?: TuringOp
     state.G.options = { deck: state.G.options.deck, customQuestions: state.G.options.customQuestions };
     state.G.private = Object.fromEntries(Object.entries(state.G.private).map(([id, info]) => [id, { number: info.number }]));
     state.G.secretQuestionQueue = turingQuestionPool(state.G.options).filter(item => item.id !== state.G.question?.id).slice(0, 4);
+  }
+  if (legacy === 2) {
+    state.G.rulesVersion = 2;
+    const ids = Object.keys(state.G.players);
+    state.G.examinerID = ids[0];
+    delete state.G.tableOrder; delete state.G.orderApprovals;
+    state.G.private = {}; state.G.cards = {};
+    ids.slice(1).forEach((id, index) => {
+      const cards = [{ id: `${id}-a`, number: index * 2 + 2 }, { id: `${id}-b`, number: index * 2 + 3 }];
+      state.G.private[id] = { number: cards[0].number, cards };
+      for (const [i, card] of cards.entries()) state.G.cards![card.id] = { playerID: id, slot: i ? 'B' : 'A', spoken: false };
+    });
+    if (state.G.log[0]) state.G.log[0].examinerID = state.G.examinerID;
   }
   const reducer = CreateGameReducer({ game, isClient: false });
   return {
@@ -54,7 +67,15 @@ function answerAll(f: Fixture) {
 }
 function sortedReveal(f: Fixture) {
   const ids = Object.keys(turingCards(f.G)).sort((a, b) => turingCardNumber(f.G, a)! - turingCardNumber(f.G, b)!);
-  for (const id of ids) expect(f.act(f.G.examinerID, 'revealAnswer', id, f.G.epoch)).toBe(true);
+  revealOrder(f, ids);
+}
+function revealOrder(f: Fixture, ids: string[]) {
+  if (isTuringSharedTable(f.G)) {
+    const players = Object.keys(f.G.players);
+    for (const [index, id] of ids.entries()) expect(f.act(players[index % players.length], 'placeCard', id, index, f.G.epoch)).toBe(true);
+    const epoch = f.G.epoch;
+    for (const id of players) expect(f.act(id, 'approveOrder', epoch)).toBe(true);
+  } else for (const id of ids) expect(f.act(f.G.examinerID, 'revealAnswer', id, f.G.epoch)).toBe(true);
 }
 function replaceNumbers(f: Fixture, numbers: number[]) {
   return Object.fromEntries(Object.entries(f.G.private).map(([id, info], index) => [id, {
@@ -79,19 +100,20 @@ describe('圖靈測試合作流程與快照', () => {
     const firstExaminer = f.G.examinerID;
     const questions = new Set<string>();
     for (let round = 1; round <= 5; round += 1) {
-      expect(f.G).toMatchObject({ rulesVersion: 2, status: 'briefing', round, completedRounds: round - 1, integrity: Math.max(3, Math.min(count, 8)), targetRounds: 5 });
-      expect(f.G.examinerID).toBe(ids[(ids.indexOf(firstExaminer) + round - 1) % ids.length]);
+      expect(f.G).toMatchObject({ rulesVersion: 3, status: 'briefing', round, completedRounds: round - 1, integrity: Math.max(3, Math.min(count, 8)), targetRounds: 5 });
+      expect(f.G.examinerID).toBe(count <= 3 ? '' : ids[(ids.indexOf(firstExaminer) + round - 1) % ids.length]);
       expect(f.G.private[f.G.examinerID]).toBeUndefined();
       expect(f.G.secretQuestionQueue).toBeUndefined();
       expect(f.G.secretDrawIDs).toHaveLength(round);
-      const perPlayer = count <= 3 ? 2 : 1;
+      const cardCount = count <= 3 ? count : count - 1;
       const numbers = Object.values(f.G.private).flatMap(info => info.cards!.map(card => card.number));
-      expect(new Set(numbers).size).toBe((count - 1) * perPlayer);
-      expect(Object.keys(turingCards(f.G))).toHaveLength((count - 1) * perPlayer);
+      expect(new Set(numbers).size).toBe(cardCount);
+      expect(Object.keys(turingCards(f.G))).toHaveLength(cardCount);
       for (const id of Object.keys(f.G.private)) {
-        expect(f.G.private[id].cards).toHaveLength(perPlayer);
-        expect(f.G.private[id].cards!.map(card => card.id)).toEqual(perPlayer === 1 ? [id] : [`${id}-a`, `${id}-b`]);
+        expect(f.G.private[id].cards).toHaveLength(1);
+        expect(f.G.private[id].cards!.map(card => card.id)).toEqual([id]);
       }
+      if (count <= 3) { expect(f.G.tableOrder).toEqual([]); expect(f.G.orderApprovals).toEqual([]); }
       expect(numbers.every(number => Number.isInteger(number) && number >= 1 && number <= 10)).toBe(true);
       expect(f.G.answers).toEqual({}); expect(f.G.revealed).toEqual([]);
       questions.add(f.G.question!.id);
@@ -158,8 +180,8 @@ describe('圖靈測試合作流程與快照', () => {
 });
 
 describe('圖靈測試權限、時序與私人投影', () => {
-  it.each([2, 3])('%i-person voice play confirms each owned A/B slot without text and seals numbers', count => {
-    const f = match(count);
+  it.each([2, 3])('legacy v2 %i-person voice play preserves each owned A/B slot and private numbers', count => {
+    const f = match(count, {}, 'legacy-v2-slots', 2);
     const initialEpoch = f.G.epoch;
     acknowledgeAll(f);
     const cards = Object.entries(turingCards(f.G)), [firstID, first] = cards[0], epoch = f.G.epoch;
@@ -271,6 +293,37 @@ describe('圖靈測試權限、時序與私人投影', () => {
 });
 
 describe('圖靈測試有限生命無盡挑戰與舊局相容', () => {
+  it.each([2, 3])('saved v2 %i-player games keep the rotating examiner and double cards through five rounds', count => {
+    const f = match(count, { participantIDs: Array.from({ length: count }, (_, index) => String(9 + index)) }, 'v2-five-rounds', 2);
+    const ids = Object.keys(f.G.players), first = f.G.examinerID;
+    for (let round = 1; round <= 5; round += 1) {
+      expect(isTuringSharedTable(f.G)).toBe(false);
+      expect(f.G.rulesVersion).toBe(2);
+      expect(f.G.examinerID).toBe(ids[(ids.indexOf(first) + round - 1) % ids.length]);
+      expect(f.G.private[f.G.examinerID]).toBeUndefined();
+      expect(Object.values(f.G.private).every(info => info.cards?.length === 2)).toBe(true);
+      expect(f.G.tableOrder).toBeUndefined(); expect(f.G.orderApprovals).toBeUndefined();
+      acknowledgeAll(f); answerAll(f);
+      const actor = ids[0], cardID = Object.keys(turingCards(f.G))[0];
+      expect(f.act(actor, 'placeCard', cardID, 0, f.G.epoch)).toBe(false);
+      expect(f.act(actor, 'approveOrder', f.G.epoch)).toBe(false);
+      f.reload(); sortedReveal(f);
+      if (round < 5) { f.reload(); acknowledgeAll(f); }
+    }
+    expect(f.G).toMatchObject({ completedRounds: 5, status: 'finished', winner: 'humans', integrity: 3 });
+  });
+  it('saved v2 endless games still finish with their original examiner and scoring', () => {
+    const f = match(2, { options: normalizeTuringOptions({ mode: 'endless', lives: 1 }) }, 'v2-endless', 2);
+    for (let round = 1; round <= 6; round += 1) {
+      acknowledgeAll(f); answerAll(f);
+      const cards = Object.keys(turingCards(f.G)).sort((a, b) => turingCardNumber(f.G, a)! - turingCardNumber(f.G, b)!);
+      if (round === 6) cards.reverse();
+      revealOrder(f, cards);
+      if (round < 6) { f.reload(); acknowledgeAll(f); }
+    }
+    expect(f.G).toMatchObject({ rulesVersion: 2, completedRounds: 5, status: 'finished', winner: 'system', winReason: 'endless-exhausted' });
+    expect(f.G.tableOrder).toBeUndefined();
+  });
   it('continues beyond five rounds, cycles custom questions without adjacent repeats and records only completed rounds', () => {
     const options = normalizeTuringOptions({ deck: 'custom', customQuestions: customQuestions.slice(0, 5), mode: 'endless', lives: 2 });
     const f = match(2, { options });
@@ -284,7 +337,7 @@ describe('圖靈測試有限生命無盡挑戰與舊局相容', () => {
       acknowledgeAll(f); answerAll(f);
       const cards = Object.keys(turingCards(f.G)).sort((a, b) => turingCardNumber(f.G, a)! - turingCardNumber(f.G, b)!);
       if (round === 1 || round === 13) cards.reverse();
-      for (const id of cards) expect(f.act(f.G.examinerID, 'revealAnswer', id, f.G.epoch)).toBe(true);
+      revealOrder(f, cards);
       if (round === 13) break;
       expect(f.G).toMatchObject({ status: 'round-review', completedRounds: round, integrity: 1 });
       f.reload(); acknowledgeAll(f);
@@ -336,6 +389,133 @@ describe('圖靈測試有限生命無盡挑戰與舊局相容', () => {
     expect(f.G.log.filter(entry => entry.type === 'answers')).toHaveLength(5);
     expect(f.G.log.some(entry => entry.type === 'spoken')).toBe(false);
     expect(turingObserverView(f.G, 'god')).not.toHaveProperty('secretQuestionQueue');
+  });
+});
+
+describe('圖靈測試雙人與三人共同排序桌', () => {
+  it.each([2, 3])('%i players place any face-down card and reveal atomically only after everyone agrees', count => {
+    const ids = count === 2 ? ['2', '11'] : ['1', '7', '11'];
+    const f = match(count, { participantIDs: ids });
+    expect(isTuringSharedTable(f.G)).toBe(true);
+    expect(f.G.examinerID).toBe('');
+    expect(Object.keys(f.G.private)).toEqual(ids);
+    expect(Object.keys(turingCards(f.G))).toEqual(ids);
+    for (const id of ids) {
+      expect(f.G.private[id].cards).toHaveLength(1);
+      const own = turingPlayerView({ G: f.G, playerID: id });
+      expect(Object.keys(own.private)).toEqual([id]);
+      for (const other of ids.filter(other => other !== id)) expect(turingCardNumber(own, other)).toBeUndefined();
+    }
+    acknowledgeAll(f); answerAll(f);
+    const sorted = [...ids].sort((a, b) => turingCardNumber(f.G, a)! - turingCardNumber(f.G, b)!);
+    for (const [index, cardID] of sorted.entries()) {
+      // Move somebody else's card: the table belongs to everyone.
+      const actor = ids.find(id => id !== cardID)!;
+      expect(f.act(actor, 'placeCard', cardID, index, f.G.epoch)).toBe(true);
+      expect(f.G.revealed).toEqual([]);
+      expect(turingObserverView(f.G, 'blind').private).toEqual({});
+    }
+    const epoch = f.G.epoch;
+    for (const id of ids.slice(0, -1)) {
+      expect(f.act(id, 'approveOrder', epoch)).toBe(true);
+      expect(f.G.epoch).toBe(epoch);
+      expect(f.G.revealed).toEqual([]);
+      expect(f.G.log.some(event => event.type === 'reveal')).toBe(false);
+    }
+    const beforeStateID = f.state._stateID;
+    f.reload();
+    expect(f.act(ids.at(-1)!, 'approveOrder', epoch)).toBe(true);
+    expect(f.state._stateID).toBe(beforeStateID + 1);
+    expect(f.G.status).toBe('round-review');
+    expect(f.G.completedRounds).toBe(1);
+    expect(f.G.revealed.map(card => card.cardID)).toEqual(sorted);
+    expect(f.G.revealed.every(card => !card.error)).toBe(true);
+    expect(f.G.log.filter(event => event.type === 'reveal')).toHaveLength(count);
+    const blind = turingObserverView(f.G, 'blind');
+    expect(blind.tableOrder).toEqual(sorted); expect(blind.orderApprovals).toEqual(ids);
+    expect(blind.private).toEqual({}); // Numbers are public through revealed only.
+    expect(blind.revealed.map(card => card.number)).toEqual(f.G.revealed.map(card => card.number));
+    expect(f.act(ids[0], 'placeCard', sorted[0], count - 1, f.G.epoch)).toBe(false);
+    expect(f.act(ids[0], 'withdrawApproval', f.G.epoch)).toBe(false);
+    acknowledgeAll(f);
+    expect(f.G).toMatchObject({ round: 2, examinerID: '', tableOrder: [], orderApprovals: [] });
+  });
+  it('revisions invalidate prior consent, unchanged placements retain it, and players may withdraw only their own approval', () => {
+    const f = match(3), ids = Object.keys(f.G.players); acknowledgeAll(f); answerAll(f);
+    for (const [index, id] of ids.entries()) expect(f.act(ids[0], 'placeCard', id, index, f.G.epoch)).toBe(true);
+    let epoch = f.G.epoch;
+    expect(f.act(ids[0], 'approveOrder', epoch)).toBe(true);
+    expect(f.act(ids[1], 'approveOrder', epoch)).toBe(true);
+    const approved = clone(f.G);
+    expect(f.act(ids[2], 'placeCard', ids[1], 1, epoch)).toBe(true);
+    expect(f.G).toEqual(approved);
+    expect(f.act(ids[0], 'approveOrder', epoch)).toBe(false);
+    expect(f.act(ids[2], 'withdrawApproval', epoch)).toBe(false);
+    expect(f.act(ids[0], 'withdrawApproval', epoch)).toBe(true);
+    expect(f.G.epoch).toBe(epoch + 1); expect(f.G.orderApprovals).toEqual([ids[1]]);
+    expect(f.act(ids[0], 'approveOrder', epoch)).toBe(false);
+    expect(f.G.orderApprovals).toEqual([ids[1]]); expect(f.G.revealed).toEqual([]);
+    epoch = f.G.epoch;
+    expect(f.act(ids[2], 'placeCard', ids[0], 2, epoch)).toBe(true);
+    expect(f.G.tableOrder).toEqual([ids[1], ids[2], ids[0]]);
+    expect(f.G.epoch).toBe(epoch + 1); expect(f.G.orderApprovals).toEqual([]);
+    expect(f.act(ids[2], 'approveOrder', epoch)).toBe(false);
+    expect(f.G.revealed).toEqual([]);
+    epoch = f.G.epoch;
+    expect(f.act(ids[0], 'approveOrder', epoch)).toBe(true);
+    expect(f.act(ids[1], 'removeCard', ids[2], epoch)).toBe(true);
+    expect(f.G.orderApprovals).toEqual([]); expect(f.G.tableOrder).toEqual([ids[1], ids[0]]);
+    expect(f.act(ids[2], 'approveOrder', f.G.epoch)).toBe(false);
+    expect(f.act(ids[0], 'removeCard', ids[2], f.G.epoch)).toBe(false);
+    expect(f.act(ids[0], 'placeCard', ids[2], 1, f.G.epoch)).toBe(true);
+    expect(f.G.tableOrder).toEqual([ids[1], ids[2], ids[0]]);
+    epoch = f.G.epoch;
+    for (const id of ids) expect(f.act(id, 'approveOrder', epoch)).toBe(true);
+    expect(f.G.status).toBe('round-review');
+  });
+  it('rejects unauthorized, malformed, stale and out-of-phase operations without exposing a number', () => {
+    const f = match(3), ids = Object.keys(f.G.players), initialEpoch = f.G.epoch;
+    expect(f.act(ids[0], 'placeCard', ids[0], 0, initialEpoch)).toBe(false);
+    acknowledgeAll(f);
+    expect(f.act(ids[0], 'placeCard', ids[0], 0, f.G.epoch)).toBe(false);
+    const epoch = f.G.epoch;
+    expect(f.act(ids[0], 'confirmSpoken', ids[1], epoch)).toBe(false);
+    expect(f.act(ids[0], 'submitAnswer', '不能打字繞過共同桌', epoch)).toBe(false);
+    answerAll(f);
+    for (const [card, index] of [[ids[0], -1], [ids[0], 1], [ids[0], '0'], [ids[0], .5], [ids[0], null], ['__proto__', 0], ['99', 0], [null, 0]] as [unknown, unknown][]) {
+      expect(f.act(ids[0], 'placeCard', card, index, f.G.epoch)).toBe(false);
+    }
+    expect(f.act('99', 'placeCard', ids[0], 0, f.G.epoch)).toBe(false);
+    expect(f.act(ids[0], 'placeCard', ids[0], 0, initialEpoch)).toBe(false);
+    expect(f.act(ids[0], 'placeCard', ids[0], 0, String(f.G.epoch))).toBe(false);
+    expect(f.act(ids[0], 'approveOrder', f.G.epoch)).toBe(false);
+    expect(f.act(ids[0], 'removeCard', ids[0], f.G.epoch)).toBe(false);
+    expect(f.act(ids[0], 'revealAnswer', ids[0], f.G.epoch)).toBe(false);
+    for (const [index, id] of ids.entries()) expect(f.act(ids[0], 'placeCard', id, index, f.G.epoch)).toBe(true);
+    expect(f.act('99', 'approveOrder', f.G.epoch)).toBe(false);
+    expect(f.act(ids[0], 'approveOrder', f.G.epoch - 1)).toBe(false);
+    expect(f.act(ids[0], 'withdrawApproval', f.G.epoch)).toBe(false);
+    expect(f.G.revealed).toEqual([]);
+    const blind = turingObserverView(f.G, 'blind'), god = turingObserverView(f.G, 'god');
+    expect(blind.private).toEqual({}); expect(Object.keys(god.private)).toHaveLength(3);
+    expect(turingObserverView(god, 'blind').private).toEqual({});
+    blind.tableOrder!.reverse(); blind.orderApprovals!.push('fake');
+    expect(f.G.tableOrder).toEqual(ids); expect(f.G.orderApprovals).toEqual([]);
+  });
+  it('counts every adjacent descent, reveals the whole agreed table, clamps life at zero and gives failure priority', () => {
+    const f = match(3), ids = Object.keys(f.G.players); acknowledgeAll(f); answerAll(f);
+    f.patch({ private: replaceNumbers(f, [9, 2, 3]) });
+    revealOrder(f, ids);
+    expect(f.G.integrity).toBe(2);
+    expect(f.G.revealed.map(card => card.error)).toEqual([false, true, false]);
+    expect(f.G.completedRounds).toBe(1);
+    acknowledgeAll(f); acknowledgeAll(f); answerAll(f);
+    f.patch({ round: 5, integrity: 1, private: replaceNumbers(f, [9, 5, 2]) });
+    revealOrder(f, ids);
+    expect(f.G).toMatchObject({ status: 'finished', integrity: 0, completedRounds: 1, winner: 'system', winReason: 'integrity-lost' });
+    expect(f.G.revealed.map(card => card.number)).toEqual([9, 5, 2]);
+    expect(f.G.log.filter(event => event.type === 'reveal').slice(-3).map(event => event.integrity)).toEqual([1, 0, 0]);
+    expect(f.G.log.filter(event => event.type === 'round-complete')).toHaveLength(1);
   });
 });
 

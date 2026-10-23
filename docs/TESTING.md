@@ -10,7 +10,7 @@
 | 全遊戲接入契約 | `src/server/framework.test.ts`、`src/client/framework-contract.test.ts` | 依目錄遍歷所有遊戲；伺服器與前端適配器、觀戰、房主、中止、重開、規則頁、音效 |
 | 房間與身分 | `src/server/features.test.ts`、`role-switch.test.ts`、`game-switch.test.ts` | 真實 HTTP 授權、失效憑證、重試、競態、房主觀戰、容量及換遊戲 |
 | 即時連線與生命週期 | `src/server/transport.test.ts`、`lifecycle.test.ts`、`room-isolation.test.ts` | 真實 Socket.IO、多分頁、重連寬限、離線中止、原房再開、多房並行與隔離 |
-| 遊戲整合 | `src/server/station-round-review.test.ts`、`cipher.test.ts`、`fog-integration.test.ts`、`moon-integration.test.ts`、`turing.test.ts` | 各遊戲實際操作、完成局、回放、分享、統計、重啟恢復；銀月列車兩種模式與持久化計時；圖靈測試少人雙卡、口頭確認、無盡過五關、題庫循環、舊文字局及大型房規權限 |
+| 遊戲整合 | `src/server/station-round-review.test.ts`、`cipher.test.ts`、`fog-integration.test.ts`、`moon-integration.test.ts`、`turing.test.ts` | 各遊戲實際操作、完成局、回放、分享、統計、重啟恢復；銀月列車兩種模式與持久化計時；圖靈測試共排桌、全員同意、改序取消同意、並行／過期操作、舊文字與雙卡局、無盡過五關與題庫循環 |
 | 挑戰成績 | `src/server/statistics.test.ts`、`src/client/Statistics.test.ts` | 一般勝敗與無盡挑戰分開、人數／生命分組、完整通過關數、重複對局去重、零關與舊資料相容；測試房與中止局排除 |
 | 原創題庫 | `src/games/turing/questions.test.ts` | 兩版各 1,000 題、固定欄位、連續唯一 ID、跨題庫正規化去重、合法量表與自訂題目優先 |
 | 虛擬玩家 | `src/games/bots.test.ts`、`src/server/test-room.integration.test.ts` | 所有遊戲的合法操作與有限視角、房主管理、重啟、自動準備、測試房不計統計 |
@@ -55,4 +55,4 @@ GitHub Actions 在 Windows 與 Ubuntu 執行相同流程。Windows 專屬路徑�
 
 SSR 測試驗證產生的標記與資訊邊界；它不驗證真正瀏覽器的像素排版或點擊流程。修改介面時仍須依[遊戲框架驗收](GAME_FRAMEWORK.md)檢查桌機、手機、觀戰與回放。
 
-圖靈測試需額外檢查 2／3 人 A、B 卡各自口頭確認、檢測員排序、無盡模式生命耗盡後的成績與戰報。新局沒有文字輸入框，也不要求麥克風權限；實際外部通話由玩家使用自己的語音軟體，瀏覽器測試只驗證網站操作與權限邊界，不代表測試了第三方通話服務。
+圖靈測試需額外檢查 2／3 人每人一張、任意玩家移動任意卡、滑鼠與觸控拖放、點卡再點位置、改序清除同意、全票才揭曉，以及無盡模式生命耗盡後的成績與戰報。舊版雙卡與文字局另保留相容測試。新局沒有文字輸入框，也不要求麥克風權限；實際外部通話由玩家使用自己的語音軟體，瀏覽器測試只驗證網站操作與權限邊界，不代表測試了第三方通話服務。
