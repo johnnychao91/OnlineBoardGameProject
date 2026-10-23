@@ -785,7 +785,25 @@ export async function createApplication(config: AppConfig) {
         await db.setState(matchID, state);
         ctx.body = publicRoom(current, metadata, state);
       } else if (operation === 'remove') {
-        authenticateHost(ctx, current, metadata, '只有房主可以移出玩家');
+        authenticateHost(ctx, current, metadata, '只有房主可以移出房間成員');
+        if (Object.hasOwn(body, 'observerID')) {
+          if (Object.keys(body).some(key => !['observerID', 'matchID'].includes(key))
+            || typeof body.observerID !== 'string' || !validRoomID(body.observerID)
+            || body.observerID === hostObserverID(current)) fail(400, '請選擇房主以外的觀戰者');
+          const target = current.spectators && Object.hasOwn(current.spectators, body.observerID)
+            ? current.spectators[body.observerID] : undefined;
+          if (!target) fail(409, '這位觀戰者已離開，請確認目前名單後再操作');
+          const spectators = { ...current.spectators };
+          delete spectators[body.observerID];
+          const updated = { ...current, spectators,
+            revokedObserverAdmissions: [...new Set([...(current.revokedObserverAdmissions || []), target.credentialHash])] };
+          // Persist revocation before dropping the live lease. Observer IDs are
+          // never reused, so a delayed retry cannot remove a new admission.
+          await rooms.save(updated);
+          presence.remove(current.roomId, `spectator:${body.observerID}`);
+          ctx.body = publicRoom(updated, metadata, state);
+          return;
+        }
         if (!definition.isJoinable(state.G)) fail(409, '遊戲開始後不能移出玩家');
         if (typeof body.playerID !== 'string' || !isPlayerSeatID(body.playerID) || body.playerID === hostPlayerID(current)
           || typeof body.membershipID !== 'string' || !/^[a-f0-9]{16}$/.test(body.membershipID)) {

@@ -1,6 +1,7 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
+import { GAME_IDS } from '../games/catalog';
 import { isRoomHost, roomHostPlayerID, type AuthSession, type ObserverSession, type RoomInfo, type SeatSession } from './api';
 import { RoleSwitcher } from './RoleSwitcher';
 import { RoomActions } from './RoomActions';
@@ -54,12 +55,45 @@ describe('player and spectator host presentation', () => {
 
   it('labels the spectator host for every viewer without marking unrelated observers as host', () => {
     for (const seat of [player, observer, { ...observer, observerID: 'other-observer' }]) {
-      const html = renderToStaticMarkup(createElement(SpectatorRoster, { info: spectatorHosted, seat }));
+      const html = renderToStaticMarkup(createElement(SpectatorRoster, { info: spectatorHosted, seat, onUpdate: () => {} }));
       expect(html.match(/spectator-roster-host/g)).toHaveLength(1);
       expect(html).toMatch(/Observer host<\/span><span class="spectator-roster-you spectator-roster-host">房主/);
       expect(html).not.toMatch(/Guest observer<\/span><span class="spectator-roster-you spectator-roster-host">房主/);
     }
-    expect(renderToStaticMarkup(createElement(SpectatorRoster, { info: room, seat: observer }))).not.toContain('spectator-roster-host');
+    expect(renderToStaticMarkup(createElement(SpectatorRoster, { info: room, seat: observer, onUpdate: () => {} }))).not.toContain('spectator-roster-host');
+  });
+
+  it('offers spectator removal only to the current host in every game and room phase, never for the host themselves', () => {
+    for (const gameName of GAME_IDS) for (const status of ['lobby', 'playing', 'finished']) {
+      const render = (seat: AuthSession, info: RoomInfo) => renderToStaticMarkup(createElement(SpectatorRoster, {
+        seat, info: { ...info, gameName, status }, onUpdate: () => {},
+      }));
+      const playerHost = render(player, room);
+      expect(playerHost.match(/aria-label="移出觀戰者 /g)).toHaveLength(2);
+      const observerHost = render(observer, spectatorHosted);
+      expect(observerHost.match(/aria-label="移出觀戰者 /g)).toHaveLength(1);
+      expect(observerHost).toContain('aria-label="移出觀戰者 Guest observer"');
+      expect(observerHost).not.toContain('aria-label="移出觀戰者 Observer host"');
+      for (const html of [render(player, spectatorHosted), render(observer, room),
+        render({ ...player, playerID: '1' }, room), render({ ...observer, observerID: 'other-observer' }, spectatorHosted)]) {
+        expect(html).not.toContain('spectator-remove');
+        expect(html).not.toContain('確認移出');
+      }
+      for (const html of [playerHost, observerHost]) {
+        expect(html).not.toContain(player.credentials);
+        expect(html).not.toContain(observer.credentials);
+      }
+    }
+  });
+
+  it('does not offer removal before the authenticated spectator roster is available or when viewing another room', () => {
+    const render = (info: RoomInfo) => renderToStaticMarkup(createElement(SpectatorRoster, {
+      seat: player, info, onUpdate: () => {},
+    }));
+    const syncing = render({ ...room, spectators: undefined });
+    expect(syncing).toContain('正在同步觀戰名單');
+    expect(syncing).not.toContain('spectator-remove');
+    expect(render({ ...room, roomId: 'another-room' })).not.toContain('spectator-remove');
   });
 
   it('explains that both host role-switch directions retain room management rights', () => {

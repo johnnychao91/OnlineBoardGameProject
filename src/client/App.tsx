@@ -91,7 +91,9 @@ function Join({ roomId, onEnter }: { roomId: string; onEnter: (seat: AuthSession
     } catch (e) {
       if (e instanceof ApiError && e.code === 'ADMISSION_REMOVED') {
         resetAdmission(roomId, access);
-        setError('上次加入已被房主移出。若仍要參與，請再按一次加入；需要有效邀請，且房間尚未開局。');
+        setError(access === 'spectator'
+          ? '上次加入已被房主移出。若仍要觀戰，請使用有效邀請再按一次進入觀戰席。'
+          : '上次加入已被房主移出。若仍要參與，請再按一次加入；需要有效邀請，且房間尚未開局。');
       } else setError((e as Error).message);
     } finally { setBusy(false); }
   }
@@ -280,7 +282,7 @@ function Room({ seat, onSwitch }: { seat: AuthSession; onSwitch: (seat: AuthSess
             {host && info.status !== 'lobby' && <details className="post-start-invite"><summary>邀請朋友觀戰</summary><ShareInvite active /></details>}
           </div></details>}
         </div>
-        <SpectatorRoster info={info} seat={session} />
+        <SpectatorRoster info={info} seat={session} onUpdate={acceptInfo} />
         </div>
         {info.status === 'lobby' ? <><RoomHistory seat={session} info={info} /><Lobby key={info.gameSelected === false ? 'unselected' : info.gameName} onUpdate={acceptInfo} /></>
           : isPlayer(seat) ? PlayerClient

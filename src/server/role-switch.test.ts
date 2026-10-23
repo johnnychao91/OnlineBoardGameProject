@@ -1,4 +1,4 @@
-import { ROOM_CAPACITY } from '../games/catalog';
+import { GAME_IDS, ROOM_CAPACITY, gameCatalog } from '../games/catalog';
 import { randomUUID } from 'node:crypto';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -113,6 +113,170 @@ async function ready(f: Fixture, room: Room, members: Member[]) {
 }
 
 describe('Authenticated spectator roster and in-room role switching', () => {
+  it.each(GAME_IDS)('lets seated and observing hosts remove observers before and during %s without changing the match', async gameID => {
+    const f = await fixture(); const g = await group(f, gameID, gameCatalog[gameID].minPlayers + 1);
+    const before = await f.app.db.fetch(g.room.matchID, { metadata: true, state: true });
+    const removed = await f.request(path(g.room, 'remove'), { observerID: g.observer.observerID }, g.room);
+    expect(removed.status).toBe(200);
+    expect(removed.body).toMatchObject({ matchID: g.room.matchID, spectatorCount: 0, spectators: [], status: 'lobby' });
+    expect(await f.app.db.fetch(g.room.matchID, { metadata: true, state: true })).toEqual(before);
+    expect((await f.request(path(g.room), undefined, g.observer)).status).toBe(401);
+    const watcher = await f.request(path(g.room, 'watch'), { ...g.watchBody, requestID: randomUUID() });
+    expect(watcher.status).toBe(200);
+    expect(watcher.body.observerID).not.toBe(g.observer.observerID);
+    const switched = await f.request(path(g.room, 'switch-role'), switchBody(g.room.matchID, 'spectator'), g.room);
+    expect(switched.status).toBe(200);
+    const host = switched.body as Member;
+    await ready(f, g.room, g.members.slice(1));
+    expect((await f.request(path(g.room, 'start'), {}, host)).status).toBe(200);
+    const activeBefore = await f.app.db.fetch(switched.body.matchID, { metadata: true, state: true });
+    const player = switched.body.players[0];
+    expect((await f.request(path(g.room, 'remove'), {
+      playerID: player.id, membershipID: player.membershipID,
+    }, host)).status).toBe(409);
+    const activeRemoved = await f.request(path(g.room, 'remove'), { observerID: watcher.body.observerID }, host);
+    expect(activeRemoved.status).toBe(200);
+    expect(activeRemoved.body).toMatchObject({ matchID: switched.body.matchID, numPlayers: gameCatalog[gameID].minPlayers,
+      hostObserverID: host.observerID, spectatorCount: 1, spectators: [{ id: host.observerID, name: '房主' }] });
+    expect(await f.app.db.fetch(switched.body.matchID, { metadata: true, state: true })).toEqual(activeBefore);
+    expect((await f.request(path(g.room, 'view?perspective=god'), undefined, watcher.body as Member)).status).toBe(401);
+    expect((await f.request(path(g.room, 'view?perspective=god'), undefined, host)).status).toBe(200);
+  });
+
+  it('guards observer removal against nonhosts, cross-room targets, mixed identities and stale retries', async () => {
+    const f = await fixture(); const g = await group(f); const other = await group(f);
+    const before = (await f.request(path(g.room), undefined, g.room)).body;
+    const otherBefore = (await f.request(path(other.room), undefined, other.room)).body;
+    const target = { observerID: g.observer.observerID };
+    for (const member of [g.members[1], g.observer]) {
+      expect((await f.request(path(g.room, 'remove'), target, member)).status).toBe(403);
+    }
+    expect((await f.request(path(g.room, 'remove'), target, other.room)).status).toBe(401);
+    expect((await f.request(path(g.room, 'remove'), { observerID: other.observer.observerID }, g.room)).status).toBe(409);
+    const recordBefore = structuredClone(f.app.rooms.rooms.get(g.room.roomId));
+    for (const observerID of ['__defineGetter__', '__defineSetter__', '__lookupGetter__', '__lookupSetter__']) {
+      expect((await f.request(path(g.room, 'remove'), { observerID }, g.room)).status).toBe(409);
+      expect(f.app.rooms.rooms.get(g.room.roomId)).toEqual(recordBefore);
+    }
+    for (const invalid of [null, 1, '', '../observer']) {
+      expect((await f.request(path(g.room, 'remove'), { observerID: invalid }, g.room)).status).toBe(400);
+    }
+    for (const extra of [{ playerID: g.members[1].playerID }, { membershipID: before.players[1].membershipID }]) {
+      expect((await f.request(path(g.room, 'remove'), { ...target, ...extra }, g.room)).status).toBe(400);
+    }
+    expect((await f.request(path(g.room), undefined, g.room)).body).toEqual(before);
+    const switched = await f.request(path(g.room, 'switch-role'), switchBody(g.room.matchID, 'spectator'), g.room);
+    expect(switched.status).toBe(200);
+    const host = switched.body as Member;
+    expect((await f.request(path(g.room, 'remove'), { observerID: host.observerID }, host)).status).toBe(400);
+    expect((await f.request(path(g.room, 'remove'), { ...target, matchID: g.room.matchID }, host)).status).toBe(409);
+    expect((await f.request(path(g.room, 'remove'), target, host)).status).toBe(200);
+    const replacement = await f.request(path(g.room, 'watch'), { ...g.watchBody, requestID: randomUUID() });
+    expect(replacement.status).toBe(200);
+    expect(replacement.body.observerID).not.toBe(g.observer.observerID);
+    expect((await f.request(path(g.room, 'remove'), target, host)).status).toBe(409);
+    expect((await f.request(path(g.room), undefined, replacement.body as Member)).status).toBe(200);
+    expect((await f.request(path(other.room), undefined, other.room)).body).toEqual(otherBefore);
+  });
+
+  it('revokes removed observers and switch receipts across restarts, including completed-game replay access', async () => {
+    const f = await fixture(); const g = await group(f, 'encrypted-call', 3);
+    const switchedBody = switchBody(g.room.matchID, 'spectator');
+    const switched = await f.request(path(g.room, 'switch-role'), switchedBody, g.members[2]);
+    expect(switched.status).toBe(200);
+    const switchedObserver = switched.body as Member;
+    await ready(f, g.room, g.members.slice(0, 2));
+    expect((await f.request(path(g.room, 'start'), {}, g.room)).status).toBe(200);
+    const { state } = await f.app.db.fetch(switched.body.matchID, { state: true });
+    state!.G.status = 'finished'; state!.G.winner = 'agents'; state!.G.winReason = 'all-levels'; state!._stateID++;
+    await f.app.db.setState(switched.body.matchID, state!);
+    for (const member of [g.observer, switchedObserver]) {
+      expect((await f.request(path(g.room, `replay?matchID=${switched.body.matchID}`), undefined, member)).status).toBe(200);
+      const removed = await f.request(path(g.room, 'remove'), { observerID: member.observerID }, g.room);
+      expect(removed.status).toBe(200);
+      expect(removed.body.status).toBe('finished');
+    }
+    for (let restart = 0; restart < 2; restart++) {
+      if (restart) await f.restart();
+      for (const member of [g.observer, switchedObserver]) {
+        for (const operation of ['', 'view?perspective=god', `replay?matchID=${switched.body.matchID}`]) {
+          expect((await f.request(path(g.room, operation), undefined, member)).status).toBe(401);
+        }
+        for (const [operation, body] of [
+          ['heartbeat', { sessionID: randomUUID() }], ['share', { matchID: switched.body.matchID, frameIndex: 0 }],
+          ['switch-role', switchBody(switched.body.matchID, 'player')], ['leave', {}],
+          ['remove', { observerID: g.observer.observerID }],
+        ] as const) expect((await f.request(path(g.room, operation), body, member)).status).toBe(401);
+      }
+      expect((await f.request(path(g.room, 'watch'), g.watchBody)).status).toBe(403);
+      expect((await f.request(path(g.room, 'switch-role'), switchedBody, g.members[2])).status).toBe(401);
+    }
+    const rejoined = await f.request(path(g.room, 'watch'), { ...g.watchBody, requestID: randomUUID() });
+    expect(rejoined.status).toBe(200);
+    expect((await f.request(path(g.room, `replay?matchID=${switched.body.matchID}`), undefined, rejoined.body as Member)).status).toBe(200);
+  });
+
+  it('rechecks the current host and target role after queued departures and switches', async () => {
+    const f = await fixture(); const g = await group(f);
+    async function queueRequests(first: () => ReturnType<Fixture['request']>, second: () => ReturnType<Fixture['request']>) {
+      const matchID = f.app.rooms.rooms.get(g.room.roomId)!.currentMatchID!;
+      const queue = f.app.server.transport.getMatchQueue(matchID);
+      let release!: () => void; let entered!: () => void;
+      const enteredGate = new Promise<void>(resolve => { entered = resolve; });
+      const gate = new Promise<void>(resolve => { release = resolve; });
+      const blocked = queue.add(async () => { entered(); await gate; });
+      await enteredGate;
+      const one = first(); let two!: ReturnType<Fixture['request']>;
+      try {
+        await vi.waitFor(() => expect(queue.size).toBe(1));
+        two = second();
+        await vi.waitFor(() => expect(queue.size).toBe(2));
+      } finally { release(); await blocked; }
+      return Promise.all([one, two]);
+    }
+    const leave = await queueRequests(
+      () => f.request(path(g.room, 'leave'), {}, g.room),
+      () => f.request(path(g.room, 'remove'), { observerID: g.observer.observerID }, g.room),
+    );
+    expect(leave.map(result => result.status)).toEqual([200, 401]);
+    expect((await f.request(path(g.room), undefined, g.observer)).body.hostPlayerID).toBe(g.members[1].playerID);
+    const change = await queueRequests(
+      () => f.request(path(g.room, 'switch-role'), switchBody(g.room.matchID, 'player'), g.observer),
+      () => f.request(path(g.room, 'remove'), { observerID: g.observer.observerID }, g.members[1]),
+    );
+    expect(change.map(result => result.status)).toEqual([200, 409]);
+    expect((await f.request(path(g.room), undefined, change[0].body as Member)).status).toBe(200);
+  });
+
+  it('removes all observer presence leases so a removed viewer cannot keep an empty game alive', async () => {
+    let now = Date.now(); vi.spyOn(Date, 'now').mockImplementation(() => now);
+    const f = await fixture(); const g = await group(f);
+    await ready(f, g.room, g.members);
+    expect((await f.request(path(g.room, 'start'), {}, g.room)).status).toBe(200);
+    now += 61000;
+    for (let tab = 0; tab < 2; tab++) {
+      expect((await f.request(path(g.room, 'heartbeat'), { sessionID: randomUUID() }, g.observer)).status).toBe(200);
+    }
+    expect((await f.request(path(g.room), undefined, g.room)).body.matchID).toBe(g.room.matchID);
+    expect((await f.request(path(g.room, 'remove'), { observerID: g.observer.observerID }, g.room)).status).toBe(200);
+    const reconciled = await f.request(path(g.room), undefined, g.room);
+    expect(reconciled.body).toMatchObject({ status: 'lobby', spectatorCount: 0,
+      history: [expect.objectContaining({ matchID: g.room.matchID, ending: 'empty' })] });
+    expect((await f.request('/api/stats')).body.completedGames).toBe(0);
+  });
+
+  it('preserves observer admission and access if persisting removal fails', async () => {
+    const f = await fixture(); const g = await group(f);
+    const before = (await f.request(path(g.room), undefined, g.room)).body;
+    vi.spyOn(f.app.rooms, 'save').mockRejectedValueOnce(new Error('Injected observer removal persistence failure'));
+    expect((await f.request(path(g.room, 'remove'), { observerID: g.observer.observerID }, g.room)).status).toBe(500);
+    expect((await f.request(path(g.room), undefined, g.observer)).body).toEqual(before);
+    await f.restart();
+    expect((await f.request(path(g.room, 'watch'), g.watchBody)).body.observerID).toBe(g.observer.observerID);
+    expect((await f.request(path(g.room, 'remove'), { observerID: g.observer.observerID }, g.room)).status).toBe(200);
+    expect((await f.request(path(g.room), undefined, g.observer)).status).toBe(401);
+  });
+
   it.each(games)('preserves the room, names and other members in $id when switching both ways', async game => {
     const f = await fixture();
     const g = await group(f, game.id, game.minimum);
