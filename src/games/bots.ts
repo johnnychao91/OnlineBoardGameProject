@@ -5,6 +5,7 @@ import { cipherPlayerView, type CipherState } from './cipher/game';
 import { fogAllowedQuestCards, fogPlayerView, type FogState } from './fog/game';
 import { fogTeamSizes } from './fog/rules';
 import { moonPlayerView, type MoonState } from './moon/game';
+import { turingPlayerView, type TuringState } from './turing/game';
 
 export interface BotAction { move: string; args: unknown[] }
 type Random = () => number;
@@ -137,11 +138,28 @@ function moonAction(G: MoonState, id: string, random: Random): BotAction | null 
   return null;
 }
 
+function turingAction(G: TuringState, id: string, random: Random): BotAction | null {
+  const own = G.players[id];
+  if (['briefing', 'round-review'].includes(G.status) && !own.acknowledged) return action('acknowledge', G.epoch);
+  if (G.status === 'answering' && id !== G.examinerID && !own.answered && G.private[id]) {
+    // Test players exercise the same text flow without encoding or publishing
+    // their private number. They are intentionally not strategy assistants.
+    const replies = ['我會先觀察一下，再慢慢回應。', '這讓我忍不住多想了一會。', '我大概會露出一個微妙的表情。', '我想先聽聽其他人的想法。', '我會認真想像自己在這個情境。'];
+    return action('submitAnswer', pick(replies, random), G.epoch);
+  }
+  if (G.status === 'sorting' && G.examinerID === id) {
+    const remaining = Object.keys(G.answers).filter(other => !G.revealed.some(entry => entry.playerID === other));
+    if (remaining.length) return action('revealAnswer', pick(remaining, random), G.epoch);
+  }
+  return null;
+}
+
 const adapters = {
   'space-station': (G: StationState, id: string, random: Random) => stationAction(stationPlayerView({ G, playerID: id }), id, random),
   'encrypted-call': (G: CipherState, id: string, random: Random) => cipherAction(cipherPlayerView({ G, playerID: id }), id, random),
   'black-fog': (G: FogState, id: string, random: Random) => fogAction(fogPlayerView({ G, playerID: id }), id, random),
   'silver-moon': (G: MoonState, id: string, random: Random) => moonAction(moonPlayerView({ G, playerID: id }), id, random),
+  'turing-test': (G: TuringState, id: string, random: Random) => turingAction(turingPlayerView({ G, playerID: id }), id, random),
 } satisfies Record<GameID, (G: any, id: string, random: Random) => BotAction | null>;
 export const supportedBotGames = Object.keys(adapters) as GameID[];
 

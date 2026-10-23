@@ -9,6 +9,7 @@ import { FogGame, fogPlayerView } from './fog/game';
 import { normalizeFogOptions } from './fog/rules';
 import { MoonGame, advanceMoonClock, moonPlayerView } from './moon/game';
 import { MOON_PRESETS, normalizeMoonOptions } from './moon/rules';
+import { TuringGame, turingPlayerView } from './turing/game';
 
 let now = 1_800_000_000_000;
 beforeEach(() => { now = 1_800_000_000_000; vi.spyOn(Date, 'now').mockImplementation(() => now); });
@@ -49,7 +50,7 @@ describe('Test-room bot adapters', () => {
     expect(chooseBotAction('unknown', { G: { players: { '0': {} } } }, '0')).toBeNull();
   });
 
-  it.each([StationGame, CipherGame, FogGame, MoonGame])('readies a %s seat once and leaves starting to the human host', game => {
+  it.each([StationGame, CipherGame, FogGame, MoonGame, TuringGame])('readies a %s seat once and leaves starting to the human host', game => {
     const f = match(game, game.minPlayers!, undefined, 'bot-ready', undefined, false);
     const move = chooseBotAction(game.name!, f.state, '0');
     expect(move).toEqual({ move: 'setReady', args: [true] });
@@ -68,6 +69,8 @@ describe('Test-room bot adapters', () => {
     { game: FogGame, count: 10, options: normalizeFogOptions({ lancelotMode: 'forecast', percival: true, morgana: true, mordred: true }) },
     { game: MoonGame, count: 6, options: normalizeMoonOptions({ sheriff: false }) },
     { game: MoonGame, count: 12, options: normalizeMoonOptions({ sheriff: true, mode: 'assisted' }) },
+    { game: TuringGame, count: 4, options: undefined },
+    { game: TuringGame, count: 9, options: { deck: 'custom', customQuestions: Array.from({ length: 5 }, (_, i) => ({ prompt: `請為第 ${i + 1} 個測試情境寫一句回應`, low: '輕描淡寫', high: '情緒沸騰' })) } },
   ];
   for (const { game, count, options } of scenarios) {
     it(`${game.name} completes ${count}-seat matches with only legal suggested moves`, () => {
@@ -94,6 +97,7 @@ describe('Test-room bot adapters', () => {
       const expected = game.name === 'space-station' ? ['acknowledgeBriefing', 'declareRepairs', 'selectCard', 'reveal']
         : game.name === 'encrypted-call' ? ['readySync', 'playCard', 'acknowledgeLevel']
         : game.name === 'black-fog' ? ['acknowledge', 'selectTeam', 'confirmTeam', 'vote', 'submitQuest']
+        : game.name === 'turing-test' ? ['acknowledge', 'submitAnswer', 'revealAnswer']
         : ['acknowledge', 'wolfVote', 'inspect', 'witch', 'finishSpeech', 'exileVote'];
       if (game.name === 'silver-moon' && count === 12) expected.push('guard', 'standForSheriff', 'sheriffVote', 'chooseOrder');
       for (const name of expected) expect(moves.has(name), `${game.name} did not exercise ${name}`).toBe(true);
@@ -185,6 +189,7 @@ describe('Test-room bot adapters', () => {
     { game: CipherGame, project: cipherPlayerView },
     { game: FogGame, project: fogPlayerView },
     { game: MoonGame, project: moonPlayerView },
+    { game: TuringGame, project: turingPlayerView },
   ])('$game.name decisions need only the same information as a real player', ({ game, project }) => {
     const f = match(game, game.minPlayers!);
     const ids = Object.keys(f.state.G.players);

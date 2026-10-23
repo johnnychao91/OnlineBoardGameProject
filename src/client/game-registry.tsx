@@ -27,6 +27,13 @@ import { createReplayPoster } from './replay-poster';
 import { createCipherPoster } from './cipher-poster';
 import { StationRules, CipherRules } from './game-rules';
 import type { SoundAdapter } from './sound-cues';
+import { TuringGame, type TuringState } from '../games/turing/game';
+import { TuringBoard, TuringRuleSummary } from './TuringBoard';
+import { TuringSnapshot } from './TuringSnapshot';
+import { TuringOptions } from './TuringOptions';
+import { TuringRules } from './TuringRules';
+import { validateTuringOptions } from '../games/turing/rules';
+import { createTuringPoster } from './turing-poster';
 
 function ConnectingGame() {
   return <main className="narrow"><section className="panel center" role="status" aria-live="polite"><span className="large-orbit"><Icon type="signal" size={38} /></span><h2>正在連線到遊戲伺服器…</h2><p className="muted">正在同步你的座位與最新對局，請稍候。</p><p className="small muted">若持續停在這裡，請確認網路連線，並請房主檢查遊戲伺服器是否正常運作。保留此頁面，連線恢復後會自動繼續。</p></section></main>;
@@ -36,6 +43,7 @@ const StationClient = Client({ game: StationGame, board: StationBoard, loading: 
 const CipherClient = Client({ game: CipherGame, board: CipherBoard, loading: ConnectingGame, multiplayer: SocketIO({ server: typeof window === 'undefined' ? undefined : window.location.origin }), debug: false });
 const FogClient = Client({ game: FogGame, board: FogBoard, loading: ConnectingGame, multiplayer: SocketIO({ server: typeof window === 'undefined' ? undefined : window.location.origin }), debug: false });
 const MoonClient = Client({ game: MoonGame, board: MoonBoard, loading: ConnectingGame, multiplayer: SocketIO({ server: typeof window === 'undefined' ? undefined : window.location.origin }), debug: false });
+const TuringClient = Client({ game: TuringGame, board: TuringBoard, loading: ConnectingGame, multiplayer: SocketIO({ server: typeof window === 'undefined' ? undefined : window.location.origin }), debug: false });
 
 export interface ClientGameDefinition {
   name: string;
@@ -62,6 +70,22 @@ export interface ClientGameDefinition {
 
 /** Add each game's player client, snapshot renderer and statistics labels together. */
 export const clientGames: Record<GameID, ClientGameDefinition> & Record<string, ClientGameDefinition> = {
+  'turing-test': {
+    name: gameCatalog['turing-test'].name,
+    PlayerClient: props => <TuringClient {...props} />,
+    Snapshot: TuringSnapshot, Rules: TuringRuleSummary, DetailedRules: TuringRules, LobbyOptions: TuringOptions,
+    validateLobby: options => validateTuringOptions(options),
+    chapters: [['setup', '人數與任務'], ['gallery', '檢測設備圖鑑'], ['answer', '強度與作答'], ['sort', '排序與誤差'], ['round', '輪換與勝負'], ['questions', '題庫與自訂'], ['privacy', '觀戰與復盤']],
+    gallery: { chapter: 'gallery', label: '檢測設備圖鑑' },
+    createPoster: createTuringPoster,
+    soundAdapter: (G: TuringState, id) => ({ revision: G.epoch * 1000 + G.log.length,
+      events: G.log.filter(event => event.type === 'reveal' || event.type === 'round-complete' || event.type === 'finish').map(event => JSON.stringify(event)),
+      attention: id && ((G.status === 'sorting' && G.examinerID === id) || ((G.status === 'briefing' || G.status === 'round-review') && !G.players[id]?.acknowledged)) ? `${G.round}:${G.status}:${id}` : undefined }),
+    lobbyTitle: '機器讀得懂文字，我們讀得懂彼此。', lobbyDescription: gameCatalog['turing-test'].description,
+    cooperative: true, factionLabels: { humans: '校準小隊' },
+    resultLabels: { humans: '全隊校準成功', system: '全隊檢測失敗' },
+    reasonLabels: { calibrated: '完成五輪人性校準', 'integrity-lost': '人性容錯耗盡' },
+  },
   'silver-moon': {
     name: gameCatalog['silver-moon'].name,
     PlayerClient: props => <MoonClient {...props} />,

@@ -5,6 +5,8 @@ import { FogGame, fogObserverView, type FogState } from './fog/game';
 import { normalizeFogOptions, validateFogOptions } from './fog/rules';
 import { MoonGame, moonObserverView, advanceMoonClock, type MoonState } from './moon/game';
 import { MOON_PRESETS, normalizeMoonOptions, validateMoonOptions } from './moon/rules';
+import { TuringGame, turingObserverView, type TuringState } from './turing/game';
+import { normalizeTuringOptions, validateTuringOptions } from './turing/rules';
 import { gameCatalog, type GameID } from './catalog';
 
 export type ObserverPerspective = 'blind' | 'god';
@@ -99,6 +101,21 @@ export const gameDefinitions: GameDefinition[] = [{
     if (state.status !== 'finished' || !state.winner || !state.winReason) return null;
     return { winner: state.winner, reason: state.winReason,
       roles: Object.fromEntries(Object.entries(state.players).map(([id, player]) => [id, player.revealedFaction!])) };
+  },
+}, {
+  id: 'turing-test', ...gameCatalog['turing-test'], game: TuringGame,
+  isJoinable: state => state.status === 'lobby',
+  normalizeOptions: options => ({ ...normalizeTuringOptions(options) }),
+  validateLobbyOptions: options => validateTuringOptions(options),
+  validateOptions: (options, count) => validateTuringOptions(options, count),
+  startSetupData: (participantIDs, options) => ({ startImmediately: true, participantIDs, options: normalizeTuringOptions(options) }),
+  observerView: turingObserverView,
+  hideMoveMetadata: true,
+  completedDisplayMs: () => 8000,
+  getOutcome: (state: TuringState) => {
+    if (state.status !== 'finished' || !state.winner || !state.winReason) return null;
+    return { winner: state.winner, reason: state.winReason,
+      roles: Object.fromEntries(Object.keys(state.players).map(id => [id, 'humans'])) };
   },
 }];
 

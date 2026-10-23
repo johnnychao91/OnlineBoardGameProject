@@ -6,11 +6,12 @@
 
 | 範圍 | 主要檔案 | 必須保留的差異 |
 | --- | --- | --- |
-| 四款遊戲規則 | `src/games/{station,cipher,fog,moon}/game.test.ts`、`station/view-model.test.ts` | 各人數、角色、模式、勝敗、非法／重複／過期操作、不同觀看身分及舊版存檔 |
+| 各遊戲規則 | `src/games/{station,cipher,fog,moon,turing}/game.test.ts`、`station/view-model.test.ts` | 各人數、角色、模式、勝敗、非法／重複／過期操作、不同觀看身分及舊版存檔 |
 | 全遊戲接入契約 | `src/server/framework.test.ts`、`src/client/framework-contract.test.ts` | 依目錄遍歷所有遊戲；伺服器與前端適配器、觀戰、房主、中止、重開、規則頁、音效 |
 | 房間與身分 | `src/server/features.test.ts`、`role-switch.test.ts`、`game-switch.test.ts` | 真實 HTTP 授權、失效憑證、重試、競態、房主觀戰、容量及換遊戲 |
 | 即時連線與生命週期 | `src/server/transport.test.ts`、`lifecycle.test.ts`、`room-isolation.test.ts` | 真實 Socket.IO、多分頁、重連寬限、離線中止、原房再開、多房並行與隔離 |
-| 遊戲整合 | `src/server/station-round-review.test.ts`、`cipher.test.ts`、`fog-integration.test.ts`、`moon-integration.test.ts` | 各遊戲實際操作、完成局、回放、分享、統計、重啟恢復；銀月列車兩種模式與持久化計時 |
+| 遊戲整合 | `src/server/station-round-review.test.ts`、`cipher.test.ts`、`fog-integration.test.ts`、`moon-integration.test.ts`、`turing.test.ts` | 各遊戲實際操作、完成局、回放、分享、統計、重啟恢復；銀月列車兩種模式與持久化計時；圖靈測試封存回答、自訂題文快照及大型房規權限 |
+| 原創題庫 | `src/games/turing/questions.test.ts` | 兩版各 1,000 題、固定欄位、連續唯一 ID、跨題庫正規化去重、合法量表與自訂題目優先 |
 | 虛擬玩家 | `src/games/bots.test.ts`、`src/server/test-room.integration.test.ts` | 所有遊戲的合法操作與有限視角、房主管理、重啟、自動準備、測試房不計統計 |
 | 儲存與服務邊界 | `src/server/atomic-file.test.ts`、`storage.test.ts`、`app.test.ts` | 原子改名失敗與重試、持久化及舊資料、路徑隔離、Windows 大小寫、正式環境設定 |
 | 前端與公開輸出 | `src/client/*.test.ts`、`src/server/link-preview.test.ts` | 身分儲存、切換、秘密遮蔽、SSR、盲視角、戰報白名單、偏好、音效及公開預覽；規則路由依 `GAME_IDS` 檢查 |

@@ -64,14 +64,15 @@ function displayName(value: unknown) {
   if (!name || [...name].length > 24 || /[\u0000-\u001f\u007f-\u009f]/.test(name)) fail(400, '暱稱需為 1～24 個字，不能含控制字元');
   return name;
 }
-async function jsonBody(ctx: Context): Promise<Record<string, any>> {
+async function jsonBody(ctx: Context, maxBytes = 4096): Promise<Record<string, any>> {
   if (!ctx.is('application/json')) fail(415, '請使用 JSON 格式');
+  if (Number(ctx.get('Content-Length')) > maxBytes) fail(413, '資料過大');
   const chunks: Buffer[] = [];
   let size = 0;
   for await (const chunk of ctx.req) {
     const part = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
     size += part.length;
-    if (size > 4096) fail(413, '資料過大');
+    if (size > maxBytes) fail(413, '資料過大');
     chunks.push(part);
   }
   try {
@@ -421,7 +422,14 @@ export async function createApplication(config: AppConfig) {
       return;
     }
     if (ctx.method !== 'POST' || !operation) fail(405, '不支援的請求');
-    const body = await jsonBody(ctx);
+    // A bounded public question collection needs more space than an ordinary
+    // room action. Authenticate before reading that larger payload, then verify
+    // the host again inside the room queue in case membership changed meanwhile.
+    if (operation === 'options') {
+      const { metadata } = await snapshot(room);
+      authenticateHost(ctx, room, metadata, '只有房主可以切換遊戲或修改規則');
+    }
+    const body = await jsonBody(ctx, operation === 'options' ? 64 * 1024 : 4096);
     // Use the same match queue as moves, so joining and starting cannot race.
     await transport.getRoomQueue(room.roomId).add(async () => {
       const current = getRoom(room.roomId);
