@@ -3,8 +3,9 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { createMatch } from 'boardgame.io/internal';
 import { describe, expect, it } from 'vitest';
 import { TuringGame, type TuringState } from '../games/turing/game';
-import { TuringLayout } from './TuringBoard';
+import { TuringBoard, TuringLayout } from './TuringBoard';
 import { TuringSnapshot } from './TuringSnapshot';
+import { RoomContext } from './room-context';
 import type { RoomInfo } from './api';
 
 const info: RoomInfo = {
@@ -52,6 +53,9 @@ function sharedFixture(count: 2 | 3): TuringState {
 }
 const sharedInfo = (count: number): RoomInfo => ({ ...info, numPlayers: count, players: info.players.slice(0, count) });
 const sharedSurface = (html: string) => html.match(/<section class="panel turing-table turing-shared-table[\s\S]*?<\/section>/)?.[0] ?? '';
+const liveBoard = (G: TuringState) => renderToStaticMarkup(createElement(RoomContext.Provider, {
+  value: { info: sharedInfo(3), seat: { ...sharedInfo(3), access: 'player', playerID: '0', credentials: 'local-test-credential' }, inviteUrl: '', setInviteUrl: () => {} },
+}, createElement(TuringBoard, { G, playerID: '0', moves: {}, isConnected: true })));
 
 describe('Turing read-only and private surfaces', () => {
   it('reprojects a cached god payload before rendering a blind snapshot', () => {
@@ -149,7 +153,7 @@ describe('Turing read-only and private surfaces', () => {
   });
   it.each([2, 3] as const)('renders %i shared-table cards with cached god-to-blind reprojection and no spectator moves', count => {
     const G = sharedFixture(count), before = structuredClone(G);
-    expect(G.rulesVersion).toBe(3); expect(G.examinerID).toBe('');
+    expect(G.rulesVersion).toBe(4); expect(G.examinerID).toBe('');
     const god = sharedSurface(snapshot(G, 'god', sharedInfo(count)));
     const blind = sharedSurface(snapshot(G, 'blind', sharedInfo(count)));
     expect(god).toContain('共同排序桌面'); expect(god).not.toContain('檢測員');
@@ -203,5 +207,33 @@ describe('Turing read-only and private surfaces', () => {
     expect(table).toContain('<strong class="turing-desk-number">5</strong>');
     expect(table).toContain('<strong class="turing-desk-number">8</strong>');
     expect(table).not.toContain('尚未同意'); expect(table).not.toContain('<button');
+  });
+  it('starts new live games with movable cards and question tools while removing redundant answer confirmations from cards', () => {
+    const G = sharedFixture(3); G.orderApprovals = []; G.redrawApprovals = [];
+    const html = liveBoard(G);
+    expect(html).toContain('提議重抽題目'); expect(html).toContain('turing-question-feedback');
+    expect(html).toContain('將選取的卡放到第'); expect(html).toContain('同意這個順序');
+    expect(html).not.toContain('我已了解本輪任務'); expect(html).not.toContain('我已口頭回答');
+    expect(html).not.toContain('只代表這次回答的程度'); expect(html).not.toContain('turing-desk-spoken');
+    expect(html).not.toContain('turing-empty-slot'); expect(html).not.toContain('turing-chip-state');
+    const readonly = snapshot(G, 'blind', sharedInfo(3));
+    expect(readonly).not.toContain('提議重抽題目'); expect(readonly).not.toContain('turing-question-feedback');
+  });
+  it('shows redraw consent and waiting names while suspending final reveal, without hiding round-result confirmation', () => {
+    const G = sharedFixture(3); G.tableOrder = ['0', '1', '2']; G.redrawApprovals = ['0', '2'];
+    let html = liveBoard(G);
+    expect(html).toContain('同意重抽：受測者 0、受測者 2'); expect(html).toContain('等待：受測者 1');
+    expect(html).toContain('撤回重抽同意'); expect(html).toContain('先決定是否重抽');
+    G.status = 'round-review'; G.redrawApprovals = [];
+    html = liveBoard(G);
+    expect(html).toContain('已看過結果，開始下一輪'); expect(html).not.toContain('提議重抽題目');
+  });
+  it('retains briefing and spoken controls for an in-progress v3 shared game', () => {
+    const G = sharedFixture(3); G.rulesVersion = 3; delete G.redrawApprovals;
+    G.status = 'briefing';
+    expect(liveBoard(G)).toContain('我已了解本輪任務');
+    G.status = 'answering'; G.cards!['0'].spoken = false;
+    expect(liveBoard(G)).toContain('我已口頭回答');
+    expect(liveBoard(G)).not.toContain('提議重抽題目');
   });
 });

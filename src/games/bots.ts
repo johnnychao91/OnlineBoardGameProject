@@ -151,6 +151,10 @@ function turingAction(G: TuringState, id: string, random: Random): BotAction | n
     const replies = ['我會先觀察一下，再慢慢回應。', '這讓我忍不住多想了一會。', '我大概會露出一個微妙的表情。', '我想先聽聽其他人的想法。', '我會認真想像自己在這個情境。'];
     return action('submitAnswer', pick(replies, random), G.epoch);
   }
+  if (G.rulesVersion >= 4 && G.status === 'sorting' && (G.redrawApprovals?.length ?? 0) > 0) {
+    // Bots join a human proposal but never initiate an endless redraw loop.
+    return G.redrawApprovals!.includes(id) ? null : action('approveRedraw', G.epoch);
+  }
   if (G.status === 'sorting' && isTuringSharedTable(G)) {
     const order = G.tableOrder ?? [];
     const unplaced = Object.keys(turingCards(G)).filter(cardID => !order.includes(cardID));

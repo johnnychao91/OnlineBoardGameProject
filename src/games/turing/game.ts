@@ -14,7 +14,7 @@ export interface TuringCard { playerID: string; slot: 'A' | 'B'; spoken: boolean
 export interface TuringPrivateInfo { number: number; answer?: string; cards?: { id: string; number: number }[] }
 export interface TuringRevealed { playerID: string; number: number; error: boolean; cardID?: string; slot?: 'A' | 'B' }
 export interface TuringEvent {
-  type: 'round-start' | 'answers' | 'spoken' | 'reveal' | 'round-complete' | 'finish';
+  type: 'round-start' | 'question-redraw' | 'answers' | 'spoken' | 'reveal' | 'round-complete' | 'finish';
   round: number;
   examinerID?: string;
   question?: TuringQuestion;
@@ -30,7 +30,7 @@ export interface TuringEvent {
   reason?: TuringWinReason;
 }
 export interface TuringState {
-  rulesVersion: 1 | 2 | 3;
+  rulesVersion: 1 | 2 | 3 | 4;
   status: TuringStatus;
   players: Record<string, TuringPlayer>;
   private: Record<string, TuringPrivateInfo>;
@@ -46,6 +46,7 @@ export interface TuringState {
   /** Voice v3 small groups arrange face-down cards on a shared table. */
   tableOrder?: string[];
   orderApprovals?: string[];
+  redrawApprovals?: string[];
   revealed: TuringRevealed[];
   epoch: number;
   options: TuringOptions;
@@ -99,21 +100,23 @@ function finish(G: TuringState, won: boolean): void {
   transition(G, 'finished');
   G.log.push({ type: 'finish', round: G.round, integrity: G.integrity, winner: G.winner, reason: G.winReason });
 }
-function beginRound(G: TuringState, random: RandomAPI): void {
-  let question: TuringQuestion | undefined;
-  if (G.rulesVersion === 1) question = G.secretQuestionQueue?.shift();
-  else {
-    const pool = turingQuestionPool(G.options);
-    let used = new Set(G.secretDrawIDs ?? []);
-    let remaining = pool.filter(item => !used.has(item.id));
-    if (!remaining.length) {
-      used = new Set();
-      // The new cycle may revisit older questions, but never repeat the one just played.
-      remaining = pool.filter(item => item.id !== G.question?.id);
-    }
-    question = random.Shuffle(remaining)[0];
-    if (question) { used.add(question.id); G.secretDrawIDs = [...used]; }
+function drawQuestion(G: TuringState, random: RandomAPI): TuringQuestion | undefined {
+  if (G.rulesVersion === 1) return G.secretQuestionQueue?.shift();
+  const pool = turingQuestionPool(G.options);
+  let used = new Set(G.secretDrawIDs ?? []);
+  let remaining = pool.filter(item => !used.has(item.id) && item.id !== G.question?.id);
+  if (!remaining.length) {
+    used = new Set();
+    // The new cycle may revisit older questions, but never repeat the one just played.
+    remaining = pool.filter(item => item.id !== G.question?.id);
   }
+  if (!remaining.length) return undefined;
+  const question = random.Shuffle(remaining)[0];
+  used.add(question.id); G.secretDrawIDs = [...used];
+  return question;
+}
+function beginRound(G: TuringState, random: RandomAPI): void {
+  const question = drawQuestion(G, random);
   if (!question) throw new Error('本局題目快照不足，無法開始下一輪。');
   G.question = { ...question };
   G.private = {};
@@ -121,6 +124,7 @@ function beginRound(G: TuringState, random: RandomAPI): void {
   G.revealed = [];
   if (G.rulesVersion >= 2) G.cards = {};
   if (isTuringSharedTable(G)) { G.tableOrder = []; G.orderApprovals = []; }
+  if (G.rulesVersion >= 4) G.redrawApprovals = [];
   const numbers = random.Shuffle(Array.from({ length: 10 }, (_, index) => index + 1));
   const answeringIDs = Object.keys(G.players).filter(id => id !== G.examinerID);
   const perPlayer = G.rulesVersion === 2 && Object.keys(G.players).length <= 3 ? 2 : 1;
@@ -134,7 +138,7 @@ function beginRound(G: TuringState, random: RandomAPI): void {
     }
   });
   for (const player of Object.values(G.players)) player.answered = false;
-  transition(G, 'briefing');
+  transition(G, G.rulesVersion >= 4 ? 'sorting' : 'briefing');
   G.log.push({ type: 'round-start', round: G.round, examinerID: G.examinerID, question: { ...question }, integrity: G.integrity });
 }
 function beginGame(G: TuringState, random: RandomAPI): void {
@@ -180,7 +184,7 @@ function submitAnswer({ G, playerID }: MoveContext, input: unknown, epoch: unkno
   G.log.push({ type: 'answers', round: G.round, answers: { ...G.answers } });
 }
 function confirmSpoken({ G, playerID }: MoveContext, cardID: unknown, epoch: unknown) {
-  if (G.rulesVersion < 2 || G.status !== 'answering' || !validToken(G, playerID, epoch)
+  if (G.rulesVersion < 2 || G.rulesVersion >= 4 || G.status !== 'answering' || !validToken(G, playerID, epoch)
     || typeof cardID !== 'string' || !G.cards || !Object.hasOwn(G.cards, cardID)
     || G.cards[cardID].playerID !== playerID || G.cards[cardID].spoken) return INVALID_MOVE;
   G.cards[cardID].spoken = true;
@@ -191,6 +195,7 @@ function confirmSpoken({ G, playerID }: MoveContext, cardID: unknown, epoch: unk
 }
 function revealAnswer({ G, playerID }: MoveContext, cardID: unknown, epoch: unknown) {
   if (isTuringSharedTable(G) || G.status !== 'sorting' || !validToken(G, playerID, epoch) || playerID !== G.examinerID
+    || (G.redrawApprovals?.length ?? 0) > 0
     || typeof cardID !== 'string') return INVALID_MOVE;
   const cards = turingCards(G);
   if (!Object.hasOwn(cards, cardID) || G.revealed.some(entry => (entry.cardID ?? entry.playerID) === cardID)) return INVALID_MOVE;
@@ -237,7 +242,7 @@ function removeCard({ G, playerID }: MoveContext, cardID: unknown, epoch: unknow
   G.epoch += 1;
 }
 function approveOrder({ G, playerID }: MoveContext, epoch: unknown) {
-  if (!canArrange(G, playerID, epoch) || G.orderApprovals?.includes(playerID) || !G.tableOrder || !G.cards
+  if (!canArrange(G, playerID, epoch) || G.orderApprovals?.includes(playerID) || (G.redrawApprovals?.length ?? 0) > 0 || !G.tableOrder || !G.cards
     || G.tableOrder.length !== Object.keys(G.cards).length || new Set(G.tableOrder).size !== G.tableOrder.length
     || G.tableOrder.some(id => !Object.hasOwn(G.cards!, id))) return INVALID_MOVE;
   const cards = G.tableOrder.map(id => ({ id, card: G.cards![id], number: turingCardNumber(G, id) }));
@@ -255,6 +260,36 @@ function withdrawApproval({ G, playerID }: MoveContext, epoch: unknown) {
   if (!canArrange(G, playerID, epoch) || !G.orderApprovals?.includes(playerID)) return INVALID_MOVE;
   G.orderApprovals = G.orderApprovals.filter(id => id !== playerID);
   // A delayed approval sent before the withdrawal must not restore consent.
+  G.epoch += 1;
+}
+
+function canRedraw(G: TuringState, playerID: unknown, epoch: unknown): boolean {
+  return G.rulesVersion >= 4 && G.status === 'sorting' && G.revealed.length === 0 && validToken(G, playerID, epoch);
+}
+function approveRedraw({ G, playerID, random }: MoveContext, epoch: unknown) {
+  if (!canRedraw(G, playerID, epoch) || G.redrawApprovals?.includes(playerID)
+    || !turingQuestionPool(G.options).some(question => question.id !== G.question?.id)) return INVALID_MOVE;
+  G.redrawApprovals ??= [];
+  if (!G.redrawApprovals.length) {
+    // A new question proposal cancels prior consent to reveal this answer order.
+    // Invalidating its epoch also rejects already queued approvals from old tabs.
+    if (G.orderApprovals) G.orderApprovals = [];
+    G.epoch += 1;
+  }
+  G.redrawApprovals.push(playerID);
+  if (!Object.keys(G.players).every(id => G.redrawApprovals!.includes(id))) return;
+  const question = drawQuestion(G, random)!;
+  G.question = { ...question };
+  if (G.tableOrder) G.tableOrder = [];
+  if (G.orderApprovals) G.orderApprovals = [];
+  G.redrawApprovals = [];
+  G.epoch += 1;
+  G.log.push({ type: 'question-redraw', round: G.round, actorID: playerID, examinerID: G.examinerID,
+    question: { ...question }, integrity: G.integrity });
+}
+function withdrawRedraw({ G, playerID }: MoveContext, epoch: unknown) {
+  if (!canRedraw(G, playerID, epoch) || !G.redrawApprovals?.includes(playerID)) return INVALID_MOVE;
+  G.redrawApprovals = G.redrawApprovals.filter(id => id !== playerID);
   G.epoch += 1;
 }
 
@@ -300,6 +335,7 @@ export function turingPlayerView({ G, playerID }: { G: TuringState; playerID: st
     answers: { ...G.answers }, ...(G.cards === undefined ? {} : { cards: turingCards(G) }),
     ...(G.tableOrder === undefined ? {} : { tableOrder: [...G.tableOrder] }),
     ...(G.orderApprovals === undefined ? {} : { orderApprovals: [...G.orderApprovals] }),
+    ...(G.redrawApprovals === undefined ? {} : { redrawApprovals: [...G.redrawApprovals] }),
     revealed: G.revealed.map(({ playerID, number, error, cardID, slot }) => ({ playerID, number, error,
       ...(cardID === undefined ? {} : { cardID }), ...(slot === undefined ? {} : { slot }) })),
     epoch: G.epoch, options: { deck: G.options.deck, customQuestions: G.options.customQuestions.map(({ prompt, low, high }) => ({ prompt, low, high })),
@@ -335,7 +371,7 @@ export const TuringGame: Game<TuringState, Record<string, unknown>, TuringSetupD
     const options = normalizeTuringOptions(data?.options);
     const integrity = options.mode === 'endless' ? options.lives! : Math.max(3, Math.min(ctx.numPlayers, 8));
     const G: TuringState = {
-      rulesVersion: 3, status: 'lobby',
+      rulesVersion: 4, status: 'lobby',
       players: Object.fromEntries(ids.map(id => [id, { ready: data?.startImmediately === true, acknowledged: false, answered: false }])),
       private: {}, cards: {}, round: 0, completedRounds: 0, targetRounds: options.mode === 'endless' ? null : TURING_ROUNDS, integrity, maxIntegrity: integrity,
       examinerID: '', question: null, answers: {}, revealed: [], epoch: 0,
@@ -359,6 +395,8 @@ export const TuringGame: Game<TuringState, Record<string, unknown>, TuringSetupD
     removeCard: { move: removeCard, ...simultaneousMove },
     approveOrder: { move: approveOrder, ...simultaneousMove },
     withdrawApproval: { move: withdrawApproval, ...simultaneousMove },
+    approveRedraw: { move: approveRedraw, ...simultaneousMove },
+    withdrawRedraw: { move: withdrawRedraw, ...simultaneousMove },
   },
   disableUndo: true,
   plugins: [{

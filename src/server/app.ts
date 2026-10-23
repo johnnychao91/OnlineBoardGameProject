@@ -16,6 +16,7 @@ import { RoomPresence } from './presence';
 import { FileStorage } from './storage';
 import { collectStatistics } from './statistics';
 import { createPreviewPage } from './link-preview';
+import { TuringQuestionFeedbackStore, questionSnapshot } from './turing-question-feedback';
 import { admissionCredential, hashToken, randomToken, RateLimiter, safeEqual, validCredential, validRoomID } from './security';
 
 export interface AppConfig {
@@ -108,6 +109,7 @@ export async function createApplication(config: AppConfig) {
   };
   const server = Server({ games: gameDefinitions.map((g) => g.game), db, transport, origins });
   const limiter = new RateLimiter();
+  const questionFeedback = new TuringQuestionFeedbackStore(dataDir);
   // Trust the one local reverse proxy only when we are bound exclusively to loopback.
   server.app.proxy = config.production && ['127.0.0.1', '::1'].includes(config.host);
   server.app.maxIpsCount = 1;
@@ -390,7 +392,7 @@ export async function createApplication(config: AppConfig) {
         inviteUrl: `${origin}/join/${roomId}#invite=${invite}`, expiresAt: room.inviteExpiresAt };
       return;
     }
-    const route = /^\/api\/rooms\/([A-Za-z0-9_-]+)(?:\/(join|watch|invite|ready|remove|start|view|replay|share|revoke-shares|return|abort|leave|heartbeat|switch-role|game|options|bots))?$/.exec(ctx.path);
+    const route = /^\/api\/rooms\/([A-Za-z0-9_-]+)(?:\/(join|watch|invite|ready|remove|start|view|replay|share|revoke-shares|return|abort|leave|heartbeat|switch-role|game|options|bots|question-feedback))?$/.exec(ctx.path);
     if (!route) fail(404, '找不到此功能');
     const room = getRoom(route[1]);
     const operation = route[2];
@@ -431,6 +433,10 @@ export async function createApplication(config: AppConfig) {
       const { metadata } = await snapshot(room);
       authenticateHost(ctx, room, metadata, '只有房主可以切換遊戲或修改規則');
     }
+    if (operation === 'question-feedback') {
+      const { metadata } = await snapshot(room);
+      authenticate(ctx, metadata);
+    }
     const body = await jsonBody(ctx, operation === 'options' ? 64 * 1024 : 4096);
     // Use the same match queue as moves, so joining and starting cannot race.
     await transport.getRoomQueue(room.roomId).add(async () => {
@@ -440,7 +446,26 @@ export async function createApplication(config: AppConfig) {
       const definition = getGameDefinition(current.gameId)!;
       if (['ready', 'remove', 'start', 'return', 'abort'].includes(operation)
         && body.matchID !== undefined && body.matchID !== matchID) fail(409, '對局已更新，請重新確認房間狀態');
-      if (operation === 'join' || operation === 'watch') {
+      if (operation === 'question-feedback') {
+        const playerID = authenticate(ctx, metadata);
+        if (body.matchID !== matchID || current.gameId !== 'turing-test'
+          || state.G.status === 'lobby' || !Object.hasOwn(state.G.players, playerID) || !state.G.question) {
+          fail(409, '目前沒有可評分的圖靈測試題目');
+        }
+        const question = body.question;
+        if (!question || typeof question !== 'object' || Array.isArray(question)
+          || Object.keys(body).some(key => !['matchID', 'round', 'question', 'vote'].includes(key))
+          || Object.keys(question).some(key => !['id', 'category', 'prompt', 'low', 'high'].includes(key))
+          || ['id', 'category', 'prompt', 'low', 'high'].some(key => typeof question[key] !== 'string')
+          || (body.vote !== undefined && body.vote !== null && body.vote !== 'up' && body.vote !== 'down')) {
+          fail(400, '題目評分格式不正確');
+        }
+        if (body.round !== state.G.round || questionSnapshot(question) !== questionSnapshot(state.G.question)) {
+          fail(409, '題目已更新，請為目前顯示的題目評分');
+        }
+        ctx.body = await questionFeedback.feedback({ roomId: current.roomId, matchID, playerID,
+          testRoom: current.testRoom === true, question: state.G.question }, body.vote);
+      } else if (operation === 'join' || operation === 'watch') {
         if (!limiter.allow(`join:${ctx.ip}`, 30, 60000)) fail(429, '加入嘗試太頻繁');
         if (typeof body.inviteToken !== 'string' || !/^[A-Za-z0-9_-]{43}$/.test(body.inviteToken)) fail(403, '邀請已失效，請向房主索取新連結');
         if (body.requestID !== undefined && (typeof body.requestID !== 'string' || !/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(body.requestID))) fail(400, '加入請求識別碼不正確');

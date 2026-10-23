@@ -1,4 +1,19 @@
 import { sampleServerClock } from './server-clock';
+import type { TuringQuestion } from '../games/turing/rules';
+
+export interface TuringQuestionRating {
+  up: number;
+  down: number;
+  vote: 'up' | 'down' | null;
+  scope: 'builtin' | 'match' | 'test';
+}
+
+export function rateTuringQuestion(seat: SeatSession, matchID: string, round: number,
+  question: TuringQuestion, vote?: 'up' | 'down' | null) {
+  return api<TuringQuestionRating>(`/api/rooms/${seat.roomId}/question-feedback`, {
+    method: 'POST', body: JSON.stringify({ matchID, round, question, ...(vote !== undefined ? { vote } : {}) }),
+  }, seat);
+}
 
 export interface RoomPlayer { id: number | string; name?: string; isConnected: boolean; ready: boolean; membershipID?: string; departed?: boolean; isBot?: boolean; }
 export interface RoomSpectator { id: string; name: string; }

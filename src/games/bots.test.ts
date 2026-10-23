@@ -99,18 +99,19 @@ describe('Test-room bot adapters', () => {
       const expected = game.name === 'space-station' ? ['acknowledgeBriefing', 'declareRepairs', 'selectCard', 'reveal']
         : game.name === 'encrypted-call' ? ['readySync', 'playCard', 'acknowledgeLevel']
         : game.name === 'black-fog' ? ['acknowledge', 'selectTeam', 'confirmTeam', 'vote', 'submitQuest']
-        : game.name === 'turing-test' ? ['acknowledge', 'confirmSpoken', ...(count <= 3 ? ['placeCard', 'approveOrder'] : ['revealAnswer'])]
+        : game.name === 'turing-test' ? ['acknowledge', ...(count <= 3 ? ['placeCard', 'approveOrder'] : ['revealAnswer'])]
         : ['acknowledge', 'wolfVote', 'inspect', 'witch', 'finishSpeech', 'exileVote'];
       if (game.name === 'silver-moon' && count === 12) expected.push('guard', 'standForSheriff', 'sheriffVote', 'chooseOrder');
       for (const name of expected) expect(moves.has(name), `${game.name} did not exercise ${name}`).toBe(true);
+      if (game.name === 'turing-test') { expect(moves.has('confirmSpoken')).toBe(false); expect(moves.has('approveRedraw')).toBe(false); }
     });
   }
 
   it.each([2, 3])('saved v2 Turing %i-seat bots retain examiner sorting and dual voice cards', count => {
     const f = match(TuringGame, count);
     const saved = clone(f.state), G = saved.G;
-    G.rulesVersion = 2; G.examinerID = '0'; G.cards = {}; G.private = {};
-    delete G.tableOrder; delete G.orderApprovals;
+    G.rulesVersion = 2; G.status = 'briefing'; G.examinerID = '0'; G.cards = {}; G.private = {};
+    delete G.tableOrder; delete G.orderApprovals; delete G.redrawApprovals;
     G.log[0].examinerID = '0';
     for (let index = 1; index < count; index += 1) {
       const id = String(index), cards = [{ id: `${id}-a`, number: index * 2 }, { id: `${id}-b`, number: index * 2 + 1 }];
@@ -129,6 +130,21 @@ describe('Test-room bot adapters', () => {
     expect(moves.has('confirmSpoken')).toBe(true); expect(moves.has('revealAnswer')).toBe(true);
     expect(moves.has('placeCard')).toBe(false); expect(moves.has('approveOrder')).toBe(false);
     expect(f.state.G.rulesVersion).toBe(2);
+  });
+
+  it.each([2, 3, 4])('Turing %i-seat bots join a human redraw proposal once, then resume ordinary play', count => {
+    const f = match(TuringGame, count), before = clone(f.state.G), ids = Object.keys(before.players);
+    f.move(ids[0], { move: 'approveRedraw', args: [before.epoch] });
+    for (const id of ids.slice(1)) {
+      const move = chooseBotAction('turing-test', f.state, id, seeded(12));
+      expect(move).toEqual({ move: 'approveRedraw', args: [f.state.G.epoch] });
+      f.move(id, move!);
+      if (id !== ids.at(-1)) expect(chooseBotAction('turing-test', f.state, id)).toBeNull();
+    }
+    expect(f.state.G.question.id).not.toBe(before.question.id);
+    expect(f.state.G.private).toEqual(before.private);
+    expect(f.state.G.redrawApprovals).toEqual([]);
+    for (const id of ids) expect(chooseBotAction('turing-test', f.state, id)?.move).not.toBe('approveRedraw');
   });
 
   const presetScenarios = MOON_PRESETS.filter(preset => preset.count !== null).flatMap(preset =>
