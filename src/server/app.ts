@@ -218,7 +218,9 @@ export async function createApplication(config: AppConfig) {
     }
     const nextHost = retainedHost(room, Object.values(match.metadata.players));
     const history: RoomHistory = { matchID: previousID, gameName: room.gameId, endedAt: Date.now(), ending,
-      numPlayers: state.ctx.numPlayers, ...(outcome && ending === 'completed' ? { winner: outcome.winner, reason: outcome.reason } : {}) };
+      numPlayers: state.ctx.numPlayers, ...(outcome && ending === 'completed' ? {
+        winner: outcome.winner, reason: outcome.reason, ...(outcome.challenge ? { challenge: outcome.challenge } : {}),
+      } : {}) };
     const next: RoomRecord = { ...room, currentMatchID: matchID, ...nextHost, completedDisplay: undefined,
       departedPlayerIDs: [], history: [...(room.history || []), history] };
     // Create first, then atomically publish the new room pointer. A failed index

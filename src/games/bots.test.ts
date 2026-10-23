@@ -70,6 +70,8 @@ describe('Test-room bot adapters', () => {
     { game: MoonGame, count: 6, options: normalizeMoonOptions({ sheriff: false }) },
     { game: MoonGame, count: 12, options: normalizeMoonOptions({ sheriff: true, mode: 'assisted' }) },
     { game: TuringGame, count: 4, options: undefined },
+    { game: TuringGame, count: 2, options: undefined },
+    { game: TuringGame, count: 3, options: { mode: 'endless', lives: 2 } },
     { game: TuringGame, count: 9, options: { deck: 'custom', customQuestions: Array.from({ length: 5 }, (_, i) => ({ prompt: `請為第 ${i + 1} 個測試情境寫一句回應`, low: '輕描淡寫', high: '情緒沸騰' })) } },
   ];
   for (const { game, count, options } of scenarios) {
@@ -97,7 +99,7 @@ describe('Test-room bot adapters', () => {
       const expected = game.name === 'space-station' ? ['acknowledgeBriefing', 'declareRepairs', 'selectCard', 'reveal']
         : game.name === 'encrypted-call' ? ['readySync', 'playCard', 'acknowledgeLevel']
         : game.name === 'black-fog' ? ['acknowledge', 'selectTeam', 'confirmTeam', 'vote', 'submitQuest']
-        : game.name === 'turing-test' ? ['acknowledge', 'submitAnswer', 'revealAnswer']
+        : game.name === 'turing-test' ? ['acknowledge', 'confirmSpoken', 'revealAnswer']
         : ['acknowledge', 'wolfVote', 'inspect', 'witch', 'finishSpeech', 'exileVote'];
       if (game.name === 'silver-moon' && count === 12) expected.push('guard', 'standForSheriff', 'sheriffVote', 'chooseOrder');
       for (const name of expected) expect(moves.has(name), `${game.name} did not exercise ${name}`).toBe(true);

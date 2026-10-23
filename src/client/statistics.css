@@ -1,3 +1,6 @@
+.challenge-statistics { margin-block: 20px; padding-top: 16px; border-top: 1px solid var(--border); }
+.challenge-statistics h4 { margin: 0 0 8px; }
+.challenge-statistics th, .challenge-statistics td { white-space: nowrap; }
 .faction-duel {
   --duel-good: #7ce3c5;
   --duel-evil: #ff7987;

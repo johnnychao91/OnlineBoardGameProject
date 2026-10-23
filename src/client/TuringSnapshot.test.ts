@@ -9,7 +9,7 @@ import type { RoomInfo } from './api';
 
 const info: RoomInfo = {
   roomId: 'test-room', matchID: 'test-match', gameName: 'turing-test', status: 'answering',
-  numPlayers: 4, minPlayers: 4, maxPlayers: 9, spectatorCount: 1, godViewAllowed: true,
+  numPlayers: 4, minPlayers: 2, maxPlayers: 9, spectatorCount: 1, godViewAllowed: true,
   players: Array.from({ length: 4 }, (_, id) => ({ id, name: `受測者 ${id}`, isConnected: true, ready: true })),
 };
 const nameOf = (id: string) => `受測者 ${id}`;
@@ -18,12 +18,26 @@ function fixture(): TuringState {
   const created = createMatch({ game: TuringGame, numPlayers: 4, setupData: { startImmediately: true }, unlisted: true });
   if ('setupDataError' in created) throw new Error(created.setupDataError);
   const G = structuredClone(created.initialState.G) as TuringState;
+  G.rulesVersion = 1;
+  delete G.cards; delete G.completedRounds; delete G.secretDrawIDs;
   G.status = 'answering'; G.examinerID = '3';
   G.private = { '0': { number: 7, answer: sealed }, '1': { number: 2, answer: '其他人的私密回答' }, '2': { number: 9 } };
   G.players['0'].answered = true; G.players['1'].answered = true;
   return G;
 }
-const snapshot = (G: TuringState, perspective: 'blind' | 'god') => renderToStaticMarkup(createElement(TuringSnapshot, { G, info, perspective, replay: true }));
+const snapshot = (G: TuringState, perspective: 'blind' | 'god', room = info) => renderToStaticMarkup(createElement(TuringSnapshot, { G, info: room, perspective, replay: true }));
+const voiceInfo: RoomInfo = { ...info, numPlayers: 3, players: info.players.slice(0, 3) };
+function voiceFixture(): TuringState {
+  const created = createMatch({ game: TuringGame, numPlayers: 3, setupData: { startImmediately: true, options: { deck: 'standard', customQuestions: [], mode: 'endless', lives: 5 } }, unlisted: true });
+  if ('setupDataError' in created) throw new Error(created.setupDataError);
+  const G = structuredClone(created.initialState.G) as TuringState;
+  G.status = 'answering'; G.examinerID = '1'; G.round = 7; G.completedRounds = 6;
+  G.private = { '0': { number: 2, cards: [{ id: '0-a', number: 2 }, { id: '0-b', number: 8 }] },
+    '2': { number: 4, cards: [{ id: '2-a', number: 4 }, { id: '2-b', number: 9 }] } };
+  G.cards = { '0-a': { playerID: '0', slot: 'A', spoken: true }, '0-b': { playerID: '0', slot: 'B', spoken: false },
+    '2-a': { playerID: '2', slot: 'A', spoken: false }, '2-b': { playerID: '2', slot: 'B', spoken: false } };
+  return G;
+}
 
 describe('Turing read-only and private surfaces', () => {
   it('reprojects a cached god payload before rendering a blind snapshot', () => {
@@ -84,5 +98,39 @@ describe('Turing read-only and private surfaces', () => {
     const html = snapshot(G, 'blind');
     expect(html).toContain('&lt;script&gt;'); expect(html).toContain('&lt;img');
     expect(html).not.toContain('<script>'); expect(html).not.toContain('<img src=x');
+  });
+  it('renders only the inspected voice player’s A/B secrets and reprojects cached god frames to blind', () => {
+    const G = voiceFixture(), before = structuredClone(G);
+    const god = snapshot(G, 'god', voiceInfo), blind = snapshot(G, 'blind', voiceInfo);
+    expect(god).toContain('A 卡 · 秘密強度'); expect(god).toContain('B 卡 · 秘密強度');
+    expect(god).toContain('<strong>2</strong>'); expect(god).toContain('<strong>8</strong>');
+    expect(god).not.toContain('<strong>4</strong>'); expect(god).not.toContain('<strong>9</strong>');
+    expect(blind.match(/目前視角不可查看/g)).toHaveLength(2);
+    expect(blind).not.toContain('<strong>2</strong>'); expect(blind).not.toContain('<strong>8</strong>');
+    expect(blind).toContain('已口頭回答');
+    for (const html of [god, blind]) {
+      expect(html.match(/data-card-id=/g)).toHaveLength(4);
+      expect(html).toContain('不含語音或逐字稿');
+      expect(html).not.toContain('<textarea'); expect(html).not.toContain('我已口頭回答</button>');
+    }
+    expect(G).toEqual(before);
+  });
+  it('collapses both voice strength cards while retaining public completion states', () => {
+    const html = renderToStaticMarkup(createElement(TuringLayout, {
+      G: voiceFixture(), info: voiceInfo, nameOf, ownID: '0', visible: false, onVisible: () => {}, readonly: true, replay: true,
+    }));
+    expect(html).toContain('aria-expanded="false"'); expect(html).toContain('已口頭回答');
+    expect(html).not.toContain('turing-chip'); expect(html).not.toContain('<strong>2</strong>'); expect(html).not.toContain('<strong>8</strong>');
+  });
+  it('shows the completed endless score and remaining dual card without inventing a reveal', () => {
+    const G = voiceFixture(); G.status = 'finished'; G.winner = 'system'; G.winReason = 'endless-exhausted'; G.integrity = 0;
+    G.revealed = [{ playerID: '0', cardID: '0-b', slot: 'B', number: 8, error: false },
+      { playerID: '2', cardID: '2-a', slot: 'A', number: 4, error: true },
+      { playerID: '0', cardID: '0-a', slot: 'A', number: 2, error: true }];
+    const html = snapshot(G, 'blind', voiceInfo);
+    expect(html).toContain('無盡挑戰結束 · 已通過 6 關'); expect(html).toContain('在第 7 關耗盡生命');
+    expect(html.match(/終局公開 · 未參與排序/g)).toHaveLength(1); expect(html).toContain('<b>9</b>');
+    const strip = html.match(/<div class="turing-reveal-strip">([\s\S]*?)<\/div>/)?.[1];
+    expect(strip).toContain('受測者 0 · B 卡'); expect(strip).not.toContain('受測者 2 · B 卡');
   });
 });

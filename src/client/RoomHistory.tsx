@@ -15,9 +15,12 @@ export function RoomHistory({ seat, info }: { seat: AuthSession; info: RoomInfo 
     <div className="panel previous-result">
       <div className="eyebrow">MISSION ARCHIVE</div>
       <h2 className={latestGame === 'space-station' && latest.ending === 'completed' && latest.winner === 'saboteur' ? 'role-saboteur' : undefined}>{latest.ending === 'completed'
-        ? gameResultLabel(latestGame, latest.winner)
+        ? latest.challenge ? '挑戰結束' : gameResultLabel(latestGame, latest.winner)
         : '上一局已提前結束'}</h2>
       <span className="history-game-name">{definition?.name || latestGame}</span>
+      {latest.ending === 'completed' && latest.challenge && <p className="mint">
+        通過 {latest.challenge.completedRounds} 關 · 挑戰至第 {latest.challenge.completedRounds + 1} 關 · 起始 {latest.challenge.startingLives} 點生命
+      </p>}
       {info.testRoom && <p className="small amber">測試房間的結果僅供復盤，不計入全站戰績。</p>}
       <p className="muted">{latest.ending === 'completed'
         ? definition?.reasonLabels[latest.reason ?? ''] ?? '對局已完成，結果已保存。'
@@ -30,7 +33,7 @@ export function RoomHistory({ seat, info }: { seat: AuthSession; info: RoomInfo 
         <summary>這個房間的已完成對局</summary>
         {history.map((entry, index) => entry.ending === 'completed' && <button className="text-button" key={entry.matchID}
           onClick={() => setSelected(entry.matchID)}>
-          第 {index + 1} 局 · {clientGames[entry.gameName ?? info.gameName]?.name || entry.gameName} · {entry.numPlayers} 人 · <span className={(entry.gameName ?? info.gameName) === 'space-station' && entry.winner === 'saboteur' ? 'role-saboteur' : undefined}>{gameResultLabel(entry.gameName ?? info.gameName, entry.winner)}</span>
+          第 {index + 1} 局 · {clientGames[entry.gameName ?? info.gameName]?.name || entry.gameName} · {entry.numPlayers} 人 · <span className={(entry.gameName ?? info.gameName) === 'space-station' && entry.winner === 'saboteur' ? 'role-saboteur' : undefined}>{entry.challenge ? `通過 ${entry.challenge.completedRounds} 關（${entry.challenge.startingLives} 點生命）` : gameResultLabel(entry.gameName ?? info.gameName, entry.winner)}</span>
         </button>)}
       </details>}
     </div>

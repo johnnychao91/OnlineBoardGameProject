@@ -9,12 +9,15 @@ export interface TuringCustomQuestion { prompt: string; low: string; high: strin
 export interface TuringOptions {
   deck: 'standard' | 'protocol' | 'mixed' | 'custom';
   customQuestions: TuringCustomQuestion[];
+  /** Optional only for saved games created before voice play was introduced. */
+  mode?: 'standard' | 'endless';
+  lives?: number;
 }
 
 export const TURING_DECKS = {
   standard: '人性校準', protocol: '失控協定', mixed: '混合測試', custom: '自訂題庫',
 } as const;
-export const DEFAULT_TURING_OPTIONS: TuringOptions = { deck: 'standard', customQuestions: [] };
+export const DEFAULT_TURING_OPTIONS: TuringOptions = { deck: 'standard', customQuestions: [], mode: 'standard', lives: 5 };
 export const TURING_ROUNDS = 5;
 export const TURING_ANSWER_MAX = 160;
 export const TURING_CUSTOM_MAX = 50;
@@ -33,12 +36,17 @@ function text(value: unknown, min: number, max: number, label: string): string {
 
 /** Only public, bounded text is retained. Never silently truncate a question. */
 export function normalizeTuringOptions(input: unknown): TuringOptions {
-  if (input === undefined) return { deck: 'standard', customQuestions: [] };
-  if (!record(input) || Object.keys(input).some(key => !['deck', 'customQuestions'].includes(key))) {
+  if (input === undefined) return { ...DEFAULT_TURING_OPTIONS, customQuestions: [] };
+  if (!record(input) || Object.keys(input).some(key => !['deck', 'customQuestions', 'mode', 'lives'].includes(key))) {
     throw new Error('圖靈測試設定格式不正確。');
   }
   const deck = input.deck === undefined ? 'standard' : input.deck;
   if (typeof deck !== 'string' || !Object.hasOwn(TURING_DECKS, deck)) throw new Error('題庫模式不正確。');
+  const mode = input.mode === undefined ? 'standard' : input.mode;
+  if (mode !== 'standard' && mode !== 'endless') throw new Error('挑戰模式不正確。');
+  const requestedLives = input.lives === undefined ? 5 : input.lives;
+  if (typeof requestedLives !== 'number' || !Number.isSafeInteger(requestedLives)) throw new Error('起始生命需為整數。');
+  const lives = Math.max(1, Math.min(20, requestedLives));
   const source = input.customQuestions === undefined ? [] : input.customQuestions;
   if (!Array.isArray(source) || source.length > TURING_CUSTOM_MAX) throw new Error('自訂題目最多 50 題，且必須為題目清單。');
   const prompts = new Set<string>();
@@ -55,12 +63,12 @@ export function normalizeTuringOptions(input: unknown): TuringOptions {
     prompts.add(key);
     return { prompt, low, high };
   });
-  return { deck: deck as TuringOptions['deck'], customQuestions };
+  return { deck: deck as TuringOptions['deck'], customQuestions, mode, lives };
 }
 
 export function validateTuringOptions(input: unknown, numPlayers?: number): string | undefined {
-  if (numPlayers !== undefined && (!Number.isInteger(numPlayers) || numPlayers < 4 || numPlayers > 9)) {
-    return '圖靈測試需要 4～9 位玩家。';
+  if (numPlayers !== undefined && (!Number.isInteger(numPlayers) || numPlayers < 2 || numPlayers > 9)) {
+    return '圖靈測試需要 2～9 位玩家。';
   }
   try {
     const options = normalizeTuringOptions(input);

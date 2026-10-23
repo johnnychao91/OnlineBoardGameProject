@@ -4,7 +4,9 @@ import { basename, dirname, join, resolve } from 'node:path';
 import type { State, SyncInfo } from 'boardgame.io';
 import { io, type Socket } from 'socket.io-client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { TuringState } from '../games/turing/game';
+import { turingCardNumber, turingCards, type TuringState } from '../games/turing/game';
+import { normalizeTuringOptions } from '../games/turing/rules';
+import { turingQuestionPool } from '../games/turing/questions';
 import { createApplication } from './app';
 
 interface Seat { playerID: string; credentials: string }
@@ -14,14 +16,14 @@ interface Group { host: Room; seats: Seat[]; observer: Observer; clients: Socket
 type Snapshot = State<TuringState>;
 const origin = 'http://localhost:5173';
 const cleanups: (() => Promise<void>)[] = [];
-afterEach(async () => { for (const cleanup of cleanups.splice(0).reverse()) await cleanup(); });
+afterEach(async () => { for (const cleanup of cleanups.splice(0).reverse()) await cleanup(); vi.restoreAllMocks(); });
 const path = (room: Room, action = '') => `/api/rooms/${room.roomId}${action ? `/${action}` : ''}`;
 const token = (url: string, name = 'invite') => new URLSearchParams(new URL(url).hash.slice(1)).get(name)!;
 const customQuestions = Array.from({ length: 5 }, (_, index) => ({
   prompt: `你遇到第 ${index + 1} 位迷路的機器人，請寫一句讓它安心的話。`, low: '完全不安心', high: '立刻安心下來',
 }));
 function noServerSecrets(value: unknown) {
-  expect(JSON.stringify(value)).not.toMatch(/"(?:secretQuestionQueue|seed|prngstate|credentials|credentialHash|inviteHash|inviteToken)"\s*:/);
+  expect(JSON.stringify(value)).not.toMatch(/"(?:secretQuestionQueue|secretDrawIDs|seed|prngstate|credentials|credentialHash|inviteHash|inviteToken)"\s*:/);
 }
 
 async function fixture() {
@@ -30,7 +32,7 @@ async function fixture() {
     if (dirname(resolve(dataDir)) !== resolve(tmpdir()) || !basename(dataDir).startsWith('boardgame-turing-test-')) throw new Error('Unexpected test directory');
     await rm(dataDir, { recursive: true, force: true });
   });
-  const config = { dataDir, publicOrigin: origin, host: '127.0.0.1', port: 0, production: false, createRoomKey: '', lifecycleSweepMs: 60000 };
+  const config = { dataDir, publicOrigin: origin, host: '127.0.0.1', port: 0, production: false, createRoomKey: '', testRoomKey: 'turing-test-room-only-key', lifecycleSweepMs: 60000 };
   let app = await createApplication(config), running = await app.listen();
   const sockets: Socket[] = [], views = new Map<Socket, Snapshot>(), wireLogs = new Map<Socket, unknown[]>();
   cleanups.push(async () => { sockets.forEach(socket => socket.disconnect()); await running.close(); });
@@ -75,15 +77,24 @@ async function fixture() {
     await vi.waitFor(() => group.clients.forEach(socket => expect(views.get(socket)?._stateID).toBe(after._stateID)), { timeout: 4000, interval: 10 });
     return after;
   };
-  return { request, connect, sync, state, move, views, wireLogs, get app() { return app; },
+  const rejectMove = async (group: Group, id: string, type: string, args: unknown[]) => {
+    const index = group.seats.findIndex(seat => seat.playerID === id), seat = group.seats[index];
+    const before = await state(group.matchID), socket = group.clients[index];
+    socket.emit('update', { type: 'MAKE_MOVE', payload: { type, args, playerID: id, credentials: seat.credentials } }, before._stateID, group.matchID, id);
+    // An authorized sync is serialized behind the preceding move in this room.
+    // It is a deterministic barrier, not a timing-based guess that no write occurred.
+    await sync(socket, group, seat);
+    expect(await state(group.matchID)).toEqual(before);
+  };
+  return { request, connect, sync, state, move, rejectMove, views, wireLogs, get app() { return app; },
     async restart() { sockets.forEach(socket => socket.disconnect()); await running.close(); app = await createApplication(config); running = await app.listen(); } };
 }
 type Fixture = Awaited<ReturnType<typeof fixture>>;
-async function group(f: Fixture): Promise<Group> {
-  const created = await f.request('/api/rooms', { gameId: 'turing-test', displayName: '房主' });
+async function group(f: Fixture, count = 4, testRoom = false): Promise<Group> {
+  const created = await f.request('/api/rooms', { gameId: 'turing-test', displayName: '房主', ...(testRoom ? { createKey: 'turing-test-room-only-key' } : {}) });
   expect(created.status).toBe(201);
   const host = created.body as Room, seats: Seat[] = [host];
-  for (let i = 1; i < 4; i += 1) {
+  for (let i = 1; i < count; i += 1) {
     const joined = await f.request(path(host, 'join'), { inviteToken: token(host.inviteUrl), displayName: `參與者 ${i}` });
     expect(joined.status).toBe(200); seats.push(joined.body);
   }
@@ -99,11 +110,24 @@ async function connectGroup(f: Fixture, g: Group) {
     expect(info.state.deltalog).toBeUndefined(); expect(info.initialState.deltalog).toBeUndefined();
   }
 }
-async function start(f: Fixture, g: Group) {
+async function start(f: Fixture, g: Group, legacy = false) {
   const current = (await f.request(path(g.host), undefined, g.host)).body;
   for (const seat of g.seats) expect((await f.request(path(g.host, 'ready'), { ready: true, matchID: current.matchID }, seat)).status).toBe(200);
   const started = await f.request(path(g.host, 'start'), { matchID: current.matchID }, g.host);
   expect(started.status).toBe(200); g.matchID = started.body.matchID;
+  if (legacy) {
+    // Simulate an already saved pre-voice match; loading it must not silently
+    // replace its rules, pending answers, number assignments or question order.
+    const saved = await f.state(g.matchID), G = saved.G;
+    G.rulesVersion = 1;
+    G.options = { deck: G.options.deck, customQuestions: G.options.customQuestions };
+    G.private = Object.fromEntries(Object.entries(G.private).map(([id, info]) => [id, { number: info.number }]));
+    G.secretQuestionQueue = turingQuestionPool(G.options).filter(question => question.id !== G.question?.id).slice(0, 4);
+    G.maxIntegrity = G.integrity = Math.min(g.seats.length, 8);
+    delete G.cards; delete G.completedRounds; delete G.secretDrawIDs;
+    saved._stateID += 1;
+    await f.app.db.setState(g.matchID, saved);
+  }
   await connectGroup(f, g);
 }
 async function ack(f: Fixture, g: Group) {
@@ -111,7 +135,133 @@ async function ack(f: Fixture, g: Group) {
   for (const seat of g.seats) await f.move(g, seat.playerID, 'acknowledge', [G.epoch]);
 }
 
+async function speakAll(f: Fixture, g: Group) {
+  const { G } = await f.state(g.matchID);
+  for (const [cardID, card] of Object.entries(turingCards(G))) {
+    if (!card.spoken) await f.move(g, card.playerID, 'confirmSpoken', [cardID, G.epoch]);
+  }
+}
+async function revealAll(f: Fixture, g: Group, descending = false) {
+  const { G } = await f.state(g.matchID);
+  const cards = Object.keys(turingCards(G)).sort((a, b) => turingCardNumber(G, a)! - turingCardNumber(G, b)!);
+  if (descending) cards.reverse();
+  for (const cardID of cards) {
+    const current = (await f.state(g.matchID)).G;
+    if (current.status === 'finished') break;
+    await f.move(g, current.examinerID, 'revealAnswer', [cardID, current.epoch]);
+  }
+}
+async function archive(f: Fixture, g: Group) {
+  const held = (await f.request(path(g.host), undefined, g.host)).body;
+  expect(held.status).toBe('finished');
+  const record = f.app.rooms.rooms.get(g.host.roomId)!;
+  await f.app.rooms.save({ ...record, completedDisplay: { matchID: g.matchID, until: Date.now() - 1 } });
+  const lobby = (await f.request(path(g.host), undefined, g.host)).body;
+  expect(lobby.status).toBe('lobby');
+  return lobby;
+}
+
 describe('Turing custom questions, private answers and replay integration', () => {
+  it.each([2, 3])('%i-player voice play authorizes each card, isolates rooms, survives restart and records its mode-specific result', async count => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const f = await fixture(), g = await group(f, count), other = await group(f, 2);
+    const mode = count === 2 ? 'standard' : 'endless';
+    const settings = { deck: 'custom', customQuestions, mode, lives: 1 };
+    expect((await f.request(path(g.host, 'options'), { matchID: g.matchID, options: settings }, g.host)).status).toBe(200);
+    await start(f, other); await start(f, g); await ack(f, g);
+    const untouched = (await f.state(other.matchID)).G;
+    const first = (await f.state(g.matchID)).G, entries = Object.entries(turingCards(first));
+    expect(entries).toHaveLength((count - 1) * 2);
+    expect(first).toMatchObject({ rulesVersion: 2, targetRounds: mode === 'endless' ? null : 5, completedRounds: 0 });
+    const [cardID, card] = entries[0];
+    await f.rejectMove(g, first.examinerID, 'confirmSpoken', [cardID, first.epoch]);
+    await f.rejectMove(g, first.examinerID, 'revealAnswer', [cardID, first.epoch]);
+    await f.rejectMove(g, card.playerID, 'submitAnswer', ['此局不接受文字答案', first.epoch]);
+    await f.move(g, card.playerID, 'confirmSpoken', [cardID, first.epoch]);
+    await f.rejectMove(g, card.playerID, 'confirmSpoken', [cardID, first.epoch]);
+    await f.rejectMove(g, first.examinerID, 'revealAnswer', [cardID, first.epoch]);
+    for (let index = 0; index < count; index += 1) {
+      const seat = g.seats[index], view = f.views.get(g.clients[index])!;
+      expect(Object.keys(view.G.private)).toEqual(seat.playerID === first.examinerID ? [] : [seat.playerID]);
+      expect(view.G.answers).toEqual({}); expect(view.G.log.some(event => event.type === 'answers')).toBe(false);
+      expect(f.wireLogs.get(g.clients[index])).toEqual([]); expect(view.deltalog).toBeUndefined();
+      expect(view.ctx.numMoves).toBe(0); noServerSecrets(view);
+    }
+    const pendingBlind = (await f.request(path(g.host, 'view?perspective=blind'), undefined, g.observer)).body;
+    const pendingGod = (await f.request(path(g.host, 'view?perspective=god'), undefined, g.observer)).body;
+    expect(pendingBlind.G.private).toEqual({}); expect(pendingBlind.G.cards[cardID].spoken).toBe(true);
+    expect(pendingGod.G.private[card.playerID].cards).toHaveLength(2);
+    noServerSecrets(pendingBlind); noServerSecrets(pendingGod);
+    const pending = (await f.state(g.matchID)).G;
+    await f.restart(); expect((await f.state(g.matchID)).G).toEqual(pending);
+    await connectGroup(f, g); await connectGroup(f, other);
+    const rounds = mode === 'endless' ? 7 : 5, questionIDs: string[] = [];
+    for (let round = 1; round <= rounds; round += 1) {
+      const current = (await f.state(g.matchID)).G;
+      expect(current).toMatchObject({ round, status: 'answering', completedRounds: round - 1 });
+      questionIDs.push(current.question!.id);
+      await speakAll(f, g);
+      const sorting = (await f.state(g.matchID)).G;
+      expect(sorting.status).toBe('sorting'); expect(sorting.answers).toEqual({});
+      await f.rejectMove(g, Object.keys(sorting.private)[0], 'revealAnswer', [Object.keys(turingCards(sorting))[0], sorting.epoch]);
+      await revealAll(f, g, mode === 'endless' && round === rounds);
+      expect((await f.state(other.matchID)).G).toEqual(untouched);
+      if (round < rounds) { await ack(f, g); await ack(f, g); }
+    }
+    expect(new Set(questionIDs.slice(0, 5)).size).toBe(5);
+    if (mode === 'endless') expect(questionIDs[5]).not.toBe(questionIDs[4]);
+    const final = (await f.state(g.matchID)).G;
+    expect(final).toMatchObject(mode === 'endless'
+      ? { status: 'finished', completedRounds: 6, round: 7, integrity: 0, winner: 'system', winReason: 'endless-exhausted' }
+      : { status: 'finished', completedRounds: 5, integrity: 3, winner: 'humans', winReason: 'calibrated' });
+    const lobby = await archive(f, g);
+    expect(lobby.history.at(-1)).toMatchObject(mode === 'endless'
+      ? { challenge: { mode: 'endless', completedRounds: 6, startingLives: 1 } } : { winner: 'humans' });
+    if (mode === 'standard') expect(lobby.history.at(-1).challenge).toBeUndefined();
+    const replays: Record<string, any> = {};
+    for (const perspective of ['blind', 'god']) {
+      const replay = await f.request(path(g.host, `replay?matchID=${g.matchID}&perspective=${perspective}`), undefined, g.observer);
+      expect(replay.status).toBe(200); noServerSecrets(replay.body);
+      const frame = replay.body.frames.find((item: any) => item.G.round === 1 && item.G.cards[cardID]?.spoken);
+      expect(frame.G.private).toEqual(perspective === 'blind' ? {} : pending.private);
+      expect(replay.body.frames.at(-1).G.completedRounds).toBe(final.completedRounds);
+      expect(replay.body.frames.every((item: any) => Object.keys(item.G.answers).length === 0)).toBe(true);
+      replays[perspective] = replay.body;
+    }
+    const shares: Record<string, string> = {};
+    for (const perspective of ['blind', 'god']) {
+      const shared = await f.request(path(g.host, 'share'), { matchID: g.matchID, frameIndex: 0, perspective }, g.host);
+      expect(shared.status).toBe(200); shares[perspective] = token(shared.body.url, 'share');
+    }
+    const stats = (await f.request('/api/stats')).body;
+    const result = stats.byGame.find((entry: any) => entry.gameId === 'turing-test');
+    expect(stats).toMatchObject({ completedGames: 1, totalPlayerParticipations: count });
+    expect(result).toMatchObject(mode === 'endless'
+      ? { completed: 1, rankedCompleted: 0, wins: {}, reasons: {}, byPlayerCount: [], challenges: [{ mode: 'endless', numPlayers: 3, startingLives: 1, runs: 1, bestCompletedRounds: 6, averageCompletedRounds: 6 }] }
+      : { completed: 1, rankedCompleted: 1, wins: { humans: 1 }, challenges: [] });
+    await f.restart();
+    expect((await f.request('/api/stats')).body).toEqual(stats);
+    for (const perspective of ['blind', 'god']) {
+      const replay = await f.request(`/api/replays/${g.host.roomId}`, undefined, undefined, { 'X-Replay-Token': shares[perspective] });
+      expect(replay.status).toBe(200); expect(replay.body.perspective).toBe(perspective);
+      expect(replay.body.frames).toEqual(replays[perspective].frames); noServerSecrets(replay.body);
+    }
+    const restored = (await f.request(path(g.host), undefined, g.host)).body;
+    expect(restored.history).toEqual(lobby.history);
+  }, 30000);
+
+  it('keeps ended test-room challenge replays but never adds their score to site statistics', async () => {
+    const f = await fixture(), g = await group(f, 2, true);
+    expect((await f.request(path(g.host, 'options'), { matchID: g.matchID, options: { mode: 'endless', lives: 1 } }, g.host)).status).toBe(200);
+    await start(f, g); await ack(f, g); await speakAll(f, g); await revealAll(f, g, true);
+    const lobby = await archive(f, g);
+    expect(lobby.history.at(-1).challenge).toEqual({ mode: 'endless', completedRounds: 0, startingLives: 1 });
+    expect((await f.request(path(g.host, `replay?matchID=${g.matchID}`), undefined, g.observer)).status).toBe(200);
+    expect((await f.request('/api/stats')).body).toMatchObject({ completedGames: 0, totalPlayerParticipations: 0 });
+    const summary = (await f.request('/api/stats')).body.byGame.find((entry: any) => entry.gameId === 'turing-test');
+    expect(summary).toMatchObject({ completed: 0, rankedCompleted: 0, challenges: [] });
+  });
+
   it('allows bounded 50-question host settings, authenticates first and retains smaller limits for ordinary actions', async () => {
     const f = await fixture(), g = await group(f);
     const cards = Array.from({ length: 50 }, (_, i) => ({ prompt: `${String(i).padStart(2, '0')}${'題'.repeat(198)}`, low: '低'.repeat(50), high: '高'.repeat(50) }));
@@ -126,7 +276,7 @@ describe('Turing custom questions, private answers and replay integration', () =
     expect((await f.request(path(g.host, 'ready'), { ready: true, excess: 'x'.repeat(4096) }, g.host)).status).toBe(413);
     expect((await f.request(path(g.host, 'ready'), { ready: true }, g.seats[1])).status).toBe(200);
     const changed = await f.request(path(g.host, 'options'), body, g.host);
-    expect(changed.status).toBe(200); expect(changed.body.gameOptions).toEqual(body.options);
+    expect(changed.status).toBe(200); expect(changed.body.gameOptions).toEqual(normalizeTuringOptions(body.options));
     expect(changed.body.matchID).not.toBe(g.matchID);
     expect(changed.body.players.every((player: any) => !player.ready)).toBe(true);
     expect((await f.request(path(g.host, 'options'), body, g.host)).status).toBe(409);
@@ -134,16 +284,16 @@ describe('Turing custom questions, private answers and replay integration', () =
     const rejected = await f.request(path(g.host, 'options'), { matchID: g.matchID, options: { deck: 'custom', customQuestions: customQuestions.slice(0, 4) } }, g.host);
     expect(rejected.status).toBe(400);
     const intact = (await f.request(path(g.host), undefined, g.host)).body;
-    expect(intact.matchID).toBe(g.matchID); expect(intact.gameOptions).toEqual(body.options);
+    expect(intact.matchID).toBe(g.matchID); expect(intact.gameOptions).toEqual(normalizeTuringOptions(body.options));
     await start(f, g);
     expect((await f.request(path(g.host, 'options'), { ...body, matchID: g.matchID }, g.host)).status).toBe(409);
   });
 
-  it('plays five custom rounds over sockets, keeps pending answers private through restart, and persists public and god replays', async () => {
+  it('resumes a legacy typed match over sockets, retains its pending answer across restart, and persists legacy replays', async () => {
     const f = await fixture(), g = await group(f);
     const changed = await f.request(path(g.host, 'options'), { matchID: g.matchID, options: { deck: 'custom', customQuestions } }, g.host);
     expect(changed.status).toBe(200);
-    await start(f, g); await ack(f, g);
+    await start(f, g, true); await ack(f, g);
     const initial = (await f.state(g.matchID)).G, firstAnswerID = Object.keys(initial.private)[0];
     const pendingText = '<img src=x onerror=alert(1)> 還沒公開的回答';
     await f.move(g, firstAnswerID, 'submitAnswer', [pendingText, initial.epoch]);

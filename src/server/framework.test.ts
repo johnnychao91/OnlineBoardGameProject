@@ -76,6 +76,8 @@ describe('Game framework registration and shared room lifecycle', () => {
     if (gameID === 'black-fog' || gameID === 'silver-moon') expect(god.body.G.secret).toBeUndefined();
     expect(blind.body.G.secretQuestionQueue).toBeUndefined();
     expect(god.body.G.secretQuestionQueue).toBeUndefined();
+    expect(blind.body.G.secretDrawIDs).toBeUndefined();
+    expect(god.body.G.secretDrawIDs).toBeUndefined();
     expect((await f.request(path(host, 'abort'), { matchID: observerHost.matchID }, seats[1])).status).toBe(403);
     const aborted = await f.request(path(host, 'abort'), { matchID: observerHost.matchID }, observerHost);
     expect(aborted.status).toBe(200);

@@ -14,6 +14,7 @@ export interface GameOutcome {
   winner: string;
   reason: string;
   roles: Record<string, string>;
+  challenge?: { mode: string; completedRounds: number; startingLives: number };
 }
 
 /** A registered game has an isolated rules module and a matching client renderer. */
@@ -115,6 +116,9 @@ export const gameDefinitions: GameDefinition[] = [{
   getOutcome: (state: TuringState) => {
     if (state.status !== 'finished' || !state.winner || !state.winReason) return null;
     return { winner: state.winner, reason: state.winReason,
+      ...(state.rulesVersion === 2 && state.options.mode === 'endless' ? { challenge: {
+        mode: 'endless', completedRounds: state.completedRounds ?? 0, startingLives: state.maxIntegrity,
+      } } : {}),
       roles: Object.fromEntries(Object.keys(state.players).map(id => [id, 'humans'])) };
   },
 }];

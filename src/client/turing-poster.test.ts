@@ -30,4 +30,19 @@ describe('Turing public poster projection', () => {
     G.revealed = []; G.answers = {};
     expect(buildTuringPosterModel({ G, info, step: 1, totalSteps: 2 }).latest).toBeNull();
   });
+  it('labels voice cards independently and reports completed endless levels without inventing a transcript', () => {
+    const G = fixture(); G.rulesVersion = 2; G.targetRounds = null; G.completedRounds = 8; G.round = 9;
+    G.status = 'finished'; G.winner = 'system'; G.integrity = 0; G.maxIntegrity = 5;
+    delete G.players['3'];
+    G.revealed = [{ playerID: '1', cardID: '1-b', slot: 'B', number: 2, error: true }];
+    G.answers['1'] = 'unrecorded-voice-marker';
+    const args = { G, info, step: 1, totalSteps: 2 };
+    const model = buildTuringPosterModel(args);
+    expect(model.roundLabel).toBe('無盡 · 第 9 關');
+    expect(model.result).toBe('挑戰結束 · 已完成 8 關');
+    expect(model.latest?.name).toBe('成員 1 · B');
+    expect(model.latest?.answer).toContain('不錄音');
+    expect(JSON.stringify(model)).not.toMatch(/unrecorded-voice-marker|private|future|secret/);
+    expect(buildTuringPosterModel({ ...args, G: { ...G, private: {}, secretQuestionQueue: undefined } })).toEqual(model);
+  });
 });

@@ -7,19 +7,22 @@ import { normalizeTuringAnswer, normalizeTuringOptions, TURING_ROUNDS, validateT
 export type { TuringOptions, TuringQuestion } from './rules';
 export type TuringStatus = 'lobby' | 'briefing' | 'answering' | 'sorting' | 'round-review' | 'finished';
 export type TuringWinner = 'humans' | 'system';
-export type TuringWinReason = 'calibrated' | 'integrity-lost';
+export type TuringWinReason = 'calibrated' | 'integrity-lost' | 'endless-exhausted';
 export interface TuringSetupData { startImmediately?: boolean; participantIDs?: string[]; options?: TuringOptions }
 export interface TuringPlayer { ready: boolean; acknowledged: boolean; answered: boolean }
-export interface TuringPrivateInfo { number: number; answer?: string }
-export interface TuringRevealed { playerID: string; number: number; error: boolean }
+export interface TuringCard { playerID: string; slot: 'A' | 'B'; spoken: boolean }
+export interface TuringPrivateInfo { number: number; answer?: string; cards?: { id: string; number: number }[] }
+export interface TuringRevealed { playerID: string; number: number; error: boolean; cardID?: string; slot?: 'A' | 'B' }
 export interface TuringEvent {
-  type: 'round-start' | 'answers' | 'reveal' | 'round-complete' | 'finish';
+  type: 'round-start' | 'answers' | 'spoken' | 'reveal' | 'round-complete' | 'finish';
   round: number;
   examinerID?: string;
   question?: TuringQuestion;
   answers?: Record<string, string>;
   actorID?: string;
   targetID?: string;
+  cardID?: string;
+  slot?: 'A' | 'B';
   number?: number;
   error?: boolean;
   integrity?: number;
@@ -27,17 +30,19 @@ export interface TuringEvent {
   reason?: TuringWinReason;
 }
 export interface TuringState {
-  rulesVersion: 1;
+  rulesVersion: 1 | 2;
   status: TuringStatus;
   players: Record<string, TuringPlayer>;
   private: Record<string, TuringPrivateInfo>;
   round: number;
-  targetRounds: 5;
+  targetRounds: number | null;
+  completedRounds?: number;
   integrity: number;
   maxIntegrity: number;
   examinerID: string;
   question: TuringQuestion | null;
   answers: Record<string, string>;
+  cards?: Record<string, TuringCard>;
   revealed: TuringRevealed[];
   epoch: number;
   options: TuringOptions;
@@ -46,6 +51,25 @@ export interface TuringState {
   log: TuringEvent[];
   /** Server only, omitted from every view including god and completed games. */
   secretQuestionQueue?: TuringQuestion[];
+  /** Compact draw history; future order is never preselected for voice games. */
+  secretDrawIDs?: string[];
+}
+
+/** Public answer slots, including the single slot used by persisted v1 games. */
+export function turingCards(G: TuringState): Record<string, TuringCard> {
+  if (G.rulesVersion === 2) return Object.fromEntries(Object.entries(G.cards ?? {}).map(([id, card]) => [id, {
+    playerID: card.playerID, slot: card.slot, spoken: card.spoken,
+  }]));
+  return Object.fromEntries(Object.keys(G.players).filter(id => id !== G.examinerID).map(id => [id, {
+    playerID: id, slot: 'A' as const, spoken: G.players[id].answered,
+  }]));
+}
+
+/** Only reads authorized private data; a revealed public card is handled separately by callers. */
+export function turingCardNumber(G: TuringState, cardID: string): number | undefined {
+  if (G.rulesVersion === 1) return Object.hasOwn(G.players, cardID) ? G.private[cardID]?.number : undefined;
+  const card = G.cards && Object.hasOwn(G.cards, cardID) ? G.cards[cardID] : undefined;
+  return card ? G.private[card.playerID]?.cards?.find(item => item.id === cardID)?.number : undefined;
 }
 
 type MoveContext = FnContext<TuringState> & { playerID: string };
@@ -63,20 +87,43 @@ function transition(G: TuringState, status: TuringStatus): void {
 }
 function finish(G: TuringState, won: boolean): void {
   G.winner = won ? 'humans' : 'system';
-  G.winReason = won ? 'calibrated' : 'integrity-lost';
+  G.winReason = won ? 'calibrated' : G.rulesVersion === 2 && G.options.mode === 'endless' ? 'endless-exhausted' : 'integrity-lost';
   transition(G, 'finished');
   G.log.push({ type: 'finish', round: G.round, integrity: G.integrity, winner: G.winner, reason: G.winReason });
 }
 function beginRound(G: TuringState, random: RandomAPI): void {
-  const question = G.secretQuestionQueue?.shift();
+  let question: TuringQuestion | undefined;
+  if (G.rulesVersion === 1) question = G.secretQuestionQueue?.shift();
+  else {
+    const pool = turingQuestionPool(G.options);
+    let used = new Set(G.secretDrawIDs ?? []);
+    let remaining = pool.filter(item => !used.has(item.id));
+    if (!remaining.length) {
+      used = new Set();
+      // The new cycle may revisit older questions, but never repeat the one just played.
+      remaining = pool.filter(item => item.id !== G.question?.id);
+    }
+    question = random.Shuffle(remaining)[0];
+    if (question) { used.add(question.id); G.secretDrawIDs = [...used]; }
+  }
   if (!question) throw new Error('本局題目快照不足，無法開始下一輪。');
   G.question = { ...question };
   G.private = {};
   G.answers = {};
   G.revealed = [];
+  if (G.rulesVersion === 2) G.cards = {};
   const numbers = random.Shuffle(Array.from({ length: 10 }, (_, index) => index + 1));
   const answeringIDs = Object.keys(G.players).filter(id => id !== G.examinerID);
-  answeringIDs.forEach((id, index) => { G.private[id] = { number: numbers[index] }; });
+  const perPlayer = G.rulesVersion === 2 && Object.keys(G.players).length <= 3 ? 2 : 1;
+  answeringIDs.forEach((id, index) => {
+    const cards = Array.from({ length: perPlayer }, (_, slot) => ({
+      id: perPlayer === 1 ? id : `${id}-${slot === 0 ? 'a' : 'b'}`, number: numbers[index * perPlayer + slot],
+    }));
+    G.private[id] = G.rulesVersion === 1 ? { number: cards[0].number } : { number: cards[0].number, cards };
+    if (G.rulesVersion === 2) for (const [slot, card] of cards.entries()) {
+      G.cards![card.id] = { playerID: id, slot: slot === 0 ? 'A' : 'B', spoken: false };
+    }
+  });
   for (const player of Object.values(G.players)) player.answered = false;
   transition(G, 'briefing');
   G.log.push({ type: 'round-start', round: G.round, examinerID: G.examinerID, question: { ...question }, integrity: G.integrity });
@@ -84,7 +131,8 @@ function beginRound(G: TuringState, random: RandomAPI): void {
 function beginGame(G: TuringState, random: RandomAPI): void {
   G.round = 1;
   G.examinerID = random.Shuffle(Object.keys(G.players))[0];
-  G.secretQuestionQueue = random.Shuffle(turingQuestionPool(G.options)).slice(0, TURING_ROUNDS);
+  if (G.rulesVersion === 1) G.secretQuestionQueue = random.Shuffle(turingQuestionPool(G.options)).slice(0, TURING_ROUNDS);
+  else { G.secretDrawIDs = []; G.completedRounds = 0; }
   beginRound(G, random);
 }
 function setReady({ G, playerID }: MoveContext, ready: unknown) {
@@ -110,7 +158,7 @@ function acknowledge({ G, playerID, random }: MoveContext, epoch: unknown) {
   }
 }
 function submitAnswer({ G, playerID }: MoveContext, input: unknown, epoch: unknown) {
-  if (G.status !== 'answering' || !validToken(G, playerID, epoch)
+  if (G.rulesVersion !== 1 || G.status !== 'answering' || !validToken(G, playerID, epoch)
     || playerID === G.examinerID || G.players[playerID].answered) return INVALID_MOVE;
   const answer = normalizeTuringAnswer(input);
   if (answer === undefined) return INVALID_MOVE;
@@ -122,21 +170,35 @@ function submitAnswer({ G, playerID }: MoveContext, input: unknown, epoch: unkno
   transition(G, 'sorting');
   G.log.push({ type: 'answers', round: G.round, answers: { ...G.answers } });
 }
-function revealAnswer({ G, playerID }: MoveContext, targetID: unknown, epoch: unknown) {
+function confirmSpoken({ G, playerID }: MoveContext, cardID: unknown, epoch: unknown) {
+  if (G.rulesVersion !== 2 || G.status !== 'answering' || !validToken(G, playerID, epoch)
+    || typeof cardID !== 'string' || !G.cards || !Object.hasOwn(G.cards, cardID)
+    || G.cards[cardID].playerID !== playerID || G.cards[cardID].spoken) return INVALID_MOVE;
+  G.cards[cardID].spoken = true;
+  G.players[playerID].answered = Object.values(G.cards).filter(card => card.playerID === playerID).every(card => card.spoken);
+  if (!Object.values(G.cards).every(card => card.spoken)) return;
+  transition(G, 'sorting');
+  G.log.push({ type: 'spoken', round: G.round });
+}
+function revealAnswer({ G, playerID }: MoveContext, cardID: unknown, epoch: unknown) {
   if (G.status !== 'sorting' || !validToken(G, playerID, epoch) || playerID !== G.examinerID
-    || !isSeat(G, targetID) || targetID === G.examinerID
-    || G.revealed.some(entry => entry.playerID === targetID)) return INVALID_MOVE;
-  const number = G.private[targetID].number;
+    || typeof cardID !== 'string') return INVALID_MOVE;
+  const cards = turingCards(G);
+  if (!Object.hasOwn(cards, cardID) || G.revealed.some(entry => (entry.cardID ?? entry.playerID) === cardID)) return INVALID_MOVE;
+  const card = cards[cardID], targetID = card.playerID, number = turingCardNumber(G, cardID);
+  if (number === undefined) return INVALID_MOVE;
   const previous = G.revealed.at(-1)?.number;
   const error = previous !== undefined && number < previous;
   if (error) G.integrity -= 1;
-  G.revealed.push({ playerID: targetID, number, error });
+  const slot = G.rulesVersion === 2 ? { cardID, slot: card.slot } : {};
+  G.revealed.push({ playerID: targetID, number, error, ...slot });
   G.epoch += 1;
-  G.log.push({ type: 'reveal', round: G.round, actorID: playerID, targetID, number, error, integrity: G.integrity });
+  G.log.push({ type: 'reveal', round: G.round, actorID: playerID, targetID, number, error, integrity: G.integrity, ...slot });
   if (G.integrity === 0) { finish(G, false); return; }
-  if (G.revealed.length !== Object.keys(G.players).length - 1) return;
+  if (G.revealed.length !== Object.keys(cards).length) return;
+  if (G.rulesVersion === 2) G.completedRounds = (G.completedRounds ?? 0) + 1;
   G.log.push({ type: 'round-complete', round: G.round, integrity: G.integrity });
-  if (G.round === TURING_ROUNDS) finish(G, true);
+  if (G.targetRounds !== null && G.round >= G.targetRounds) finish(G, true);
   else transition(G, 'round-review');
 }
 
@@ -151,6 +213,8 @@ function publicLog(entry: TuringEvent): TuringEvent {
     ...(entry.answers === undefined ? {} : { answers: { ...entry.answers } }),
     ...(entry.actorID === undefined ? {} : { actorID: entry.actorID }),
     ...(entry.targetID === undefined ? {} : { targetID: entry.targetID }),
+    ...(entry.cardID === undefined ? {} : { cardID: entry.cardID }),
+    ...(entry.slot === undefined ? {} : { slot: entry.slot }),
     ...(entry.number === undefined ? {} : { number: entry.number }),
     ...(entry.error === undefined ? {} : { error: entry.error }),
     ...(entry.integrity === undefined ? {} : { integrity: entry.integrity }),
@@ -159,7 +223,8 @@ function publicLog(entry: TuringEvent): TuringEvent {
   };
 }
 function copyPrivate(info: TuringPrivateInfo): TuringPrivateInfo {
-  return { number: info.number, ...(info.answer === undefined ? {} : { answer: info.answer }) };
+  return { number: info.number, ...(info.answer === undefined ? {} : { answer: info.answer }),
+    ...(info.cards === undefined ? {} : { cards: info.cards.map(({ id, number }) => ({ id, number })) }) };
 }
 /** All views are reconstructed, so added server secrets are private by default. */
 export function turingPlayerView({ G, playerID }: { G: TuringState; playerID: string | null }): TuringState {
@@ -168,15 +233,19 @@ export function turingPlayerView({ G, playerID }: { G: TuringState; playerID: st
     if (G.private[id] && (G.status === 'finished' || id === playerID)) privateInfo[id] = copyPrivate(G.private[id]);
   }
   return {
-    rulesVersion: 1, status: G.status,
+    rulesVersion: G.rulesVersion, status: G.status,
     players: Object.fromEntries(Object.entries(G.players).map(([id, player]) => [id, {
       ready: player.ready, acknowledged: player.acknowledged, answered: player.answered,
     }])),
     private: privateInfo, round: G.round, targetRounds: G.targetRounds,
+    ...(G.completedRounds === undefined ? {} : { completedRounds: G.completedRounds }),
     integrity: G.integrity, maxIntegrity: G.maxIntegrity, examinerID: G.examinerID,
     question: G.question ? copyQuestion(G.question) : null,
-    answers: { ...G.answers }, revealed: G.revealed.map(({ playerID, number, error }) => ({ playerID, number, error })),
-    epoch: G.epoch, options: { deck: G.options.deck, customQuestions: G.options.customQuestions.map(({ prompt, low, high }) => ({ prompt, low, high })) },
+    answers: { ...G.answers }, ...(G.cards === undefined ? {} : { cards: turingCards(G) }),
+    revealed: G.revealed.map(({ playerID, number, error, cardID, slot }) => ({ playerID, number, error,
+      ...(cardID === undefined ? {} : { cardID }), ...(slot === undefined ? {} : { slot }) })),
+    epoch: G.epoch, options: { deck: G.options.deck, customQuestions: G.options.customQuestions.map(({ prompt, low, high }) => ({ prompt, low, high })),
+      ...(G.options.mode === undefined ? {} : { mode: G.options.mode }), ...(G.options.lives === undefined ? {} : { lives: G.options.lives }) },
     winner: G.winner, winReason: G.winReason, log: G.log.map(publicLog),
   };
 }
@@ -190,7 +259,7 @@ export function turingObserverView(G: TuringState, perspective: 'blind' | 'god')
 
 const simultaneousMove = { ignoreStaleStateID: true, client: false, undoable: false, redact: true } as const;
 export const TuringGame: Game<TuringState, Record<string, unknown>, TuringSetupData> = {
-  name: 'turing-test', minPlayers: 4, maxPlayers: 9,
+  name: 'turing-test', minPlayers: 2, maxPlayers: 9,
   validateSetupData: (data, numPlayers) => {
     if (data !== undefined && (!data || typeof data !== 'object' || Array.isArray(data)
       || (data.startImmediately !== undefined && typeof data.startImmediately !== 'boolean'))) return '遊戲開始設定不正確。';
@@ -205,12 +274,14 @@ export const TuringGame: Game<TuringState, Record<string, unknown>, TuringSetupD
     const invalid = validateTuringOptions(data?.options, ctx.numPlayers);
     if (invalid) throw new Error(invalid);
     const ids = data?.participantIDs ?? Array.from({ length: ctx.numPlayers }, (_, index) => String(index));
+    const options = normalizeTuringOptions(data?.options);
+    const integrity = options.mode === 'endless' ? options.lives! : Math.max(3, Math.min(ctx.numPlayers, 8));
     const G: TuringState = {
-      rulesVersion: 1, status: 'lobby',
+      rulesVersion: 2, status: 'lobby',
       players: Object.fromEntries(ids.map(id => [id, { ready: data?.startImmediately === true, acknowledged: false, answered: false }])),
-      private: {}, round: 0, targetRounds: 5, integrity: Math.min(ctx.numPlayers, 8), maxIntegrity: Math.min(ctx.numPlayers, 8),
+      private: {}, cards: {}, round: 0, completedRounds: 0, targetRounds: options.mode === 'endless' ? null : TURING_ROUNDS, integrity, maxIntegrity: integrity,
       examinerID: '', question: null, answers: {}, revealed: [], epoch: 0,
-      options: normalizeTuringOptions(data?.options), winner: null, winReason: null, log: [],
+      options, winner: null, winReason: null, log: [],
     };
     if (data?.startImmediately) beginGame(G, random);
     return G;
@@ -224,6 +295,7 @@ export const TuringGame: Game<TuringState, Record<string, unknown>, TuringSetupD
     startGame: { move: startGame, client: false, undoable: false, redact: true },
     acknowledge: { move: acknowledge, ...simultaneousMove },
     submitAnswer: { move: submitAnswer, ...simultaneousMove },
+    confirmSpoken: { move: confirmSpoken, ...simultaneousMove },
     revealAnswer: { move: revealAnswer, ...simultaneousMove },
   },
   disableUndo: true,

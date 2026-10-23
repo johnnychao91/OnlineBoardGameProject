@@ -49,6 +49,7 @@ export interface RoomHistory {
   numPlayers: number;
   winner?: string;
   reason?: string;
+  challenge?: { mode: string; completedRounds: number; startingLives: number };
 }
 export const currentMatchID = (room: RoomRecord) => room.currentMatchID ?? room.roomId;
 export const hostObserverID = (room: RoomRecord) => room.hostObserverID ?? null;
