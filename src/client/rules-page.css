@@ -10,7 +10,10 @@
 .rules-game-card { color: inherit; text-decoration: none; }
 .rules-game-card > svg { color: var(--mint); margin-bottom: 16px; }
 .rules-game-card > p:not(.rules-game-meta) { color: var(--muted); font-size: 14px; line-height: 1.9; }
-.rules-game-card > span { color: var(--mint); font-size: 13px; }
+.rules-game-card h2 a { color: inherit; text-decoration: none; }
+.rules-game-card-links { display: flex; flex-wrap: wrap; gap: 6px 20px; }
+.rules-game-card-links a { display: inline-flex; align-items: center; min-height: 44px; color: var(--mint); font-size: 13px; }
+.rules-game-card a:focus-visible { outline: 2px solid var(--mint); outline-offset: 4px; border-radius: 3px; }
 .rules-game-card:hover { border-color: #5b958a; }
 .rules-reading-layout { display: grid; grid-template-columns: 180px minmax(0, 1fr); gap: 28px; align-items: start; }
 .rules-reading-layout.rules-overview { display: block; }
@@ -19,6 +22,17 @@
 .rules-toc a { color: #c9d6eb; padding: 7px 0; font-size: 13px; text-decoration: none; }
 .rules-toc a:hover { color: var(--mint); }
 .rules-article { min-width: 0; }
+.rules-role-gallery { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 16px; margin: 24px 0; }
+.rules-role-card { min-width: 0; border: 1px solid #4c726a; border-radius: 12px; overflow: hidden; background: #182d2b; }
+.rules-role-card[data-tone="hostile"] { border-color: #80545e; background: #30252e; }
+.rules-role-portrait { height: 208px; padding: 12px; background: #101c2580; }
+.rules-role-portrait img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.rules-role-copy { padding: 16px; }
+.rules-role-copy h3 { margin: 0 0 8px; font-size: 20px; color: #88dec9; overflow-wrap: anywhere; }
+.rules-role-card[data-tone="hostile"] h3 { color: #ff929b; }
+.rules-role-copy .rules-role-faction { margin: 0 0 12px; color: #88dec9; font-size: 12px; }
+.rules-role-card[data-tone="hostile"] .rules-role-faction { color: #ff929b; }
+.rules-role-copy > p:last-child { margin: 0; font-size: 13px; line-height: 1.85; }
 .rules-chapter { margin-bottom: 20px; scroll-margin-top: 20px; }
 .rules-chapter h2 { font-size: 22px; margin-bottom: 17px; }
 .rules-chapter p, .rules-chapter li { font-size: 14px; line-height: 1.95; color: #c6d4e8; }
@@ -39,6 +53,9 @@
 .rules-return { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 28px; font-size: 13px; }
 .rules-return > span { color: var(--muted); }
 .full-rules-link { display: inline-block; margin-top: 16px; font-size: 13px; }
+@media (min-width: 701px) and (max-width: 1050px) {
+  .rules-role-gallery { grid-template-columns: repeat(2,minmax(0,1fr)); }
+}
 @media (max-width: 700px) {
   .rules-main { margin-top: 30px; padding: 0 18px; }
   .rules-game-cards, .rules-reading-layout { grid-template-columns: 1fr; gap: 18px; }
@@ -48,4 +65,10 @@
   .rules-chapter h2 { font-size: 20px; }
   .rules-chapter p, .rules-chapter li { font-size: 13px; }
   .rules-table-wrap th, .rules-table-wrap td { padding: 8px; font-size: 11px; }
+  .rules-role-gallery { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; }
+  .rules-role-copy { padding: 14px; }
+}
+@media (max-width: 520px) {
+  .rules-role-gallery { grid-template-columns: minmax(0,1fr); }
+  .rules-role-portrait { height: 240px; }
 }

@@ -45,6 +45,8 @@ export interface ClientGameDefinition {
   Rules?: ComponentType;
   DetailedRules: ComponentType;
   chapters: readonly (readonly [string, string])[];
+  /** Optional public role gallery anchor inside DetailedRules. */
+  roleGalleryChapter?: string;
   createPoster: (options: PosterOptions) => Promise<Blob>;
   soundAdapter: SoundAdapter;
   LobbyOptions?: ComponentType<LobbyOptionsProps>;
@@ -116,7 +118,8 @@ export const clientGames: Record<GameID, ClientGameDefinition> & Record<string, 
     PlayerClient: props => <FogClient {...props} />,
     Snapshot: FogSnapshot, DetailedRules: FogRules, LobbyOptions: FogOptions,
     Rules: () => <p>輪流組隊前往城郊燈塔，全員表決後由隊員秘密執行任務。守夜騎士要完成三次任務並保住逐星神諭者，黑霧使徒則要破壞任務或找出逐星神諭者。雙鐘騎士可能隨詛咒之鐘交換陣營。</p>,
-    chapters: [['setup', '人數與配置'], ['roles', '角色與情報'], ['flow', '組隊、表決與任務'], ['bell', '詛咒之鐘'], ['end', '勝敗與刺殺']],
+    chapters: [['setup', '人數與配置'], ['roles', '角色圖鑑與情報'], ['flow', '組隊、表決與任務'], ['bell', '詛咒之鐘'], ['end', '勝敗與刺殺']],
+    roleGalleryChapter: 'roles',
     createPoster: ({ G, info, step, totalSteps }) => createFogPoster({ G: G as FogState, players: info.players, step, totalSteps }),
     soundAdapter: (G: FogState, id) => ({ revision: G.epoch * 1000 + G.log.length,
       events: G.log.filter(entry => ['vote', 'quest', 'bell', 'finish'].includes(entry.type)).map(entry => JSON.stringify(entry)),

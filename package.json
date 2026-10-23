@@ -1,6 +1,6 @@
 {
   "name": "boardgame",
-  "version": "0.20.2",
+  "version": "0.20.3",
   "private": true,
   "type": "module",
   "description": "朋友邀請制的線上桌遊平台",

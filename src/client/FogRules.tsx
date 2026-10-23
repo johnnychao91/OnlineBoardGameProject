@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react';
-import { FOG_ROLES, FOG_FACTIONS, FOG_TWIN_KNIGHTS_LORE, fogFactionCounts, fogTeamSizes } from '../games/fog/rules';
+import { FOG_TWIN_KNIGHTS_LORE, fogFactionCounts, fogTeamSizes } from '../games/fog/rules';
+import { FogRoleGallery } from './FogRoleGallery';
 
-export const fogChapters = [['setup', '人數與配置'], ['roles', '角色與情報'], ['flow', '組隊與燈塔'], ['bell', '詛咒之鐘'], ['end', '勝負與操作']] as const;
+export const fogChapters = [['setup', '人數與配置'], ['roles', '角色圖鑑與情報'], ['flow', '組隊與燈塔'], ['bell', '詛咒之鐘'], ['end', '勝負與操作']] as const;
 function Chapter({ id, title, children }: { id: string; title: string; children: ReactNode }) { return <section id={id} className="rules-chapter panel"><h2>{title}</h2>{children}</section>; }
 
 export function FogRules() {
@@ -11,7 +12,9 @@ export function FogRules() {
       <p>開局會洗勻身分，並隨機指定首任隊長。逐星神諭者與深海之刃固定登場；房主可加入聆諭騎士、幻淵祭司、黑潮隱主、離群信徒，以及成對的晨鐘騎士與沉鐘騎士。特殊角色取代同陣營的一般角色，不增加總人數。幻淵祭司需搭配聆諭騎士；超過陣營名額的設定無法開局。</p>
       <p>角色配置在等待室公開，但誰拿到哪個身分是秘密。所有人看完自己的身分與情報後，按準備才開始。</p>
     </Chapter>
-    <Chapter id="roles" title="2. 身分、效忠與開局情報"><div className="rules-table-wrap"><table><thead><tr><th>角色</th><th>初始陣營</th><th>能力</th></tr></thead><tbody>{Object.entries(FOG_ROLES).map(([id, role]) => <tr key={id}><th>{role.name}</th><td>{FOG_FACTIONS[role.faction]}</td><td>{role.description}</td></tr>)}</tbody></table></div>
+    <Chapter id="roles" title="2. 角色圖鑑與開局情報">
+      <p>認識十位巡夜者的樣貌與能力。圖鑑包含全部可用角色，實際登場角色依等待室配置決定。晨鐘騎士與沉鐘騎士的圖片和名字保持不變，詛咒之鐘可能改變他們的目前效忠。</p>
+      <FogRoleGallery />
       <ul><li><strong>逐星神諭者：</strong>看見開局的黑霧使徒，包含離群信徒與沉鐘騎士，但看不見黑潮隱主。請用討論引導隊伍，同時藏好自己的線索。</li><li><strong>聆諭騎士：</strong>看見逐星神諭者與幻淵祭司這兩位候選，但不知道誰是誰。未加入幻淵祭司時，只看見逐星神諭者。</li><li><strong>黑霧使徒的互認：</strong>除離群信徒與沉鐘騎士之外，黑霧使徒知道其他可互認的同伴，也能看見沉鐘騎士；離群信徒不看見同伴，同伴也不看見他。</li><li><strong>晨鐘騎士與沉鐘騎士：</strong>彼此不互認；沉鐘騎士也不知道其他黑霧使徒是誰。鐘聲只改變效忠，不改角色名稱，且不更新任何人的開局情報。</li></ul>
       <p>可以討論、質疑或謊報身分，但請勿展示秘密畫面來證明。觀戰者請自行保密；上帝視角得到的資訊不能轉告玩家。</p>
     </Chapter>

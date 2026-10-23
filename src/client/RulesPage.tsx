@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useEffect, type ReactNode } from 'react';
 import { gameCatalog, ROOM_CAPACITY, type GameID } from '../games/catalog';
 import { clientGames } from './game-registry';
 import { Header, Icon } from './ui';
@@ -12,6 +12,19 @@ function Chapter({ id, title, children }: { id: string; title: string; children:
 }
 
 export function RulesPage({ gameID }: { gameID?: RulesGameID }) {
+  useEffect(() => {
+    // A fresh page's fragment can be resolved before React mounts its chapters.
+    function jumpToChapter() {
+      let chapter: string;
+      try { chapter = decodeURIComponent(location.hash.slice(1)); } catch { return; }
+      if (chapter !== 'room' && !gameID) return;
+      if (chapter !== 'room' && !clientGames[gameID!].chapters.some(([id]) => id === chapter)) return;
+      document.getElementById(chapter)?.scrollIntoView({ block: 'start' });
+    }
+    jumpToChapter();
+    window.addEventListener('hashchange', jumpToChapter);
+    return () => window.removeEventListener('hashchange', jumpToChapter);
+  }, [gameID]);
   const game = gameID ? games[gameID] : undefined;
   const chapters = gameID ? clientGames[gameID].chapters : [];
   const DetailedRules = gameID ? clientGames[gameID].DetailedRules : undefined;
@@ -25,9 +38,10 @@ export function RulesPage({ gameID }: { gameID?: RulesGameID }) {
       <a href="/rules" aria-current={!gameID ? 'page' : undefined}>規則總覽</a>
       {Object.entries(games).map(([id, entry]) => <a key={id} href={`/rules/${id}`} aria-current={gameID === id ? 'page' : undefined}>{entry.name}</a>)}
     </nav>
-    {!game && <div className="rules-game-cards">{Object.entries(games).map(([id, entry]) => <a className="panel rules-game-card" data-art-game={id} href={`/rules/${id}`} key={id}>
-      <Icon type={id === 'space-station' ? 'orbit' : 'signal'} size={30} /><h2>{entry.name}</h2><p className="rules-game-meta">{entry.detail}</p><p>{entry.intro}</p><span>閱讀詳細規則 →</span>
-    </a>)}</div>}
+    {!game && <div className="rules-game-cards">{Object.entries(games).map(([id, entry]) => <article className="panel rules-game-card" data-art-game={id} key={id}>
+      <Icon type={id === 'space-station' ? 'orbit' : 'signal'} size={30} /><h2><a href={`/rules/${id}`}>{entry.name}</a></h2><p className="rules-game-meta">{entry.detail}</p><p>{entry.intro}</p>
+      <div className="rules-game-card-links"><a href={`/rules/${id}`}>閱讀詳細規則 →</a>{clientGames[id].roleGalleryChapter && <a href={`/rules/${id}#${encodeURIComponent(clientGames[id].roleGalleryChapter)}`}>角色圖鑑 →</a>}</div>
+    </article>)}</div>}
     <div className={`rules-reading-layout${game ? '' : ' rules-overview'}`}>
       {game && <nav className="rules-toc" aria-label="本頁章節"><strong>快速前往</strong>
         {chapters.map(([id, title]) => <a href={`#${id}`} key={id}>{title}</a>)}<a href="#room">房間、觀戰與復盤</a>
