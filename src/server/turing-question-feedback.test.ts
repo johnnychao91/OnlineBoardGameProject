@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, readdir, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -64,6 +64,68 @@ async function fixture() {
 }
 
 describe('Private persisted Turing question ratings', () => {
+  it('migrates overall ratings without reclassifying them and independently persists all three aspects under concurrent writes', async () => {
+    const dataDir = await directory(), store = new TuringQuestionFeedbackStore(dataDir);
+    const context = { roomId: 'example-room', matchID: 'example-match', playerID: '0', testRoom: false, question: { ...STANDARD_QUESTIONS[0] } };
+    await store.feedback(context, 'down');
+    const [filename] = await readdir(join(dataDir, 'question-feedback'));
+    const file = join(dataDir, 'question-feedback', filename);
+    const legacy = JSON.parse(await readFile(file, 'utf8'));
+    delete legacy.ratings; legacy.version = 1;
+    await writeFile(file, JSON.stringify(legacy));
+    const empty = { up: 0, down: 0, vote: null };
+    expect(await store.ratings(context)).toEqual({ scope: 'builtin', ratings: { topic: empty, low: empty, high: empty } });
+    expect(JSON.parse(await readFile(file, 'utf8')).version).toBe(1); // Reading never rewrites an old export.
+    await Promise.all([
+      store.ratings(context, 'topic', 'up'), store.ratings(context, 'low', 'down'), store.ratings(context, 'high', 'up'),
+      store.ratings(context, 'low', 'down'), store.ratings({ ...context, roomId: 'another-room', matchID: 'another-match' }, 'topic', 'down'),
+    ]);
+    const restored = new TuringQuestionFeedbackStore(dataDir);
+    expect(await restored.ratings(context)).toEqual({ scope: 'builtin', ratings: {
+      topic: { up: 1, down: 1, vote: 'up' }, low: { up: 0, down: 1, vote: 'down' }, high: { up: 1, down: 0, vote: 'up' },
+    } });
+    await restored.ratings(context, 'low', 'up');
+    expect((await restored.ratings(context, 'low', null)).ratings).toEqual({
+      topic: { up: 1, down: 1, vote: 'up' }, low: empty, high: { up: 1, down: 0, vote: 'up' },
+    });
+    expect(await restored.feedback(context)).toEqual({ scope: 'builtin', up: 0, down: 1, vote: 'down' });
+    await restored.feedback(context, 'up');
+    expect((await restored.ratings(context)).ratings.high.up).toBe(1);
+    expect((await restored.ratings({ ...context, question: { ...context.question, high: '另一版本的高端點' } })).ratings.topic).toEqual(empty);
+    const test = { ...context, testRoom: true };
+    expect((await restored.ratings(test, 'low', 'down')).scope).toBe('test');
+    expect((await restored.ratings({ ...test, matchID: 'different-match' })).ratings.low).toEqual(empty);
+    const custom = { ...context, question: { ...context.question, id: 'custom-0001' } };
+    expect((await restored.ratings(custom, 'high', 'down')).scope).toBe('match');
+    expect((await restored.ratings({ ...custom, matchID: 'different-match' })).ratings.high).toEqual(empty);
+    const record = await readFile(file, 'utf8');
+    expect(record).not.toMatch(/example-room|example-match|another-room|another-match|playerID|credentials/);
+    expect(JSON.parse(record).version).toBe(2);
+  });
+
+  it('accepts independent aspect ratings only through the authenticated current-question route', async () => {
+    const f = await fixture(), g = await f.group();
+    const body = { feedbackVersion: 2, aspect: 'low', vote: 'down' };
+    expect((await f.feedback(g, g.observer, body)).status).toBe(401);
+    for (const invalid of [
+      { feedbackVersion: 1 }, { feedbackVersion: '2' }, { aspect: 'topic', vote: 'up' },
+      { feedbackVersion: 2, vote: 'up' }, { ...body, aspect: 'overall' }, { ...body, aspect: null },
+    ]) expect((await f.feedback(g, g.host, invalid)).status).toBe(400);
+    const before = (await f.app.db.fetch(g.matchID, { state: true })).state;
+    expect((await f.feedback(g, g.host, body)).body.ratings.low).toEqual({ up: 0, down: 1, vote: 'down' });
+    expect((await f.feedback(g, g.other, { ...body, aspect: 'topic', vote: 'up' })).body.ratings.topic.up).toBe(1);
+    expect((await f.feedback(g, g.host, { ...body, round: g.round + 1 })).status).toBe(409);
+    expect((await f.feedback(g, g.host, { ...body, question: { ...g.question, high: '過期的高端點' } })).status).toBe(409);
+    await f.restart();
+    expect((await f.feedback(g, g.host, { feedbackVersion: 2 })).body).toEqual({ scope: 'builtin', ratings: {
+      topic: { up: 1, down: 0, vote: null }, low: { up: 0, down: 1, vote: 'down' }, high: { up: 0, down: 0, vote: null },
+    } });
+    expect((await f.app.db.fetch(g.matchID, { state: true })).state).toEqual(before);
+    expect((await f.feedback(g)).body).toEqual({ scope: 'builtin', up: 0, down: 0, vote: null });
+    await f.request(`/api/rooms/${g.roomId}/leave`, { matchID: g.matchID }, g.other);
+    expect((await f.feedback(g, g.other, body)).status).toBe(401);
+  });
+
   it('serializes cross-room votes, deduplicates retries, switches and withdraws, and persists snapshot versions separately', async () => {
     const dataDir = await directory(), store = new TuringQuestionFeedbackStore(dataDir);
     const question = { ...STANDARD_QUESTIONS[0] };

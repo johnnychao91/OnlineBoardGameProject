@@ -157,6 +157,11 @@ describe('Test-room bot adapters', () => {
     expect(any.state.G.status).toBe('round-review');
     expect(any.state.G.log.some((entry: { type: string }) => entry.type === 'question-redraw')).toBe(false);
   });
+  it.each(['host', 'all', 'any'])('Turing bots obey the %s next-round policy without impersonating the host', policy => {
+    const f = match(TuringGame, 3, { nextApproval: policy });
+    const state = clone(f.state); state.G.status = 'round-review'; f.state = state;
+    expect(chooseBotAction('turing-test', f.state, '1')).toEqual(policy === 'host' ? null : { move: 'acknowledge', args: [f.state.G.epoch] });
+  });
 
   const presetScenarios = MOON_PRESETS.filter(preset => preset.count !== null).flatMap(preset =>
     (['online', 'assisted'] as const).map(mode => ({ preset, mode })));

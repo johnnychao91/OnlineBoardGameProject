@@ -222,4 +222,47 @@ Socket 每連線 180 包／分、單包 16 KiB。每房最多 128 份觀戰身�
 
 操作包含 `acknowledge(epoch)`、`guard(target|null,epoch)`、`wolfVote(target|null,epoch)`、`inspect(target|null,epoch)`、`witch(action,target|null,epoch)`、`finishSpeech(epoch)`、`exileVote(target|null,epoch)`、`hunterShoot(target|null,epoch)`、`standForSheriff(boolean,epoch)`、`sheriffVote(target|null,epoch)`、`chooseOrder(firstID,direction,epoch)` 與 `transferBadge(target|null,epoch)`。秘密動作參數遮蔽；伺服器檢查階段、身分、存活、截止時間及 epoch。沒有供客戶端跳過倒數的 move。掩護點擊不發出遊戲操作。
 
-觀戰、復盤與分享繼續使用既有端點。私人狀態只給本人或已授權上帝觀戰；盲視角不公開夜間目標、技能、票未揭曉前的選擇或死亡原因。終局公開角色；獵人發動時提前公開獵人身分。神職提交或存活狼人一致選擇後，可等待 3 秒提前切換，原公開 `deadline` 保持不變；伺服器單獨持久化提前期限，且所有投影均移除該資料及隨機平票順位。未配置或已死亡的角色保留完整時段。
+觀戰、復盤與分享繼續使用既有端點。私人狀態只給本人或已授權上帝觀戰；盲視角不公開夜間目標、技能、票未揭曉前的選擇或死亡原因。終局公開角色；獵人發動時提前公開獵人身分。只有存活狼人一致選擇後，可等待 3 秒提前切換，原公開 `deadline` 保持不變；伺服器單獨持久化提前期限，且所有投影均移除該資料及隨機平票順位。未配置職業不出現；已配置但死亡的角色仍保留完整時段。
+
+## 圖靈測試同意方式與結算
+
+`turing-test` 公開房規的 `redrawApproval`、`orderApproval`、`nextApproval` 分別控制重抽、2～3 人排序揭牌、結果確認後下一題，接受 `host`／`all`／`any`，預設及舊存檔缺省均為 `all`。`host` 是當前仍在參與名單的房主；`any` 限任一參與玩家。4～9 人仍由當關檢測員逐張揭牌，不受 `orderApproval` 改變。
+
+房主可使用 `POST /api/rooms/:id/turing-policies` 即時保存其中一項或多項：
+
+```json
+{"matchID":"目前對局ID","epoch":12,"policies":{"redrawApproval":"any","orderApproval":"host","nextApproval":"all"}}
+```
+
+等待室可省略 `epoch`；進行中的 v4 對局必須提供當前整數版本。只接受上述三個策略欄位，不能透過此路由更改題庫、模式或生命。成功回傳最新 `RoomInfo`；對局 ID 不變，策略同時寫入對局、房間目前設定及房間的各遊戲設定記憶。等待室改選清除準備，進行中改選保留牌、題、生命及關數，清除尚未完成的排序／重抽／下一題同意並更新版本。未變更的策略請求是冪等讀回，不產生新版本。一般題庫與模式仍使用等待室 `/options`。
+
+觀戰房主可選 `all`／`any`，明確提交 `host` 回 400。原本使用 `host` 的房主轉觀戰，策略會自動改為 `all`；從瀏覽器或舊房間記憶載入時也會處理。房主離開後若由其他參與者接任，權限即交給新房主；無有效參與房主則改為 `all`。舊持久化房間在讀取及生命週期檢查時校正無法執行的房主策略，不改寫已完成回放。
+
+房主專用操作使用 `POST /api/rooms/:id/turing-host-action`：
+
+```json
+{"matchID":"目前對局ID","epoch":12,"action":"next"}
+```
+
+| action | 作用與限制 |
+| --- | --- |
+| `redraw` | 尚未揭牌的排序階段，策略為 `host`，參與房主立即重抽，不需其他人的票。 |
+| `order` | 2～3 人共同排序，策略為 `host`，參與房主立即確認目前完整排列。 |
+| `next` | `round-review` 階段，策略為 `host`，參與房主立即進入下一題。 |
+| `finish` | 進行中的無盡挑戰，參與或觀戰房主皆可用已完成關數正常結算。 |
+
+成功只回 `{matchID, epoch, stateID}`，不回秘密資訊。`finish` 產生 `endless-stopped` 結果，保留既有生命與 `completedRounds`，未完成關不加分；由正常終局流程保存歷史、復盤與挑戰統計，測試房仍排除。一般 `/abort` 仍是不計分中止。所有操作先驗證房主，再於房間佇列內重新驗證當前身分、對局及版本，與搬牌、離房、中止序列化。這些私有引擎動作未登錄公開 Socket，玩家不能偽造 move 或 `isHost` 旗標取得權限。
+
+`all`／`any` 模式的參與玩家沿 Socket 使用 `approveRedraw(epoch)`、`approveOrder(epoch)`、`acknowledge(epoch)`。舊局的開場確認仍要求全員；`nextApproval` 只改變輪末確認。`approval-change` 公開事件僅記錄改動的策略；結算 `finish` 事件附已完成關數（舊存檔可缺省）。
+
+## 圖靈測試題目三項評分
+
+`POST /api/rooms/:id/question-feedback` 需當局參與者憑證，題目快照必須與目前對局一致：
+
+```json
+{"matchID":"目前對局ID","round":2,"feedbackVersion":2,"question":{"id":"standard-0001","category":"日常生活","prompt":"一段示範題目。","low":"低端點","high":"高端點"},"aspect":"topic","vote":"up"}
+```
+
+`aspect` 為 `topic`（題目主題）、`low`（1 的敘述）、`high`（10 的敘述）；`vote` 為 `up`／`down`／`null`，`null` 撤票。不帶 `vote` 時只讀取，回傳 `{scope, ratings:{topic:{up,down,vote},low:{up,down,vote},high:{up,down,vote}}}`。每個面向各自計票、改票及撤票，同一對局／席位／題目內容的重複操作不增加票數。
+
+不提供 `feedbackVersion` 保留舊整題評分協定。持久化 v2 保存原本 `votes` 為舊總評，三面向放在獨立 `ratings`；讀取舊 v1 不重寫，首次新投票才升級。新題文以完整快照重新累積，舊總評不會自動變成任何新面向的票。正式內建題、自訂題與測試房分開保存，不計入遊戲成績；觀戰、公開回放及過期題目不能投票。

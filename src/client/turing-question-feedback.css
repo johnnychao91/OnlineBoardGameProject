@@ -2,3 +2,5 @@
 .turing-question-feedback button { width: auto; min-height: 2rem; padding: .3rem .65rem; font-size: .8rem; }
 .turing-question-feedback button.is-selected { border-color: var(--accent, #6de0d1); box-shadow: inset 0 0 0 1px var(--accent, #6de0d1); }
 .turing-question-feedback small { color: var(--muted, #a6b7c9); }
+.turing-question-feedback .turing-feedback-target { display: flex; align-items: center; gap: .4rem; margin: 0; font-size: inherit; }
+.turing-question-feedback select { width: auto; min-height: 2rem; padding: .3rem 1.6rem .3rem .5rem; font-size: inherit; }

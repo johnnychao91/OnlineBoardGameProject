@@ -140,7 +140,10 @@ function moonAction(G: MoonState, id: string, random: Random): BotAction | null 
 
 function turingAction(G: TuringState, id: string, random: Random): BotAction | null {
   const own = G.players[id];
-  if (['briefing', 'round-review'].includes(G.status) && !own.acknowledged) return action('acknowledge', G.epoch);
+  if (['briefing', 'round-review'].includes(G.status) && !own.acknowledged) {
+    if (G.status === 'round-review' && G.options.nextApproval === 'host') return null;
+    return action('acknowledge', G.epoch);
+  }
   if (G.status === 'answering' && id !== G.examinerID && !own.answered && G.private[id]) {
     if (G.rulesVersion >= 2) {
       const pending = Object.entries(turingCards(G)).filter(([, card]) => card.playerID === id && !card.spoken);

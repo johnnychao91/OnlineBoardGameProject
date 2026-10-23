@@ -26,8 +26,8 @@ export async function collectStatistics(db: FileStorage, rooms: RoomStore) {
       const numPlayers = state.ctx.numPlayers;
       summary.completed += 1;
       totalPlayerParticipations += numPlayers;
-      // A survival challenge always ends when its lives run out. Record its
-      // progress independently instead of turning every run into a ranked loss.
+      // Record challenge progress separately, including voluntary settlement,
+      // without treating it as a ranked win or loss.
       if (outcome.challenge) {
         const challenge = outcome.challenge;
         let group = summary.challenges.find(entry => entry.mode === challenge.mode

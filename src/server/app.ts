@@ -9,6 +9,7 @@ import { createMatch } from 'boardgame.io/internal';
 import { Master } from 'boardgame.io/master';
 import { chooseBotAction } from '../games/bots';
 import { isTuringSharedTable, TuringHostGame } from '../games/turing/game';
+import { normalizeTuringPolicies, TURING_APPROVAL_KEYS, type TuringPolicies } from '../games/turing/rules';
 import { gameDefinitions, getGameDefinition, publicGameDefinitions, type GameDefinition } from '../games/registry';
 import { isPlayerSeatID } from '../games/catalog';
 import { GuardedTransport } from './transport';
@@ -179,6 +180,35 @@ export async function createApplication(config: AppConfig) {
       ? previousPlayerID : participants.length ? String(participants[0].id) : null;
     return { hostPlayerID: playerID, hostObserverID: null };
   };
+  const seatedTuringHost = (room: RoomRecord, metadata: any, state: any) => {
+    const id = hostPlayerID(room);
+    return id !== null && !!metadata.players[id]?.credentials && !metadata.players[id]?.data?.isBot && Object.hasOwn(state.G.players, id);
+  };
+  const withoutObserverHostPolicy = (options: Record<string, unknown> | undefined) => Object.fromEntries(
+    TURING_APPROVAL_KEYS.filter(key => options?.[key] === 'host').map(key => [key, 'all']),
+  ) as TuringPolicies;
+  // Private reducer actions share the room queue with socket moves. Authentication
+  // happens at callers; this execution seat is only a boardgame.io reducer slot.
+  const runTuringAction = async (room: RoomRecord, state: any, move: string, args: unknown[], preferredID?: string) => {
+    const executorID = [preferredID, ...Object.keys(state.G.players)].find(id => id !== undefined && Object.hasOwn(state.G.players, id)
+      && (state.ctx.activePlayers ? Object.hasOwn(state.ctx.activePlayers, id) : state.ctx.currentPlayer === id));
+    if (!executorID) fail(409, '目前無法執行房主決定');
+    const matchID = currentMatchID(room);
+    const master = new Master(TuringHostGame, db, { send: () => {}, sendAll: () => {} });
+    const result = await master.onUpdate({ type: 'MAKE_MOVE', payload: {
+      type: move, args, playerID: executorID, credentials: '',
+    } }, state._stateID, matchID, executorID);
+    const updated = (await db.fetch(matchID, { state: true })).state;
+    if (result?.error || !updated || updated._stateID <= state._stateID || updated.G.epoch === state.G.epoch) fail(409, '目前無法執行這項決定，請確認最新畫面');
+    transport.publishState(getGameDefinition('turing-test')!.game, matchID, updated);
+    return updated;
+  };
+  const saveTuringOptions = async (room: RoomRecord, state: any) => {
+    const options = { ...state.G.options };
+    const next = { ...room, gameOptions: options, gameOptionsByGame: { ...room.gameOptionsByGame, 'turing-test': options } };
+    await rooms.save(next);
+    return next;
+  };
   const perspectiveOf = (value: unknown) => {
     if (value === undefined || value === 'blind') return 'blind' as const;
     if (value === 'god') return 'god' as const;
@@ -234,8 +264,15 @@ export async function createApplication(config: AppConfig) {
     return next;
   };
   const reconcileRoom = async (room: RoomRecord) => {
-    const { state } = await snapshot(room);
+    let { state, metadata } = await snapshot(room);
     const definition = getGameDefinition(room.gameId)!;
+    if (room.gameId === 'turing-test' && room.gameSelected !== false && state.G.status !== 'finished') {
+      const fallback = !seatedTuringHost(room, metadata, state) ? withoutObserverHostPolicy(state.G.options) : {};
+      if (Object.keys(fallback).length) state = await runTuringAction(room, state, 'serverSetApprovalPolicies', [state.G.epoch, fallback]);
+      // Repair a room-index write interrupted after the authoritative match was
+      // saved. Reconnection and process restart keep live policies and memory aligned.
+      if (JSON.stringify(room.gameOptions) !== JSON.stringify(state.G.options)) room = await saveTuringOptions(room, state);
+    }
     if (definition.getOutcome(state.G)) return returnToLobby(room, 'completed');
     if (!definition.isJoinable(state.G) && !presence.hasAnyone(room.roomId)) return returnToLobby(room, 'empty');
     return room;
@@ -393,7 +430,7 @@ export async function createApplication(config: AppConfig) {
         inviteUrl: `${origin}/join/${roomId}#invite=${invite}`, expiresAt: room.inviteExpiresAt };
       return;
     }
-    const route = /^\/api\/rooms\/([A-Za-z0-9_-]+)(?:\/(join|watch|invite|ready|remove|start|view|replay|share|revoke-shares|return|abort|leave|heartbeat|switch-role|game|options|bots|question-feedback|turing-host-action))?$/.exec(ctx.path);
+    const route = /^\/api\/rooms\/([A-Za-z0-9_-]+)(?:\/(join|watch|invite|ready|remove|start|view|replay|share|revoke-shares|return|abort|leave|heartbeat|switch-role|game|options|bots|question-feedback|turing-host-action|turing-policies))?$/.exec(ctx.path);
     if (!route) fail(404, '找不到此功能');
     const room = getRoom(route[1]);
     const operation = route[2];
@@ -430,7 +467,7 @@ export async function createApplication(config: AppConfig) {
     // A bounded public question collection needs more space than an ordinary
     // room action. Authenticate before reading that larger payload, then verify
     // the host again inside the room queue in case membership changed meanwhile.
-    if (operation === 'options') {
+    if (operation === 'options' || operation === 'game') {
       const { metadata } = await snapshot(room);
       authenticateHost(ctx, room, metadata, '只有房主可以切換遊戲或修改規則');
     }
@@ -438,11 +475,11 @@ export async function createApplication(config: AppConfig) {
       const { metadata } = await snapshot(room);
       authenticate(ctx, metadata);
     }
-    if (operation === 'turing-host-action') {
+    if (operation === 'turing-host-action' || operation === 'turing-policies') {
       const { metadata } = await snapshot(room);
       authenticateHost(ctx, room, metadata, '只有目前房主可以執行房主決定');
     }
-    const body = await jsonBody(ctx, operation === 'options' ? 64 * 1024 : 4096);
+    const body = await jsonBody(ctx, operation === 'options' || operation === 'game' ? 64 * 1024 : 4096);
     // Use the same match queue as moves, so joining and starting cannot race.
     await transport.getRoomQueue(room.roomId).add(async () => {
       const current = getRoom(room.roomId);
@@ -451,34 +488,36 @@ export async function createApplication(config: AppConfig) {
       const definition = getGameDefinition(current.gameId)!;
       if (['ready', 'remove', 'start', 'return', 'abort'].includes(operation)
         && body.matchID !== undefined && body.matchID !== matchID) fail(409, '對局已更新，請重新確認房間狀態');
-      if (operation === 'turing-host-action') {
+      if (operation === 'turing-policies') {
+        authenticateHost(ctx, current, metadata, '只有目前房主可以修改同意方式');
+        if (Object.keys(body).some(key => !['matchID', 'epoch', 'policies'].includes(key))) fail(400, '同意方式設定格式不正確');
+        let policies: TuringPolicies;
+        try { policies = normalizeTuringPolicies(body.policies); } catch (error) { fail(400, (error as Error).message); }
+        if (body.matchID !== matchID || current.gameId !== 'turing-test' || current.gameSelected === false || state.G.status === 'finished') fail(409, '對局或階段已更新，請確認最新畫面');
+        if (state.G.status !== 'lobby' && (!Number.isSafeInteger(body.epoch) || body.epoch !== state.G.epoch || state.G.rulesVersion < 4)) fail(409, '進度已更新，請確認最新畫面');
+        if (!seatedTuringHost(current, metadata, state) && Object.values(policies!).includes('host')) fail(400, '房主在觀戰席時，請選擇所有人或任何人同意');
+        const changed = TURING_APPROVAL_KEYS.some(key => policies![key] !== undefined && policies![key] !== (state.G.options[key] ?? 'all'));
+        const updated = changed ? await runTuringAction(current, state, 'serverSetApprovalPolicies', [state.G.epoch, policies!]) : state;
+        const next = await saveTuringOptions(current, updated);
+        ctx.body = publicRoom(next, metadata, updated);
+      } else if (operation === 'turing-host-action') {
         const viewer = authenticateHost(ctx, current, metadata, '只有目前房主可以執行房主決定');
         if (Object.keys(body).some(key => !['matchID', 'epoch', 'action'].includes(key))
-          || (body.action !== 'redraw' && body.action !== 'order')
+          || !['redraw', 'order', 'next', 'finish'].includes(body.action)
           || !Number.isSafeInteger(body.epoch) || body.epoch < 0) fail(400, '房主決定格式不正確');
-        if (body.matchID !== matchID || current.gameId !== 'turing-test' || state.G.status !== 'sorting'
+        if (body.matchID !== matchID || current.gameId !== 'turing-test' || ['lobby', 'finished'].includes(state.G.status)
           || body.epoch !== state.G.epoch) fail(409, '對局或階段已更新，請確認最新畫面');
-        const policy = body.action === 'redraw' ? state.G.options.redrawApproval : state.G.options.orderApproval;
-        if (policy !== 'host' || (body.action === 'order' && !isTuringSharedTable(state.G))) {
-          fail(409, '目前規則不是由房主決定這項操作');
+        if (body.action !== 'finish') {
+          if (viewer.access !== 'player' || !seatedTuringHost(current, metadata, state)) fail(403, '只有參與遊戲的房主可以同意這項操作');
+          const policy = state.G.options[body.action === 'redraw' ? 'redrawApproval' : body.action === 'order' ? 'orderApproval' : 'nextApproval'];
+          if (policy !== 'host' || state.G.status !== (body.action === 'next' ? 'round-review' : 'sorting')
+            || (body.action === 'order' && !isTuringSharedTable(state.G))) fail(409, '目前規則不是由房主決定這項操作');
+        } else if (state.G.options.mode !== 'endless' || state.G.targetRounds !== null || state.G.rulesVersion < 2) {
+          fail(409, '只有進行中的無盡挑戰可以保留目前成績結束');
         }
-        // The observer host is not a player seat. Use an existing active reducer
-        // slot after HTTP authorization, without borrowing that player's secret.
-        // TuringHostGame's server-only moves are absent from the registered game,
-        // so neither ordinary sockets nor client-supplied move args can call them.
-        const executorID = Object.keys(state.G.players).find(id => state.ctx.activePlayers
-          ? Object.hasOwn(state.ctx.activePlayers, id) : state.ctx.currentPlayer === id);
-        if (!executorID) fail(409, '目前無法執行房主決定');
-        const master = new Master(TuringHostGame, db, { send: () => {}, sendAll: () => {} });
-        const result = await master.onUpdate({ type: 'MAKE_MOVE', payload: {
-          type: body.action === 'redraw' ? 'serverApproveRedraw' : 'serverApproveOrder',
-          args: [body.epoch, viewer.access === 'player' ? viewer.id : null], playerID: executorID, credentials: '',
-        } }, state._stateID, matchID, executorID);
-        const updated = (await db.fetch(matchID, { state: true })).state;
-        if (result?.error || !updated || updated._stateID <= state._stateID || updated.G.epoch === state.G.epoch) {
-          fail(409, '目前無法執行這項決定，請確認最新畫面');
-        }
-        transport.publishState(definition.game, matchID, updated);
+        const moves: Record<string, string> = { redraw: 'serverApproveRedraw', order: 'serverApproveOrder', next: 'serverApproveNext', finish: 'serverFinishChallenge' };
+        const move = moves[body.action];
+        const updated = await runTuringAction(current, state, move, [body.epoch, viewer.id], viewer.access === 'player' ? viewer.id : undefined);
         ctx.body = { matchID, epoch: updated.G.epoch, stateID: updated._stateID };
       } else if (operation === 'question-feedback') {
         const playerID = authenticate(ctx, metadata);
@@ -488,17 +527,23 @@ export async function createApplication(config: AppConfig) {
         }
         const question = body.question;
         if (!question || typeof question !== 'object' || Array.isArray(question)
-          || Object.keys(body).some(key => !['matchID', 'round', 'question', 'vote'].includes(key))
+          || Object.keys(body).some(key => !['matchID', 'round', 'question', 'vote', 'feedbackVersion', 'aspect'].includes(key))
           || Object.keys(question).some(key => !['id', 'category', 'prompt', 'low', 'high'].includes(key))
           || ['id', 'category', 'prompt', 'low', 'high'].some(key => typeof question[key] !== 'string')
-          || (body.vote !== undefined && body.vote !== null && body.vote !== 'up' && body.vote !== 'down')) {
+          || (body.vote !== undefined && body.vote !== null && body.vote !== 'up' && body.vote !== 'down')
+          || (body.feedbackVersion !== undefined && body.feedbackVersion !== 2)
+          || (body.aspect !== undefined && (body.feedbackVersion !== 2 || !['topic', 'low', 'high'].includes(body.aspect)))
+          || (body.feedbackVersion === 2 && body.vote !== undefined && body.aspect === undefined)) {
           fail(400, '題目評分格式不正確');
         }
         if (body.round !== state.G.round || questionSnapshot(question) !== questionSnapshot(state.G.question)) {
           fail(409, '題目已更新，請為目前顯示的題目評分');
         }
-        ctx.body = await questionFeedback.feedback({ roomId: current.roomId, matchID, playerID,
-          testRoom: current.testRoom === true, question: state.G.question }, body.vote);
+        const feedbackContext = { roomId: current.roomId, matchID, playerID,
+          testRoom: current.testRoom === true, question: state.G.question };
+        ctx.body = body.feedbackVersion === 2
+          ? await questionFeedback.ratings(feedbackContext, body.aspect, body.vote)
+          : await questionFeedback.feedback(feedbackContext, body.vote);
       } else if (operation === 'join' || operation === 'watch') {
         if (!limiter.allow(`join:${ctx.ip}`, 30, 60000)) fail(429, '加入嘗試太頻繁');
         if (typeof body.inviteToken !== 'string' || !/^[A-Za-z0-9_-]{43}$/.test(body.inviteToken)) fail(403, '邀請已失效，請向房主索取新連結');
@@ -636,6 +681,16 @@ export async function createApplication(config: AppConfig) {
               targetAccess: body.access, targetID, targetCredentialHash: hashToken(nextCredentials) },
           ],
         };
+        if (current.gameId === 'turing-test' && nextHost.hostPlayerID === null) {
+          const fallback = withoutObserverHostPolicy(current.gameOptions);
+          if (Object.keys(fallback).length) {
+            next.gameOptions = { ...current.gameOptions, ...fallback };
+            next.gameOptionsByGame = { ...current.gameOptionsByGame, 'turing-test': next.gameOptions };
+            match.initialState.G.options = { ...match.initialState.G.options, ...fallback };
+            match.initialState.G.epoch++;
+            for (const player of Object.values(match.initialState.G.players) as any[]) player.ready = false;
+          }
+        }
         // Do not mutate the active membership before publishing the new pointer:
         // a failed room-index write keeps the previous room fully usable.
         await db.createNextMatch(matchID, nextID, match, viewer.access === 'player' ? [credentials] : []);
@@ -651,16 +706,30 @@ export async function createApplication(config: AppConfig) {
         if (!definition.isJoinable(state.G)) fail(409, '對局進行中不能切換遊戲，請先返回等待室');
         const selected = operation === 'options' ? definition : getGameDefinition(body.gameId);
         if (!selected) fail(400, '遊戲不正確');
+        // Same-game selection is idempotent, including old clients. Browser
+        // preferences may initialize a new game, never overwrite room settings.
+        if (operation === 'game' && current.gameSelected !== false && selected.id === current.gameId) {
+          ctx.body = publicRoom(current, metadata, state);
+          return;
+        }
+        const remembered = { ...current.gameOptionsByGame,
+          ...(current.gameSelected !== false && current.gameOptions ? { [current.gameId]: current.gameOptions } : {}),
+        };
         let options: Record<string, unknown> | undefined;
-        if (operation === 'options') {
-          if (current.gameSelected === false || !selected.normalizeOptions) fail(400, '這個遊戲沒有可調整的規則');
-          try { options = selected.normalizeOptions(body.options); }
+        if (operation === 'options' && (current.gameSelected === false || !selected.normalizeOptions)) fail(400, '這個遊戲沒有可調整的規則');
+        if (selected.normalizeOptions) {
+          try { options = selected.normalizeOptions(operation === 'options' ? body.options : remembered[selected.id] ?? body.options); }
           catch (error) { fail(400, (error as Error).message); }
           const invalid = selected.validateLobbyOptions
             ? selected.validateLobbyOptions(options)
             : selected.validateOptions?.(options, selected.maxPlayers);
           if (invalid) fail(400, invalid);
-        } else options = selected.normalizeOptions?.(undefined);
+        }
+        if (selected.id === 'turing-test' && !seatedTuringHost(current, metadata, state)) {
+          const fallback = withoutObserverHostPolicy(options);
+          if (operation === 'options' && Object.keys(fallback).length) fail(400, '房主在觀戰席時，請選擇所有人或任何人同意');
+          options = { ...options, ...fallback };
+        }
         if (current.gameSelected !== false && selected.id === current.gameId
           && (operation === 'game' || JSON.stringify(options) === JSON.stringify(current.gameOptions))) {
           ctx.body = publicRoom(current, metadata, state);
@@ -677,6 +746,7 @@ export async function createApplication(config: AppConfig) {
         }
         const next: RoomRecord = { ...current, currentMatchID: nextID, gameId: selected.id,
           gameOptions: options,
+          gameOptionsByGame: { ...remembered, ...(options ? { [selected.id]: options } : {}) },
           gameSelected: true, numPlayers: ROOM_CAPACITY, completedDisplay: undefined, departedPlayerIDs: [],
           // Pin legacy records before changing the room's current game id.
           history: (current.history || []).map(entry => ({ ...entry, gameName: entry.gameName ?? current.gameId })),
@@ -737,6 +807,13 @@ export async function createApplication(config: AppConfig) {
         authenticateHost(ctx, current, metadata, '只有房主可以開始');
         if (current.gameSelected === false) fail(409, '請先由房主選擇遊戲');
         if (!definition.isJoinable(state.G)) fail(409, '遊戲已開始');
+        if (current.gameId === 'turing-test' && !seatedTuringHost(current, metadata, state) && Object.keys(withoutObserverHostPolicy(current.gameOptions)).length) {
+          // Covers old saved rooms whose host was already observing before the
+          // current policy rule. Clear the now-invalid host mode before starting.
+          const updated = await runTuringAction(current, state, 'serverSetApprovalPolicies', [state.G.epoch, withoutObserverHostPolicy(state.G.options)]);
+          await saveTuringOptions(current, updated);
+          fail(409, '房主目前在觀戰席，已改為所有人同意，請重新準備');
+        }
         const participants = Object.values(metadata.players).filter((player) => player.credentials);
         const count = participants.length;
         if (count < definition.minPlayers || count > definition.maxPlayers) fail(409, `需要 ${definition.minPlayers}～${definition.maxPlayers} 位參與者`);
@@ -800,6 +877,13 @@ export async function createApplication(config: AppConfig) {
         updated = { ...updated, ...retainedHost(updated, Object.values(metadata.players), updated.spectators) };
         await rooms.save(updated);
         presence.remove(current.roomId, `${viewer.access === 'player' ? 'player' : 'spectator'}:${viewer.id}`);
+        if (current.gameId === 'turing-test' && state.G.status !== 'finished' && !seatedTuringHost(updated, metadata, state)) {
+          const fallback = withoutObserverHostPolicy(state.G.options);
+          if (Object.keys(fallback).length) {
+            const revised = await runTuringAction(updated, state, 'serverSetApprovalPolicies', [state.G.epoch, fallback]);
+            updated = await saveTuringOptions(updated, revised);
+          }
+        }
         const anyoneAdmitted = Object.values(metadata.players).some((entry) => entry.credentials && !entry.data?.isBot) || Object.keys(updated.spectators || {}).length > 0;
         if (!definition.isJoinable(state.G) && (!anyoneAdmitted || !presence.hasAnyone(current.roomId))) {
           await returnToLobby(updated, definition.getOutcome(state.G) ? 'completed' : 'empty');

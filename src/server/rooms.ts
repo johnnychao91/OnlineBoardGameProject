@@ -31,6 +31,8 @@ export interface RoomRecord {
   /** Undefined on legacy rooms, which already selected a game at creation. */
   gameSelected?: boolean;
   gameOptions?: Record<string, unknown>;
+  /** Public applied rules survive switching games, returning and host changes. */
+  gameOptionsByGame?: Record<string, Record<string, unknown>>;
   numPlayers: number;
   inviteHash: string;
   inviteExpiresAt: number;

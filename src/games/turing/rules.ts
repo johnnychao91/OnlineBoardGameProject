@@ -16,13 +16,22 @@ export interface TuringOptions {
   /** Absent in older saved games, which retain unanimous participant approval. */
   redrawApproval?: TuringApproval;
   orderApproval?: TuringApproval;
+  nextApproval?: TuringApproval;
+}
+
+export const TURING_APPROVAL_KEYS = ['redrawApproval', 'orderApproval', 'nextApproval'] as const;
+export type TuringPolicies = Pick<TuringOptions, typeof TURING_APPROVAL_KEYS[number]>;
+export function normalizeTuringPolicies(input: unknown): TuringPolicies {
+  if (!record(input) || !Object.keys(input).length || Object.keys(input).some(key => !TURING_APPROVAL_KEYS.includes(key as typeof TURING_APPROVAL_KEYS[number]))) throw new Error('同意方式設定格式不正確。');
+  for (const value of Object.values(input)) if (value !== 'host' && value !== 'all' && value !== 'any') throw new Error('同意方式不正確。');
+  return { ...input } as TuringPolicies;
 }
 
 export const TURING_DECKS = {
   standard: '人性校準', protocol: '失控協定', mixed: '混合測試', custom: '自訂題庫',
 } as const;
 export const DEFAULT_TURING_OPTIONS: TuringOptions = { deck: 'standard', customQuestions: [], mode: 'standard', lives: 5,
-  redrawApproval: 'all', orderApproval: 'all' };
+  redrawApproval: 'all', orderApproval: 'all', nextApproval: 'all' };
 export const TURING_ROUNDS = 5;
 export const TURING_ANSWER_MAX = 160;
 export const TURING_CUSTOM_MAX = 50;
@@ -42,7 +51,7 @@ function text(value: unknown, min: number, max: number, label: string): string {
 /** Only public, bounded text is retained. Never silently truncate a question. */
 export function normalizeTuringOptions(input: unknown): TuringOptions {
   if (input === undefined) return { ...DEFAULT_TURING_OPTIONS, customQuestions: [] };
-  if (!record(input) || Object.keys(input).some(key => !['deck', 'customQuestions', 'mode', 'lives', 'redrawApproval', 'orderApproval'].includes(key))) {
+  if (!record(input) || Object.keys(input).some(key => !['deck', 'customQuestions', 'mode', 'lives', ...TURING_APPROVAL_KEYS].includes(key))) {
     throw new Error('圖靈測試設定格式不正確。');
   }
   const deck = input.deck === undefined ? 'standard' : input.deck;
@@ -51,7 +60,8 @@ export function normalizeTuringOptions(input: unknown): TuringOptions {
   if (mode !== 'standard' && mode !== 'endless') throw new Error('挑戰模式不正確。');
   const redrawApproval = input.redrawApproval === undefined ? 'all' : input.redrawApproval;
   const orderApproval = input.orderApproval === undefined ? 'all' : input.orderApproval;
-  for (const policy of [redrawApproval, orderApproval]) {
+  const nextApproval = input.nextApproval === undefined ? 'all' : input.nextApproval;
+  for (const policy of [redrawApproval, orderApproval, nextApproval]) {
     if (policy !== 'host' && policy !== 'all' && policy !== 'any') throw new Error('同意方式不正確。');
   }
   const requestedLives = input.lives === undefined ? 5 : input.lives;
@@ -74,7 +84,7 @@ export function normalizeTuringOptions(input: unknown): TuringOptions {
     return { prompt, low, high };
   });
   return { deck: deck as TuringOptions['deck'], customQuestions, mode, lives,
-    redrawApproval: redrawApproval as TuringApproval, orderApproval: orderApproval as TuringApproval };
+    redrawApproval: redrawApproval as TuringApproval, orderApproval: orderApproval as TuringApproval, nextApproval: nextApproval as TuringApproval };
 }
 
 export function validateTuringOptions(input: unknown, numPlayers?: number): string | undefined {

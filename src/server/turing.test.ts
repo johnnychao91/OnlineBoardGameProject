@@ -186,12 +186,12 @@ async function revealAll(f: Fixture, g: Group, descending = false) {
     await f.move(g, current.examinerID, 'revealAnswer', [cardID, current.epoch]);
   }
 }
-async function archive(f: Fixture, g: Group) {
-  const held = (await f.request(path(g.host), undefined, g.host)).body;
+async function archive(f: Fixture, g: Group, member: Seat | Observer = g.host) {
+  const held = (await f.request(path(g.host), undefined, member)).body;
   expect(held.status).toBe('finished');
   const record = f.app.rooms.rooms.get(g.host.roomId)!;
   await f.app.rooms.save({ ...record, completedDisplay: { matchID: g.matchID, until: Date.now() - 1 } });
-  const lobby = (await f.request(path(g.host), undefined, g.host)).body;
+  const lobby = (await f.request(path(g.host), undefined, member)).body;
   expect(lobby.status).toBe('lobby');
   return lobby;
 }
@@ -611,17 +611,20 @@ describe('Turing custom questions, private answers and replay integration', () =
     expect((await f.request(endpoint, orderRequest, g.host)).status).toBe(409);
   }, 30000);
 
-  it.each([3, 4])('lets an authenticated observer host decide a %i-player game without occupying or impersonating a participant', async count => {
+  it.each([3, 4])('falls back to unanimous decisions when the host observes a %i-player game and prevents observer approvals', async count => {
     const f = await fixture(), g = await group(f, count + 1);
     const configured = await f.request(path(g.host, 'options'), { matchID: g.matchID,
-      options: { redrawApproval: 'host', orderApproval: 'host' } }, g.host);
+      options: { redrawApproval: 'host', orderApproval: 'host', nextApproval: 'host' } }, g.host);
     expect(configured.status).toBe(200);
     const switched = await f.request(path(g.host, 'switch-role'), {
       matchID: configured.body.matchID, requestID: randomUUID(), access: 'spectator',
     }, g.host);
     expect(switched.status).toBe(200);
     const observerHost = switched.body as Observer;
+    expect(switched.body.gameOptions).toMatchObject({ redrawApproval: 'all', orderApproval: 'all', nextApproval: 'all' });
+    expect(f.app.rooms.rooms.get(g.host.roomId)?.gameOptionsByGame?.['turing-test']).toMatchObject({ redrawApproval: 'all', orderApproval: 'all', nextApproval: 'all' });
     g.seats = g.seats.slice(1); g.matchID = switched.body.matchID;
+    expect((await f.request(path(g.host, 'options'), { matchID: g.matchID, options: { redrawApproval: 'host' } }, observerHost)).status).toBe(400);
     for (const seat of g.seats) expect((await f.request(path(g.host, 'ready'), { matchID: g.matchID, ready: true }, seat)).status).toBe(200);
     const started = await f.request(path(g.host, 'start'), { matchID: g.matchID }, observerHost);
     expect(started.status).toBe(200); g.matchID = started.body.matchID;
@@ -630,26 +633,25 @@ describe('Turing custom questions, private answers and replay integration', () =
     expect(Object.keys(original.players)).toHaveLength(count);
     const endpoint = path(g.host, 'turing-host-action');
     expect((await f.request(endpoint, { matchID: g.matchID, epoch: original.epoch, action: 'redraw' }, g.observer)).status).toBe(403);
-    expect((await f.request(endpoint, { matchID: g.matchID, epoch: original.epoch, action: 'redraw' }, observerHost)).status).toBe(200);
+    expect((await f.request(endpoint, { matchID: g.matchID, epoch: original.epoch, action: 'redraw' }, observerHost)).status).toBe(403);
+    const policyEndpoint = path(g.host, 'turing-policies');
+    expect((await f.request(policyEndpoint, { matchID: g.matchID, epoch: original.epoch, policies: { redrawApproval: 'host' } }, observerHost)).status).toBe(400);
+    expect((await f.request(policyEndpoint, { matchID: g.matchID, epoch: original.epoch, policies: { redrawApproval: 'any' } }, observerHost)).status).toBe(200);
+    await f.move(g, g.seats[0].playerID, 'approveRedraw', [(await f.state(g.matchID)).G.epoch]);
     const redrawn = (await f.state(g.matchID)).G;
     expect(redrawn.private).toEqual(original.private);
-    expect(redrawn.log.at(-1)).toMatchObject({ type: 'question-redraw' });
-    expect(redrawn.log.at(-1)).not.toHaveProperty('actorID');
+    expect(redrawn.log.at(-1)).toMatchObject({ type: 'question-redraw', actorID: g.seats[0].playerID });
     await f.restart(); await connectGroup(f, g);
     const request = { matchID: g.matchID, epoch: redrawn.epoch, action: count === 3 ? 'order' : 'redraw' };
-    expect((await f.request(endpoint, request, observerHost)).status).toBe(200);
-    const updated = (await f.state(g.matchID)).G;
-    if (count === 3) {
-      expect(updated.revealed).toHaveLength(count);
-      expect(updated.log.filter(event => event.type === 'reveal').every(event => event.actorID === undefined)).toBe(true);
-    } else {
-      expect(updated.question!.id).not.toBe(redrawn.question!.id);
-      expect((await f.request(endpoint, { ...request, action: 'order', epoch: updated.epoch }, observerHost)).status).toBe(409);
-      expect((await f.request(path(g.host, 'leave'), { matchID: g.matchID }, observerHost)).status).toBe(200);
-      expect(f.app.rooms.rooms.get(g.host.roomId)?.hostPlayerID).toBe(g.seats[0].playerID);
-      expect((await f.request(endpoint, { ...request, epoch: updated.epoch }, observerHost)).status).toBe(401);
-      expect((await f.request(endpoint, { ...request, epoch: updated.epoch }, g.seats[0])).status).toBe(200);
-    }
+    expect((await f.request(endpoint, request, observerHost)).status).toBe(403);
+    await revealAll(f, g);
+    expect((await f.state(g.matchID)).G.status).toBe('round-review');
+    await ack(f, g); expect((await f.state(g.matchID)).G.round).toBe(2);
+    expect((await f.request(path(g.host, 'leave'), { matchID: g.matchID }, observerHost)).status).toBe(200);
+    expect(f.app.rooms.rooms.get(g.host.roomId)?.hostPlayerID).toBe(g.seats[0].playerID);
+    const latest = (await f.state(g.matchID)).G;
+    expect((await f.request(policyEndpoint, { matchID: g.matchID, epoch: latest.epoch, policies: { redrawApproval: 'host' } }, g.seats[0])).status).toBe(200);
+    expect((await f.request(endpoint, { ...request, action: 'redraw', epoch: (await f.state(g.matchID)).G.epoch }, g.seats[0])).status).toBe(200);
   }, 15000);
 
   it.each(['leave', 'abort'] as const)('rechecks host authority and match generation when %s wins the queue before an already authenticated decision', async operation => {
@@ -802,4 +804,154 @@ describe('Turing custom questions, private answers and replay integration', () =
     expect(sharedReplay.status).toBe(200); expect(sharedReplay.body.perspective).toBe('blind');
     expect(sharedReplay.body.frames).toEqual(replays.blind.frames); noServerSecrets(sharedReplay.body);
   }, 30000);
+});
+
+describe('Turing live policies and scored host completion', () => {
+  it('saves lobby policy selects immediately without a new match or overwriting unrelated settings', async () => {
+    const f = await fixture(), g = await group(f, 3);
+    const configured = await f.request(path(g.host, 'options'), { matchID: g.matchID, options: { mode: 'endless', lives: 11, deck: 'custom', customQuestions } }, g.host);
+    g.matchID = configured.body.matchID;
+    expect((await f.request(path(g.host, 'ready'), { matchID: g.matchID, ready: true }, g.seats[1])).status).toBe(200);
+    const endpoint = path(g.host, 'turing-policies'), body = { matchID: g.matchID, policies: { orderApproval: 'any', redrawApproval: 'host', nextApproval: 'host' } };
+    expect((await f.request(endpoint, { ...body, excess: 'x'.repeat(6000) })).status).toBe(401);
+    expect((await f.request(endpoint, body, g.seats[1])).status).toBe(403);
+    const response = await f.request(endpoint, body, g.host);
+    expect(response.status).toBe(200); expect(response.body.matchID).toBe(g.matchID);
+    expect(response.body.gameOptions).toMatchObject({ mode: 'endless', lives: 11, deck: 'custom', customQuestions, ...body.policies });
+    expect(response.body.players.every((p: any) => !p.ready)).toBe(true);
+    expect(response.body).not.toHaveProperty('gameOptionsByGame');
+    expect(f.app.rooms.rooms.get(g.host.roomId)?.gameOptionsByGame?.['turing-test']).toEqual(response.body.gameOptions);
+    await start(f, g);
+    const G = (await f.state(g.matchID)).G;
+    expect(G.options).toEqual(response.body.gameOptions);
+    // The actual first gameplay click uses the selection, without a separate apply step.
+    await f.move(g, g.seats[2].playerID, 'approveOrder', [G.epoch]);
+    expect((await f.state(g.matchID)).G.status).toBe('round-review');
+    expect((await f.request(path(g.host, 'turing-host-action'), { matchID: g.matchID, epoch: (await f.state(g.matchID)).G.epoch, action: 'next' }, g.host)).status).toBe(200);
+    expect((await f.state(g.matchID)).G.round).toBe(2);
+  });
+
+  it('serializes live policy edits, invalidates old consent, persists public options and isolates other rooms', async () => {
+    const f = await fixture(), g = await group(f, 3), other = await group(f, 2);
+    await start(f, g); await start(f, other);
+    const untouched = await f.state(other.matchID), initial = await f.state(g.matchID);
+    await f.move(g, g.seats[1].playerID, 'approveOrder', [initial.G.epoch]);
+    const before = await f.state(g.matchID), endpoint = path(g.host, 'turing-policies');
+    const request = { matchID: g.matchID, epoch: before.G.epoch, policies: { orderApproval: 'any', redrawApproval: 'any', nextApproval: 'any' } };
+    for (const seat of [g.seats[1], g.observer]) expect((await f.request(endpoint, request, seat)).status).toBe(403);
+    expect((await f.request(endpoint, request, other.host)).status).toBe(401);
+    expect((await f.request(endpoint, { ...request, epoch: before.G.epoch - 1 }, g.host)).status).toBe(409);
+    expect((await f.request(endpoint, { ...request, policies: { mode: 'endless' } }, g.host)).status).toBe(400);
+    await f.rejectMove(g, g.host.playerID, 'serverSetApprovalPolicies', [before.G.epoch, request.policies]);
+    const saved = await f.request(endpoint, request, g.host);
+    expect(saved.status).toBe(200); expect(saved.body.gameOptions).toMatchObject(request.policies);
+    const after = await f.state(g.matchID);
+    expect(after.G).toMatchObject({ options: request.policies, question: before.G.question, private: before.G.private, integrity: before.G.integrity, orderApprovals: [], epoch: before.G.epoch + 1 });
+    await f.rejectMove(g, g.seats[2].playerID, 'approveOrder', [before.G.epoch]);
+    expect((await f.request(endpoint, request, g.host)).status).toBe(409);
+    await f.restart(); await connectGroup(f, g); await connectGroup(f, other);
+    expect(await f.state(g.matchID)).toEqual(after);
+    expect((await f.request(path(g.host), undefined, g.host)).body.gameOptions).toMatchObject(request.policies);
+    await f.move(g, g.seats[2].playerID, 'approveOrder', [after.G.epoch]);
+    const review = (await f.state(g.matchID)).G;
+    await f.move(g, g.seats[1].playerID, 'acknowledge', [review.epoch]);
+    expect((await f.state(g.matchID)).G.round).toBe(2);
+    expect(await f.state(other.matchID)).toEqual(untouched);
+  }, 15000);
+
+  it('allows observed hosts to load remembered settings but downgrades host-only selections, including saved legacy rooms', async () => {
+    const f = await fixture();
+    const created = await f.request('/api/rooms', { displayName: '房主' });
+    const host = created.body as Room;
+    const switched = await f.request(path(host, 'switch-role'), { matchID: host.matchID, access: 'spectator', requestID: randomUUID() }, host);
+    const observer = switched.body as Observer;
+    const picked = await f.request(path(host, 'game'), { matchID: switched.body.matchID, gameId: 'turing-test', options: { orderApproval: 'host', redrawApproval: 'host', nextApproval: 'host', mode: 'endless', lives: 9 } }, observer);
+    expect(picked.status).toBe(200);
+    expect(picked.body.gameOptions).toMatchObject({ orderApproval: 'all', redrawApproval: 'all', nextApproval: 'all', mode: 'endless', lives: 9 });
+    expect((await f.request(path(host, 'turing-policies'), { matchID: picked.body.matchID, policies: { nextApproval: 'host' } }, observer)).status).toBe(400);
+    // Simulate an existing deployment that had permitted observing host policies.
+    const old = await f.state(picked.body.matchID);
+    old.G.options.orderApproval = 'host'; old.G.options.nextApproval = 'host'; old._stateID++;
+    await f.app.db.setState(picked.body.matchID, old);
+    const record = f.app.rooms.rooms.get(host.roomId)!;
+    await f.app.rooms.save({ ...record, gameOptions: { ...old.G.options } });
+    await f.restart();
+    const recovered = await f.request(path(host), undefined, observer);
+    expect(recovered.status).toBe(200);
+    expect(recovered.body.gameOptions).toMatchObject({ orderApproval: 'all', nextApproval: 'all', mode: 'endless', lives: 9 });
+    expect((await f.state(picked.body.matchID)).G.options).toEqual(recovered.body.gameOptions);
+  });
+
+  it.each(['sorting', 'round-review'] as const)('records an authenticated host finish during %s once, without counting an incomplete round or a ranked win', async stage => {
+    const f = await fixture(), g = await group(f, 3);
+    expect((await f.request(path(g.host, 'options'), { matchID: g.matchID, options: { mode: 'endless', lives: 7 } }, g.host)).status).toBe(200);
+    await start(f, g); await revealAll(f, g);
+    if (stage === 'sorting') await ack(f, g);
+    const before = await f.state(g.matchID), endpoint = path(g.host, 'turing-host-action');
+    const request = { matchID: g.matchID, epoch: before.G.epoch, action: 'finish' };
+    expect((await f.request(endpoint, request, g.seats[1])).status).toBe(403);
+    expect((await f.request(endpoint, request, g.observer)).status).toBe(403);
+    await f.rejectMove(g, g.host.playerID, 'serverFinishChallenge', [before.G.epoch]);
+    expect((await f.request(endpoint, { ...request, epoch: before.G.epoch - 1 }, g.host)).status).toBe(409);
+    expect((await f.request(endpoint, request, g.host)).status).toBe(200);
+    const finished = await f.state(g.matchID);
+    expect(finished.G).toMatchObject({ status: 'finished', winReason: 'endless-stopped', completedRounds: 1, integrity: before.G.integrity });
+    expect((await f.request(endpoint, request, g.host)).status).toBe(409);
+    const stats = (await f.request('/api/stats')).body;
+    const summary = stats.byGame.find((item: any) => item.gameId === 'turing-test');
+    expect(summary).toMatchObject({ completed: 1, rankedCompleted: 0, wins: {}, challenges: [{ runs: 1, bestCompletedRounds: 1, totalCompletedRounds: 1, startingLives: 7, numPlayers: 3 }] });
+    await f.restart();
+    expect((await f.request('/api/stats')).body).toEqual(stats);
+    const lobby = await archive(f, g);
+    expect(lobby.history.at(-1)).toMatchObject({ ending: 'completed', reason: 'endless-stopped', challenge: { completedRounds: 1 } });
+    const replay = await f.request(path(g.host, `replay?matchID=${g.matchID}`), undefined, g.observer);
+    expect(replay.status).toBe(200); noServerSecrets(replay.body);
+    expect(replay.body.frames.at(-1).G.log.at(-1)).toMatchObject({ reason: 'endless-stopped', completedRounds: 1 });
+    expect((await f.request('/api/stats')).body).toEqual(stats);
+  }, 15000);
+
+  it('permits an observing host to score an endless test game, while aborting a regular room remains uncounted', async () => {
+    const f = await fixture(), g = await group(f, 4, true);
+    const configured = await f.request(path(g.host, 'options'), { matchID: g.matchID, options: { mode: 'endless', lives: 4 } }, g.host);
+    const switched = await f.request(path(g.host, 'switch-role'), { matchID: configured.body.matchID, access: 'spectator', requestID: randomUUID() }, g.host);
+    const observerHost = switched.body as Observer;
+    g.seats = g.seats.slice(1); g.matchID = switched.body.matchID;
+    for (const seat of g.seats) expect((await f.request(path(g.host, 'ready'), { matchID: g.matchID, ready: true }, seat)).status).toBe(200);
+    const started = await f.request(path(g.host, 'start'), { matchID: g.matchID }, observerHost);
+    expect(started.status).toBe(200); await connectGroup(f, g);
+    const G = (await f.state(g.matchID)).G;
+    expect((await f.request(path(g.host, 'turing-host-action'), { matchID: g.matchID, epoch: G.epoch, action: 'finish' }, observerHost)).status).toBe(200);
+    const lobby = await archive(f, g, observerHost);
+    expect(lobby.history.at(-1)).toMatchObject({ ending: 'completed', reason: 'endless-stopped', challenge: { completedRounds: 0 } });
+    expect((await f.request(path(g.host, `replay?matchID=${g.matchID}`), undefined, observerHost)).status).toBe(200);
+    expect((await f.request('/api/stats')).body.completedGames).toBe(0);
+    const other = await group(f, 3);
+    await start(f, other);
+    expect((await f.request(path(other.host, 'turing-host-action'), { matchID: other.matchID, epoch: (await f.state(other.matchID)).G.epoch, action: 'finish' }, other.host)).status).toBe(409);
+    expect((await f.request(path(other.host, 'abort'), { matchID: other.matchID }, other.host)).status).toBe(200);
+    expect((await f.request('/api/stats')).body.completedGames).toBe(0);
+  });
+
+  it.each([{ operation: 'leave', action: 'policies' }, { operation: 'abort', action: 'policies' }, { operation: 'leave', action: 'finish' }, { operation: 'abort', action: 'finish' }])('rechecks queued $action after $operation invalidates its authority or match', async ({ operation, action }) => {
+    const f = await fixture(), g = await group(f, 3);
+    expect((await f.request(path(g.host, 'options'), { matchID: g.matchID, options: { mode: 'endless' } }, g.host)).status).toBe(200);
+    await start(f, g);
+    const before = await f.state(g.matchID), queue = f.app.server.transport.getMatchQueue(g.matchID);
+    let release!: () => void, entered!: () => void;
+    const gate = new Promise<void>(resolve => { release = resolve; }), started = new Promise<void>(resolve => { entered = resolve; });
+    const waiting = queue.add(async () => { entered(); await gate; }); await started;
+    const first = f.request(path(g.host, operation), { matchID: g.matchID }, g.host);
+    let second: ReturnType<typeof f.request> | undefined;
+    try {
+      await vi.waitFor(() => expect(queue.size).toBe(1));
+      second = f.request(path(g.host, action === 'policies' ? 'turing-policies' : 'turing-host-action'), action === 'policies'
+        ? { matchID: g.matchID, epoch: before.G.epoch, policies: { nextApproval: 'any' } }
+        : { matchID: g.matchID, epoch: before.G.epoch, action: 'finish' }, g.host);
+      await vi.waitFor(() => expect(queue.size).toBe(2));
+    } finally { release(); }
+    await waiting; expect((await first).status).toBe(200); expect((await second!).status).toBe(operation === 'leave' ? 401 : 409);
+    await queue.onIdle();
+    expect((await f.state(g.matchID)).G).toEqual(before.G);
+    expect((await f.request('/api/stats')).body.completedGames).toBe(0);
+  });
 });

@@ -7,6 +7,7 @@ import {
 import { clientGames } from './game-registry';
 import { CreationPassword } from './CreationPassword';
 import { rememberedCreateKey, rememberCreateKey } from './creation-password';
+import { rememberGameOptions } from './game-preferences';
 import { RemovePlayer } from './RemovePlayer';
 import { ObservationPanel } from './ObservationPanel';
 import { captureReplayShare, SharedReplay } from './ReplayViewer';
@@ -172,10 +173,16 @@ function Room({ seat, onSwitch }: { seat: AuthSession; onSwitch: (seat: AuthSess
   const [loaded, setLoaded] = useState(false);
   const [invalidSeat, setInvalidSeat] = useState(false);
   const acceptedRevision = useRef(0);
+  const rememberedOptionsRevision = useRef('');
   const sessionID = useRef(crypto.randomUUID());
   function acceptInfo(next: RoomInfo) {
     acceptedRevision.current += 1;
     setInfo(next);
+    const preferenceRevision = JSON.stringify([next.gameName, next.gameOptions, next.hostPlayerID, next.hostObserverID]);
+    if (isRoomHost(seat, next) && preferenceRevision !== rememberedOptionsRevision.current) {
+      rememberGameOptions(seat, next);
+      rememberedOptionsRevision.current = preferenceRevision;
+    }
     // Room metadata is refreshed on load. Polls must never persist an old
     // credential over an identity that another tab has just switched.
   }
@@ -250,7 +257,7 @@ function Room({ seat, onSwitch }: { seat: AuthSession; onSwitch: (seat: AuthSess
     <Header room={seat.roomId} rulesGame={info.gameSelected !== false ? info.gameName : undefined} />
     {error && <div className="room-error"><ErrorMessage>{error}</ErrorMessage><p className="small muted">連線恢復後會自動重試。請保留這個頁面。</p></div>}
     {!loaded ? !error && <main className="narrow"><p className="loading" role="status">正在確認你的房間身分…</p></main>
-      : <RoomContext.Provider value={{ seat: session, info, inviteUrl, setInviteUrl }}>
+      : <RoomContext.Provider value={{ seat: session, info, inviteUrl, setInviteUrl, onUpdate: acceptInfo }}>
         <div className="room-chrome">
         <div className="room-tools">
           <div className="room-status-line"><span>{host && '房主 · '}{isPlayer(seat) ? '玩家座位' : '觀戰席'} · {info.numPlayers} 位玩家 · {info.spectatorCount} 位已加入觀戰<TestRoomBadge info={info} /></span></div>

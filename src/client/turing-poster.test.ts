@@ -53,10 +53,51 @@ describe('Turing public poster projection', () => {
     expect(model.voice).toBe(true); expect(model.shared).toBe(true);
     expect(model.examiner).toBe('全員共同排序');
     expect(model.table).toEqual({ order: ['成員 2', '成員 0', '成員 1'], approved: 1, total: 3 });
+    expect(model.approval).toEqual({ kind: 'order', policy: 'all', description: '已同意 1 / 3 人 · 全員同意後揭曉順序' });
     expect(model.latest).toBeNull(); expect(model.sequence).toEqual([]);
     expect(buildTuringPosterModel({ ...args, G: { ...G, private: {}, secretQuestionQueue: undefined } })).toEqual(model);
     expect(JSON.stringify(model)).not.toMatch(/sealed-private|future|secret|test-room|test-match/);
     G.revealed = [{ playerID: '2', cardID: '2', slot: 'A', number: 6, error: false }];
     expect(buildTuringPosterModel(args).latest?.name).toBe('成員 2');
+  });
+  it.each([
+    ['host', '房主同意即可揭曉順序'],
+    ['all', '已同意 1 / 3 人 · 全員同意後揭曉順序'],
+    ['any', '任一玩家同意即可揭曉順序'],
+  ] as const)('labels shared sorting with the %s approval policy', (policy, description) => {
+    const G = fixture(); G.rulesVersion = 4; delete G.players['3']; G.revealed = [];
+    G.options.orderApproval = policy; G.orderApprovals = ['0'];
+    const model = buildTuringPosterModel({ G, info, step: 1, totalSteps: 2 });
+    expect(model.approval).toEqual({ kind: 'order', policy, description });
+    if (policy !== 'all') expect(model.approval?.description).not.toMatch(/全員|尚未|準備|\d.*\/.*\d/);
+  });
+  it.each([
+    ['host', '房主同意即可重抽題目'],
+    ['all', '已同意重抽 1 / 4 人 · 全員同意後重抽題目'],
+    ['any', '任一玩家同意即可重抽題目'],
+  ] as const)('prioritizes a pending redraw under the %s policy, including examiner games', (policy, description) => {
+    const G = fixture(); G.rulesVersion = 4; G.revealed = [];
+    G.options.redrawApproval = policy; G.options.orderApproval = 'host'; G.redrawApprovals = ['1'];
+    const args = { G, info, step: 1, totalSteps: 2 };
+    expect(buildTuringPosterModel(args).approval).toEqual({ kind: 'redraw', policy, description });
+    delete G.players['3'];
+    const shared = buildTuringPosterModel(args);
+    expect(shared.shared).toBe(true);
+    expect(shared.approval?.description).toBe(description.replace('/ 4 人', '/ 3 人'));
+    G.redrawApprovals = [];
+    expect(buildTuringPosterModel(args).approval?.kind).toBe('order');
+  });
+  it.each([
+    { round: 1, completedRounds: 0 },
+    { round: 5, completedRounds: 4 },
+    { round: 5, completedRounds: 5 },
+    { round: 9, completedRounds: undefined },
+  ])('reports only completed levels for a host-settled endless challenge: %j', ({ round, completedRounds }) => {
+    const G = fixture(); G.rulesVersion = 4; G.targetRounds = null; G.status = 'finished';
+    G.winner = 'humans'; G.winReason = 'endless-stopped'; G.round = round; G.completedRounds = completedRounds;
+    const model = buildTuringPosterModel({ G, info, step: 1, totalSteps: 2 });
+    expect(model.result).toBe(`挑戰結束 · 已完成 ${completedRounds ?? 0} 關`);
+    expect(model.result).not.toMatch(/全隊成功|校準完成/);
+    expect(model.approval).toBeNull();
   });
 });

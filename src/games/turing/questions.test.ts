@@ -2,12 +2,18 @@ import { describe, expect, it } from 'vitest';
 import { PROTOCOL_QUESTIONS, STANDARD_QUESTIONS, turingQuestionPool } from './questions';
 import { normalizeTuringOptions } from './rules';
 
+// Retired identities must not be silently reused for different situations.
+const retiredStandard = [224, 243, 305, 381, 416, 463, 495, 498, 540, 552, 593, 631, 650, 673, 674,
+  684, 728, 731, 750, 751, 783, 817, 847, 879, 925, 928, 935, 954, 985, 992];
+
 describe('圖靈測試原創題庫', () => {
   it.each([
     ['standard', STANDARD_QUESTIONS], ['protocol', PROTOCOL_QUESTIONS],
   ] as const)('%s has exactly 1,000 complete, individually addressable questions', (prefix, questions) => {
     expect(questions).toHaveLength(1000);
-    expect(questions.map(question => question.id).sort()).toEqual(Array.from({ length: 1000 }, (_, index) => `${prefix}-${String(index + 1).padStart(4, '0')}`));
+    const numbers = Array.from({ length: prefix === 'standard' ? 1030 : 1000 }, (_, index) => index + 1)
+      .filter(number => prefix !== 'standard' || !retiredStandard.includes(number));
+    expect(questions.map(question => question.id).sort()).toEqual(numbers.map(number => `${prefix}-${String(number).padStart(4, '0')}`));
     for (const question of questions) {
       expect(Object.keys(question).sort(), question.id).toEqual(['category', 'high', 'id', 'low', 'prompt']);
       expect(question.category.trim().length, question.id).toBeGreaterThan(0);

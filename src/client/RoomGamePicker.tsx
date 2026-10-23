@@ -3,6 +3,7 @@ import { api, isRoomHost, type AuthSession, type GameInfo, type RoomInfo } from 
 import { ErrorMessage } from './ui';
 import './room-game-picker.css';
 import { clientGames } from './game-registry';
+import { rememberedGameOptions } from './game-preferences';
 
 export function RoomGamePicker({ seat, info, disabled, onBusy, onUpdate }: {
   seat: AuthSession; info: RoomInfo; disabled: boolean;
@@ -30,7 +31,7 @@ export function RoomGamePicker({ seat, info, disabled, onBusy, onUpdate }: {
     sending.current = true; setBusy(true); setError(''); onBusy(true);
     try {
       const next = await api<RoomInfo>(`/api/rooms/${seat.roomId}/game`, {
-        method: 'POST', body: JSON.stringify({ matchID: info.matchID, gameId }),
+        method: 'POST', body: JSON.stringify({ matchID: info.matchID, gameId, options: rememberedGameOptions(gameId) }),
       }, seat);
       if (mounted.current) onUpdate(next);
     } catch (error) { if (mounted.current) setError((error as Error).message); }
@@ -45,6 +46,7 @@ export function RoomGamePicker({ seat, info, disabled, onBusy, onUpdate }: {
     </select> : <strong className="room-game-name">{game?.name || (selected ? '正在讀取遊戲…' : '等待房主選擇遊戲')}</strong>}
     {game && <p className="small muted">{game.description} · {game.minPlayers}～{game.maxPlayers} 人</p>}
     <p className="small muted">{host ? '選擇後即時套用；切換會清除全員準備，成員與邀請連結保留。' : '房主可在開局前切換遊戲；切換後請重新準備。'}</p>
+    {host && Options && <p className="small muted">已套用的設定會保留在本房間；同一瀏覽器下次開房選擇這款遊戲時，也會沿用。</p>}
     <ErrorMessage>{error}</ErrorMessage>
     {Options && <Options seat={seat} info={info} disabled={disabled || busy} onBusy={onBusy} onUpdate={onUpdate} />}
   </section>;

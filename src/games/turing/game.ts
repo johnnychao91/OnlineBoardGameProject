@@ -2,19 +2,19 @@ import type { FnContext, Game } from 'boardgame.io';
 import { ActivePlayers, INVALID_MOVE } from 'boardgame.io/core';
 import { isPlayerSeatID } from '../catalog';
 import { turingQuestionPool } from './questions';
-import { normalizeTuringAnswer, normalizeTuringOptions, TURING_ROUNDS, validateTuringOptions, type TuringOptions, type TuringQuestion } from './rules';
+import { normalizeTuringAnswer, normalizeTuringOptions, normalizeTuringPolicies, TURING_APPROVAL_KEYS, TURING_ROUNDS, validateTuringOptions, type TuringOptions, type TuringQuestion, type TuringPolicies } from './rules';
 
 export type { TuringOptions, TuringQuestion } from './rules';
 export type TuringStatus = 'lobby' | 'briefing' | 'answering' | 'sorting' | 'round-review' | 'finished';
 export type TuringWinner = 'humans' | 'system';
-export type TuringWinReason = 'calibrated' | 'integrity-lost' | 'endless-exhausted';
+export type TuringWinReason = 'calibrated' | 'integrity-lost' | 'endless-exhausted' | 'endless-stopped';
 export interface TuringSetupData { startImmediately?: boolean; participantIDs?: string[]; options?: TuringOptions }
 export interface TuringPlayer { ready: boolean; acknowledged: boolean; answered: boolean }
 export interface TuringCard { playerID: string; slot: 'A' | 'B'; spoken: boolean }
 export interface TuringPrivateInfo { number: number; answer?: string; cards?: { id: string; number: number }[] }
 export interface TuringRevealed { playerID: string; number: number; error: boolean; cardID?: string; slot?: 'A' | 'B' }
 export interface TuringEvent {
-  type: 'round-start' | 'question-redraw' | 'answers' | 'spoken' | 'reveal' | 'round-complete' | 'finish';
+  type: 'round-start' | 'question-redraw' | 'approval-change' | 'answers' | 'spoken' | 'reveal' | 'round-complete' | 'finish';
   round: number;
   examinerID?: string;
   question?: TuringQuestion;
@@ -28,6 +28,8 @@ export interface TuringEvent {
   integrity?: number;
   winner?: TuringWinner;
   reason?: TuringWinReason;
+  completedRounds?: number;
+  policies?: TuringPolicies;
 }
 export interface TuringState {
   rulesVersion: 1 | 2 | 3 | 4;
@@ -108,7 +110,7 @@ function finish(G: TuringState, won: boolean): void {
   G.winner = won ? 'humans' : 'system';
   G.winReason = won ? 'calibrated' : G.rulesVersion >= 2 && G.options.mode === 'endless' ? 'endless-exhausted' : 'integrity-lost';
   transition(G, 'finished');
-  G.log.push({ type: 'finish', round: G.round, integrity: G.integrity, winner: G.winner, reason: G.winReason });
+  G.log.push({ type: 'finish', round: G.round, integrity: G.integrity, winner: G.winner, reason: G.winReason, ...(G.completedRounds === undefined ? {} : { completedRounds: G.completedRounds }) });
 }
 function drawQuestion(G: TuringState, random: RandomAPI): TuringQuestion | undefined {
   if (G.rulesVersion === 1) return G.secretQuestionQueue?.shift();
@@ -168,11 +170,16 @@ function startGame({ G, playerID, random }: MoveContext) {
     || !Object.values(G.players).every(player => player.ready)) return INVALID_MOVE;
   beginGame(G, random);
 }
-function acknowledge({ G, playerID, random }: MoveContext, epoch: unknown) {
+function acknowledge(context: MoveContext, epoch: unknown) {
+  return applyAcknowledgement(context, epoch);
+}
+function applyAcknowledgement({ G, playerID, random }: MoveContext, epoch: unknown, host?: HostApproval) {
   if (!['briefing', 'round-review'].includes(G.status) || !validToken(G, playerID, epoch)
     || G.players[playerID].acknowledged) return INVALID_MOVE;
+  const policy = G.status === 'round-review' ? G.options.nextApproval ?? 'all' : 'all';
+  if (host ? policy !== 'host' : policy === 'host') return INVALID_MOVE;
   G.players[playerID].acknowledged = true;
-  if (!Object.values(G.players).every(player => player.acknowledged)) return;
+  if (!host && policy !== 'any' && !Object.values(G.players).every(player => player.acknowledged)) return;
   if (G.status === 'briefing') transition(G, 'answering');
   else {
     const ids = Object.keys(G.players);
@@ -252,7 +259,7 @@ function removeCard(context: MoveContext, cardID: unknown, epoch: unknown) {
   // treat it as moving the selected card to the far end instead of removing it.
   return placeCard(context, cardID, turingTableOrder(context.G).length - 1, epoch);
 }
-interface HostApproval { actorID: string | undefined }
+interface HostApproval { actorID: string }
 function approveOrder(context: MoveContext, epoch: unknown) {
   return applyOrderApproval(context, epoch);
 }
@@ -265,7 +272,7 @@ function applyOrderApproval({ G, playerID }: MoveContext, epoch: unknown, host?:
   const cards = order.map(id => ({ id, card: G.cards![id], number: turingCardNumber(G, id) }));
   if (cards.some(card => card.number === undefined)) return INVALID_MOVE;
   G.tableOrder = order;
-  if (host) G.orderApprovals = host.actorID === undefined ? [] : [host.actorID];
+  if (host) G.orderApprovals = [host.actorID];
   else {
     G.orderApprovals ??= [];
     G.orderApprovals.push(playerID);
@@ -320,6 +327,25 @@ function withdrawRedraw({ G, playerID }: MoveContext, epoch: unknown) {
   G.epoch += 1;
 }
 
+function setApprovalPolicies({ G, playerID }: MoveContext, epoch: unknown, input: unknown) {
+  if (!validToken(G, playerID, epoch) || G.status === 'finished' || (G.status !== 'lobby' && G.rulesVersion < 4)) return INVALID_MOVE;
+  let policies: TuringPolicies;
+  try { policies = normalizeTuringPolicies(input); } catch { return INVALID_MOVE; }
+  if (TURING_APPROVAL_KEYS.every(key => policies[key] === undefined || policies[key] === (G.options[key] ?? 'all'))) return INVALID_MOVE;
+  Object.assign(G.options, policies);
+  G.orderApprovals = []; G.redrawApprovals = [];
+  for (const player of Object.values(G.players)) { player.acknowledged = false; if (G.status === 'lobby') player.ready = false; }
+  G.epoch++;
+  if (G.status !== 'lobby') G.log.push({ type: 'approval-change', round: G.round, policies: { ...policies } });
+}
+function finishChallenge({ G, playerID }: MoveContext, epoch: unknown) {
+  if (!validToken(G, playerID, epoch) || G.rulesVersion < 2 || G.options.mode !== 'endless' || G.targetRounds !== null
+    || G.status === 'lobby' || G.status === 'finished') return INVALID_MOVE;
+  G.winner = 'humans'; G.winReason = 'endless-stopped';
+  transition(G, 'finished');
+  G.log.push({ type: 'finish', round: G.round, integrity: G.integrity, winner: G.winner, reason: G.winReason, completedRounds: G.completedRounds ?? 0 });
+}
+
 function copyQuestion(question: TuringQuestion): TuringQuestion {
   return { id: question.id, category: question.category, prompt: question.prompt, low: question.low, high: question.high };
 }
@@ -338,6 +364,8 @@ function publicLog(entry: TuringEvent): TuringEvent {
     ...(entry.integrity === undefined ? {} : { integrity: entry.integrity }),
     ...(entry.winner === undefined ? {} : { winner: entry.winner }),
     ...(entry.reason === undefined ? {} : { reason: entry.reason }),
+    ...(entry.completedRounds === undefined ? {} : { completedRounds: entry.completedRounds }),
+    ...(entry.policies === undefined ? {} : { policies: Object.fromEntries(TURING_APPROVAL_KEYS.filter(key => entry.policies![key] !== undefined).map(key => [key, entry.policies![key]])) }),
   };
 }
 function copyPrivate(info: TuringPrivateInfo): TuringPrivateInfo {
@@ -368,7 +396,8 @@ export function turingPlayerView({ G, playerID }: { G: TuringState; playerID: st
     epoch: G.epoch, options: { deck: G.options.deck, customQuestions: G.options.customQuestions.map(({ prompt, low, high }) => ({ prompt, low, high })),
       ...(G.options.mode === undefined ? {} : { mode: G.options.mode }), ...(G.options.lives === undefined ? {} : { lives: G.options.lives }),
       ...(G.options.redrawApproval === undefined ? {} : { redrawApproval: G.options.redrawApproval }),
-      ...(G.options.orderApproval === undefined ? {} : { orderApproval: G.options.orderApproval }) },
+      ...(G.options.orderApproval === undefined ? {} : { orderApproval: G.options.orderApproval }),
+      ...(G.options.nextApproval === undefined ? {} : { nextApproval: G.options.nextApproval }) },
     winner: G.winner, winReason: G.winReason, log: G.log.map(publicLog),
   };
 }
@@ -455,15 +484,23 @@ export const TuringHostGame: typeof TuringGame = {
     ...TuringGame.moves,
     serverApproveOrder: {
       move: (context: MoveContext, epoch: unknown, actorID: unknown) => {
-        if (actorID !== null && !isSeat(context.G, actorID)) return INVALID_MOVE;
-        return applyOrderApproval(context, epoch, { actorID: actorID === null ? undefined : actorID });
+        if (!isSeat(context.G, actorID)) return INVALID_MOVE;
+        return applyOrderApproval(context, epoch, { actorID });
       }, ...simultaneousMove,
     },
     serverApproveRedraw: {
       move: (context: MoveContext, epoch: unknown, actorID: unknown) => {
-        if (actorID !== null && !isSeat(context.G, actorID)) return INVALID_MOVE;
-        return applyRedrawApproval(context, epoch, { actorID: actorID === null ? undefined : actorID });
+        if (!isSeat(context.G, actorID)) return INVALID_MOVE;
+        return applyRedrawApproval(context, epoch, { actorID });
       }, ...simultaneousMove,
     },
+    serverApproveNext: {
+      move: (context: MoveContext, epoch: unknown, actorID: unknown) => {
+        if (!isSeat(context.G, actorID) || context.G.status !== 'round-review') return INVALID_MOVE;
+        return applyAcknowledgement(context, epoch, { actorID });
+      }, ...simultaneousMove,
+    },
+    serverSetApprovalPolicies: { move: setApprovalPolicies, ...simultaneousMove },
+    serverFinishChallenge: { move: finishChallenge, ...simultaneousMove },
   },
 };

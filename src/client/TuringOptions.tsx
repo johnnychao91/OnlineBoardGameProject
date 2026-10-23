@@ -4,6 +4,7 @@ import { api, isRoomHost, type RoomInfo } from './api';
 import type { LobbyOptionsProps } from './game-types';
 import { ErrorMessage } from './ui';
 import './turing.css';
+import { TuringPolicySettings } from './TuringPolicySettings';
 
 const blankQuestion = (): TuringCustomQuestion => ({ prompt: '', low: '', high: '' });
 export function TuringOptions({ seat, info, disabled, onBusy, onUpdate }: LobbyOptionsProps) {
@@ -13,13 +14,22 @@ export function TuringOptions({ seat, info, disabled, onBusy, onUpdate }: LobbyO
   const [livesText, setLivesText] = useState(String(options.lives ?? 5));
   const [editing, setEditing] = useState<number | null>(null);
   const [busy, setBusy] = useState(false), [error, setError] = useState('');
+  const [policyBusy, setPolicyBusy] = useState(false);
   const sending = useRef(false), mounted = useRef(true), match = useRef(info.matchID);
+  const previous = useRef({ matchID: info.matchID, options });
   match.current = info.matchID;
-  useEffect(() => { const next = normalizeTuringOptions(info.gameOptions); setDraft(next); setLivesText(String(next.lives ?? 5)); setQuestion(blankQuestion()); setEditing(null); setError(''); }, [info.matchID, optionsKey]);
+  useEffect(() => {
+    const next = normalizeTuringOptions(info.gameOptions), before = previous.current;
+    const withoutPolicies = ({ redrawApproval, orderApproval, nextApproval, ...rest }: Options) => JSON.stringify(rest);
+    if (before.matchID === info.matchID && withoutPolicies(before.options) === withoutPolicies(next)) {
+      setDraft(current => ({ ...current, redrawApproval: next.redrawApproval, orderApproval: next.orderApproval, nextApproval: next.nextApproval }));
+    } else { setDraft(next); setLivesText(String(next.lives ?? 5)); setQuestion(blankQuestion()); setEditing(null); }
+    previous.current = { matchID: info.matchID, options: next }; setError('');
+  }, [info.matchID, optionsKey]);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
-  const host = isRoomHost(seat, info), blocked = disabled || busy || !host || info.status !== 'lobby';
+  const host = isRoomHost(seat, info), blocked = disabled || busy || policyBusy || !host || info.status !== 'lobby';
   const draftLives = livesText.trim() && Number.isFinite(Number(livesText)) ? Math.max(1, Math.min(20, Math.trunc(Number(livesText)))) : 5;
-  const nextOptions = { ...draft, lives: draftLives };
+  const nextOptions = { ...draft, lives: draftLives, redrawApproval: options.redrawApproval, orderApproval: options.orderApproval, nextApproval: options.nextApproval };
   const dirty = JSON.stringify(nextOptions) !== optionsKey;
   function addQuestion() {
     try {
@@ -61,11 +71,10 @@ export function TuringOptions({ seat, info, disabled, onBusy, onUpdate }: LobbyO
     <div className="turing-voice-note"><strong>先連上語音，再開始遊戲</strong><p>使用語音軟體交流。本站提供題目、秘密強度與揭牌操作，不需在局內打字，也不會錄音或轉錄語音。</p></div>
     <div className="turing-mode-settings"><label>挑戰模式<select value={draft.mode ?? 'standard'} disabled={blocked} onChange={event => setDraft({ ...draft, mode: event.target.value as Options['mode'] })}><option value="standard">標準模式 · 五關合作</option><option value="endless">無盡模式 · 有限生命闖關</option></select></label>{draft.mode === 'endless' && <label>起始生命<input type="number" inputMode="numeric" min={1} max={20} step={1} value={livesText} disabled={blocked} onChange={event => setLivesText(event.target.value)} onBlur={() => setLivesText(String(draftLives))} /><small>1～20 點，預設 5 點；超出範圍會採用最近的界限。</small></label>}</div>
     <p className="small">{draft.mode === 'endless' ? `以 ${draftLives} 點生命不斷挑戰，生命不會回復；歸零時記錄已通過幾關。題庫用完會重新抽取，避免連續同題。` : '標準模式共五關。2～3 人起始 3 點生命，4～8 人等於參與人數，9 人為 8 點；生命不會回復。'}</p>
-    <div className="turing-mode-settings"><label>重抽題目<select value={draft.redrawApproval ?? 'all'} disabled={blocked} onChange={event => setDraft({ ...draft, redrawApproval: event.target.value as Options['redrawApproval'] })}><option value="host">房主同意</option><option value="all">所有人同意</option><option value="any">任何人同意</option></select><small>尚未揭牌時適用；房主在觀戰席也能批准。</small></label>
-      <label>確認排序<select value={draft.orderApproval ?? 'all'} disabled={blocked} onChange={event => setDraft({ ...draft, orderApproval: event.target.value as Options['orderApproval'] })}><option value="host">房主同意</option><option value="all">所有人同意</option><option value="any">任何人同意</option></select><small>僅適用 2～3 人共同牌桌；4～9 人仍由檢測員揭牌。</small></label></div>
+    <TuringPolicySettings seat={seat} info={info} policies={options} disabled={disabled || busy || info.status !== 'lobby'} onUpdate={onUpdate} onBusy={value => { setPolicyBusy(value); onBusy(value); }} />
     <label>題庫模式<select value={draft.deck} disabled={blocked} onChange={event => setDraft({ ...draft, deck: event.target.value as Options['deck'] })}>{Object.entries(TURING_DECKS).map(([id, name]) => <option key={id} value={id}>{name}{id === 'standard' ? ' · 1,000 題' : id === 'protocol' ? ' · 1,000 題 · 無審查' : id === 'mixed' ? ' · 2,000 題 · 含無審查' : ''}</option>)}</select></label>
     <p className="small muted">{draft.deck === 'protocol' || draft.deck === 'mixed' ? '失控協定含成人曖昧、社交尷尬與黑色幽默，請由成年且接受此風格的朋友一起玩。所有情境都可以虛構，無需分享私事。' : '人性校準涵蓋生活、想像與人類情緒；題目可以直接口頭作答，不需要開鏡頭或表演。'}題目若提到「寫下」，也直接說出內容即可。</p>
-    <p className="small">2～3 人每人一張強度牌，在共同桌面拖曳排序，依上方設定確認後揭牌；任何位置調整都會取消先前的排序同意。4～9 人輪流擔任不抽牌的檢測員，其餘每人一張。輪末仍需全員確認才開始下一關。所有玩家同隊，機器人只是故事背景。</p>
+    <p className="small">2～3 人每人一張強度牌，在共同桌面拖曳排序，依上方設定確認後揭牌；任何位置調整都會取消先前的排序同意。4～9 人輪流擔任不抽牌的檢測員，其餘每人一張。輪末依「檢查完畢下一題」的同意方式換關。所有玩家同隊，機器人只是故事背景。</p>
     <details><summary>自訂題目 · {draft.customQuestions.length} / {TURING_CUSTOM_MAX} 題</summary>
       <p className="small muted">自訂題目會混入所選內建題庫；同題幹採自訂版本，不重複抽取。選「自訂題庫」可只玩自己的題目，至少需 5 題。內容會提供房間成員查看，請勿填入密碼或私人資料。</p>
       {host && <div className="turing-custom-editor"><h4>{editing === null ? '新增一道題目' : `編輯第 ${editing + 1} 題`}</h4>
@@ -81,6 +90,6 @@ export function TuringOptions({ seat, info, disabled, onBusy, onUpdate }: LobbyO
       <p className="small muted">每題包含 prompt（題目）、low（1 的端點）、high（10 的端點）。可以先下載一份範例，再編輯及匯入；匯入後仍需套用設定。</p>
     </details>
     {host && <button className="button primary full" disabled={blocked || !dirty} onClick={() => void apply()}>{busy ? '儲存中…' : '套用測試設定'}</button>}
-    <p className="small muted">{host ? '變更後請按套用；會清除全員準備，開局後模式與題庫固定。自訂題目儲存在此房間，下載檔案可留作下次使用。' : '由房主選擇模式與題庫；設定更新後請重新準備。'}</p><ErrorMessage>{error}</ErrorMessage>
+    <p className="small muted">{host ? '模式、生命及題庫變更後請按套用；同意方式切換即儲存，也能在遊戲中調整。等待室更新會清除全員準備。設定會保留在房間，這台瀏覽器下次開房也會沿用。' : '由房主選擇模式與題庫；設定更新後請重新準備。'}</p><ErrorMessage>{error}</ErrorMessage>
   </section>;
 }

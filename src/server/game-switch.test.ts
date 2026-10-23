@@ -76,6 +76,86 @@ async function readyStart(f: Fixture, host: any, seats: Member[]) {
 }
 
 describe('Selecting a game within a persistent shared room', () => {
+  it('initializes public options from browser preferences once, then retains each game through switching, restart and host departure', async () => {
+    const f = await fixture(), g = await group(f, 6);
+    const choices = [
+      { gameId: 'black-fog', options: { lancelotMode: 'forecast' } },
+      { gameId: 'silver-moon', options: { mode: 'assisted', nightSeconds: 15, speechSeconds: 45 } },
+      { gameId: 'turing-test', options: { mode: 'endless', lives: 7, deck: 'protocol', redrawApproval: 'any', orderApproval: 'all',
+        customQuestions: [{ prompt: '替來訪的巨龍安排一項活動。', low: '讓牠直接離開', high: '讓牠決定再來' }] } },
+    ];
+    const saved = new Map<string, unknown>();
+    let info = g.host;
+    for (const choice of choices) {
+      const response = await f.request(path(g.host, 'game'), { matchID: info.matchID, ...choice }, g.host);
+      expect(response.status).toBe(200); info = response.body;
+      expect(info.gameOptions).toMatchObject(choice.options);
+      saved.set(choice.gameId, info.gameOptions);
+    }
+    await f.restart();
+    expect((await f.request(path(g.host, 'leave'), { matchID: info.matchID }, g.host)).status).toBe(200);
+    const nextHost = g.seats[1];
+    for (const choice of choices) {
+      info = (await f.request(path(nextHost), undefined, nextHost)).body;
+      const response = await f.request(path(nextHost, 'game'), { matchID: info.matchID, gameId: choice.gameId, options: {} }, nextHost);
+      expect(response.status).toBe(200);
+      expect(response.body.gameOptions).toEqual(saved.get(choice.gameId));
+    }
+    // A normal room never inherits another room's options from the server.
+    const fresh = await group(f, 2, 'turing-test');
+    expect(fresh.host.gameOptions).toMatchObject({ mode: 'standard', lives: 5, deck: 'standard' });
+    const legacy = await group(f, 2, 'turing-test');
+    const edited = await f.request(path(legacy.host, 'options'), { matchID: legacy.host.matchID, options: { lives: 9, mode: 'endless' } }, legacy.host);
+    const record = f.app.rooms.rooms.get(legacy.host.roomId)!;
+    await f.app.rooms.save({ ...record, gameOptionsByGame: undefined });
+    await select(f, legacy.host, 'encrypted-call');
+    expect((await select(f, legacy.host, 'turing-test')).body.gameOptions).toEqual(edited.body.gameOptions);
+  });
+
+  it('keeps applied options after an early exit and after a completed match returns to the lobby', async () => {
+    const f = await fixture(), g = await group(f, 3, 'turing-test');
+    const options = (await f.request(path(g.host, 'options'), { matchID: g.host.matchID,
+      options: { mode: 'endless', lives: 8, deck: 'protocol', redrawApproval: 'any' } }, g.host)).body.gameOptions;
+    const started = await readyStart(f, g.host, g.seats);
+    expect(started.status).toBe(200);
+    expect((await f.request(path(g.host, 'leave'), { matchID: started.body.matchID }, g.host)).status).toBe(200);
+    const nextHost = g.seats[1];
+    const aborted = await f.request(path(nextHost, 'abort'), { matchID: started.body.matchID }, nextHost);
+    expect(aborted.status).toBe(200);
+    expect(aborted.body.gameOptions).toEqual(options);
+    const again = await readyStart(f, nextHost, g.seats.slice(1));
+    expect(again.status).toBe(200);
+    const state = (await f.app.db.fetch(again.body.matchID, { state: true })).state!;
+    state.G.status = 'finished'; state.G.winner = 'system'; state.G.winReason = 'endless-exhausted';
+    state.ctx.gameover = { winner: 'system' };
+    state._stateID += 1;
+    await f.app.db.setState(again.body.matchID, state);
+    // Exercise normal archival with its already elapsed end-of-game display.
+    const record = f.app.rooms.rooms.get(nextHost.roomId)!;
+    await f.app.rooms.save({ ...record, completedDisplay: { matchID: again.body.matchID, until: Date.now() - 1 } });
+    const returned = await f.request(path(nextHost), undefined, nextHost);
+    expect(returned.status).toBe(200);
+    expect(returned.body.status).toBe('lobby');
+    expect(returned.body.gameOptions).toEqual(options);
+    await f.restart();
+    expect((await f.request(path(nextHost), undefined, nextHost)).body.gameOptions).toEqual(options);
+  });
+
+  it('authenticates before larger preference payloads and validates preferences before changing the room', async () => {
+    const f = await fixture(), g = await group(f, 2);
+    const gamePath = path(g.host, 'game');
+    const body = { matchID: g.host.matchID, gameId: 'turing-test', options: { deck: 'invalid' } };
+    expect((await f.request(gamePath, { ...body, oversized: 'x'.repeat(10000) })).status).toBe(401);
+    expect((await f.request(gamePath, body, g.seats[1])).status).toBe(403);
+    expect((await f.request(gamePath, body, g.host)).status).toBe(400);
+    expect((await f.request(path(g.host), undefined, g.host)).body.matchID).toBe(g.host.matchID);
+    const questions = Array.from({ length: 50 }, (_, i) => ({ prompt: `對來訪的第 ${i + 1} 位鄰居說一句話。${'這是題目內容。'.repeat(10)}`, low: '讓人想搬走', high: '讓人想長住' }));
+    const changed = await f.request(gamePath, { ...body, options: { deck: 'custom', customQuestions: questions } }, g.host);
+    expect(changed.status).toBe(200);
+    expect(changed.body.gameOptions.customQuestions).toHaveLength(50);
+    expect((await f.request(gamePath, { ...body, options: { customQuestions: questions } }, g.host)).status).toBe(409);
+  });
+
   it('selects every fixed Moon preset before its players arrive and enforces the exact count only at start', async () => {
     const f = await fixture(), g = await group(f, 6, 'silver-moon');
     const before = f.app.rooms.rooms.get(g.host.roomId)!;

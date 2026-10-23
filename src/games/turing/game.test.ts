@@ -805,7 +805,7 @@ describe('圖靈測試分別設定重抽與排序的同意方式', () => {
   });
   it('saved missing policies retain unanimous consent and project without rewriting old options', () => {
     const f = match(3), ids = Object.keys(f.G.players);
-    const options = { ...f.G.options }; delete options.redrawApproval; delete options.orderApproval;
+    const options = { ...f.G.options }; delete options.redrawApproval; delete options.orderApproval; delete options.nextApproval;
     f.patch({ options }); f.reload();
     expect(turingObserverView(f.G, 'god').options).toEqual(options);
     expect(f.act(ids[0], 'approveRedraw', f.G.epoch)).toBe(true);
@@ -814,9 +814,9 @@ describe('圖靈測試分別設定重抽與排序的同意方式', () => {
     expect(f.act(ids[0], 'approveOrder', f.G.epoch)).toBe(true);
     expect(f.G.status).toBe('sorting'); expect(f.G.orderApprovals).toEqual([ids[0]]);
   });
-  it.each(['participant', 'observer'] as const)('host policy only accepts the server-only reducer for a %s host', kind => {
+  it('host policy only accepts a seated host through the server-only reducer', () => {
     const f = match(3, { options: normalizeTuringOptions({ redrawApproval: 'host', orderApproval: 'host' }) });
-    const ids = Object.keys(f.G.players), actorID = kind === 'observer' ? null : ids[1];
+    const ids = Object.keys(f.G.players), actorID = ids[1];
     const before = clone(f.G);
     expect(TuringGame.moves).not.toHaveProperty('serverApproveOrder');
     expect(TuringGame.moves).not.toHaveProperty('serverApproveRedraw');
@@ -827,6 +827,8 @@ describe('圖靈測試分別設定重抽與排序的同意方式', () => {
       expect(f.act(id, 'serverApproveRedraw', f.G.epoch, actorID)).toBe(false);
     }
     expect(f.G).toEqual(before);
+    expect(f.hostAction(ids[0], 'serverApproveRedraw', f.G.epoch, null)).toBe(false);
+    expect(f.hostAction(ids[0], 'serverApproveOrder', f.G.epoch, null)).toBe(false);
     expect(f.hostAction(ids[0], 'serverApproveRedraw', f.G.epoch, actorID)).toBe(true);
     expect(f.G.question!.id).not.toBe(before.question!.id);
     expect(f.G.private).toEqual(before.private);
@@ -836,7 +838,7 @@ describe('圖靈測試分別設定重抽與排序的同意方式', () => {
     expect(f.hostAction(ids[0], 'serverApproveOrder', f.G.epoch, actorID)).toBe(true);
     expect(f.G.status).toBe('round-review'); expect(f.G.revealed).toHaveLength(3);
     expect(f.G.log.filter(event => event.type === 'reveal').every(event => event.actorID === (actorID ?? undefined))).toBe(true);
-    expect(f.G.orderApprovals).toEqual(actorID === null ? [] : [actorID]);
+    expect(f.G.orderApprovals).toEqual([actorID]);
     expect(f.hostAction(ids[0], 'serverApproveOrder', f.G.epoch, actorID)).toBe(false);
     expect(f.hostAction(ids[0], 'serverApproveRedraw', f.G.epoch, actorID)).toBe(false);
     acknowledgeAll(f); expect(f.G.round).toBe(2);
@@ -865,13 +867,85 @@ describe('圖靈測試分別設定重抽與排序的同意方式', () => {
   });
 });
 
+describe('即時同意方式、下一題與保留成績結束', () => {
+  it.each([2, 3, 4])('any participant can proceed from a %i-player completed round without touching examiner rules', count => {
+    const f = match(count, { options: normalizeTuringOptions({ nextApproval: 'any' }) });
+    sortedReveal(f);
+    expect(f.G.status).toBe('round-review');
+    const before = clone(f.G), id = Object.keys(f.G.players).at(-1)!;
+    expect(f.act(id, 'acknowledge', before.epoch)).toBe(true);
+    expect(f.G).toMatchObject({ status: 'sorting', round: 2, completedRounds: 1, integrity: before.integrity });
+    expect(f.act(id, 'acknowledge', before.epoch)).toBe(false);
+    expect(f.G.examinerID === '').toBe(count <= 3);
+  });
+  it('host-only next round is not a normal move and needs no preceding participant confirmations', () => {
+    const f = match(3, { options: normalizeTuringOptions({ nextApproval: 'host' }) });
+    sortedReveal(f);
+    const ids = Object.keys(f.G.players), epoch = f.G.epoch;
+    for (const id of ids) {
+      expect(f.act(id, 'acknowledge', epoch)).toBe(false);
+      expect(f.act(id, 'serverApproveNext', epoch, id)).toBe(false);
+    }
+    expect(f.hostAction(ids[0], 'serverApproveNext', epoch, null)).toBe(false);
+    expect(f.hostAction(ids[1], 'serverApproveNext', epoch, ids[1])).toBe(true);
+    expect(f.G).toMatchObject({ status: 'sorting', round: 2, completedRounds: 1 });
+    expect(f.hostAction(ids[1], 'serverApproveNext', f.G.epoch, ids[1])).toBe(false);
+  });
+  it('changing policies resets consent atomically, preserves cards and rejects stale approvals', () => {
+    const f = match(3), ids = Object.keys(f.G.players);
+    expect(f.act(ids[0], 'approveOrder', f.G.epoch)).toBe(true);
+    expect(f.act(ids[1], 'approveRedraw', f.G.epoch)).toBe(true);
+    const before = clone(f.G);
+    const policies = { orderApproval: 'any', redrawApproval: 'host', nextApproval: 'host' };
+    expect(f.act(ids[0], 'serverSetApprovalPolicies', before.epoch, policies)).toBe(false);
+    expect(f.hostAction(ids[0], 'serverSetApprovalPolicies', before.epoch, policies)).toBe(true);
+    expect(f.G).toMatchObject({ epoch: before.epoch + 1, question: before.question, private: before.private,
+      cards: before.cards, integrity: before.integrity, tableOrder: before.tableOrder, orderApprovals: [], redrawApprovals: [], options: policies });
+    expect(f.G.log.at(-1)).toMatchObject({ type: 'approval-change', policies });
+    for (const move of ['approveOrder', 'approveRedraw', 'acknowledge']) expect(f.act(ids[2], move, before.epoch)).toBe(false);
+    f.reload(); expect(turingObserverView(f.G, 'blind').options).toMatchObject(policies);
+    expect(f.act(ids[2], 'approveOrder', f.G.epoch)).toBe(true);
+    expect(f.G.status).toBe('round-review');
+    const review = clone(f.G);
+    expect(f.hostAction(ids[0], 'serverSetApprovalPolicies', review.epoch, { nextApproval: 'any' })).toBe(true);
+    expect(f.act(ids[2], 'acknowledge', f.G.epoch)).toBe(true);
+    expect(f.G.round).toBe(2);
+  });
+  it.each([{}, null, [], { orderApproval: 'owner' }, { nextApproval: false }, { deck: 'mixed' }])('rejects invalid live policy patch %j without mutation', input => {
+    const f = match(3), before = clone(f.G);
+    expect(f.hostAction('0', 'serverSetApprovalPolicies', f.G.epoch, input)).toBe(false);
+    expect(f.G).toEqual(before);
+  });
+  it.each(['sorting', 'round-review'] as const)('host finishing during %s retains only completed rounds, current lives and replay result', stage => {
+    const f = match(3, { options: normalizeTuringOptions({ mode: 'endless', lives: 7 }) });
+    sortedReveal(f);
+    if (stage === 'sorting') acknowledgeAll(f);
+    const before = clone(f.G);
+    expect(TuringGame.moves).not.toHaveProperty('serverFinishChallenge');
+    expect(f.act('0', 'serverFinishChallenge', before.epoch)).toBe(false);
+    expect(f.hostAction('0', 'serverFinishChallenge', before.epoch - 1, null)).toBe(false);
+    expect(f.hostAction('0', 'serverFinishChallenge', before.epoch, null)).toBe(true);
+    expect(f.G).toMatchObject({ status: 'finished', winner: 'humans', winReason: 'endless-stopped', completedRounds: 1,
+      integrity: before.integrity, round: before.round });
+    expect(f.state.ctx.gameover).toEqual({ winner: 'humans', reason: 'endless-stopped' });
+    expect(f.G.log.at(-1)).toMatchObject({ type: 'finish', completedRounds: 1, reason: 'endless-stopped' });
+    f.reload(); expect(turingObserverView(f.G, 'blind').log.at(-1)?.completedRounds).toBe(1);
+    expect(f.hostAction('0', 'serverFinishChallenge', f.G.epoch, null)).toBe(false);
+    expect(f.hostAction('0', 'serverSetApprovalPolicies', f.G.epoch, { nextApproval: 'any' })).toBe(false);
+  });
+  it('does not allow scoring a waiting room or ordinary five-round game', () => {
+    const regular = match(3), waiting = match(3, { startImmediately: false, options: normalizeTuringOptions({ mode: 'endless' }) });
+    for (const f of [regular, waiting]) expect(f.hostAction('0', 'serverFinishChallenge', f.G.epoch, null)).toBe(false);
+  });
+});
+
 describe('圖靈測試公開房規驗證', () => {
   it('normalizes independent defaults and trimmed custom cards without truncation', () => {
     const a = normalizeTuringOptions(undefined), b = normalizeTuringOptions(undefined);
     a.customQuestions.push(customQuestions[0]);
-    expect(b).toEqual({ deck: 'standard', customQuestions: [], mode: 'standard', lives: 5, redrawApproval: 'all', orderApproval: 'all' });
+    expect(b).toEqual({ deck: 'standard', customQuestions: [], mode: 'standard', lives: 5, redrawApproval: 'all', orderApproval: 'all', nextApproval: 'all' });
     expect(normalizeTuringOptions({ customQuestions: [{ prompt: '  請說一句歡迎詞。  ', low: ' 冷淡 ', high: ' 熱情 ' }] })).toEqual({
-      deck: 'standard', customQuestions: [{ prompt: '請說一句歡迎詞。', low: '冷淡', high: '熱情' }], mode: 'standard', lives: 5, redrawApproval: 'all', orderApproval: 'all',
+      deck: 'standard', customQuestions: [{ prompt: '請說一句歡迎詞。', low: '冷淡', high: '熱情' }], mode: 'standard', lives: 5, redrawApproval: 'all', orderApproval: 'all', nextApproval: 'all',
     });
     expect(validateTuringOptions({ deck: 'custom', customQuestions: customQuestions.slice(0, 5) }, 4)).toBeUndefined();
     expect(validateTuringOptions({ deck: 'custom', customQuestions: customQuestions.slice(0, 4) }, 4)).toContain('至少');
@@ -880,6 +954,7 @@ describe('圖靈測試公開房規驗證', () => {
     null, [], 'custom', 10, { unknown: true }, { deck: '__proto__' }, { deck: null }, { deck: true },
     { redrawApproval: null }, { orderApproval: null }, { redrawApproval: 'everyone' }, { orderApproval: 'owner' },
     { redrawApproval: true }, { orderApproval: 1 }, { redrawApproval: [] }, { orderApproval: {} },
+    { nextApproval: 'owner' }, { nextApproval: null }, { nextApproval: false },
     { mode: 'unknown' }, { mode: null }, { lives: '5' }, { lives: NaN }, { lives: Infinity }, { lives: 1.5 },
     { customQuestions: null }, { customQuestions: {} }, { customQuestions: [null] },
     { customQuestions: [{ ...customQuestions[0], id: 'injected' }] },

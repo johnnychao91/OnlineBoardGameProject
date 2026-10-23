@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type PointerEvent, type ReactNode } from 'react';
 import { turingCards, turingCardNumber, turingTableOrder, type TuringState } from '../games/turing/game';
+import { turingReadiness } from './TuringApprovalControls';
 
 export interface TuringTableActions {
   place: (cardID: string, index: number) => void;
@@ -15,7 +16,6 @@ type Drag = { cardID: string; pointerID: number; startX: number; startY: number;
 export function TuringSharedTable({ G, ownID, visible, readonly, nameOf, actions, scale, hostPlayerID }: Props) {
   const cards = turingCards(G), ids = Object.keys(cards);
   const order = turingTableOrder(G);
-  const approvals = G.orderApprovals ?? [];
   const editable = !readonly && G.status === 'sorting' && !!actions;
   const root = useRef<HTMLElement>(null);
   const dragging = useRef<Drag | null>(null);
@@ -86,10 +86,7 @@ export function TuringSharedTable({ G, ownID, visible, readonly, nameOf, actions
     const privateNumber = visible && (readonly || owner === ownID) ? turingCardNumber(G, cardID) : undefined;
     const number = result?.number ?? (G.status === 'finished' ? turingCardNumber(G, cardID) : privateNumber);
     const revealed = !!result || G.status === 'finished';
-    const policy = G.options.orderApproval ?? 'all';
-    const ready = G.status === 'sorting' && policy === 'all' ? approvals.includes(owner)
-      : G.status === 'briefing' || G.status === 'round-review' ? !!G.players[owner]?.acknowledged : undefined;
-    const readyText = G.status === 'sorting' && policy === 'host' && owner === hostPlayerID ? '待房主確認' : ready === undefined ? undefined : ready ? '已準備' : '尚未準備';
+    const readiness = turingReadiness(G, owner, hostPlayerID), ready = readiness?.ready, readyText = readiness?.text;
     const label = `${nameOf(owner)}的強度牌${readyText ? `，${readyText}` : ''}`;
     const body = <><span className="turing-desk-owner"><span className="turing-desk-name">{nameOf(owner)}</span>{!readonly && owner === ownID && <span className="you-label">你</span>}
       {readyText && <span className={`turing-ready-badge ${ready ? 'is-ready' : 'is-waiting'}`}>{readyText}</span>}</span>

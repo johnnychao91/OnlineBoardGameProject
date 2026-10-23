@@ -19,8 +19,10 @@ describe('Turing question rating control visibility', () => {
     expect(render()).toBe('');
     expect(render(spectator)).toBe('');
     const html = render(player);
-    expect(html).toContain('aria-label="讚這題"');
-    expect(html).toContain('aria-label="倒讚這題"');
+    expect(html).toContain('aria-label="讚題目主題"');
+    expect(html).toContain('aria-label="倒讚題目主題"');
+    expect(html).toContain('1 的敘述');
+    expect(html).toContain('10 的敘述');
     expect(html).not.toContain(player.credentials);
     expect(html).not.toContain('private-invite');
   });

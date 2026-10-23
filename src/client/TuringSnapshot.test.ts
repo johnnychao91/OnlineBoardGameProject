@@ -53,6 +53,7 @@ function sharedFixture(count: 2 | 3): TuringState {
 }
 const sharedInfo = (count: number): RoomInfo => ({ ...info, numPlayers: count, players: info.players.slice(0, count) });
 const sharedSurface = (html: string) => html.match(/<section class="panel turing-table turing-shared-table[\s\S]*?<\/section>/)?.[0] ?? '';
+const buttonWithLabel = (html: string, label: string) => [...html.matchAll(/<button\b[^>]*>[\s\S]*?<\/button>/g)].find(match => match[0].includes(label))?.[0] ?? '';
 const rightControls = (html: string) => html.match(/<section class="panel turing-controls">([\s\S]*?)<\/section>/)?.[1] ?? '';
 const controlButton = (html: string, label: string) => [...rightControls(html).matchAll(/<button\b[^>]*>[\s\S]*?<\/button>/g)]
   .find(match => match[0].includes(label))?.[0] ?? '';
@@ -88,7 +89,7 @@ describe('Turing read-only and private surfaces', () => {
     expect(html).not.toContain('送出回答</button>');
     expect(html).not.toContain('揭曉這張強度</button>');
     expect(html).not.toContain('我已了解本輪任務');
-    expect(html).not.toContain('已看過結果，開始下一輪');
+    expect(html).not.toContain('檢查完畢，下一題');
   });
   it.each(['blind', 'god'] as const)('shows unfinished cards at the end in %s view without inventing a reveal order', perspective => {
     const G = fixture();
@@ -253,9 +254,9 @@ describe('Turing read-only and private surfaces', () => {
     expect(sharedSurface(html)).not.toContain('先決定是否重抽');
     G.status = 'round-review'; G.redrawApprovals = [];
     html = liveBoard(G);
-    expect(controlButton(html, '已看過結果，開始下一輪')).not.toBe('');
-    expect(controlButton(html, '已看過結果，開始下一輪')).not.toContain('disabled');
-    expect(html).not.toContain('提議重抽題目');
+    expect(controlButton(html, '檢查完畢，下一題')).not.toBe('');
+    expect(controlButton(html, '檢查完畢，下一題')).not.toContain('disabled');
+    expect(buttonWithLabel(html, '提議重抽題目')).toBe('');
   });
   it('keeps approve, withdraw and round-result confirmation in the right controls with connection and acknowledgement guards', () => {
     const G = sharedFixture(3); G.orderApprovals = [];

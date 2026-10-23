@@ -9,11 +9,22 @@ export function buildTuringPosterModel({ G: state, info, step, totalSteps }: Pos
   const voice = G.rulesVersion !== 1;
   const shared = isTuringSharedTable(G);
   const endless = voice && G.targetRounds === null;
-  const completedRounds = G.completedRounds ?? (G.status === 'round-review' || G.winner === 'humans' ? G.round : Math.max(0, G.round - 1));
+  const completedRounds = G.completedRounds ?? (endless ? 0
+    : G.status === 'round-review' || G.winner === 'humans' ? G.round : Math.max(0, G.round - 1));
   const nameOf = (id: string) => clean(info.players.find(p => String(p.id) === id)?.name ?? '受測者', 28);
+  const redraw = G.status === 'sorting' && !!G.redrawApprovals?.length;
+  const policy = (redraw ? G.options.redrawApproval : G.options.orderApproval) ?? 'all';
+  const approvals = (redraw ? G.redrawApprovals : G.orderApprovals) ?? [];
+  const action = redraw ? '重抽題目' : '揭曉順序';
+  const approval = G.status === 'sorting' && !latest && (shared || redraw) ? {
+    kind: redraw ? 'redraw' : 'order', policy,
+    description: policy === 'all'
+      ? `已同意${redraw ? '重抽 ' : ' '}${approvals.length} / ${Object.keys(G.players).length} 人 · 全員同意後${action}`
+      : `${policy === 'host' ? '房主' : '任一玩家'}同意即可${action}`,
+  } : null;
   return {
     round: G.round, integrity: G.integrity, maxIntegrity: G.maxIntegrity,
-    voice, endless, completedRounds, shared,
+    voice, endless, completedRounds, shared, approval,
     roundLabel: endless ? `無盡 · 第 ${G.round} 關` : `第 ${G.round} ${voice ? '關' : '輪'} / ${G.targetRounds ?? 5}`,
     prompt: clean(G.question?.prompt ?? '準備進行人性校準', 200),
     low: clean(G.question?.low ?? '', 50), high: clean(G.question?.high ?? '', 50),
@@ -52,8 +63,8 @@ export async function createTuringPoster(options: PosterOptions): Promise<Blob> 
   lines(`1：${model.low}　→　10：${model.high}`, 90, 652, 900, 20, 1, '#a8c0bb');
   box(64, 714, 952, 310); text(model.table && !model.latest ? '桌面預排順序 · 數字尚未公開' : '剛剛揭曉的這一張', 90, 758, 21, '#bdcda2');
   if (model.latest) { const latest = model.latest; text(String(latest.number), 90, 890, 100, latest.error ? '#ff9aab' : '#9ae6d0'); lines(latest.name, 265, 810, 720, 30, 1); lines(latest.answer, 265, 858, 710, 26, 3); text(latest.error ? `順序下降 · ${life} −1` : '已公開強度', 90, 993, 23, latest.error ? '#ff9aab' : '#9ae6d0'); }
-  else if (model.table) { lines(model.table.order.join(' → ') || '等待大家放入卡牌。', 92, 825, 890, 28, 3); text(`已同意 ${model.table.approved} / ${model.table.total} 人 · 全員同意後才揭曉`, 92, 993, 24, '#a8c0bb'); }
-  else { text('所有強度仍在等待揭曉。', 92, 843, 34); text('未公開答案與數字不會放入戰報。', 92, 917, 24, '#a8c0bb'); }
+  else if (model.table) { lines(model.table.order.join(' → ') || '等待大家放入卡牌。', 92, 825, 890, 28, 3); if (model.approval) text(model.approval.description, 92, 993, 24, '#a8c0bb'); }
+  else { text('所有強度仍在等待揭曉。', 92, 843, 34); text('未公開答案與數字不會放入戰報。', 92, 917, 24, '#a8c0bb'); if (model.approval) text(model.approval.description, 92, 993, 24, '#a8c0bb'); }
   text('揭曉順序', 65, 1070, 23, '#a8c0bb');
   model.sequence.forEach((entry, i) => { box(64 + i * 117, 1092, 99, 64, entry.error ? '#593743' : '#24453e'); text(String(entry.number), 96 + i * 117, 1136, 32, entry.error ? '#ffb2bb' : '#c0f4de'); });
   text(model.result, 64, 1220, 32); text('捷寶桌遊室', 64, 1300, 23); text(`復盤 ${model.step} / ${model.totalSteps}`, 770, 1300, 20, '#a8c0bb');

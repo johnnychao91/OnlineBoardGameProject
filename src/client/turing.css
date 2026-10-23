@@ -71,6 +71,7 @@
 .turing-layout .turing-history-aside { padding-top: 0; }
 .turing-options > label { display: block; margin: 16px 0; }
 .turing-options select { display: block; width: 100%; margin-top: 8px; }
+.turing-controls > button + p, .turing-options > button + p { margin-top: 8px; }
 .turing-voice-note { border: 1px solid #4f8b88; border-radius: 8px; background: #1a373c; padding: 12px 14px; margin: 16px 0; }
 .turing-voice-note strong { font-size: 14px; color: var(--mint); }
 .turing-voice-note p { font-size: 12px; line-height: 1.8; margin: 6px 0 0; }
@@ -253,3 +254,12 @@ button.turing-desk-card:active { cursor: grabbing; }
   .turing-layout { --turing-card-width: 260px; --turing-card-height: 390px; }
   .turing-desk-number { font-size: 130px; }
 }
+.turing-policy-fields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.turing-policy-fields label { min-width: 0; }
+.turing-policy-status { margin: 8px 0 0; }
+.turing-policy-details { margin-top: 14px; }
+.turing-policy-details > summary { cursor: pointer; font-size: .85rem; }
+.turing-policy-details[open] .turing-policy-fields { margin-top: 10px; grid-template-columns: 1fr; gap: 8px; }
+.turing-finish-control { margin-top: 12px; }
+.turing-finish-control > p { margin: 0 0 8px; }
+@media (max-width: 520px) { .turing-policy-fields { grid-template-columns: 1fr; gap: 10px; } }

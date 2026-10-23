@@ -20,6 +20,7 @@ test-results/
 # Deployment identity, private settings, data exports and recovery copies stay local.
 private/
 backups/
+/question-feedback/
 deploy/*.local
 deploy/*.local.*
 *.bak

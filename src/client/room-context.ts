@@ -6,5 +6,6 @@ export interface RoomContextValue {
   info: RoomInfo;
   inviteUrl: string;
   setInviteUrl: (url: string) => void;
+  onUpdate?: (info: RoomInfo) => void;
 }
 export const RoomContext = createContext<RoomContextValue | null>(null);

@@ -84,7 +84,7 @@ export const clientGames: Record<GameID, ClientGameDefinition> & Record<string, 
     lobbyTitle: '用聲音校準，靠默契過關。', lobbyDescription: gameCatalog['turing-test'].description,
     cooperative: true, factionLabels: { humans: '校準小隊' },
     resultLabels: { humans: '全隊校準成功', system: '全隊檢測失敗' },
-    reasonLabels: { calibrated: '完成五關人性校準', 'integrity-lost': '生命耗盡', 'endless-exhausted': '無盡挑戰生命耗盡' },
+    reasonLabels: { calibrated: '完成五關人性校準', 'integrity-lost': '生命耗盡', 'endless-exhausted': '無盡挑戰生命耗盡', 'endless-stopped': '房主結算無盡挑戰成績' },
   },
   'silver-moon': {
     name: gameCatalog['silver-moon'].name,
