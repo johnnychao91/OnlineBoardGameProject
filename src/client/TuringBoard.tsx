@@ -82,10 +82,12 @@ export function TuringBoard({ G, playerID, moves, isConnected }: Props) {
     {notice && <p className="error-message" role="status">{notice}</p>}
     {hostAction.error && <p className="error-message" role="status">{hostAction.error}</p>}
     {(pending || hostAction.pending) && <p className="small muted" role="status">正在確認操作…</p>}
-    {host && G.rulesVersion >= 4 && <RoomManagementContent><TuringPolicySettings seat={seat} info={info} policies={G.options} epoch={G.epoch} disabled={isConnected === false || pending || hostAction.pending} onBusy={setPolicyPending} compact /></RoomManagementContent>}
-    {host && <TuringFinishControl G={G} canAct={canAct} onFinish={() => void hostAction.send('finish')} />}
   </>;
   return <>
+    {host && G.status !== 'finished' && <RoomManagementContent>
+      {G.rulesVersion >= 4 && <TuringPolicySettings seat={seat} info={info} policies={G.options} epoch={G.epoch} disabled={isConnected === false || pending || hostAction.pending} onBusy={setPolicyPending} compact />}
+      <TuringFinishControl G={G} canAct={canAct} onFinish={() => void hostAction.send('finish')} />
+    </RoomManagementContent>}
     <div className={`connection-banner ${isConnected === false ? 'offline' : ''}`} role="status"><Icon type="signal" size={15} />{isConnected === false ? '連線中斷，操作暫停；重連後同步最新進度。' : '人性檢測連線已建立'}</div>
     <TuringLayout G={G} info={info} nameOf={nameOf} ownID={id} visible={visible} onVisible={setVisible} controls={G.status === 'finished' ? undefined : controls}
       questionFeedback={questionFeedback} questionControls={questionControls}
@@ -200,5 +202,5 @@ function TuringLog({ G, nameOf }: { G: TuringState; nameOf: TuringNameOf }) {
   return <section className="panel event-log turing-log"><div className="section-heading"><h2>檢測紀錄</h2><span>公開資訊</span></div><ol>{G.log.slice(-40).reverse().map((event, i) => <li key={G.log.length - i}><span className={`log-dot ${event.error ? 'hazard' : 'repair'}`} /><div><p>{turingEventText(event, nameOf, { legacy, dualCards })}</p>{event.question && <p>{event.question.prompt}</p>}<small>第 {event.round} {legacy ? '輪' : '關'}</small></div></li>)}</ol></section>;
 }
 export function TuringRuleSummary({ legacy = false, legacyDual = false, direct = true, group = false }: { legacy?: boolean; legacyDual?: boolean; direct?: boolean; group?: boolean }) {
-  return <div className="rule-summary">{legacy ? <><p>這是仍依舊規則進行的文字局：4～9 人合作五輪，受測者各有一張強度牌，回答封存至全員送出才公開。</p><p>檢測員逐張揭牌；比前一張小扣一點容錯。歸零失敗，完成五輪仍有容錯則成功。</p></> : <><p>2～10 人全員合作。請先透過語音軟體建立通話，以口頭回答傳達秘密強度。{direct ? '抽題後直接開始排牌，不需逐人確認已回答。' : '這是舊版進行局，仍需完成原有的開場與口頭回答確認。'}</p>{legacyDual ? <p>這是舊版雙卡局：檢測員不抽牌，其餘玩家各有 A、B 兩張牌；依每張卡的回答由低到高逐張揭曉。</p> : group ? <p>本局採「群體校準」：每人一張牌，任何人都能調整任何人的牌，依房規由房主、全員或任一玩家確認後一次揭曉。調整位置會取消先前的排序同意。牌桌可左右捲動，牌面保持固定尺寸。</p> : <p>本局採「檢測員玩法」：輪流擔任檢測員，其餘每人一張牌，由檢測員逐張揭牌。</p>}{direct && <p>尚未揭牌時，依房規由房主、全員或任一玩家同意重抽；換題會保留強度牌、關數與生命，並重新排牌。房主模式需由入座房主確認。輪末依「檢查完畢下一題」的同意方式換關；房主可在遊戲中即時切換三項設定。</p>}<p>比前一張小扣一點生命，生命不會回復。標準模式挑戰五關；無盡模式持續到生命歸零，或由房主選擇以目前成績結束，紀錄成功通過幾關。</p><p>題目提到「寫下」也直接口頭回答。網站不錄音或轉錄語音。</p></>}<p>可以虛構，不必透露真實經歷。不得直接說出秘密數字或用約定暗號；本遊戲沒有敵對玩家。</p><a href="/rules/turing-test" target="_blank" rel="noopener noreferrer">完整規則與圖鑑 →</a></div>;
+  return <div className="rule-summary">{legacy ? <><p>這是仍依舊規則進行的文字局：4～9 人合作五輪，受測者各有一張強度牌，回答封存至全員送出才公開。</p><p>檢測員逐張揭牌；比前一張小扣一點容錯。歸零失敗，完成五輪仍有容錯則成功。</p></> : <><p>2～10 人全員合作。請先透過語音軟體建立通話，以口頭回答傳達秘密強度。{direct ? '抽題後直接開始排牌，不需逐人確認已回答。' : '這是舊版進行局，仍需完成原有的開場與口頭回答確認。'}</p>{legacyDual ? <p>這是舊版雙卡局：檢測員不抽牌，其餘玩家各有 A、B 兩張牌；依每張卡的回答由低到高逐張揭曉。</p> : group ? <p>本局採「群體校準」：每人一張牌，任何人都能調整任何人的牌，依房規由房主、全員或任一玩家確認後一次揭曉。調整位置會取消先前的排序同意。牌面依桌面空間等比例縮放，窄螢幕會換行接續排列。</p> : <p>本局採「檢測員玩法」：輪流擔任檢測員，其餘每人一張牌，由檢測員逐張揭牌。</p>}{direct && <p>尚未揭牌時，依房規由房主、全員或任一玩家同意重抽；換題會保留強度牌、關數與生命，並重新排牌。房主模式需由入座房主確認。輪末依「檢查完畢下一題」的同意方式換關；房主可在遊戲中即時切換三項設定。</p>}<p>比前一張小扣一點生命，生命不會回復。標準模式挑戰五關；無盡模式持續到生命歸零，或由房主選擇以目前成績結束，紀錄成功通過幾關。</p><p>題目提到「寫下」也直接口頭回答。網站不錄音或轉錄語音。</p></>}<p>可以虛構，不必透露真實經歷。不得直接說出秘密數字或用約定暗號；本遊戲沒有敵對玩家。</p><a href="/rules/turing-test" target="_blank" rel="noopener noreferrer">完整規則與圖鑑 →</a></div>;
 }

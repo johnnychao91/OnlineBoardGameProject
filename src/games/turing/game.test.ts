@@ -107,7 +107,7 @@ beforeEach(() => vi.spyOn(console, 'error').mockImplementation(() => {}));
 afterEach(() => vi.restoreAllMocks());
 
 describe('圖靈測試合作流程與快照', () => {
-  it.each([2, 3, 4, 5, 6, 7, 8, 9, 10])('%i 人隨機開場、輪換檢測員、五輪通關且題目不重複', count => {
+  it.each([2, 3, 4, 5, 6, 7, 8, 9])('%i 人隨機開場、輪換檢測員、五輪通關且題目不重複', count => {
     const ids = Array.from({ length: count }, (_, index) => String(12 - count + index));
     const f = match(count, { participantIDs: ids });
     const firstExaminer = f.G.examinerID;
@@ -421,11 +421,13 @@ describe('圖靈測試群體校準共同排序桌', () => {
   });
   it.each([
     [3, 'missing'], [3, 'empty'], [3, 'partial'], [4, 'missing'], [4, 'empty'], [4, 'partial'],
+    [5, 'missing'], [5, 'empty'], [5, 'partial'],
   ] as const)('saved v%i %s tables project every card and accept direct agreement after restart', (version, layout) => {
     const f = match(3, {}, 'old-table-layout', version === 3 ? 3 : false), ids = Object.keys(f.G.players);
     const savedOrder = layout === 'missing' ? undefined : layout === 'empty' ? [] : [ids[2]];
     const fullOrder = layout === 'partial' ? [ids[2], ids[0], ids[1]] : ids;
-    f.patch({ tableOrder: savedOrder, orderApprovals: [] }); f.reload();
+    f.patch({ rulesVersion: version, tableOrder: savedOrder, orderApprovals: [] }); f.reload();
+    expect(f.G.rulesVersion).toBe(version);
     const original = clone(f.G);
     for (const view of [turingPlayerView({ G: f.G, playerID: ids[0] }), turingObserverView(f.G, 'blind'), turingObserverView(f.G, 'god')]) {
       expect(turingTableOrder(view)).toEqual(fullOrder); expect(view.tableOrder).toEqual(fullOrder);
@@ -446,6 +448,7 @@ describe('圖靈測試群體校準共同排序桌', () => {
     expect(f.G.revealed.map(card => card.cardID)).toEqual(fullOrder);
     expect(f.G.status).toBe('round-review');
     acknowledgeAll(f);
+    expect(f.G.rulesVersion).toBe(version);
     expect(f.G.tableOrder).toEqual(ids);
     expect(f.G.status).toBe(version === 3 ? 'briefing' : 'sorting');
   });
@@ -566,8 +569,6 @@ describe('圖靈測試群體校準共同排序桌', () => {
     expect(f.act('99', 'approveOrder', f.G.epoch)).toBe(false);
     expect(f.act(ids[0], 'removeCard', '99', f.G.epoch)).toBe(false);
     expect(f.act(ids[0], 'revealAnswer', ids[0], f.G.epoch)).toBe(false);
-    for (const [index, id] of ids.entries()) expect(f.act(ids[0], 'placeCard', id, index, f.G.epoch)).toBe(true);
-    expect(f.act('99', 'approveOrder', f.G.epoch)).toBe(false);
     expect(f.act(ids[0], 'approveOrder', f.G.epoch - 1)).toBe(false);
     expect(f.act(ids[0], 'withdrawApproval', f.G.epoch)).toBe(false);
     expect(f.G.revealed).toEqual([]);
@@ -950,8 +951,9 @@ describe('圖靈測試 v5 群體校準與檢測員玩法', () => {
   });
   it.each([
     { count: 4, mode: 'standard' as const, rounds: 5 },
+    { count: 10, mode: 'standard' as const, rounds: 5 },
     { count: 10, mode: 'endless' as const, rounds: 6 },
-  ])('$count-player group calibration preserves its table, privacy and challenge type across rounds and reloads', ({ count, mode, rounds }) => {
+  ])('$count-player $mode group calibration preserves its table, privacy and challenge type across rounds and reloads', ({ count, mode, rounds }) => {
     const f = match(count, { options: normalizeTuringOptions({ sortingMode: 'group', mode, lives: 20 }) });
     const ids = Object.keys(f.G.players);
     for (let round = 1; round <= rounds; round++) {
@@ -1011,20 +1013,88 @@ describe('圖靈測試 v5 群體校準與檢測員玩法', () => {
     expect(getGameDefinition('turing-test')!.getOutcome(f.G)?.challenge)
       .toEqual({ mode: 'endless', completedRounds: 2, startingLives: 7 });
   });
-  it('ten-player examiner play deals nine cards and keeps examiner challenge statistics', () => {
-    const f = match(10, { options: normalizeTuringOptions({ sortingMode: 'examiner', mode: 'endless', lives: 6 }) });
+  it('nine-player examiner play deals eight cards and keeps examiner challenge statistics', () => {
+    const f = match(9, { options: normalizeTuringOptions({ sortingMode: 'examiner', mode: 'endless', lives: 6 }) });
     const ids = Object.keys(f.G.players);
     expect(isTuringSharedTable(f.G)).toBe(false);
-    expect(Object.keys(turingCards(f.G))).toHaveLength(9);
+    expect(Object.keys(turingCards(f.G))).toHaveLength(8);
     expect(f.G.private[f.G.examinerID]).toBeUndefined();
     sortedReveal(f);
     expect(f.hostAction(ids[0], 'serverFinishChallenge', f.G.epoch, undefined)).toBe(true);
     expect(getGameDefinition('turing-test')!.getOutcome(f.G)?.challenge)
       .toEqual({ mode: 'endless', completedRounds: 1, startingLives: 6 });
   });
+  it('a saved v5 ten-player examiner match resumes and rotates without adopting the new-room limit', () => {
+    const f = match(10, { options: normalizeTuringOptions({ sortingMode: 'group', mode: 'endless', lives: 6 }) });
+    const ids = Object.keys(f.G.players), examinerID = ids[3], saved = clone(f.G);
+    // Reconstruct the already-started examiner state supported by 0.27.0.
+    saved.options.sortingMode = 'examiner'; saved.examinerID = examinerID;
+    delete saved.private[examinerID]; delete saved.cards![examinerID];
+    delete saved.tableOrder; delete saved.orderApprovals;
+    saved.log[0].examinerID = examinerID;
+    f.patch(saved); f.reload();
+    expect(validateTuringOptions(f.G.options, 10)).toBeTypeOf('string');
+    for (let round = 1; round <= 2; round++) {
+      expect(f.G).toMatchObject({ rulesVersion: 5, status: 'sorting', round, completedRounds: round - 1,
+        options: { sortingMode: 'examiner', mode: 'endless' }, examinerID: ids[round + 2] });
+      expect(Object.keys(f.G.players)).toHaveLength(10);
+      expect(isTuringSharedTable(f.G)).toBe(false);
+      expect(Object.keys(turingCards(f.G))).toHaveLength(9);
+      expect(Object.keys(f.G.private)).toHaveLength(9);
+      expect(f.G.private[f.G.examinerID]).toBeUndefined();
+      sortedReveal(f);
+      expect(f.G).toMatchObject({ status: 'round-review', completedRounds: round, integrity: 6 });
+      expect(f.G.revealed).toHaveLength(9);
+      f.reload();
+      if (round === 1) acknowledgeAll(f);
+    }
+    expect(f.hostAction(ids[0], 'serverFinishChallenge', f.G.epoch, undefined)).toBe(true);
+    expect(getGameDefinition('turing-test')!.getOutcome(f.G)?.challenge)
+      .toEqual({ mode: 'endless', completedRounds: 2, startingLives: 6 });
+  });
 });
 
 describe('圖靈測試公開房規驗證', () => {
+  it.each(['standard', 'endless'] as const)('%s enforces the examiner limit without changing the requested mode', mode => {
+    const inputs = mode === 'standard' ? [undefined, {}, { sortingMode: 'examiner' }]
+      : [{ mode }, { mode, sortingMode: 'examiner' }];
+    for (const input of inputs) {
+      const before = input === undefined ? undefined : clone(input);
+      const error = validateTuringOptions(input, 10);
+      expect(error).toBe('檢測員排序最多 9 位玩家；10 人請選擇群體校準。');
+      expect(createMatch({ game: TuringGame, numPlayers: 10, setupData: { options: input, startImmediately: true }, unlisted: true }))
+        .toMatchObject({ setupDataError: error });
+      expect(input).toEqual(before);
+      expect(normalizeTuringOptions(input).sortingMode).toBe('examiner');
+      expect(validateTuringOptions(input, 9)).toBeUndefined();
+    }
+    for (const [count, sortingMode] of [[9, 'examiner'], [10, 'group']] as const) {
+      const options = normalizeTuringOptions({ mode, sortingMode });
+      expect(validateTuringOptions(options, count)).toBeUndefined();
+      const f = match(count, { options });
+      expect(f.G.options).toMatchObject({ mode, sortingMode });
+      expect(isTuringSharedTable(f.G)).toBe(sortingMode === 'group');
+      expect(Object.keys(turingCards(f.G))).toHaveLength(sortingMode === 'group' ? count : count - 1);
+    }
+  });
+  it.each([undefined, false])('a ten-seat waiting room preserves examiner settings with startImmediately=%s but cannot start them', startImmediately => {
+    const options = normalizeTuringOptions({ sortingMode: 'examiner', mode: 'endless', lives: 7 });
+    const f = match(10, { options, startImmediately });
+    expect(f.G).toMatchObject({ status: 'lobby', options, private: {}, cards: {}, round: 0 });
+    for (const id of Object.keys(f.G.players)) expect(f.act(id, 'setReady', true)).toBe(true);
+    const before = clone(f.G);
+    expect(f.act(Object.keys(f.G.players)[0], 'startGame')).toBe(false);
+    expect(f.G).toEqual(before);
+  });
+  it.each([[9, 'examiner'], [10, 'group']] as const)('%i-seat %s waiting rooms can start through the ready flow', (count, sortingMode) => {
+    const f = match(count, { startImmediately: false, options: normalizeTuringOptions({ sortingMode }) });
+    const ids = Object.keys(f.G.players);
+    for (const id of ids) expect(f.act(id, 'setReady', true)).toBe(true);
+    expect(f.act(ids[0], 'startGame')).toBe(true);
+    expect(f.G).toMatchObject({ status: 'sorting', options: { sortingMode } });
+    expect(isTuringSharedTable(f.G)).toBe(sortingMode === 'group');
+    expect(Object.keys(turingCards(f.G))).toHaveLength(sortingMode === 'group' ? count : count - 1);
+  });
   it('normalizes independent defaults and trimmed custom cards without truncation', () => {
     const a = normalizeTuringOptions(undefined), b = normalizeTuringOptions(undefined);
     a.customQuestions.push(customQuestions[0]);

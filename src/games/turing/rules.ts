@@ -99,6 +99,7 @@ export function validateTuringOptions(input: unknown, numPlayers?: number): stri
   }
   try {
     const options = normalizeTuringOptions(input);
+    if (numPlayers === 10 && options.sortingMode === 'examiner') return '檢測員排序最多 9 位玩家；10 人請選擇群體校準。';
     if (options.deck === 'custom' && options.customQuestions.length < TURING_ROUNDS) return '只使用自訂題庫時，至少需要 5 題不同的題目。';
   } catch (error) { return (error as Error).message; }
   return undefined;

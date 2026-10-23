@@ -201,7 +201,7 @@ describe('Turing custom questions, private answers and replay integration', () =
     { count: 2, version: 2, sortingMode: 'examiner' }, { count: 3, version: 2, sortingMode: 'examiner' },
     { count: 2, version: 3, sortingMode: 'examiner' }, { count: 3, version: 3, sortingMode: 'examiner' },
     { count: 2, version: 4, sortingMode: 'examiner' }, { count: 3, version: 4, sortingMode: 'examiner' }, { count: 4, version: 4, sortingMode: 'examiner' },
-    { count: 4, version: 5, sortingMode: 'group' }, { count: 10, version: 5, sortingMode: 'group' }, { count: 10, version: 5, sortingMode: 'examiner' },
+    { count: 4, version: 5, sortingMode: 'group' }, { count: 10, version: 5, sortingMode: 'group' }, { count: 9, version: 5, sortingMode: 'examiner' },
   ])('$count-player v$version $sortingMode play authorizes each card, isolates rooms, survives restart and records its mode-specific result', async ({ count, version, sortingMode }) => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
     const f = await fixture(), g = await group(f, count), other = await group(f, 2);
@@ -215,10 +215,10 @@ describe('Turing custom questions, private answers and replay integration', () =
     expect(entries).toHaveLength(sharedTable ? count : (count - 1) * (version === 2 ? 2 : 1));
     expect(first).toMatchObject({ rulesVersion: version, targetRounds: mode === 'endless' ? null : 5, completedRounds: 0 });
     const [cardID, card] = entries[0];
-    const otherID = g.seats.find(seat => seat.playerID !== card.playerID)!.playerID;
-    await f.rejectMove(g, otherID, 'confirmSpoken', [cardID, first.epoch]);
     await f.rejectMove(g, card.playerID, 'submitAnswer', ['此局不接受文字答案', first.epoch]);
     if (version < 4) {
+      const otherID = g.seats.find(seat => seat.playerID !== card.playerID)!.playerID;
+      await f.rejectMove(g, otherID, 'confirmSpoken', [cardID, first.epoch]);
       await f.rejectMove(g, g.host.playerID, 'revealAnswer', [cardID, first.epoch]);
       if (sharedTable) await f.rejectMove(g, g.host.playerID, 'placeCard', [cardID, 0, first.epoch]);
       await f.move(g, card.playerID, 'confirmSpoken', [cardID, first.epoch]);
@@ -307,6 +307,39 @@ describe('Turing custom questions, private answers and replay integration', () =
     const restored = (await f.request(path(g.host), undefined, g.host)).body;
     expect(restored.history).toEqual(lobby.history);
   }, 30000);
+
+  it('refuses ten-player examiner starts without changing the room, then starts the same members after switching to group calibration', async () => {
+    const f = await fixture(), g = await group(f, 10);
+    const configured = await f.request(path(g.host, 'options'), {
+      matchID: g.matchID, options: { sortingMode: 'examiner' },
+    }, g.host);
+    expect(configured.status).toBe(200);
+    g.matchID = configured.body.matchID;
+    for (const seat of g.seats) {
+      expect((await f.request(path(g.host, 'ready'), { ready: true, matchID: g.matchID }, seat)).status).toBe(200);
+    }
+    const before = await f.app.db.fetch(g.matchID, { state: true, metadata: true });
+    const rejected = await f.request(path(g.host, 'start'), { matchID: g.matchID }, g.host);
+    expect(rejected).toMatchObject({ status: 409, body: { error: '檢測員排序最多 9 位玩家；10 人請選擇群體校準。' } });
+    expect(await f.app.db.fetch(g.matchID, { state: true, metadata: true })).toEqual(before);
+    const unchanged = (await f.request(path(g.host), undefined, g.host)).body;
+    expect(unchanged).toMatchObject({ matchID: g.matchID, status: 'lobby', numPlayers: 10, gameOptions: { sortingMode: 'examiner' } });
+
+    const changed = await f.request(path(g.host, 'options'), {
+      matchID: g.matchID, options: { ...configured.body.gameOptions, sortingMode: 'group' },
+    }, g.host);
+    expect(changed.status).toBe(200);
+    g.matchID = changed.body.matchID;
+    for (const seat of g.seats) {
+      expect((await f.request(path(g.host, 'ready'), { ready: true, matchID: g.matchID }, seat)).status).toBe(200);
+    }
+    expect((await f.request(path(g.host, 'start'), { matchID: g.matchID }, g.host)).status).toBe(200);
+    const started = await f.app.db.fetch(g.matchID, { state: true, metadata: true });
+    expect(started.state!.G).toMatchObject({ status: 'sorting', rulesVersion: 5, options: { sortingMode: 'group' } });
+    expect(Object.keys(started.state!.G.players)).toEqual(g.seats.map(seat => seat.playerID));
+    expect(Object.keys(turingCards(started.state!.G))).toHaveLength(10);
+    for (const seat of g.seats) expect(started.metadata!.players[Number(seat.playerID)].credentials).toBe(seat.credentials);
+  });
 
   it.each(['fresh', 'legacy-empty', 'legacy-partial'] as const)('keeps every card on a %s shared table and permits unanimous reveal after restart without a placement prerequisite', async source => {
     const f = await fixture(), g = await group(f, 3);
@@ -688,15 +721,31 @@ describe('Turing custom questions, private answers and replay integration', () =
     }
   });
 
-  it('keeps ended test-room challenge replays but never adds their score to site statistics', async () => {
+  it.each(['endless-exhausted', 'endless-stopped'] as const)('keeps test-room challenge results and replays after %s without adding their score to site statistics', async reason => {
     const f = await fixture(), g = await group(f, 2, true);
     expect((await f.request(path(g.host, 'options'), { matchID: g.matchID, options: { mode: 'endless', lives: 1 } }, g.host)).status).toBe(200);
-    await start(f, g); await ack(f, g); await speakAll(f, g); await revealAll(f, g, true);
+    await start(f, g); await ack(f, g); await speakAll(f, g); await revealAll(f, g, reason === 'endless-exhausted');
+    const completedRounds = reason === 'endless-exhausted' ? 0 : 1;
+    if (reason === 'endless-stopped') {
+      const current = (await f.state(g.matchID)).G;
+      expect(current).toMatchObject({ status: 'round-review', completedRounds, integrity: 1 });
+      expect((await f.request(path(g.host, 'turing-host-action'), {
+        matchID: g.matchID, epoch: current.epoch, action: 'finish',
+      }, g.host)).status).toBe(200);
+    }
     const lobby = await archive(f, g);
-    expect(lobby.history.at(-1).challenge).toEqual({ mode: 'endless-table', completedRounds: 0, startingLives: 1 });
-    expect((await f.request(path(g.host, `replay?matchID=${g.matchID}`), undefined, g.observer)).status).toBe(200);
-    expect((await f.request('/api/stats')).body).toMatchObject({ completedGames: 0, totalPlayerParticipations: 0 });
-    const summary = (await f.request('/api/stats')).body.byGame.find((entry: any) => entry.gameId === 'turing-test');
+    const challenge = { mode: 'endless-table', completedRounds, startingLives: 1 };
+    expect(lobby.history.at(-1)).toMatchObject({ ending: 'completed', reason });
+    expect(lobby.history.at(-1).challenge).toEqual(challenge);
+    expect(f.app.rooms.rooms.get(g.host.roomId)!.history!.at(-1)!.challenge).toEqual(challenge);
+    const replay = await f.request(path(g.host, `replay?matchID=${g.matchID}`), undefined, g.observer);
+    expect(replay.status).toBe(200);
+    expect(replay.body.room.testRoom).toBe(true);
+    expect(replay.body.frames.at(-1).G).toMatchObject({ status: 'finished', winReason: reason, completedRounds });
+    noServerSecrets(replay.body);
+    const stats = (await f.request('/api/stats')).body;
+    expect(stats).toMatchObject({ completedGames: 0, totalPlayerParticipations: 0 });
+    const summary = stats.byGame.find((entry: any) => entry.gameId === 'turing-test');
     expect(summary).toMatchObject({ completed: 0, rankedCompleted: 0, challenges: [] });
   });
 

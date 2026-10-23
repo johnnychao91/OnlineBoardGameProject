@@ -1,15 +1,20 @@
-import { createElement } from 'react';
+import { createElement, type ReactNode } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { createMatch } from 'boardgame.io/internal';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { TuringGame, type TuringState } from '../games/turing/game';
 import { TuringBoard, turingEventText } from './TuringBoard';
 import { TuringOptions } from './TuringOptions';
 import { TuringLiveObservation } from './TuringLiveObservation';
-import { TuringPolicySettings } from './TuringPolicySettings';
 import { TuringSnapshot } from './TuringSnapshot';
 import { RoomContext } from './room-context';
 import type { AuthSession, RoomInfo } from './api';
+
+// SSR has no DOM target; mark portalled content so placement and authority can be checked together.
+vi.mock('react-dom', async importOriginal => ({
+  ...await importOriginal<typeof import('react-dom')>(),
+  createPortal: (children: ReactNode) => createElement('section', { 'data-room-management': '' }, children),
+}));
 
 const room: RoomInfo = {
   roomId: 'approval-room', matchID: 'approval-match', gameName: 'turing-test', status: 'lobby',
@@ -18,8 +23,8 @@ const room: RoomInfo = {
 };
 const seat = (info = room, playerID = '0'): AuthSession => ({ ...info, access: 'player', playerID, credentials: 'local-test-credential' });
 const observer = (info: RoomInfo, observerID = 'observer-host'): AuthSession => ({ ...info, access: 'spectator', observerID, credentials: 'local-test-credential' });
-const withRoom = (info: RoomInfo, session: AuthSession, children: ReturnType<typeof createElement>) => renderToStaticMarkup(createElement(RoomContext.Provider, {
-  value: { info, seat: session, inviteUrl: '', setInviteUrl: () => {} },
+const withRoom = (info: RoomInfo, session: AuthSession, children: ReturnType<typeof createElement>, management = false) => renderToStaticMarkup(createElement(RoomContext.Provider, {
+  value: { info, seat: session, inviteUrl: '', setInviteUrl: () => {}, managementContainer: management ? {} as HTMLElement : undefined },
 }, children));
 function state(count = 3): TuringState {
   const match = createMatch({ game: TuringGame, numPlayers: count, setupData: { startImmediately: true }, unlisted: true });
@@ -33,6 +38,8 @@ const labels = ['提議重抽題目', '同意這個順序', '檢查完畢下一�
 const select = (html: string, label: string) => html.match(new RegExp(`<label>${label}(<select[\\s\\S]*?<\\/select>)`))?.[1] ?? '';
 const button = (html: string, label: string) => [...html.matchAll(/<button\b[^>]*>[\s\S]*?<\/button>/g)].find(match => match[0].includes(label))?.[0] ?? '';
 const table = (html: string) => html.match(/<section class="panel turing-table turing-shared-table[\s\S]*?<\/section>/)?.[0] ?? '';
+const managementMenu = (html: string) => html.match(/<section data-room-management="">([\s\S]*?)<\/section>/)?.[1] ?? '';
+const rightControls = (html: string) => html.match(/<section class="panel turing-controls">([\s\S]*?)<\/section>/)?.[1] ?? '';
 const board = (G: TuringState, info = room, id = '0') => withRoom(info, seat(info, id), createElement(TuringBoard, { G, playerID: id, moves: {}, isConnected: true }));
 
 describe('Turing approval settings and authority surfaces', () => {
@@ -56,9 +63,10 @@ describe('Turing approval settings and authority surfaces', () => {
     expect(select(html, '題庫模式')).toContain('<option value="protocol" selected="">');
     expect(html).toMatch(/<input[^>]*min="1"[^>]*max="20"[^>]*value="7"/);
     expect(html).toContain('2～10 人'); expect(html).toContain('2～3 人固定使用群體校準');
+    const guest = options(info, seat(info));
     for (const label of ['挑戰模式', '排序玩法', '題庫模式']) {
       expect(select(html, label)).not.toContain('disabled');
-      expect(select(options(info, seat(info)), label)).toContain('disabled');
+      expect(select(guest, label)).toContain('disabled');
     }
   });
   it('renders independent saved choices and prevents an observing host from choosing host approval', () => {
@@ -130,20 +138,23 @@ describe('Turing approval settings and authority surfaces', () => {
   });
   it('keeps legacy briefing unanimous and hides live policy settings in legacy games', () => {
     const G = state(); G.rulesVersion = 3; G.status = 'briefing'; G.options.nextApproval = 'any';
-    expect(table(board(G)).match(/>尚未準備<\/span>/g)).toHaveLength(3);
-    expect(button(board(G), '我已了解本輪任務')).not.toBe('');
-    expect(board(G)).not.toContain('turing-policy-details');
+    const html = board(G);
+    expect(table(html).match(/>尚未準備<\/span>/g)).toHaveLength(3);
+    expect(button(html, '我已了解本輪任務')).not.toBe('');
+    expect(html).not.toContain('turing-policy-details');
   });
-  it('lets an observing host manage policies and settle an endless score without approving cards or voting', () => {
+  it.each([false, true])('keeps endless settlement in room management for seated and observing hosts, including test rooms (%s)', testRoom => {
     const G = state(); G.options.mode = 'endless'; G.targetRounds = null;
     G.options.orderApproval = 'host'; G.options.redrawApproval = 'host'; G.options.nextApproval = 'host';
-    const info = { ...room, status: 'sorting', hostPlayerID: null, hostObserverID: 'observer-host' };
-    const live = (session: AuthSession) => renderToStaticMarkup(createElement(TuringLiveObservation, { G, info, seat: session, perspective: 'blind', onRefresh: () => {} }));
+    const info = { ...room, testRoom, status: 'sorting', hostPlayerID: null, hostObserverID: 'observer-host' };
+    const live = (session: AuthSession, management = false) => withRoom(info, session, createElement(TuringLiveObservation, { G, info, seat: session, perspective: 'blind', onRefresh: () => {} }), management);
     const host = live(observer(info));
     expect(button(host, '房主確認排序')).toBe(''); expect(button(host, '房主重抽題目')).toBe('');
     expect(button(host, '檢查完畢，下一題')).toBe('');
-    expect(button(host, '以目前成績結束')).not.toBe(''); expect(host).not.toContain('turing-policy-details');
-    const menu = renderToStaticMarkup(createElement(TuringPolicySettings, { seat: observer(info), info, policies: G.options, epoch: G.epoch, compact: true }));
+    expect(button(host, '以目前成績結束')).toBe(''); expect(host).not.toContain('turing-policy-details');
+    const managed = live(observer(info), true), menu = managementMenu(managed);
+    expect(button(menu, '以目前成績結束')).not.toBe(''); expect(button(menu, '以目前成績結束')).not.toContain('disabled');
+    expect(rightControls(managed)).toBe('');
     expect(menu).toContain('<details class="turing-policy-details">');
     for (const label of labels) {
       expect(select(menu, label)).toContain('value="host" disabled=""');
@@ -151,13 +162,28 @@ describe('Turing approval settings and authority surfaces', () => {
     }
     expect(table(host)).not.toContain('<button');
     expect(table(host).match(/class="turing-desk-number">\?/g)).toHaveLength(3);
-    const ordinary = live(observer(info, 'ordinary-observer'));
+    const ordinary = live(observer(info, 'ordinary-observer'), true);
     expect(button(ordinary, '以目前成績結束')).toBe(''); expect(ordinary).not.toContain('turing-policy-details');
     for (const replay of [false, true]) {
-      const readonly = withRoom(info, observer(info), createElement(TuringSnapshot, { G, info, perspective: 'god', replay }));
+      const readonly = withRoom(info, observer(info), createElement(TuringSnapshot, { G, info, perspective: 'god', replay }), true);
       expect(button(readonly, '以目前成績結束')).toBe(''); expect(readonly).not.toContain('turing-policy-details');
       expect(table(readonly)).not.toContain('<button');
     }
+    const seatedInfo = { ...room, testRoom, status: 'sorting' };
+    const seated = (id: string, isConnected = true) => withRoom(seatedInfo, seat(seatedInfo, id), createElement(TuringBoard, { G, playerID: id, moves: {}, isConnected }), true);
+    const seatedHost = seated('0');
+    expect(button(managementMenu(seatedHost), '以目前成績結束')).not.toBe('');
+    expect(button(managementMenu(seatedHost), '以目前成績結束')).not.toContain('disabled');
+    expect(managementMenu(seatedHost)).toContain('turing-policy-details');
+    expect(button(rightControls(seatedHost), '以目前成績結束')).toBe('');
+    expect(button(managementMenu(seated('0', false)), '以目前成績結束')).toContain('disabled');
+    expect(button(seated('1'), '以目前成績結束')).toBe('');
+    G.targetRounds = 5;
+    expect(button(seated('0'), '以目前成績結束')).toBe('');
+    expect(button(live(observer(info), true), '以目前成績結束')).toBe('');
+    G.targetRounds = null; G.status = 'finished';
+    expect(button(seated('0'), '以目前成績結束')).toBe('');
+    expect(button(live(observer(info), true), '以目前成績結束')).toBe('');
   });
   it('labels the examiner readiness too when a four-player host has to confirm the next question', () => {
     const G = state(4); G.status = 'round-review'; G.options.nextApproval = 'host';

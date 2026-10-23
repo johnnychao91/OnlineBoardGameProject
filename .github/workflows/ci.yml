@@ -40,9 +40,7 @@ jobs:
         run: npm run check:public
       - name: 測試公開內容檢查器
         run: npm run test:public
-      - name: 檢查型別
-        run: npm run typecheck
       - name: 執行測試
         run: npm test
-      - name: 建置
+      - name: 型別檢查與建置
         run: npm run build

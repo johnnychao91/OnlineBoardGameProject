@@ -48,8 +48,10 @@ describe('Private room admission API', () => {
     expect((await f.request('/games')).status).toBe(404);
     expect((await f.request('/games/space-station/create', { numPlayers: 4 })).status).toBe(404);
     expect((await f.request('/.env')).status).toBe(404);
-    expect((await f.request('/api/rooms', { gameId: 'space-station', numPlayers: 9, displayName: 'A' })).status).toBe(400);
-    expect((await f.request('/api/rooms', { gameId: 'space-station', numPlayers: 4, displayName: '\u0000bad' })).status).toBe(400);
+    const preselectedCount = await f.request('/api/rooms', { gameId: 'space-station', numPlayers: 9, displayName: 'A' });
+    expect(preselectedCount).toMatchObject({ status: 400, body: { error: '不需預選人數，開局時依參與者人數決定' } });
+    const invalidName = await f.request('/api/rooms', { gameId: 'space-station', displayName: '\u0000bad' });
+    expect(invalidName).toMatchObject({ status: 400, body: { error: '暱稱需為 1～24 個字，不能含控制字元' } });
     const games = await f.request('/api/games');
     expect(games.body.games[0]).toEqual({ id: 'space-station', name: '太空維修站', description: expect.any(String), minPlayers: 4, maxPlayers: 8 });
   });

@@ -8,6 +8,15 @@ import { clientGames } from './game-registry';
 import type { RoomInfo } from './api';
 
 describe('Every registered game supplies the entire client framework', () => {
+  it('uses the Turing sorting mode and occupied seats when validating lobby start', () => {
+    const validate = clientGames['turing-test'].validateLobby!;
+    for (const options of [undefined, { sortingMode: 'examiner' }]) {
+      for (const count of [0, 1, 2, 3, 9]) expect(validate(options, count)).toBeUndefined();
+      expect(validate(options, 10)).toContain('檢測員');
+    }
+    expect(validate({ sortingMode: 'group' }, 10)).toBeUndefined();
+    expect(validate({ sortingMode: 'group' }, 11)).toBeDefined();
+  });
   it('requires the same catalog on both sides and complete presentation adapters', () => {
     expect(Object.keys(clientGames).sort()).toEqual([...GAME_IDS].sort());
     for (const id of GAME_IDS) {

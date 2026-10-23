@@ -18,7 +18,6 @@ export function TuringSharedTable({ G, ownID, visible, readonly, nameOf, actions
   const order = turingTableOrder(G);
   const editable = !readonly && G.status === 'sorting' && !!actions;
   const root = useRef<HTMLElement>(null);
-  const scrollArea = useRef<HTMLDivElement>(null);
   const dragging = useRef<Drag | null>(null);
   const suppressClickUntil = useRef(0);
   const keyboardFocus = useRef<string | null>(null);
@@ -30,7 +29,7 @@ export function TuringSharedTable({ G, ownID, visible, readonly, nameOf, actions
     if (!editable || !keyboardFocus.current) return;
     const button = [...(root.current?.querySelectorAll<HTMLButtonElement>('button[data-card-id]') ?? [])].find(element => element.dataset.cardId === keyboardFocus.current);
     button?.focus({ preventScroll: true });
-    button?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    button?.scrollIntoView({ block: 'nearest' });
     keyboardFocus.current = null;
   }, [editable, G.epoch]);
 
@@ -43,8 +42,17 @@ export function TuringSharedTable({ G, ownID, visible, readonly, nameOf, actions
     if (row) {
       const slots = [...row.querySelectorAll<HTMLElement>('[data-turing-slot]')];
       if (slots.length) {
-        const next = slots.findIndex(element => { const bounds = element.getBoundingClientRect(); return x <= bounds.x + bounds.width / 2; });
-        const insertion = next < 0 ? slots.length : next;
+        // Narrow screens wrap cards; choose the visual row before finding an insertion gap.
+        const rows: Array<{ top: number; bottom: number; cards: Array<{ index: number; bounds: DOMRect }> }> = [];
+        slots.forEach((element, index) => {
+          const bounds = element.getBoundingClientRect(), last = rows.at(-1);
+          if (!last || bounds.top >= last.bottom + 1) rows.push({ top: bounds.top, bottom: bounds.bottom, cards: [{ index, bounds }] });
+          else { last.top = Math.min(last.top, bounds.top); last.bottom = Math.max(last.bottom, bounds.bottom); last.cards.push({ index, bounds }); }
+        });
+        const distance = (entry: typeof rows[number]) => Math.max(entry.top - y, y - entry.bottom, 0);
+        const nearest = rows.reduce((best, entry) => distance(entry) < distance(best) ? entry : best);
+        const next = nearest.cards.find(entry => x <= entry.bounds.x + entry.bounds.width / 2);
+        const insertion = next?.index ?? nearest.cards[nearest.cards.length - 1].index + 1;
         const previous = dragging.current ? order.indexOf(dragging.current.cardID) : -1;
         return { index: previous >= 0 && previous < insertion ? insertion - 1 : insertion, marker: insertion };
       }
@@ -68,12 +76,6 @@ export function TuringSharedTable({ G, ownID, visible, readonly, nameOf, actions
     if (!current || current.pointerID !== event.pointerId || !editable) return;
     if (!current.active && Math.hypot(event.clientX - current.startX, event.clientY - current.startY) < 6) return;
     current.active = true;
-    const area = scrollArea.current;
-    if (area) {
-      const bounds = area.getBoundingClientRect();
-      if (event.clientX < bounds.left + 48) area.scrollLeft -= 24;
-      else if (event.clientX > bounds.right - 48) area.scrollLeft += 24;
-    }
     setSelected(current.cardID);
     setDrag({ cardID: current.cardID, x: event.clientX, y: event.clientY, target: dropAt(event.clientX, event.clientY) });
   }
@@ -121,8 +123,8 @@ export function TuringSharedTable({ G, ownID, visible, readonly, nameOf, actions
   }
   return <section className={`panel turing-table turing-shared-table turing-shared-${ids.length}`} ref={root} aria-label="群體校準共同排序桌面">
     {scale}
-    <div className="turing-table-scroll" ref={scrollArea} tabIndex={0} role="region" aria-label="橫向牌桌，可左右捲動">
-    <div className={`turing-order-slots turing-slots-${ids.length}`} aria-label="由左到右排列的桌面">
+    <div className="turing-table-surface">
+    <div className={`turing-order-slots turing-slots-${ids.length}`} aria-label="由左到右、換行後接續排列的桌面">
       {order.map((cardID, index) => <div className={`turing-order-slot${drag?.target && (drag.target.marker ?? drag.target.index) === index ? ' is-drop-target' : ''}${drag?.target?.marker === ids.length && index === ids.length - 1 ? ' is-drop-after' : ''}`} data-turing-slot={index} key={cardID}>
         {card(cardID)}
       </div>)}

@@ -84,10 +84,12 @@ describe('Silver Moon read-only and private surfaces', () => {
     expect(html).toContain('乘客 0'); expect(html).toContain('（你）'); expect(html).toContain('乘客 3');
     expect(html).toContain('放棄襲擊'); expect(html).toContain('尚未選擇'); expect(html).not.toContain('乘客 6');
     G.private['0'].wolfVotes['2'] = '5';
-    expect(show()).toContain('乘客 5'); expect(show()).not.toContain('放棄襲擊');
+    const updated = show();
+    expect(updated).toContain('乘客 5'); expect(updated).not.toContain('放棄襲擊');
     const coveredAction = renderToStaticMarkup(createElement(MoonNightAction, { G, id: '0', nameOf, disabled: false, send: () => {}, confirm: () => {} }));
     expect(coveredAction).toContain('狼群目前選擇'); expect(coveredAction).toContain('巡查車票');
-    expect(snapshot(G, 'god')).toContain('狼群目前選擇'); expect(snapshot(G, 'god')).toContain('（目前查看）');
+    const god = snapshot(G, 'god');
+    expect(god).toContain('狼群目前選擇'); expect(god).toContain('（目前查看）');
     expect(snapshot(G, 'blind')).not.toContain('狼群目前選擇');
     expect(renderToStaticMarkup(createElement(MoonPrivatePanel, { G, playerID: '0', nameOf, observer: true, concealed: true }))).not.toContain('狼群目前選擇');
     G.private['0'].role = 'seer';

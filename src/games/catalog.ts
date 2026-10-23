@@ -1,7 +1,7 @@
 /** Public, environment-free metadata shared by the room, rules pages and registries. */
 export const gameCatalog = {
   'turing-test': { name: '圖靈測試', description: '用千奇百怪的回答校準人性，讓冰冷的機器看懂你們的默契。', minPlayers: 2, maxPlayers: 10,
-    detail: '2～10 人 · 全員合作 · 語音回答與排序', intro: '機器混入人群的傳聞，讓整座城市啟動了人性檢測。你們透過語音軟體回答題目，從回答判斷秘密強度。「群體校準」讓 2～10 人各持一張牌、在共用桌面一起排序；4～10 人也能選擇輪流擔任檢測員的玩法。可以完成五關校準，也可以用有限生命挑戰無盡模式。機器人是故事背景，玩家全員同隊。' },
+    detail: '2～10 人 · 全員合作 · 語音回答與排序', intro: '機器混入人群的傳聞，讓整座城市啟動了人性檢測。你們透過語音軟體回答題目，從回答判斷秘密強度。「群體校準」讓 2～10 人各持一張牌、在共用桌面一起排序；4～9 人也能選擇輪流擔任檢測員的玩法。可以完成五關校準，也可以用有限生命挑戰無盡模式。機器人是故事背景，玩家全員同隊。' },
   'space-station': { name: '太空維修站', description: '在未知與信任之間，讓太空站恢復運作。', minPlayers: 4, maxPlayers: 8,
     detail: '4～8 人 · 隱藏陣營 · 討論與推理', intro: '維修員要讓太空站恢復運作，干擾者則潛伏在隊伍中。你知道自己持有哪些設備，卻不知道它們的位置。' },
   'encrypted-call': { name: '加密通話', description: '潛伏諜報戰線，以沉默與默契完成遞增的訊號傳送。', minPlayers: 2, maxPlayers: 4,

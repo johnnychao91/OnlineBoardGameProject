@@ -72,12 +72,15 @@ describe('Test-room bot adapters', () => {
     { game: TuringGame, count: 4, options: undefined },
     { game: TuringGame, count: 2, options: undefined },
     { game: TuringGame, count: 3, options: { mode: 'endless', lives: 2 } },
-    { game: TuringGame, count: 10, options: { deck: 'custom', customQuestions: Array.from({ length: 5 }, (_, i) => ({ prompt: `請為第 ${i + 1} 個測試情境寫一句回應`, low: '輕描淡寫', high: '情緒沸騰' })) } },
+    { game: TuringGame, count: 9, options: { deck: 'custom', customQuestions: Array.from({ length: 5 }, (_, i) => ({ prompt: `請為第 ${i + 1} 個測試情境寫一句回應`, low: '輕描淡寫', high: '情緒沸騰' })) } },
     { game: TuringGame, count: 4, options: { sortingMode: 'group', mode: 'endless', lives: 20 } },
     { game: TuringGame, count: 10, options: { sortingMode: 'group', mode: 'endless', lives: 20 } },
   ];
   for (const { game, count, options } of scenarios) {
-    it(`${game.name} completes ${count}-seat matches with only legal suggested moves`, () => {
+    const groupSorting = count <= 3 || !!(options && 'sortingMode' in options && options.sortingMode === 'group');
+    const modeLabel = game.name === 'turing-test'
+      ? ` (${groupSorting ? 'group' : 'examiner'} / ${options && 'mode' in options ? options.mode : 'standard'})` : '';
+    it(`${game.name}${modeLabel} completes ${count}-seat matches with only legal suggested moves`, () => {
       const moves = new Set<string>();
       for (const seed of [1, 27, 83]) {
         const ids = Array.from({ length: count }, (_, i) => String(12 - count + i));
@@ -101,7 +104,7 @@ describe('Test-room bot adapters', () => {
       const expected = game.name === 'space-station' ? ['acknowledgeBriefing', 'declareRepairs', 'selectCard', 'reveal']
         : game.name === 'encrypted-call' ? ['readySync', 'playCard', 'acknowledgeLevel']
         : game.name === 'black-fog' ? ['acknowledge', 'selectTeam', 'confirmTeam', 'vote', 'submitQuest']
-        : game.name === 'turing-test' ? ['acknowledge', ...(count <= 3 || (options && 'sortingMode' in options && options.sortingMode === 'group') ? ['placeCard', 'approveOrder'] : ['revealAnswer'])]
+        : game.name === 'turing-test' ? ['acknowledge', ...(groupSorting ? ['placeCard', 'approveOrder'] : ['revealAnswer'])]
         : ['acknowledge', 'wolfVote', 'inspect', 'witch', 'finishSpeech', 'exileVote'];
       if (game.name === 'silver-moon' && count === 12) expected.push('guard', 'standForSheriff', 'sheriffVote', 'chooseOrder');
       for (const name of expected) expect(moves.has(name), `${game.name} did not exercise ${name}`).toBe(true);

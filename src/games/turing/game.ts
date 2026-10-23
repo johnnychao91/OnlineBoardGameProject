@@ -169,6 +169,7 @@ function setReady({ G, playerID }: MoveContext, ready: unknown) {
 function startGame({ G, playerID, random }: MoveContext) {
   if (G.status !== 'lobby' || playerID !== Object.keys(G.players)[0]
     || !Object.values(G.players).every(player => player.ready)) return INVALID_MOVE;
+  if (validateTuringOptions(G.options, Object.keys(G.players).length)) return INVALID_MOVE;
   beginGame(G, random);
 }
 function acknowledge(context: MoveContext, epoch: unknown) {
@@ -417,18 +418,22 @@ export const TuringGame: Game<TuringState, Record<string, unknown>, TuringSetupD
   validateSetupData: (data, numPlayers) => {
     if (data !== undefined && (!data || typeof data !== 'object' || Array.isArray(data)
       || (data.startImmediately !== undefined && typeof data.startImmediately !== 'boolean'))) return '遊戲開始設定不正確。';
-    const optionsError = validateTuringOptions(data?.options, numPlayers);
-    if (optionsError) return optionsError;
+    try {
+      const options = normalizeTuringOptions(data?.options);
+      // A waiting room allocates the full capacity before actual players join.
+      const optionsError = validateTuringOptions(data?.startImmediately ? options : { ...options, sortingMode: 'group' }, numPlayers);
+      if (optionsError) return optionsError;
+    } catch (error) { return (error as Error).message; }
     if (data?.participantIDs !== undefined && (!Array.isArray(data.participantIDs)
       || data.participantIDs.length !== numPlayers || data.participantIDs.some(id => !isPlayerSeatID(id))
       || new Set(data.participantIDs).size !== numPlayers)) return '參與玩家席位不正確。';
     return undefined;
   },
   setup: ({ ctx, random }, data) => {
-    const invalid = validateTuringOptions(data?.options, ctx.numPlayers);
+    const options = normalizeTuringOptions(data?.options);
+    const invalid = validateTuringOptions(data?.startImmediately ? options : { ...options, sortingMode: 'group' }, ctx.numPlayers);
     if (invalid) throw new Error(invalid);
     const ids = data?.participantIDs ?? Array.from({ length: ctx.numPlayers }, (_, index) => String(index));
-    const options = normalizeTuringOptions(data?.options);
     const integrity = options.mode === 'endless' ? options.lives! : Math.max(3, Math.min(ctx.numPlayers, 8));
     const G: TuringState = {
       rulesVersion: 5, status: 'lobby',

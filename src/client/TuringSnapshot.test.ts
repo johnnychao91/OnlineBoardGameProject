@@ -309,7 +309,8 @@ describe('Turing read-only and private surfaces', () => {
     G.status = 'briefing';
     expect(liveBoard(G)).toContain('我已了解本輪任務');
     G.status = 'answering'; G.cards!['0'].spoken = false;
-    expect(liveBoard(G)).toContain('我已口頭回答');
-    expect(liveBoard(G)).not.toContain('提議重抽題目');
+    const answering = liveBoard(G);
+    expect(answering).toContain('我已口頭回答');
+    expect(answering).not.toContain('提議重抽題目');
   });
 });

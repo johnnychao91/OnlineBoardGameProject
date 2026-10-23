@@ -23,8 +23,11 @@ export function TuringLiveObservation({ G: state, info, seat, perspective, onRef
     {action.error && <p className="error-message" role="status">{action.error}</p>}
   </> : undefined;
   return <>
-    {host && G.status !== 'finished' && G.rulesVersion >= 4 && <RoomManagementContent><TuringPolicySettings seat={seat} info={info} policies={G.options} epoch={G.epoch} disabled={action.pending} onBusy={setPolicyPending} onRefresh={onRefresh} compact /></RoomManagementContent>}
-    <TuringLayout G={G} info={info} nameOf={nameOf} ownID={selectedID} visible={visible} onVisible={setVisible} readonly controls={controls}
+    {host && G.status !== 'finished' && <RoomManagementContent>
+      {G.rulesVersion >= 4 && <TuringPolicySettings seat={seat} info={info} policies={G.options} epoch={G.epoch} disabled={action.pending} onBusy={setPolicyPending} onRefresh={onRefresh} compact />}
+      {controls}
+    </RoomManagementContent>}
+    <TuringLayout G={G} info={info} nameOf={nameOf} ownID={selectedID} visible={visible} onVisible={setVisible} readonly
       inspector={<SnapshotPlayerSelect playerIDs={Object.keys(G.players)} value={selectedID} onChange={setSelectedID} nameOf={nameOf} label={`查看情報（${perspective === 'god' ? '上帝視角' : '盲視角'}）`} />} />
   </>;
 }
