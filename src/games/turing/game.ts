@@ -217,7 +217,7 @@ function revealAnswer({ G, playerID }: MoveContext, cardID: unknown, epoch: unkn
   if (G.revealed.length !== Object.keys(cards).length) return;
   completeRound(G);
 }
-function recordReveal(G: TuringState, actorID: string, cardID: string, card: TuringCard, number: number): void {
+function recordReveal(G: TuringState, actorID: string | undefined, cardID: string, card: TuringCard, number: number): void {
   const previous = G.revealed.at(-1)?.number;
   const error = previous !== undefined && number < previous;
   if (error) G.integrity = Math.max(0, G.integrity - 1);
@@ -252,24 +252,33 @@ function removeCard(context: MoveContext, cardID: unknown, epoch: unknown) {
   // treat it as moving the selected card to the far end instead of removing it.
   return placeCard(context, cardID, turingTableOrder(context.G).length - 1, epoch);
 }
-function approveOrder({ G, playerID }: MoveContext, epoch: unknown) {
-  if (!canArrange(G, playerID, epoch) || G.orderApprovals?.includes(playerID) || (G.redrawApprovals?.length ?? 0) > 0 || !G.cards) return INVALID_MOVE;
+interface HostApproval { actorID: string | undefined }
+function approveOrder(context: MoveContext, epoch: unknown) {
+  return applyOrderApproval(context, epoch);
+}
+function applyOrderApproval({ G, playerID }: MoveContext, epoch: unknown, host?: HostApproval) {
+  if ((host ? G.options.orderApproval !== 'host' : G.options.orderApproval === 'host')
+    || !canArrange(G, playerID, epoch) || (!host && G.orderApprovals?.includes(playerID))
+    || (G.redrawApprovals?.length ?? 0) > 0 || !G.cards) return INVALID_MOVE;
   const order = turingTableOrder(G);
   if (order.length !== Object.keys(G.players).length) return INVALID_MOVE;
   const cards = order.map(id => ({ id, card: G.cards![id], number: turingCardNumber(G, id) }));
   if (cards.some(card => card.number === undefined)) return INVALID_MOVE;
   G.tableOrder = order;
-  G.orderApprovals ??= [];
-  G.orderApprovals.push(playerID);
-  if (!Object.keys(G.players).every(id => G.orderApprovals!.includes(id))) return;
+  if (host) G.orderApprovals = host.actorID === undefined ? [] : [host.actorID];
+  else {
+    G.orderApprovals ??= [];
+    G.orderApprovals.push(playerID);
+    if (G.options.orderApproval !== 'any' && !Object.keys(G.players).every(id => G.orderApprovals!.includes(id))) return;
+  }
   // One authoritative move reveals the entire agreed table. There is no
   // intermediate public state from which somebody can revise the order.
-  for (const { id, card, number } of cards) recordReveal(G, playerID, id, card, number!);
+  for (const { id, card, number } of cards) recordReveal(G, host ? host.actorID : playerID, id, card, number!);
   if (G.integrity === 0) finish(G, false);
   else completeRound(G);
 }
 function withdrawApproval({ G, playerID }: MoveContext, epoch: unknown) {
-  if (!canArrange(G, playerID, epoch) || !G.orderApprovals?.includes(playerID)) return INVALID_MOVE;
+  if ((G.options.orderApproval ?? 'all') !== 'all' || !canArrange(G, playerID, epoch) || !G.orderApprovals?.includes(playerID)) return INVALID_MOVE;
   G.orderApprovals = G.orderApprovals.filter(id => id !== playerID);
   // A delayed approval sent before the withdrawal must not restore consent.
   G.epoch += 1;
@@ -278,8 +287,12 @@ function withdrawApproval({ G, playerID }: MoveContext, epoch: unknown) {
 function canRedraw(G: TuringState, playerID: unknown, epoch: unknown): boolean {
   return G.rulesVersion >= 4 && G.status === 'sorting' && G.revealed.length === 0 && validToken(G, playerID, epoch);
 }
-function approveRedraw({ G, playerID, random }: MoveContext, epoch: unknown) {
-  if (!canRedraw(G, playerID, epoch) || G.redrawApprovals?.includes(playerID)
+function approveRedraw(context: MoveContext, epoch: unknown) {
+  return applyRedrawApproval(context, epoch);
+}
+function applyRedrawApproval({ G, playerID, random }: MoveContext, epoch: unknown, host?: HostApproval) {
+  if ((host ? G.options.redrawApproval !== 'host' : G.options.redrawApproval === 'host')
+    || !canRedraw(G, playerID, epoch) || (!host && G.redrawApprovals?.includes(playerID))
     || !turingQuestionPool(G.options).some(question => question.id !== G.question?.id)) return INVALID_MOVE;
   G.redrawApprovals ??= [];
   if (!G.redrawApprovals.length) {
@@ -288,19 +301,21 @@ function approveRedraw({ G, playerID, random }: MoveContext, epoch: unknown) {
     if (G.orderApprovals) G.orderApprovals = [];
     G.epoch += 1;
   }
-  G.redrawApprovals.push(playerID);
-  if (!Object.keys(G.players).every(id => G.redrawApprovals!.includes(id))) return;
+  if (!host) {
+    G.redrawApprovals.push(playerID);
+    if (G.options.redrawApproval !== 'any' && !Object.keys(G.players).every(id => G.redrawApprovals!.includes(id))) return;
+  }
   const question = drawQuestion(G, random)!;
   G.question = { ...question };
   if (isTuringSharedTable(G)) G.tableOrder = Object.keys(G.cards!);
   if (G.orderApprovals) G.orderApprovals = [];
   G.redrawApprovals = [];
   G.epoch += 1;
-  G.log.push({ type: 'question-redraw', round: G.round, actorID: playerID, examinerID: G.examinerID,
+  G.log.push({ type: 'question-redraw', round: G.round, actorID: host ? host.actorID : playerID, examinerID: G.examinerID,
     question: { ...question }, integrity: G.integrity });
 }
 function withdrawRedraw({ G, playerID }: MoveContext, epoch: unknown) {
-  if (!canRedraw(G, playerID, epoch) || !G.redrawApprovals?.includes(playerID)) return INVALID_MOVE;
+  if ((G.options.redrawApproval ?? 'all') !== 'all' || !canRedraw(G, playerID, epoch) || !G.redrawApprovals?.includes(playerID)) return INVALID_MOVE;
   G.redrawApprovals = G.redrawApprovals.filter(id => id !== playerID);
   G.epoch += 1;
 }
@@ -351,7 +366,9 @@ export function turingPlayerView({ G, playerID }: { G: TuringState; playerID: st
     revealed: G.revealed.map(({ playerID, number, error, cardID, slot }) => ({ playerID, number, error,
       ...(cardID === undefined ? {} : { cardID }), ...(slot === undefined ? {} : { slot }) })),
     epoch: G.epoch, options: { deck: G.options.deck, customQuestions: G.options.customQuestions.map(({ prompt, low, high }) => ({ prompt, low, high })),
-      ...(G.options.mode === undefined ? {} : { mode: G.options.mode }), ...(G.options.lives === undefined ? {} : { lives: G.options.lives }) },
+      ...(G.options.mode === undefined ? {} : { mode: G.options.mode }), ...(G.options.lives === undefined ? {} : { lives: G.options.lives }),
+      ...(G.options.redrawApproval === undefined ? {} : { redrawApproval: G.options.redrawApproval }),
+      ...(G.options.orderApproval === undefined ? {} : { orderApproval: G.options.orderApproval }) },
     winner: G.winner, winReason: G.winReason, log: G.log.map(publicLog),
   };
 }
@@ -427,4 +444,26 @@ export const TuringGame: Game<TuringState, Record<string, unknown>, TuringSetupD
   events: { endGame: false, endPhase: false, endTurn: false, setPhase: false, endStage: false, setStage: false, pass: false, setActivePlayers: false },
   playerView: turingPlayerView,
   endIf: ({ G }) => G.status === 'finished' ? { winner: G.winner, reason: G.winReason } : undefined,
+};
+
+/** Only the authenticated HTTP host route may construct this reducer. Do not
+ * register it with the public Socket.IO game registry: the execution seat is
+ * merely a framework slot and is not proof of host authority. */
+export const TuringHostGame: typeof TuringGame = {
+  ...TuringGame,
+  moves: {
+    ...TuringGame.moves,
+    serverApproveOrder: {
+      move: (context: MoveContext, epoch: unknown, actorID: unknown) => {
+        if (actorID !== null && !isSeat(context.G, actorID)) return INVALID_MOVE;
+        return applyOrderApproval(context, epoch, { actorID: actorID === null ? undefined : actorID });
+      }, ...simultaneousMove,
+    },
+    serverApproveRedraw: {
+      move: (context: MoveContext, epoch: unknown, actorID: unknown) => {
+        if (actorID !== null && !isSeat(context.G, actorID)) return INVALID_MOVE;
+        return applyRedrawApproval(context, epoch, { actorID: actorID === null ? undefined : actorID });
+      }, ...simultaneousMove,
+    },
+  },
 };

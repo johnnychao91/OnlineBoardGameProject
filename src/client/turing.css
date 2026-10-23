@@ -172,7 +172,9 @@ button.turing-desk-card:active { cursor: grabbing; }
   .turing-personal-aside { grid-column: 3; grid-row: 1; min-height: 0; overflow: auto; }
   .turing-history-aside { grid-column: 1; grid-row: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; gap: 10px; padding-top: 0; }
   .turing-history-aside > * { margin: 0; }
-  .turing-history-aside > .turing-log { flex: 1; min-height: 0; overflow: auto; }
+  .turing-history-aside > .turing-log { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; }
+  .turing-history-aside > .turing-log > .section-heading { flex: none; }
+  .turing-history-aside > .turing-log > ol { flex: 1; min-height: 0; max-height: none; overflow-y: auto; }
   .turing-history-aside > details { flex-shrink: 0; max-height: 35%; overflow: auto; }
   .turing-layout .turing-log { padding: 14px; }
   .turing-log ol { max-height: none; }
@@ -230,6 +232,10 @@ button.turing-desk-card:active { cursor: grabbing; }
   .turing-shared-table .turing-order-slots { padding-block: 0; }
   .turing-redraw-status p { display: inline; margin-right: 8px; }
   .turing-redraw-status small { display: block; }
+  .turing-snapshot:has(.turing-controls) .turing-toggle { padding-block: 10px; }
+  .turing-snapshot:has(.turing-controls) .turing-private-content { padding: 8px 14px; }
+  .turing-snapshot:has(.turing-controls) .turing-private-content > p { margin-bottom: 8px; line-height: 1.5; }
+  .turing-snapshot:has(.turing-controls) .snapshot-player-select { margin-block: 8px; }
 }
 @media (min-width: 1280px) and (min-height: 851px) {
   .turing-layout { --turing-card-width: 180px; --turing-card-height: 270px; }

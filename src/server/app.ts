@@ -8,6 +8,7 @@ import { Server } from 'boardgame.io/server';
 import { createMatch } from 'boardgame.io/internal';
 import { Master } from 'boardgame.io/master';
 import { chooseBotAction } from '../games/bots';
+import { isTuringSharedTable, TuringHostGame } from '../games/turing/game';
 import { gameDefinitions, getGameDefinition, publicGameDefinitions, type GameDefinition } from '../games/registry';
 import { isPlayerSeatID } from '../games/catalog';
 import { GuardedTransport } from './transport';
@@ -392,7 +393,7 @@ export async function createApplication(config: AppConfig) {
         inviteUrl: `${origin}/join/${roomId}#invite=${invite}`, expiresAt: room.inviteExpiresAt };
       return;
     }
-    const route = /^\/api\/rooms\/([A-Za-z0-9_-]+)(?:\/(join|watch|invite|ready|remove|start|view|replay|share|revoke-shares|return|abort|leave|heartbeat|switch-role|game|options|bots|question-feedback))?$/.exec(ctx.path);
+    const route = /^\/api\/rooms\/([A-Za-z0-9_-]+)(?:\/(join|watch|invite|ready|remove|start|view|replay|share|revoke-shares|return|abort|leave|heartbeat|switch-role|game|options|bots|question-feedback|turing-host-action))?$/.exec(ctx.path);
     if (!route) fail(404, '找不到此功能');
     const room = getRoom(route[1]);
     const operation = route[2];
@@ -437,6 +438,10 @@ export async function createApplication(config: AppConfig) {
       const { metadata } = await snapshot(room);
       authenticate(ctx, metadata);
     }
+    if (operation === 'turing-host-action') {
+      const { metadata } = await snapshot(room);
+      authenticateHost(ctx, room, metadata, '只有目前房主可以執行房主決定');
+    }
     const body = await jsonBody(ctx, operation === 'options' ? 64 * 1024 : 4096);
     // Use the same match queue as moves, so joining and starting cannot race.
     await transport.getRoomQueue(room.roomId).add(async () => {
@@ -446,7 +451,36 @@ export async function createApplication(config: AppConfig) {
       const definition = getGameDefinition(current.gameId)!;
       if (['ready', 'remove', 'start', 'return', 'abort'].includes(operation)
         && body.matchID !== undefined && body.matchID !== matchID) fail(409, '對局已更新，請重新確認房間狀態');
-      if (operation === 'question-feedback') {
+      if (operation === 'turing-host-action') {
+        const viewer = authenticateHost(ctx, current, metadata, '只有目前房主可以執行房主決定');
+        if (Object.keys(body).some(key => !['matchID', 'epoch', 'action'].includes(key))
+          || (body.action !== 'redraw' && body.action !== 'order')
+          || !Number.isSafeInteger(body.epoch) || body.epoch < 0) fail(400, '房主決定格式不正確');
+        if (body.matchID !== matchID || current.gameId !== 'turing-test' || state.G.status !== 'sorting'
+          || body.epoch !== state.G.epoch) fail(409, '對局或階段已更新，請確認最新畫面');
+        const policy = body.action === 'redraw' ? state.G.options.redrawApproval : state.G.options.orderApproval;
+        if (policy !== 'host' || (body.action === 'order' && !isTuringSharedTable(state.G))) {
+          fail(409, '目前規則不是由房主決定這項操作');
+        }
+        // The observer host is not a player seat. Use an existing active reducer
+        // slot after HTTP authorization, without borrowing that player's secret.
+        // TuringHostGame's server-only moves are absent from the registered game,
+        // so neither ordinary sockets nor client-supplied move args can call them.
+        const executorID = Object.keys(state.G.players).find(id => state.ctx.activePlayers
+          ? Object.hasOwn(state.ctx.activePlayers, id) : state.ctx.currentPlayer === id);
+        if (!executorID) fail(409, '目前無法執行房主決定');
+        const master = new Master(TuringHostGame, db, { send: () => {}, sendAll: () => {} });
+        const result = await master.onUpdate({ type: 'MAKE_MOVE', payload: {
+          type: body.action === 'redraw' ? 'serverApproveRedraw' : 'serverApproveOrder',
+          args: [body.epoch, viewer.access === 'player' ? viewer.id : null], playerID: executorID, credentials: '',
+        } }, state._stateID, matchID, executorID);
+        const updated = (await db.fetch(matchID, { state: true })).state;
+        if (result?.error || !updated || updated._stateID <= state._stateID || updated.G.epoch === state.G.epoch) {
+          fail(409, '目前無法執行這項決定，請確認最新畫面');
+        }
+        transport.publishState(definition.game, matchID, updated);
+        ctx.body = { matchID, epoch: updated.G.epoch, stateID: updated._stateID };
+      } else if (operation === 'question-feedback') {
         const playerID = authenticate(ctx, metadata);
         if (body.matchID !== matchID || current.gameId !== 'turing-test'
           || state.G.status === 'lobby' || !Object.hasOwn(state.G.players, playerID) || !state.G.question) {

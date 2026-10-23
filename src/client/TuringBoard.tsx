@@ -1,13 +1,14 @@
 import { useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { isTuringSharedTable, turingCards, turingCardNumber, type TuringState, type TuringEvent } from '../games/turing/game';
 import { normalizeTuringAnswer, TURING_ANSWER_MAX, TURING_DECKS, type TuringQuestion } from '../games/turing/rules';
-import { isPlayer, type RoomInfo } from './api';
+import { isPlayer, isRoomHost, roomHostPlayerID, type RoomInfo } from './api';
 import { RoomContext } from './room-context';
 import { GameSoundControl } from './GameSoundControl';
 import { BattleReport } from './BattleReport';
 import { Icon } from './ui';
 import { TuringSharedTable, type TuringTableActions } from './TuringSharedTable';
 import { TuringQuestionFeedback } from './TuringQuestionFeedback';
+import { TuringOrderControl, TuringRedrawControls, turingApprovalText, useTuringHostAction } from './TuringApprovalControls';
 import './turing.css';
 
 export type TuringNameOf = (id: string) => string;
@@ -36,7 +37,9 @@ export function TuringBoard({ G, playerID, moves, isConnected }: Props) {
   const [pending, setPending] = useState(false);
   const [notice, setNotice] = useState('');
   const sending = useRef(false);
-  const canAct = isConnected !== false && !!own && !pending;
+  const hostAction = useTuringHostAction(seat, info.matchID, G.epoch);
+  const host = isRoomHost(seat, info);
+  const canAct = isConnected !== false && !!own && !pending && !hostAction.pending;
   const nameOf = turingNameOf(info);
   useEffect(() => { setAnswer(''); }, [G.round, id]);
   useEffect(() => { sending.current = false; setPending(false); setNotice(''); }, [G.epoch, own?.answered, own?.acknowledged, spokenKey, approvalKey, redrawKey, isConnected]);
@@ -52,18 +55,15 @@ export function TuringBoard({ G, playerID, moves, isConnected }: Props) {
   }
   const review = G.status === 'briefing' || G.status === 'round-review';
   const redrawApprovals = G.redrawApprovals ?? [];
-  const canRedraw = (G.rulesVersion ?? 1) >= 4 && G.status === 'sorting' && G.revealed.length === 0;
+  const redrawPolicy = G.options.redrawApproval ?? 'all', orderPolicy = G.options.orderApproval ?? 'all';
   const questionFeedback = G.question && <TuringQuestionFeedback question={G.question} round={G.round} />;
-  const questionControls = canRedraw && <div className="turing-question-actions">
-    <div className="turing-redraw-controls">
-      <button className="button secondary" type="button" disabled={!canAct} onClick={() => send(redrawApprovals.includes(id) ? 'withdrawRedraw' : 'approveRedraw')}>{redrawApprovals.includes(id) ? '撤回重抽同意' : redrawApprovals.length ? '同意重抽題目' : '提議重抽題目'}</button>
-      {redrawApprovals.length > 0 && <div className="turing-redraw-status" role="status"><p>同意重抽：{redrawApprovals.map(nameOf).join('、')}</p><p>等待：{Object.keys(G.players).filter(player => !redrawApprovals.includes(player)).map(nameOf).join('、')}</p><small>全員同意才換題，保留強度牌與生命；提議完成或撤回後才能揭牌。</small></div>}
-    </div>
-  </div>;
+  const questionControls = <TuringRedrawControls G={G} id={id} nameOf={nameOf} canAct={canAct}
+    onApprove={redrawPolicy === 'host' ? host ? () => void hostAction.send('redraw') : undefined : () => send('approveRedraw')}
+    onWithdraw={() => send('withdrawRedraw')} />;
   const controls = <>
-    {sharedTable && G.status === 'sorting' && <button className="button primary full" type="button" disabled={!canAct || Object.keys(cards).length === 0 || redrawApprovals.length > 0} onClick={() => send(G.orderApprovals?.includes(id) ? 'withdrawApproval' : 'approveOrder')}>
-      {redrawApprovals.length ? '先決定是否重抽' : G.orderApprovals?.includes(id) ? '撤回同意' : '同意這個順序'}<Icon type="check" size={16} />
-    </button>}
+    {sharedTable && G.status === 'sorting' && <TuringOrderControl G={G} id={id} canAct={canAct && Object.keys(cards).length > 0}
+      onApprove={orderPolicy === 'host' ? host ? () => void hostAction.send('order') : undefined : () => send('approveOrder')}
+      onWithdraw={() => send('withdrawApproval')} />}
     {review && <button className="button primary full" disabled={!canAct || own?.acknowledged} onClick={() => send('acknowledge')}>
       {own?.acknowledged ? '已確認，等待同伴' : G.status === 'briefing' ? '我已了解本輪任務' : '已看過結果，開始下一輪'}<Icon type="check" size={16} />
     </button>}
@@ -77,9 +77,10 @@ export function TuringBoard({ G, playerID, moves, isConnected }: Props) {
     {G.status === 'answering' && <p className="small muted">{legacy
       ? examiner ? '你是本輪檢測員，不需回答。請等待所有受測者提交。' : own?.answered ? '回答已封存，等待全員一起公開。' : !visible ? '先展開秘密資訊，再依強度作答。' : '可以虛構情境，不需分享真實私事。'
       : examiner ? '你是本關檢測員，不需回答。請聽每張卡的口頭回答，等所有卡確認後開始排序。' : own?.answered ? '你的卡牌已全部確認。等待其他受測者完成口頭回答。' : !visible ? '先展開秘密資訊，查看強度並口頭回答。' : '本站不會錄音或保存口頭回答。不要直接說出秘密數字。'}</p>}
-    {G.status === 'sorting' && <p className="small muted">{sharedTable ? '每個人都能調整桌上的卡牌。共同討論，由低到高排好後，全員同意才揭曉。可以重述原回答，請勿直接說數字或暗號。' : examiner ? '依剛才的回答，從中央選出你認為強度最低的一張，逐張揭曉。' : `由 ${nameOf(G.examinerID)} 排序。可以重述原回答，請勿用數字或暗號補充提示。`}</p>}
+    {G.status === 'sorting' && <p className="small muted">{sharedTable ? `每個人都能調整桌上的卡牌。共同討論，由低到高排好後，${turingApprovalText(orderPolicy)}才揭曉。可以重述原回答，請勿直接說數字或暗號。` : examiner ? '依剛才的回答，從中央選出你認為強度最低的一張，逐張揭曉。' : `由 ${nameOf(G.examinerID)} 排序。可以重述原回答，請勿用數字或暗號補充提示。`}</p>}
     {notice && <p className="error-message" role="status">{notice}</p>}
-    {pending && <p className="small muted" role="status">正在確認操作…</p>}
+    {hostAction.error && <p className="error-message" role="status">{hostAction.error}</p>}
+    {(pending || hostAction.pending) && <p className="small muted" role="status">正在確認操作…</p>}
   </>;
   return <>
     <div className={`connection-banner ${isConnected === false ? 'offline' : ''}`} role="status"><Icon type="signal" size={15} />{isConnected === false ? '連線中斷，操作暫停；重連後同步最新進度。' : '人性檢測連線已建立'}</div>
@@ -91,9 +92,9 @@ export function TuringBoard({ G, playerID, moves, isConnected }: Props) {
   </>;
 }
 
-export function TuringLayout({ G, info, nameOf, ownID, visible, onVisible, controls, questionFeedback, questionControls, sound, onReveal, tableActions, inspector, readonly = false, replay = false }: {
+export function TuringLayout({ G, info, nameOf, ownID, visible, onVisible, controls, questionFeedback, questionControls, observerQuestionControls, sound, onReveal, tableActions, inspector, readonly = false, replay = false }: {
   G: TuringState; info: RoomInfo; nameOf: TuringNameOf; ownID: string; visible: boolean; onVisible: (value: boolean) => void;
-  controls?: ReactNode; questionFeedback?: ReactNode; questionControls?: ReactNode; sound?: ReactNode; onReveal?: (id: string) => void; tableActions?: TuringTableActions; inspector?: ReactNode; readonly?: boolean; replay?: boolean;
+  controls?: ReactNode; questionFeedback?: ReactNode; questionControls?: ReactNode; observerQuestionControls?: ReactNode; sound?: ReactNode; onReveal?: (id: string) => void; tableActions?: TuringTableActions; inspector?: ReactNode; readonly?: boolean; replay?: boolean;
 }) {
   const legacy = G.rulesVersion === 1;
   const sharedTable = isTuringSharedTable(G);
@@ -107,9 +108,9 @@ export function TuringLayout({ G, info, nameOf, ownID, visible, onVisible, contr
       <section className="panel turing-question"><div className="section-heading"><span>{TURING_DECKS[G.options.deck]} · {G.question?.category ?? '等待開始'}</span><span>{legacy ? '容錯' : '生命'} <strong className={G.integrity <= 1 ? 'rules-danger' : 'mint'}>{G.integrity} / {G.maxIntegrity}</strong></span></div>
         <div className="turing-question-prompt"><h2>{G.question?.prompt ?? '準備好後，讓我們看看你有多了解人類。'}</h2>{!readonly && !replay && questionFeedback}</div>
         {!sharedTable && <TuringScale question={G.question} />}
-        {!readonly && !replay && questionControls}
+        {!replay && (readonly ? observerQuestionControls : questionControls)}
       </section>
-      {sharedTable ? <TuringSharedTable G={G} ownID={ownID} visible={visible} readonly={readonly} nameOf={nameOf} actions={tableActions} scale={<TuringScale question={G.question} />} /> : <section className="panel turing-table"><div className="section-heading"><h2>{legacy ? '受測者回答' : '口頭回答卡'}</h2><span>檢測員：{nameOf(G.examinerID)}</span></div>
+      {sharedTable ? <TuringSharedTable G={G} ownID={ownID} visible={visible} readonly={readonly} nameOf={nameOf} actions={tableActions} hostPlayerID={roomHostPlayerID(info)} scale={<TuringScale question={G.question} />} /> : <section className="panel turing-table"><div className="section-heading"><h2>{legacy ? '受測者回答' : '口頭回答卡'}</h2><span>檢測員：{nameOf(G.examinerID)}</span></div>
         <div className="turing-answers">{Object.entries(cards).map(([cardID, card]) => {
           const id = card.playerID;
           const result = G.revealed.find(entry => legacy ? entry.playerID === id : entry.cardID === cardID);
@@ -168,7 +169,7 @@ function TuringStatus({ G, nameOf }: { G: TuringState; nameOf: TuringNameOf }) {
     lobby: ['檢測室準備中', '等待房主開始。'],
     briefing: ['校準開始 · 全員確認', sharedTable ? '先加入語音通話，每人查看自己的一張秘密強度牌。這一關由全員共同排序。' : legacy ? `本輪檢測員是 ${nameOf(G.examinerID)}，其餘玩家查看自己的秘密強度。` : `先加入語音通話。${nameOf(G.examinerID)} 擔任檢測員，其餘玩家查看秘密強度。`],
     answering: legacy ? ['回答封存中', '各自用文字作答。送出後不可修改，全員完成才一起公開。'] : ['語音回答中', '在外部語音中作答，再按「我已口頭回答」。題目若提到寫下，也直接說出內容；本站不錄音、不轉成文字。'],
-    sorting: sharedTable ? ['共同排列強度 · 等待全員同意', '把所有卡牌由左到右排好。每個人都能拖曳調整；全員同意後一次揭曉，下降會失去生命。'] : [`${nameOf(G.examinerID)} 正在排序`, `從你認為最低的強度開始。每張只和前一張比較，下降會失去一點${legacy ? '容錯' : '生命'}。`],
+    sorting: sharedTable ? [`共同排列強度 · 等待${turingApprovalText(G.options.orderApproval)}`, `把所有卡牌由左到右排好。每個人都能拖曳調整；${turingApprovalText(G.options.orderApproval)}後一次揭曉，下降會失去生命。`] : [`${nameOf(G.examinerID)} 正在排序`, `從你認為最低的強度開始。每張只和前一張比較，下降會失去一點${legacy ? '容錯' : '生命'}。`],
     'round-review': legacy ? ['本輪檢測完成', '先看看最後一張的結果；全員確認後進入下一輪。'] : ['本關檢測完成', '先看看最後一張的結果；全員確認後進入下一關，生命不會回復。'],
     finished: endless ? [`無盡挑戰結束 · 已通過 ${G.completedRounds ?? 0} 關`, `在第 ${G.round} 關耗盡生命，本關不算通過。稍後返回原房間。`] : G.winner === 'humans' ? ['人性校準完成 · 全隊成功', '你們用不同的答案，找到了彼此的默契。稍後返回原房間。'] : ['系統誤判 · 本次檢測失敗', `${legacy ? '容錯' : '生命'}已耗盡，保留這份紀錄，下次重新校準。稍後返回原房間。`],
   };
@@ -180,7 +181,7 @@ export function turingEventText(event: TuringEvent, nameOf: TuringNameOf, { lega
   if (event.type === 'round-start') return event.examinerID === '' ? `第 ${event.round} ${unit} · 全員共同排序` : `第 ${event.round} ${unit} · ${event.examinerID ? nameOf(event.examinerID) : '檢測員'} 接手檢測`;
   if (event.type === 'answers') return '所有回答已公開，開始排序';
   if (event.type === 'spoken') return '全員已確認口頭回答，開始排序';
-  if (event.type === 'question-redraw') return '全員同意重抽題目，保留強度牌並重新排序';
+  if (event.type === 'question-redraw') return '已重抽題目，保留強度牌並重新排序';
   if (event.type === 'reveal') return `${nameOf(event.targetID ?? event.actorID ?? '')}${dualCards && event.slot ? ` · ${event.slot} 卡` : ''}：${event.number}${event.error ? ` · 順序下降，${life} −1` : ' · 揭曉強度'}`;
   if (event.type === 'round-complete') return `本${unit}排序完成，剩餘${life} ${event.integrity}`;
   if (event.reason === 'endless-exhausted') return `無盡挑戰結束，已通過 ${Math.max(0, event.round - 1)} 關`;
@@ -191,5 +192,5 @@ function TuringLog({ G, nameOf }: { G: TuringState; nameOf: TuringNameOf }) {
   return <section className="panel event-log turing-log"><div className="section-heading"><h2>檢測紀錄</h2><span>公開資訊</span></div><ol>{G.log.slice(-40).reverse().map((event, i) => <li key={G.log.length - i}><span className={`log-dot ${event.error ? 'hazard' : 'repair'}`} /><div><p>{turingEventText(event, nameOf, { legacy, dualCards })}</p>{event.question && <p>{event.question.prompt}</p>}<small>第 {event.round} {legacy ? '輪' : '關'}</small></div></li>)}</ol></section>;
 }
 export function TuringRuleSummary({ legacy = false, legacyDual = false, direct = true }: { legacy?: boolean; legacyDual?: boolean; direct?: boolean }) {
-  return <div className="rule-summary">{legacy ? <><p>這是仍依舊規則進行的文字局：4～9 人合作五輪，受測者各有一張強度牌，回答封存至全員送出才公開。</p><p>檢測員逐張揭牌；比前一張小扣一點容錯。歸零失敗，完成五輪仍有容錯則成功。</p></> : <><p>2～9 人全員合作。請先透過語音軟體建立通話，以口頭回答傳達秘密強度。{direct ? '抽題後直接開始排牌，不需逐人確認已回答。' : '這是舊版進行局，仍需完成原有的開場與口頭回答確認。'}</p>{legacyDual ? <p>這是舊版雙卡局：檢測員不抽牌，其餘玩家各有 A、B 兩張牌；依每張卡的回答由低到高逐張揭曉。</p> : <p>2～3 人每人一張牌，共同拖曳排序；任何人都能調整，全員同意後一次揭曉。調整位置會取消先前的同意。4～9 人輪流擔任檢測員，其餘每人一張，由檢測員逐張揭牌。</p>}{direct && <p>尚未揭牌時，任何玩家都能提議重抽；全員同意後換題，保留強度牌、關數與生命，並重新排牌。</p>}<p>比前一張小扣一點生命，生命不會回復。標準模式挑戰五關；無盡模式持續到生命歸零，紀錄成功通過幾關。</p><p>題目提到「寫下」也直接口頭回答。網站不錄音或轉錄語音。</p></>}<p>可以虛構，不必透露真實經歷。不得直接說出秘密數字或用約定暗號；本遊戲沒有敵對玩家。</p><a href="/rules/turing-test" target="_blank" rel="noopener noreferrer">完整規則與圖鑑 →</a></div>;
+  return <div className="rule-summary">{legacy ? <><p>這是仍依舊規則進行的文字局：4～9 人合作五輪，受測者各有一張強度牌，回答封存至全員送出才公開。</p><p>檢測員逐張揭牌；比前一張小扣一點容錯。歸零失敗，完成五輪仍有容錯則成功。</p></> : <><p>2～9 人全員合作。請先透過語音軟體建立通話，以口頭回答傳達秘密強度。{direct ? '抽題後直接開始排牌，不需逐人確認已回答。' : '這是舊版進行局，仍需完成原有的開場與口頭回答確認。'}</p>{legacyDual ? <p>這是舊版雙卡局：檢測員不抽牌，其餘玩家各有 A、B 兩張牌；依每張卡的回答由低到高逐張揭曉。</p> : <p>2～3 人每人一張牌，共同拖曳排序；任何人都能調整，依房規由房主、全員或任一玩家確認後一次揭曉。調整位置會取消先前的排序同意。4～9 人輪流擔任檢測員，其餘每人一張，由檢測員逐張揭牌。</p>}{direct && <p>尚未揭牌時，依房規由房主、全員或任一玩家同意重抽；換題會保留強度牌、關數與生命，並重新排牌。房主在觀戰席也能批准。輪末仍需全員確認才開始下一關。</p>}<p>比前一張小扣一點生命，生命不會回復。標準模式挑戰五關；無盡模式持續到生命歸零，紀錄成功通過幾關。</p><p>題目提到「寫下」也直接口頭回答。網站不錄音或轉錄語音。</p></>}<p>可以虛構，不必透露真實經歷。不得直接說出秘密數字或用約定暗號；本遊戲沒有敵對玩家。</p><a href="/rules/turing-test" target="_blank" rel="noopener noreferrer">完整規則與圖鑑 →</a></div>;
 }

@@ -1,4 +1,5 @@
 import { mkdtemp, rm } from 'node:fs/promises';
+import { randomUUID } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import type { State, SyncInfo } from 'boardgame.io';
@@ -507,6 +508,178 @@ describe('Turing custom questions, private answers and replay integration', () =
     noServerSecrets(replay.body);
     expect((await f.request('/api/stats')).body.completedGames).toBe(1);
   }, 30000);
+
+  it.each([3, 4])('lets any one participant redraw a %i-player game while keeping host-only HTTP authority separate', async count => {
+    const f = await fixture(), g = await group(f, count);
+    expect((await f.request(path(g.host, 'options'), { matchID: g.matchID,
+      options: { redrawApproval: 'any', orderApproval: 'any' } }, g.host)).status).toBe(200);
+    await start(f, g);
+    const original = (await f.state(g.matchID)).G, actor = g.seats.at(-1)!;
+    const hostRequest = { matchID: g.matchID, epoch: original.epoch, action: 'redraw' };
+    expect((await f.request(path(g.host, 'turing-host-action'), hostRequest, g.host)).status).toBe(409);
+    await f.move(g, actor.playerID, 'approveRedraw', [original.epoch]);
+    const redrawn = (await f.state(g.matchID)).G;
+    expect(redrawn.question!.id).not.toBe(original.question!.id);
+    expect(redrawn.private).toEqual(original.private);
+    expect(redrawn.integrity).toBe(original.integrity);
+    expect(redrawn.redrawApprovals).toEqual([]);
+    if (count === 3) {
+      await f.move(g, actor.playerID, 'approveOrder', [redrawn.epoch]);
+      const finishedRound = (await f.state(g.matchID)).G;
+      expect(finishedRound.status).toBe('round-review');
+      expect(finishedRound.revealed).toHaveLength(3);
+    } else {
+      await f.rejectMove(g, actor.playerID, 'approveOrder', [redrawn.epoch]);
+      const lowest = Object.keys(turingCards(redrawn)).sort((a, b) => turingCardNumber(redrawn, a)! - turingCardNumber(redrawn, b)!)[0];
+      await f.move(g, redrawn.examinerID, 'revealAnswer', [lowest, redrawn.epoch]);
+      expect((await f.state(g.matchID)).G.revealed).toHaveLength(1);
+    }
+  });
+
+  it('authenticates host-policy decisions, rejects forged wire moves and stale requests, and serializes them with table edits', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const f = await fixture(), g = await group(f, 3), other = await group(f, 2);
+    expect((await f.request(path(g.host, 'options'), { matchID: g.matchID,
+      options: { redrawApproval: 'host', orderApproval: 'host' } }, g.host)).status).toBe(200);
+    await start(f, g); await start(f, other);
+    const original = await f.state(g.matchID), untouched = await f.state(other.matchID);
+    const endpoint = path(g.host, 'turing-host-action');
+    const request = { matchID: g.matchID, epoch: original.G.epoch, action: 'redraw' };
+    expect((await f.request(endpoint, { ...request, oversized: 'x'.repeat(5000) })).status).toBe(401);
+    expect((await f.request(endpoint, request, g.seats[1])).status).toBe(403);
+    expect((await f.request(endpoint, request, g.observer)).status).toBe(403);
+    expect((await f.request(endpoint, request, other.host)).status).toBe(401);
+    expect((await f.request(endpoint, request, undefined, { 'X-Replay-Token': g.host.credentials })).status).toBe(401);
+    expect((await f.request(endpoint, { ...request, matchID: other.matchID }, g.host)).status).toBe(409);
+    expect((await f.request(endpoint, { ...request, epoch: original.G.epoch - 1 }, g.host)).status).toBe(409);
+    expect((await f.request(endpoint, { ...request, actorID: g.host.playerID }, g.host)).status).toBe(400);
+    for (const actor of [g.host, g.seats[1]]) {
+      await f.rejectMove(g, actor.playerID, 'approveOrder', [original.G.epoch]);
+      await f.rejectMove(g, actor.playerID, 'approveRedraw', [original.G.epoch]);
+      await f.rejectMove(g, actor.playerID, 'serverApproveOrder', [original.G.epoch, actor.playerID]);
+      await f.rejectMove(g, actor.playerID, 'serverApproveRedraw', [original.G.epoch, actor.playerID]);
+    }
+    expect(await f.state(g.matchID)).toEqual(original);
+    const response = await f.request(endpoint, request, g.host);
+    expect(response.status).toBe(200);
+    expect(Object.keys(response.body).sort()).toEqual(['epoch', 'matchID', 'stateID']);
+    const redrawn = await f.state(g.matchID);
+    expect(redrawn.G.question!.id).not.toBe(original.G.question!.id);
+    expect(redrawn.G.private).toEqual(original.G.private);
+    expect(redrawn.G.log.at(-1)).toMatchObject({ type: 'question-redraw', actorID: g.host.playerID });
+    expect((await f.request(endpoint, request, g.host)).status).toBe(409);
+    await f.restart(); expect(await f.state(g.matchID)).toEqual(redrawn);
+    await connectGroup(f, g); await connectGroup(f, other);
+    const orderRequest = { matchID: g.matchID, epoch: redrawn.G.epoch, action: 'order' };
+    const decision = f.request(endpoint, orderRequest, g.host);
+    const ids = Object.keys(turingCards(redrawn.G));
+    f.emitMove(g, g.seats[1].playerID, 'placeCard', [ids[2], 0, redrawn.G.epoch], redrawn._stateID);
+    const decided = await decision;
+    await Promise.all(g.clients.map((socket, index) => f.sync(socket, g, g.seats[index])));
+    const settled = await f.state(g.matchID);
+    expect(settled._stateID).toBe(redrawn._stateID + 1);
+    if (decided.status === 200) {
+      expect(settled.G.status).toBe('round-review');
+      expect(settled.G.revealed.map(card => card.cardID)).toEqual(ids);
+    } else {
+      expect(decided.status).toBe(409);
+      expect(settled.G.tableOrder).toEqual([ids[2], ids[0], ids[1]]);
+      expect(settled.G.revealed).toEqual([]);
+      expect((await f.request(endpoint, { ...orderRequest, epoch: settled.G.epoch }, g.host)).status).toBe(200);
+    }
+    // Complete the remaining rounds through the host route, retaining ordinary
+    // socket sorting, history, snapshot privacy and shared replay integration.
+    for (let round = 2; round <= 5; round += 1) {
+      await ack(f, g);
+      const current = (await f.state(g.matchID)).G;
+      const ascending = ids.slice().sort((a, b) => turingCardNumber(current, a)! - turingCardNumber(current, b)!);
+      for (const [index, cardID] of ascending.entries()) {
+        const latest = (await f.state(g.matchID)).G;
+        if (turingTableOrder(latest)[index] !== cardID) await f.move(g, g.seats[1].playerID, 'placeCard', [cardID, index, latest.epoch]);
+      }
+      const ready = (await f.state(g.matchID)).G;
+      expect((await f.request(endpoint, { ...orderRequest, epoch: ready.epoch }, g.host)).status).toBe(200);
+    }
+    expect((await f.state(g.matchID)).G.status).toBe('finished');
+    expect(await f.state(other.matchID)).toEqual(untouched);
+    await archive(f, g);
+    const replay = await f.request(path(g.host, `replay?matchID=${g.matchID}&perspective=blind`), undefined, g.observer);
+    expect(replay.status).toBe(200); noServerSecrets(replay.body);
+    const pending = replay.body.frames.find((frame: any) => frame.G.status === 'sorting');
+    expect(pending.G.private).toEqual({});
+    expect(replay.body.frames.at(-1).G.winner).toBe('humans');
+    expect((await f.request(endpoint, orderRequest, g.host)).status).toBe(409);
+  }, 30000);
+
+  it.each([3, 4])('lets an authenticated observer host decide a %i-player game without occupying or impersonating a participant', async count => {
+    const f = await fixture(), g = await group(f, count + 1);
+    const configured = await f.request(path(g.host, 'options'), { matchID: g.matchID,
+      options: { redrawApproval: 'host', orderApproval: 'host' } }, g.host);
+    expect(configured.status).toBe(200);
+    const switched = await f.request(path(g.host, 'switch-role'), {
+      matchID: configured.body.matchID, requestID: randomUUID(), access: 'spectator',
+    }, g.host);
+    expect(switched.status).toBe(200);
+    const observerHost = switched.body as Observer;
+    g.seats = g.seats.slice(1); g.matchID = switched.body.matchID;
+    for (const seat of g.seats) expect((await f.request(path(g.host, 'ready'), { matchID: g.matchID, ready: true }, seat)).status).toBe(200);
+    const started = await f.request(path(g.host, 'start'), { matchID: g.matchID }, observerHost);
+    expect(started.status).toBe(200); g.matchID = started.body.matchID;
+    await connectGroup(f, g);
+    const original = (await f.state(g.matchID)).G;
+    expect(Object.keys(original.players)).toHaveLength(count);
+    const endpoint = path(g.host, 'turing-host-action');
+    expect((await f.request(endpoint, { matchID: g.matchID, epoch: original.epoch, action: 'redraw' }, g.observer)).status).toBe(403);
+    expect((await f.request(endpoint, { matchID: g.matchID, epoch: original.epoch, action: 'redraw' }, observerHost)).status).toBe(200);
+    const redrawn = (await f.state(g.matchID)).G;
+    expect(redrawn.private).toEqual(original.private);
+    expect(redrawn.log.at(-1)).toMatchObject({ type: 'question-redraw' });
+    expect(redrawn.log.at(-1)).not.toHaveProperty('actorID');
+    await f.restart(); await connectGroup(f, g);
+    const request = { matchID: g.matchID, epoch: redrawn.epoch, action: count === 3 ? 'order' : 'redraw' };
+    expect((await f.request(endpoint, request, observerHost)).status).toBe(200);
+    const updated = (await f.state(g.matchID)).G;
+    if (count === 3) {
+      expect(updated.revealed).toHaveLength(count);
+      expect(updated.log.filter(event => event.type === 'reveal').every(event => event.actorID === undefined)).toBe(true);
+    } else {
+      expect(updated.question!.id).not.toBe(redrawn.question!.id);
+      expect((await f.request(endpoint, { ...request, action: 'order', epoch: updated.epoch }, observerHost)).status).toBe(409);
+      expect((await f.request(path(g.host, 'leave'), { matchID: g.matchID }, observerHost)).status).toBe(200);
+      expect(f.app.rooms.rooms.get(g.host.roomId)?.hostPlayerID).toBe(g.seats[0].playerID);
+      expect((await f.request(endpoint, { ...request, epoch: updated.epoch }, observerHost)).status).toBe(401);
+      expect((await f.request(endpoint, { ...request, epoch: updated.epoch }, g.seats[0])).status).toBe(200);
+    }
+  }, 15000);
+
+  it.each(['leave', 'abort'] as const)('rechecks host authority and match generation when %s wins the queue before an already authenticated decision', async operation => {
+    const f = await fixture(), g = await group(f, 3);
+    expect((await f.request(path(g.host, 'options'), { matchID: g.matchID,
+      options: { redrawApproval: 'host', orderApproval: 'host' } }, g.host)).status).toBe(200);
+    await start(f, g);
+    const original = await f.state(g.matchID), queue = f.app.server.transport.getMatchQueue(g.matchID);
+    let release!: () => void, entered!: () => void;
+    const gate = new Promise<void>(resolve => { release = resolve; });
+    const started = new Promise<void>(resolve => { entered = resolve; });
+    const waiting = queue.add(async () => { entered(); await gate; });
+    await started;
+    const mutation = f.request(path(g.host, operation), { matchID: g.matchID }, g.host);
+    let decision: ReturnType<typeof f.request> | undefined;
+    const request = { matchID: g.matchID, epoch: original.G.epoch, action: 'redraw' };
+    try {
+      await vi.waitFor(() => expect(queue.size).toBe(1));
+      decision = f.request(path(g.host, 'turing-host-action'), request, g.host);
+      await vi.waitFor(() => expect(queue.size).toBe(2));
+    } finally { release(); }
+    await waiting; expect((await mutation).status).toBe(200);
+    expect((await decision!).status).toBe(operation === 'leave' ? 401 : 409);
+    await queue.onIdle();
+    expect((await f.state(g.matchID)).G.question).toEqual(original.G.question);
+    if (operation === 'leave') {
+      expect(f.app.rooms.rooms.get(g.host.roomId)?.hostPlayerID).toBe(g.seats[1].playerID);
+      expect((await f.request(path(g.host, 'turing-host-action'), request, g.seats[1])).status).toBe(200);
+    }
+  });
 
   it('keeps ended test-room challenge replays but never adds their score to site statistics', async () => {
     const f = await fixture(), g = await group(f, 2, true);

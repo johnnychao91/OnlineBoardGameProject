@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CreateGameReducer, createMatch } from 'boardgame.io/internal';
 import type { State } from 'boardgame.io';
-import { TuringGame, isTuringSharedTable, turingCards, turingTableOrder, turingCardNumber, turingObserverView, turingPlayerView, type TuringState } from './game';
+import { TuringGame, TuringHostGame, isTuringSharedTable, turingCards, turingTableOrder, turingCardNumber, turingObserverView, turingPlayerView, type TuringState } from './game';
 import { normalizeTuringOptions, validateTuringOptions, type TuringOptions } from './rules';
 import { turingQuestionPool } from './questions';
 
@@ -46,6 +46,12 @@ function match(count = 4, setup: { participantIDs?: string[]; options?: TuringOp
     act(id: string, move: string, ...args: unknown[]) {
       const previousID = state._stateID;
       state = clone(reducer(state, { type: 'MAKE_MOVE', payload: { type: move, args, playerID: id } })) as State<TuringState>;
+      return state._stateID > previousID;
+    },
+    hostAction(executionSeat: string, move: string, epoch: unknown, actorID: unknown) {
+      const previousID = state._stateID;
+      const hostReducer = CreateGameReducer({ game: { ...TuringHostGame, seed }, isClient: false });
+      state = clone(hostReducer(state, { type: 'MAKE_MOVE', payload: { type: move, args: [epoch, actorID], playerID: executionSeat } })) as State<TuringState>;
       return state._stateID > previousID;
     },
     event(id: string, event: string, ...args: unknown[]) {
@@ -756,19 +762,124 @@ describe('圖靈測試直接排序與全員重抽', () => {
   });
 });
 
+
+describe('圖靈測試分別設定重抽與排序的同意方式', () => {
+  it.each([2, 3])('any-player order approval reveals the %i-seat table once but round review still requires everyone', count => {
+    const f = match(count, { options: normalizeTuringOptions({ orderApproval: 'any', redrawApproval: 'all' }) });
+    const ids = Object.keys(f.G.players), epoch = f.G.epoch;
+    for (const id of ['99', 'observer']) expect(f.act(id, 'approveOrder', epoch)).toBe(false);
+    expect(f.act(ids.at(-1)!, 'approveOrder', epoch)).toBe(true);
+    expect(f.G.status).toBe('round-review'); expect(f.G.revealed).toHaveLength(count);
+    expect(f.G.orderApprovals).toEqual([ids.at(-1)!]);
+    expect(f.act(ids[0], 'approveOrder', epoch)).toBe(false);
+    const reviewEpoch = f.G.epoch;
+    expect(f.act(ids[0], 'acknowledge', reviewEpoch)).toBe(true);
+    expect(f.G).toMatchObject({ status: 'round-review', round: 1 });
+    for (const id of ids.slice(1)) expect(f.act(id, 'acknowledge', reviewEpoch)).toBe(true);
+    expect(f.G).toMatchObject({ status: 'sorting', round: 2 });
+  });
+  it.each([2, 4, 9])('any participant can redraw immediately in a %i-seat game without changing cards or requiring order consent', count => {
+    const f = match(count, { options: normalizeTuringOptions({ redrawApproval: 'any', orderApproval: 'all' }) });
+    const ids = Object.keys(f.G.players), before = clone(f.G);
+    expect(f.act('99', 'approveRedraw', f.G.epoch)).toBe(false);
+    expect(f.act(ids.at(-1)!, 'approveRedraw', f.G.epoch)).toBe(true);
+    expect(f.G.question!.id).not.toBe(before.question!.id);
+    expect(f.G).toMatchObject({ status: 'sorting', round: before.round, completedRounds: 0, private: before.private,
+      integrity: before.integrity, examinerID: before.examinerID, redrawApprovals: [] });
+    expect(f.act(ids.at(-1)!, 'approveRedraw', before.epoch)).toBe(false);
+    expect(turingObserverView(f.G, 'blind').options).toMatchObject({ redrawApproval: 'any', orderApproval: 'all' });
+    if (count <= 3) {
+      expect(f.act(ids[0], 'approveOrder', f.G.epoch)).toBe(true);
+      expect(f.G.status).toBe('sorting'); expect(f.G.revealed).toEqual([]);
+    }
+  });
+  it('unanimous redraw remains independent of any-player order approval and blocks revealing until withdrawn', () => {
+    const f = match(3, { options: normalizeTuringOptions({ redrawApproval: 'all', orderApproval: 'any' }) });
+    const ids = Object.keys(f.G.players), original = clone(f.G.question);
+    expect(f.act(ids[0], 'approveRedraw', f.G.epoch)).toBe(true);
+    expect(f.G.question).toEqual(original);
+    expect(f.act(ids[1], 'approveOrder', f.G.epoch)).toBe(false);
+    expect(f.act(ids[0], 'withdrawRedraw', f.G.epoch)).toBe(true);
+    expect(f.act(ids[1], 'approveOrder', f.G.epoch)).toBe(true);
+    expect(f.G.status).toBe('round-review');
+  });
+  it('saved missing policies retain unanimous consent and project without rewriting old options', () => {
+    const f = match(3), ids = Object.keys(f.G.players);
+    const options = { ...f.G.options }; delete options.redrawApproval; delete options.orderApproval;
+    f.patch({ options }); f.reload();
+    expect(turingObserverView(f.G, 'god').options).toEqual(options);
+    expect(f.act(ids[0], 'approveRedraw', f.G.epoch)).toBe(true);
+    expect(f.G.redrawApprovals).toEqual([ids[0]]);
+    expect(f.act(ids[0], 'withdrawRedraw', f.G.epoch)).toBe(true);
+    expect(f.act(ids[0], 'approveOrder', f.G.epoch)).toBe(true);
+    expect(f.G.status).toBe('sorting'); expect(f.G.orderApprovals).toEqual([ids[0]]);
+  });
+  it.each(['participant', 'observer'] as const)('host policy only accepts the server-only reducer for a %s host', kind => {
+    const f = match(3, { options: normalizeTuringOptions({ redrawApproval: 'host', orderApproval: 'host' }) });
+    const ids = Object.keys(f.G.players), actorID = kind === 'observer' ? null : ids[1];
+    const before = clone(f.G);
+    expect(TuringGame.moves).not.toHaveProperty('serverApproveOrder');
+    expect(TuringGame.moves).not.toHaveProperty('serverApproveRedraw');
+    for (const id of ids) {
+      expect(f.act(id, 'approveOrder', f.G.epoch, { isHost: true })).toBe(false);
+      expect(f.act(id, 'approveRedraw', f.G.epoch, { isHost: true })).toBe(false);
+      expect(f.act(id, 'serverApproveOrder', f.G.epoch, actorID)).toBe(false);
+      expect(f.act(id, 'serverApproveRedraw', f.G.epoch, actorID)).toBe(false);
+    }
+    expect(f.G).toEqual(before);
+    expect(f.hostAction(ids[0], 'serverApproveRedraw', f.G.epoch, actorID)).toBe(true);
+    expect(f.G.question!.id).not.toBe(before.question!.id);
+    expect(f.G.private).toEqual(before.private);
+    expect(f.G.redrawApprovals).toEqual([]);
+    expect(f.G.log.at(-1)?.actorID).toBe(actorID ?? undefined);
+    expect(f.hostAction(ids[0], 'serverApproveRedraw', before.epoch, actorID)).toBe(false);
+    expect(f.hostAction(ids[0], 'serverApproveOrder', f.G.epoch, actorID)).toBe(true);
+    expect(f.G.status).toBe('round-review'); expect(f.G.revealed).toHaveLength(3);
+    expect(f.G.log.filter(event => event.type === 'reveal').every(event => event.actorID === (actorID ?? undefined))).toBe(true);
+    expect(f.G.orderApprovals).toEqual(actorID === null ? [] : [actorID]);
+    expect(f.hostAction(ids[0], 'serverApproveOrder', f.G.epoch, actorID)).toBe(false);
+    expect(f.hostAction(ids[0], 'serverApproveRedraw', f.G.epoch, actorID)).toBe(false);
+    acknowledgeAll(f); expect(f.G.round).toBe(2);
+  });
+  it.each(['all', 'any'] as const)('the server-only host path cannot bypass a configured %s policy', policy => {
+    const f = match(3, { options: normalizeTuringOptions({ redrawApproval: policy, orderApproval: policy }) });
+    const ids = Object.keys(f.G.players), before = clone(f.G);
+    expect(f.hostAction(ids[0], 'serverApproveOrder', f.G.epoch, ids[0])).toBe(false);
+    expect(f.hostAction(ids[0], 'serverApproveRedraw', f.G.epoch, null)).toBe(false);
+    expect(f.G).toEqual(before);
+  });
+  it('host-only actions validate epoch, execution seat and audit actor, while 4+ players keep examiner-only card revealing', () => {
+    const f = match(4, { options: normalizeTuringOptions({ redrawApproval: 'host', orderApproval: 'host' }) });
+    const ids = Object.keys(f.G.players), before = clone(f.G);
+    expect(f.hostAction('99', 'serverApproveRedraw', f.G.epoch, null)).toBe(false);
+    for (const epoch of [f.G.epoch - 1, String(f.G.epoch), null]) {
+      expect(f.hostAction(ids[0], 'serverApproveRedraw', epoch, null)).toBe(false);
+    }
+    for (const actor of ['99', '__proto__', undefined, {}, true]) expect(f.hostAction(ids[0], 'serverApproveRedraw', f.G.epoch, actor)).toBe(false);
+    expect(f.hostAction(ids[0], 'serverApproveOrder', f.G.epoch, null)).toBe(false);
+    expect(f.G).toEqual(before);
+    const card = Object.keys(turingCards(f.G))[0];
+    expect(f.act(ids.find(id => id !== f.G.examinerID)!, 'revealAnswer', card, f.G.epoch)).toBe(false);
+    expect(f.act(f.G.examinerID, 'revealAnswer', card, f.G.epoch)).toBe(true);
+    expect(f.hostAction(ids[0], 'serverApproveRedraw', f.G.epoch, null)).toBe(false);
+  });
+});
+
 describe('圖靈測試公開房規驗證', () => {
   it('normalizes independent defaults and trimmed custom cards without truncation', () => {
     const a = normalizeTuringOptions(undefined), b = normalizeTuringOptions(undefined);
     a.customQuestions.push(customQuestions[0]);
-    expect(b).toEqual({ deck: 'standard', customQuestions: [], mode: 'standard', lives: 5 });
+    expect(b).toEqual({ deck: 'standard', customQuestions: [], mode: 'standard', lives: 5, redrawApproval: 'all', orderApproval: 'all' });
     expect(normalizeTuringOptions({ customQuestions: [{ prompt: '  請說一句歡迎詞。  ', low: ' 冷淡 ', high: ' 熱情 ' }] })).toEqual({
-      deck: 'standard', customQuestions: [{ prompt: '請說一句歡迎詞。', low: '冷淡', high: '熱情' }], mode: 'standard', lives: 5,
+      deck: 'standard', customQuestions: [{ prompt: '請說一句歡迎詞。', low: '冷淡', high: '熱情' }], mode: 'standard', lives: 5, redrawApproval: 'all', orderApproval: 'all',
     });
     expect(validateTuringOptions({ deck: 'custom', customQuestions: customQuestions.slice(0, 5) }, 4)).toBeUndefined();
     expect(validateTuringOptions({ deck: 'custom', customQuestions: customQuestions.slice(0, 4) }, 4)).toContain('至少');
   });
   it.each([
     null, [], 'custom', 10, { unknown: true }, { deck: '__proto__' }, { deck: null }, { deck: true },
+    { redrawApproval: null }, { orderApproval: null }, { redrawApproval: 'everyone' }, { orderApproval: 'owner' },
+    { redrawApproval: true }, { orderApproval: 1 }, { redrawApproval: [] }, { orderApproval: {} },
     { mode: 'unknown' }, { mode: null }, { lives: '5' }, { lives: NaN }, { lives: Infinity }, { lives: 1.5 },
     { customQuestions: null }, { customQuestions: {} }, { customQuestions: [null] },
     { customQuestions: [{ ...customQuestions[0], id: 'injected' }] },

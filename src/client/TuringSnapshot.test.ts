@@ -198,7 +198,7 @@ describe('Turing read-only and private surfaces', () => {
     expect(table).not.toContain('<strong class="turing-desk-number">2</strong>');
     expect(table).not.toContain('<strong class="turing-desk-number">5</strong>');
     expect(html).not.toContain('turing-private-cards');
-    expect(table).toContain('強度已公開');
+    expect(table).not.toContain('強度已公開');
   });
   it('shows consent status and public final order without adding interactive controls to shared replay', () => {
     const G = sharedFixture(3); G.tableOrder = ['0', '2', '1'];

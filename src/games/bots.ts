@@ -153,9 +153,11 @@ function turingAction(G: TuringState, id: string, random: Random): BotAction | n
   }
   if (G.rulesVersion >= 4 && G.status === 'sorting' && (G.redrawApprovals?.length ?? 0) > 0) {
     // Bots join a human proposal but never initiate an endless redraw loop.
+    if ((G.options.redrawApproval ?? 'all') !== 'all') return null;
     return G.redrawApprovals!.includes(id) ? null : action('approveRedraw', G.epoch);
   }
   if (G.status === 'sorting' && isTuringSharedTable(G)) {
+    if (G.options.orderApproval === 'host') return null;
     const order = turingTableOrder(G);
     if (!(G.orderApprovals?.length) && random() < 0.35) {
       const index = Math.floor(random() * order.length);

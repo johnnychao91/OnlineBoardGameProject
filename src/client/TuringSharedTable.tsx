@@ -6,13 +6,13 @@ export interface TuringTableActions {
 }
 type Props = {
   G: TuringState; ownID: string; visible: boolean; readonly: boolean;
-  nameOf: (id: string) => string; actions?: TuringTableActions; scale?: ReactNode;
+  nameOf: (id: string) => string; actions?: TuringTableActions; scale?: ReactNode; hostPlayerID?: string | null;
 };
 type DropTarget = { index: number; marker?: number };
 type Drag = { cardID: string; pointerID: number; startX: number; startY: number; epoch: number; active: boolean };
 
 /** A public order with locally projected card faces; no browser-generated ordering is authoritative. */
-export function TuringSharedTable({ G, ownID, visible, readonly, nameOf, actions, scale }: Props) {
+export function TuringSharedTable({ G, ownID, visible, readonly, nameOf, actions, scale, hostPlayerID }: Props) {
   const cards = turingCards(G), ids = Object.keys(cards);
   const order = turingTableOrder(G);
   const approvals = G.orderApprovals ?? [];
@@ -86,13 +86,15 @@ export function TuringSharedTable({ G, ownID, visible, readonly, nameOf, actions
     const privateNumber = visible && (readonly || owner === ownID) ? turingCardNumber(G, cardID) : undefined;
     const number = result?.number ?? (G.status === 'finished' ? turingCardNumber(G, cardID) : privateNumber);
     const revealed = !!result || G.status === 'finished';
-    const ready = G.status === 'sorting' ? approvals.includes(owner)
+    const policy = G.options.orderApproval ?? 'all';
+    const ready = G.status === 'sorting' && policy === 'all' ? approvals.includes(owner)
       : G.status === 'briefing' || G.status === 'round-review' ? !!G.players[owner]?.acknowledged : undefined;
-    const label = `${nameOf(owner)}的強度牌${ready === undefined ? '' : ready ? '，已準備' : '，尚未準備'}`;
+    const readyText = G.status === 'sorting' && policy === 'host' && owner === hostPlayerID ? '待房主確認' : ready === undefined ? undefined : ready ? '已準備' : '尚未準備';
+    const label = `${nameOf(owner)}的強度牌${readyText ? `，${readyText}` : ''}`;
     const body = <><span className="turing-desk-owner"><span className="turing-desk-name">{nameOf(owner)}</span>{!readonly && owner === ownID && <span className="you-label">你</span>}
-      {ready !== undefined && <span className={`turing-ready-badge ${ready ? 'is-ready' : 'is-waiting'}`}>{ready ? '已準備' : '尚未準備'}</span>}</span>
+      {readyText && <span className={`turing-ready-badge ${ready ? 'is-ready' : 'is-waiting'}`}>{readyText}</span>}</span>
       <span className="turing-desk-face"><strong className="turing-desk-number">{number ?? '?'}</strong>
-      {(revealed || number !== undefined) && <small>{revealed ? result?.error ? '順序下降 · 生命 −1' : result ? '強度已公開' : '終局公開' : readonly ? '目前視角可見' : '只有你可見'}</small>}</span></>;
+      {(result?.error || (revealed && !result) || (!revealed && number !== undefined)) && <small>{revealed ? result?.error ? '順序下降 · 生命 −1' : '終局公開' : readonly ? '目前視角可見' : '只有你可見'}</small>}</span></>;
     const className = `turing-desk-card${selected === cardID ? ' is-selected' : ''}${result?.error ? ' is-error' : ''}${revealed ? ' is-revealed' : ''}${drag?.cardID === cardID ? ' is-dragging' : ''}`;
     return editable ? <button type="button" className={className} data-card-id={cardID} aria-label={`選取${label}`} aria-pressed={selected === cardID} aria-description="拖曳調整順序，或先選一張再點另一張。也可用左右方向鍵移動。"
       onPointerDown={event => pointerDown(event, cardID)} onPointerMove={pointerMove} onPointerUp={pointerUp} onPointerCancel={cancelDrag} onLostPointerCapture={cancelDrag}

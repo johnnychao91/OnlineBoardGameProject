@@ -147,6 +147,17 @@ describe('Test-room bot adapters', () => {
     for (const id of ids) expect(chooseBotAction('turing-test', f.state, id)?.move).not.toBe('approveRedraw');
   });
 
+  it('Turing bots wait for host-only ordering and obey any-player approval without initiating redraws', () => {
+    const hostOnly = match(TuringGame, 3, { orderApproval: 'host', redrawApproval: 'host' });
+    for (const id of Object.keys(hostOnly.state.G.players)) expect(chooseBotAction('turing-test', hostOnly.state, id, () => 0.9)).toBeNull();
+    const any = match(TuringGame, 3, { orderApproval: 'any', redrawApproval: 'any' });
+    const action = chooseBotAction('turing-test', any.state, '1', () => 0.9);
+    expect(action).toEqual({ move: 'approveOrder', args: [any.state.G.epoch] });
+    any.move('1', action!);
+    expect(any.state.G.status).toBe('round-review');
+    expect(any.state.G.log.some((entry: { type: string }) => entry.type === 'question-redraw')).toBe(false);
+  });
+
   const presetScenarios = MOON_PRESETS.filter(preset => preset.count !== null).flatMap(preset =>
     (['online', 'assisted'] as const).map(mode => ({ preset, mode })));
   it.each(presetScenarios)('$preset.id / $mode finishes using legal moves from each bot’s own view', ({ preset, mode }) => {
