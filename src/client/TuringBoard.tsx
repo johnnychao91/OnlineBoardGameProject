@@ -58,7 +58,7 @@ export function TuringBoard({ G, playerID, moves, isConnected }: Props) {
       <p className="small muted">送出後不能修改。不要直接說數字或使用約定暗號；全員送出後一起公開。</p>
       <button className="button primary full" disabled={!canAct || !visible || !answer.trim()} type="submit">送出回答</button>
     </form>}
-    {!legacy && G.status === 'answering' && !examiner && visible && <div className="turing-spoken-controls"><p className="small">在 Discord（DC）或其他語音軟體說出回答，再確認對應的卡牌。{ownCards.length > 1 && '先說明這是 A 卡或 B 卡，讓檢測員分得清楚。'}</p>{ownCards.map(([cardID, card]) => <button key={cardID} className="button primary full" type="button" disabled={!canAct || card.spoken} onClick={() => send('confirmSpoken', cardID)}>{ownCards.length > 1 && `${card.slot} 卡 · `}{card.spoken ? '已口頭回答' : '我已口頭回答'}<Icon type="check" size={16} /></button>)}</div>}
+    {!legacy && G.status === 'answering' && !examiner && visible && <div className="turing-spoken-controls"><p className="small">在語音通話中說出回答，再確認對應的卡牌。{ownCards.length > 1 && '先說明這是 A 卡或 B 卡，讓檢測員分得清楚。'}</p>{ownCards.map(([cardID, card]) => <button key={cardID} className="button primary full" type="button" disabled={!canAct || card.spoken} onClick={() => send('confirmSpoken', cardID)}>{ownCards.length > 1 && `${card.slot} 卡 · `}{card.spoken ? '已口頭回答' : '我已口頭回答'}<Icon type="check" size={16} /></button>)}</div>}
     {G.status === 'answering' && <p className="small muted">{legacy
       ? examiner ? '你是本輪檢測員，不需回答。請等待所有受測者提交。' : own?.answered ? '回答已封存，等待全員一起公開。' : !visible ? '先展開秘密資訊，再依強度作答。' : '可以虛構情境，不需分享真實私事。'
       : examiner ? '你是本關檢測員，不需回答。請聽每張卡的口頭回答，等所有卡確認後開始排序。' : own?.answered ? '你的卡牌已全部確認。等待其他受測者完成口頭回答。' : !visible ? '先展開秘密資訊，查看強度並口頭回答。' : '本站不會錄音或保存口頭回答。不要直接說出秘密數字。'}</p>}
@@ -140,7 +140,7 @@ function TuringStatus({ G, nameOf }: { G: TuringState; nameOf: TuringNameOf }) {
   const endless = G.targetRounds === null;
   const labels = {
     lobby: ['檢測室準備中', '等待房主開始。'],
-    briefing: ['校準開始 · 全員確認', legacy ? `本輪檢測員是 ${nameOf(G.examinerID)}，其餘玩家查看自己的秘密強度。` : `先加入 Discord（DC）或其他語音通話。${nameOf(G.examinerID)} 擔任檢測員，其餘玩家查看秘密強度。`],
+    briefing: ['校準開始 · 全員確認', legacy ? `本輪檢測員是 ${nameOf(G.examinerID)}，其餘玩家查看自己的秘密強度。` : `先加入語音通話。${nameOf(G.examinerID)} 擔任檢測員，其餘玩家查看秘密強度。`],
     answering: legacy ? ['回答封存中', '各自用文字作答。送出後不可修改，全員完成才一起公開。'] : ['語音回答中', '在外部語音中作答，再按「我已口頭回答」。題目若提到寫下，也直接說出內容；本站不錄音、不轉成文字。'],
     sorting: [`${nameOf(G.examinerID)} 正在排序`, `從你認為最低的強度開始。每張只和前一張比較，下降會失去一點${legacy ? '容錯' : '生命'}。`],
     'round-review': legacy ? ['本輪檢測完成', '先看看最後一張的結果；全員確認後進入下一輪。'] : ['本關檢測完成', '先看看最後一張的結果；全員確認後進入下一關，生命不會回復。'],
@@ -164,5 +164,5 @@ function TuringLog({ G, nameOf }: { G: TuringState; nameOf: TuringNameOf }) {
   return <section className="panel event-log turing-log"><div className="section-heading"><h2>檢測紀錄</h2><span>公開資訊</span></div><ol>{G.log.slice(-40).reverse().map((event, i) => <li key={G.log.length - i}><span className={`log-dot ${event.error ? 'hazard' : 'repair'}`} /><div><p>{turingEventText(event, nameOf, { legacy, dualCards })}</p>{event.question && <p>{event.question.prompt}</p>}<small>第 {event.round} {legacy ? '輪' : '關'}</small></div></li>)}</ol></section>;
 }
 export function TuringRuleSummary({ legacy = false }: { legacy?: boolean }) {
-  return <div className="rule-summary">{legacy ? <><p>這是仍依舊規則進行的文字局：4～9 人合作五輪，受測者各有一張強度牌，回答封存至全員送出才公開。</p><p>檢測員逐張揭牌；比前一張小扣一點容錯。歸零失敗，完成五輪仍有容錯則成功。</p></> : <><p>2～9 人全員合作，輪流擔任檢測員。請先加入 Discord（DC）或其他語音軟體，以口頭回答傳達秘密強度，再在網站確認。</p><p>2～3 人時，每位受測者各有 A、B 兩張牌；4～9 人各一張。檢測員不抽牌，根據每張卡的回答由低到高揭曉。</p><p>比前一張小扣一點生命，生命不會回復。標準模式挑戰五關；無盡模式持續到生命歸零，紀錄成功通過幾關。</p><p>題目提到「寫下」也直接口頭回答。網站只保存題目、確認與排序，不錄音或轉錄語音。</p></>}<p>可以虛構，不必透露真實經歷。不得直接說出秘密數字或用約定暗號；本遊戲沒有敵對玩家。</p><a href="/rules/turing-test" target="_blank" rel="noopener noreferrer">完整規則與圖鑑 →</a></div>;
+  return <div className="rule-summary">{legacy ? <><p>這是仍依舊規則進行的文字局：4～9 人合作五輪，受測者各有一張強度牌，回答封存至全員送出才公開。</p><p>檢測員逐張揭牌；比前一張小扣一點容錯。歸零失敗，完成五輪仍有容錯則成功。</p></> : <><p>2～9 人全員合作，輪流擔任檢測員。請先透過語音軟體建立通話，以口頭回答傳達秘密強度，再在網站確認。</p><p>2～3 人時，每位受測者各有 A、B 兩張牌；4～9 人各一張。檢測員不抽牌，根據每張卡的回答由低到高揭曉。</p><p>比前一張小扣一點生命，生命不會回復。標準模式挑戰五關；無盡模式持續到生命歸零，紀錄成功通過幾關。</p><p>題目提到「寫下」也直接口頭回答。網站只保存題目、確認與排序，不錄音或轉錄語音。</p></>}<p>可以虛構，不必透露真實經歷。不得直接說出秘密數字或用約定暗號；本遊戲沒有敵對玩家。</p><a href="/rules/turing-test" target="_blank" rel="noopener noreferrer">完整規則與圖鑑 →</a></div>;
 }

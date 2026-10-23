@@ -58,10 +58,10 @@ export function TuringOptions({ seat, info, disabled, onBusy, onUpdate }: LobbyO
     window.setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
   return <section className="panel turing-options" aria-label="圖靈測試房規"><h3>本次人性測試設定</h3>
-    <div className="turing-voice-note"><strong>先連上語音，再開始遊戲</strong><p>使用 Discord（DC）或其他語音軟體交流。本站提供題目、秘密強度與揭牌操作，不需在局內打字，也不會錄音或轉錄語音。</p></div>
+    <div className="turing-voice-note"><strong>先連上語音，再開始遊戲</strong><p>使用語音軟體交流。本站提供題目、秘密強度與揭牌操作，不需在局內打字，也不會錄音或轉錄語音。</p></div>
     <div className="turing-mode-settings"><label>挑戰模式<select value={draft.mode ?? 'standard'} disabled={blocked} onChange={event => setDraft({ ...draft, mode: event.target.value as Options['mode'] })}><option value="standard">標準模式 · 五關合作</option><option value="endless">無盡模式 · 有限生命闖關</option></select></label>{draft.mode === 'endless' && <label>起始生命<input type="number" inputMode="numeric" min={1} max={20} step={1} value={livesText} disabled={blocked} onChange={event => setLivesText(event.target.value)} onBlur={() => setLivesText(String(draftLives))} /><small>1～20 點，預設 5 點；超出範圍會採用最近的界限。</small></label>}</div>
     <p className="small">{draft.mode === 'endless' ? `以 ${draftLives} 點生命不斷挑戰，生命不會回復；歸零時記錄已通過幾關。題庫用完會重新抽取，避免連續同題。` : '標準模式共五關。2～3 人起始 3 點生命，4～8 人等於參與人數，9 人為 8 點；生命不會回復。'}</p>
-    <label>題庫模式<select value={draft.deck} disabled={blocked} onChange={event => setDraft({ ...draft, deck: event.target.value as Options['deck'] })}>{Object.entries(TURING_DECKS).map(([id, name]) => <option key={id} value={id}>{name}{id === 'standard' ? ' · 1,000 題' : id === 'protocol' ? ' · 1,000 題 · 成人向' : id === 'mixed' ? ' · 2,000 題 · 含成人向' : ''}</option>)}</select></label>
+    <label>題庫模式<select value={draft.deck} disabled={blocked} onChange={event => setDraft({ ...draft, deck: event.target.value as Options['deck'] })}>{Object.entries(TURING_DECKS).map(([id, name]) => <option key={id} value={id}>{name}{id === 'standard' ? ' · 1,000 題' : id === 'protocol' ? ' · 1,000 題 · 無審查' : id === 'mixed' ? ' · 2,000 題 · 含無審查' : ''}</option>)}</select></label>
     <p className="small muted">{draft.deck === 'protocol' || draft.deck === 'mixed' ? '失控協定含成人曖昧、社交尷尬與黑色幽默，請由成年且接受此風格的朋友一起玩。所有情境都可以虛構，無需分享私事。' : '人性校準涵蓋生活、想像與人類情緒；題目可以直接口頭作答，不需要開鏡頭或表演。'}題目若提到「寫下」，也直接說出內容即可。</p>
     <p className="small">2～9 人全員合作，檢測員輪流擔任且不抽牌。2～3 人時，每位受測者各有 A、B 兩張牌；4～9 人各一張。故事中的機器人不是玩家的秘密身分。</p>
     <details><summary>自訂題目 · {draft.customQuestions.length} / {TURING_CUSTOM_MAX} 題</summary>
