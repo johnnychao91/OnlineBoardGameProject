@@ -13,9 +13,7 @@ import './turing.css';
 export type TuringNameOf = (id: string) => string;
 type Props = { G: TuringState; playerID: string | null; isConnected?: boolean; moves: Record<string, (...args: any[]) => any> };
 export function useTuringPrivacy(): [boolean, (value: boolean) => void] {
-  const [visible, setVisible] = useState(() => typeof document === 'undefined' || !document.hidden);
-  useEffect(() => { const hide = () => { if (document.hidden) setVisible(false); }; document.addEventListener('visibilitychange', hide); return () => document.removeEventListener('visibilitychange', hide); }, []);
-  return [visible, setVisible];
+  return useState(true);
 }
 export const turingNameOf = (info: RoomInfo): TuringNameOf => id => {
   const player = info.players.find(p => String(p.id) === id);
@@ -63,6 +61,9 @@ export function TuringBoard({ G, playerID, moves, isConnected }: Props) {
     </div>
   </div>;
   const controls = <>
+    {sharedTable && G.status === 'sorting' && <button className="button primary full" type="button" disabled={!canAct || Object.keys(cards).length === 0 || redrawApprovals.length > 0} onClick={() => send(G.orderApprovals?.includes(id) ? 'withdrawApproval' : 'approveOrder')}>
+      {redrawApprovals.length ? '先決定是否重抽' : G.orderApprovals?.includes(id) ? '撤回同意' : '同意這個順序'}<Icon type="check" size={16} />
+    </button>}
     {review && <button className="button primary full" disabled={!canAct || own?.acknowledged} onClick={() => send('acknowledge')}>
       {own?.acknowledged ? '已確認，等待同伴' : G.status === 'briefing' ? '我已了解本輪任務' : '已看過結果，開始下一輪'}<Icon type="check" size={16} />
     </button>}
@@ -85,7 +86,7 @@ export function TuringBoard({ G, playerID, moves, isConnected }: Props) {
     <TuringLayout G={G} info={info} nameOf={nameOf} ownID={id} visible={visible} onVisible={setVisible} controls={G.status === 'finished' ? undefined : controls}
       questionFeedback={questionFeedback} questionControls={questionControls}
       sound={<GameSoundControl gameID="turing-test" G={G} matchID={info.matchID} playerID={id} connected={isConnected !== false} />}
-      tableActions={sharedTable && canAct ? { place: (cardID, index) => send('placeCard', cardID, index), approve: () => send('approveOrder'), withdraw: () => send('withdrawApproval') } : undefined}
+      tableActions={sharedTable && canAct ? { place: (cardID, index) => send('placeCard', cardID, index) } : undefined}
       onReveal={examiner && canAct && !redrawApprovals.length ? target => send('revealAnswer', target) : undefined} />
   </>;
 }
@@ -124,13 +125,14 @@ export function TuringLayout({ G, info, nameOf, ownID, visible, onVisible, contr
           </article>;
         })}</div>
       </section>}
-      <section className="turing-round-footer" aria-label="本輪排序與確認"><div className="turing-reveal-strip"><span>揭曉順序</span>{G.revealed.length ? G.revealed.map(entry => <span key={entry.cardID ?? entry.playerID} className={entry.error ? 'turing-drop' : ''} title={cardName(entry.playerID, entry.slot)}>{dualCards && <small>{cardName(entry.playerID, entry.slot)} · </small>}{entry.number}{entry.error && ' ↓'}</span>) : <span className="muted">尚未揭牌</span>}</div>
+      {!sharedTable && <section className="turing-round-footer" aria-label="本輪排序與確認"><div className="turing-reveal-strip"><span>揭曉順序</span>{G.revealed.length ? G.revealed.map(entry => <span key={entry.cardID ?? entry.playerID} className={entry.error ? 'turing-drop' : ''} title={cardName(entry.playerID, entry.slot)}>{dualCards && <small>{cardName(entry.playerID, entry.slot)} · </small>}{entry.number}{entry.error && ' ↓'}</span>) : <span className="muted">尚未揭牌</span>}</div>
         {(G.status === 'briefing' || G.status === 'round-review') && <p className="small">尚未確認：{Object.entries(G.players).filter(([, p]) => !p.acknowledged).map(([id]) => nameOf(id)).join('、') || '全員已確認'}</p>}
         {readonly && <p className="small muted">{replay ? '唯讀復盤' : '觀戰席，不占參與人數'} · {legacy ? '觀戰者不需作答或確認。' : replay ? '保留題目與揭牌順序，不含語音或逐字稿。' : '觀戰者不需作答或確認；語音需另外加入。'}</p>}
-      </section>
+      </section>}
     </section>
     <aside className="turing-personal-aside"><TuringPrivate G={G} id={ownID} visible={visible} onVisible={onVisible} nameOf={nameOf} readonly={readonly}>{inspector}</TuringPrivate>
       {controls && <section className="panel turing-controls">{controls}</section>}
+      {sharedTable && readonly && <p className="small muted turing-observer-note">{replay ? '唯讀復盤' : '觀戰席，不占參與人數'} · {replay ? '保留題目與揭牌順序，不含語音或逐字稿。' : '觀戰者不需作答或確認；語音需另外加入。'}</p>}
     </aside>
     <aside className="game-aside turing-history-aside"><TuringLog G={G} nameOf={nameOf} /><details className="panel rules-details"><summary>檢測守則</summary><TuringRuleSummary legacy={legacy} legacyDual={dualCards} direct={(G.rulesVersion ?? 1) >= 4} /></details>
       {G.status === 'finished' && !replay && <BattleReport G={G} info={info} perspective="blind" label="製作檢測戰報" />}
@@ -153,7 +155,7 @@ function TuringPrivate({ G, id, visible, onVisible, nameOf, readonly, children }
       : <><div className={`turing-private-cards${cards.length > 1 ? ' turing-double-cards' : ''}`}>{cards.map(([cardID, card]) => <div className="turing-chip" key={cardID}>{cards.length > 1 && <span>{card.slot} 卡</span>}<strong>{turingCardNumber(G, cardID) ?? '?'}</strong>{turingCardNumber(G, cardID) === undefined && <small>目前視角不可查看</small>}</div>)}</div>
         {secret && <p>{!legacy && cards.length > 1 ? 'A、B 是兩份獨立回答，請分別對應各自強度。先說卡牌代號，再說答案；不要透露數字。' : '讓你的回答落在量表的這個位置。全隊合作，不要直接透露數字。'}</p>}
         {legacy && secret?.answer && !G.answers[id] && <div className="turing-sealed"><strong>已封存的回答</strong><p>{secret.answer}</p></div>}</>}
-      <p className="small muted">機器人是故事背景；玩家都是同隊。切到其他分頁時會自動收起。</p>
+      <p className="small muted">機器人是故事背景；玩家都是同隊。需要遮住數字時，可手動收起秘密資訊。</p>
     </div>}
   </section>;
 }

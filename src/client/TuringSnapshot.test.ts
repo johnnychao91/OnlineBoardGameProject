@@ -53,9 +53,13 @@ function sharedFixture(count: 2 | 3): TuringState {
 }
 const sharedInfo = (count: number): RoomInfo => ({ ...info, numPlayers: count, players: info.players.slice(0, count) });
 const sharedSurface = (html: string) => html.match(/<section class="panel turing-table turing-shared-table[\s\S]*?<\/section>/)?.[0] ?? '';
-const liveBoard = (G: TuringState) => renderToStaticMarkup(createElement(RoomContext.Provider, {
+const rightControls = (html: string) => html.match(/<section class="panel turing-controls">([\s\S]*?)<\/section>/)?.[1] ?? '';
+const controlButton = (html: string, label: string) => [...rightControls(html).matchAll(/<button\b[^>]*>[\s\S]*?<\/button>/g)]
+  .find(match => match[0].includes(label))?.[0] ?? '';
+const cardHeading = (html: string, id: string) => html.match(new RegExp(`data-card-id="${id}"[^>]*>[\\s\\S]*?<span class="turing-desk-owner">([\\s\\S]*?)<\\/span>\\s*<span class="turing-desk-face"`))?.[1] ?? '';
+const liveBoard = (G: TuringState, connected = true) => renderToStaticMarkup(createElement(RoomContext.Provider, {
   value: { info: sharedInfo(3), seat: { ...sharedInfo(3), access: 'player', playerID: '0', credentials: 'local-test-credential' }, inviteUrl: '', setInviteUrl: () => {} },
-}, createElement(TuringBoard, { G, playerID: '0', moves: {}, isConnected: true })));
+}, createElement(TuringBoard, { G, playerID: '0', moves: {}, isConnected: connected })));
 
 describe('Turing read-only and private surfaces', () => {
   it('reprojects a cached god payload before rendering a blind snapshot', () => {
@@ -167,6 +171,7 @@ describe('Turing read-only and private surfaces', () => {
       expect(html.match(/data-turing-slot=/g)).toHaveLength(count);
       expect(html).not.toContain('<button'); expect(html).not.toContain('draggable=');
       expect(html).not.toContain('A 卡'); expect(html).not.toContain('B 卡');
+      expect(html).not.toContain('尚未同意'); expect(html).not.toContain('尚未確認');
       expect(html).toMatch(/data-turing-slot="0"[\s\S]*?data-card-id="1"/);
       expect(html).toMatch(/data-turing-slot="1"[\s\S]*?data-card-id="0"/);
     }
@@ -181,8 +186,8 @@ describe('Turing read-only and private surfaces', () => {
     expect(table).not.toContain('<strong class="turing-desk-number">8</strong>');
     expect(table).not.toContain('<strong class="turing-desk-number">5</strong>');
     expect(table.match(/class="turing-desk-number">\?/g)).toHaveLength(2);
-    expect(table).toContain('同意這個順序');
-    expect(table).toContain('disabled=""');
+    expect(table).not.toContain('同意這個順序');
+    expect(table).not.toContain('撤回同意');
   });
   it('collapses shared-table secrets while retaining an already revealed public card', () => {
     const G = sharedFixture(3);
@@ -197,16 +202,21 @@ describe('Turing read-only and private surfaces', () => {
   });
   it('shows consent status and public final order without adding interactive controls to shared replay', () => {
     const G = sharedFixture(3); G.tableOrder = ['0', '2', '1'];
-    let table = sharedSurface(snapshot(G, 'blind', sharedInfo(3)));
-    expect(table).toContain('尚未同意：受測者 1、受測者 2');
+    let html = snapshot(G, 'blind', sharedInfo(3)), table = sharedSurface(html);
+    expect(table).not.toContain('尚未同意：');
     expect(table).not.toContain('<button');
+    expect(html).not.toContain('本輪排序與確認'); expect(html).not.toContain('揭曉順序');
+    expect(html).toContain('唯讀復盤'); expect(html).toContain('不含語音或逐字稿');
+    expect(rightControls(html)).toBe('');
     G.status = 'round-review'; G.orderApprovals = ['0', '1', '2'];
     G.revealed = G.tableOrder.map(playerID => ({ playerID, cardID: playerID, slot: 'A', number: G.private[playerID].number, error: false }));
-    table = sharedSurface(snapshot(G, 'blind', sharedInfo(3)));
+    html = snapshot(G, 'blind', sharedInfo(3)); table = sharedSurface(html);
     expect(table).toContain('<strong class="turing-desk-number">2</strong>');
     expect(table).toContain('<strong class="turing-desk-number">5</strong>');
     expect(table).toContain('<strong class="turing-desk-number">8</strong>');
     expect(table).not.toContain('尚未同意'); expect(table).not.toContain('<button');
+    expect(html).not.toContain('尚未確認：'); expect(html).not.toContain('本輪排序與確認');
+    expect(rightControls(html)).toBe('');
   });
   it('starts new live games with movable cards and question tools while removing redundant answer confirmations from cards', () => {
     const G = sharedFixture(3); G.orderApprovals = []; G.redrawApprovals = [];
@@ -214,6 +224,9 @@ describe('Turing read-only and private surfaces', () => {
     expect(html).toContain('提議重抽題目'); expect(html).toContain('turing-question-feedback');
     expect(html).toContain('選取受測者 0的強度牌'); expect(html).toContain('同意這個順序');
     const table = sharedSurface(html);
+    expect(table).not.toContain('同意這個順序'); expect(table).not.toContain('撤回同意');
+    expect(rightControls(html)).toContain('同意這個順序');
+    expect(html).not.toContain('本輪排序與確認'); expect(html).not.toContain('尚未確認：');
     expect(table).not.toContain('turing-slot-label'); expect(table).not.toContain('turing-place-button');
     expect(table).not.toContain('待排'); expect(table).not.toContain('秘密強度');
     expect(html).not.toContain('我已了解本輪任務'); expect(html).not.toContain('我已口頭回答');
@@ -224,9 +237,10 @@ describe('Turing read-only and private surfaces', () => {
   });
   it('keeps every old partially arranged card on the live table and allows immediate order approval', () => {
     const G = sharedFixture(3); G.tableOrder = ['2']; G.orderApprovals = [];
-    const table = sharedSurface(liveBoard(G));
+    const html = liveBoard(G), table = sharedSurface(html);
     expect([...table.matchAll(/data-card-id="([^"]+)"/g)].map(match => match[1])).toEqual(['2', '0', '1']);
-    expect(table).toContain('<button class="button primary" type="button">同意這個順序</button>');
+    expect(controlButton(html, '同意這個順序')).not.toBe('');
+    expect(controlButton(html, '同意這個順序')).not.toContain('disabled');
     expect(table).not.toContain('待排'); expect(table).not.toContain('放第');
     expect(G.tableOrder).toEqual(['2']);
   });
@@ -235,9 +249,59 @@ describe('Turing read-only and private surfaces', () => {
     let html = liveBoard(G);
     expect(html).toContain('同意重抽：受測者 0、受測者 2'); expect(html).toContain('等待：受測者 1');
     expect(html).toContain('撤回重抽同意'); expect(html).toContain('先決定是否重抽');
+    expect(controlButton(html, '先決定是否重抽')).toContain('disabled=""');
+    expect(sharedSurface(html)).not.toContain('先決定是否重抽');
     G.status = 'round-review'; G.redrawApprovals = [];
     html = liveBoard(G);
-    expect(html).toContain('已看過結果，開始下一輪'); expect(html).not.toContain('提議重抽題目');
+    expect(controlButton(html, '已看過結果，開始下一輪')).not.toBe('');
+    expect(controlButton(html, '已看過結果，開始下一輪')).not.toContain('disabled');
+    expect(html).not.toContain('提議重抽題目');
+  });
+  it('keeps approve, withdraw and round-result confirmation in the right controls with connection and acknowledgement guards', () => {
+    const G = sharedFixture(3); G.orderApprovals = [];
+    let html = liveBoard(G);
+    expect(controlButton(html, '同意這個順序')).not.toBe('');
+    expect(controlButton(html, '同意這個順序')).not.toContain('disabled');
+    G.orderApprovals = ['0'];
+    html = liveBoard(G);
+    expect(controlButton(html, '撤回同意')).not.toBe('');
+    expect(controlButton(html, '撤回同意')).not.toContain('disabled');
+    expect(controlButton(html, '同意這個順序')).toBe('');
+    expect(sharedSurface(html)).not.toContain('撤回同意');
+    expect(controlButton(liveBoard(G, false), '撤回同意')).toContain('disabled=""');
+    G.status = 'round-review'; G.players['0'].acknowledged = true;
+    html = liveBoard(G);
+    expect(controlButton(html, '已確認，等待同伴')).toContain('disabled=""');
+    expect(controlButton(html, '撤回同意')).toBe('');
+    expect(html).not.toContain('尚未確認：');
+  });
+  it.each(['sorting', 'briefing', 'round-review'] as const)('shows %s readiness beside each name using only the current phase’s confirmation state', status => {
+    const G = sharedFixture(3); G.status = status;
+    G.orderApprovals = ['0', '2'];
+    for (const [id, player] of Object.entries(G.players)) player.acknowledged = id === '1';
+    const ready = status === 'sorting' ? ['0', '2'] : ['1'];
+    const live = liveBoard(G), readonly = snapshot(G, 'blind', sharedInfo(3));
+    for (const html of [live, readonly]) {
+      const table = sharedSurface(html);
+      for (const id of ['0', '1', '2']) {
+        const heading = cardHeading(table, id);
+        expect(heading).toContain(nameOf(id));
+        expect(heading).toContain(ready.includes(id) ? '已準備' : '尚未準備');
+        expect(heading).not.toContain(ready.includes(id) ? '尚未準備' : '已準備');
+      }
+      expect(table).not.toContain('尚未同意：');
+      expect(table).not.toContain('尚未確認：');
+      expect(html).not.toContain('本輪排序與確認');
+    }
+    expect(sharedSurface(readonly)).not.toContain('<button');
+    expect(rightControls(readonly)).toBe('');
+  });
+  it.each(['answering', 'finished'] as const)('does not carry stale ready badges into the %s phase', status => {
+    const G = sharedFixture(3); G.status = status;
+    G.orderApprovals = ['0', '1', '2'];
+    for (const player of Object.values(G.players)) player.acknowledged = true;
+    const table = sharedSurface(snapshot(G, 'blind', sharedInfo(3)));
+    expect(table).not.toContain('已準備'); expect(table).not.toContain('尚未準備');
   });
   it('retains briefing and spoken controls for an in-progress v3 shared game', () => {
     const G = sharedFixture(3); G.rulesVersion = 3; delete G.redrawApprovals;

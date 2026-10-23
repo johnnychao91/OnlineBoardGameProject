@@ -3,8 +3,6 @@ import { turingCards, turingCardNumber, turingTableOrder, type TuringState } fro
 
 export interface TuringTableActions {
   place: (cardID: string, index: number) => void;
-  approve: () => void;
-  withdraw: () => void;
 }
 type Props = {
   G: TuringState; ownID: string; visible: boolean; readonly: boolean;
@@ -88,8 +86,11 @@ export function TuringSharedTable({ G, ownID, visible, readonly, nameOf, actions
     const privateNumber = visible && (readonly || owner === ownID) ? turingCardNumber(G, cardID) : undefined;
     const number = result?.number ?? (G.status === 'finished' ? turingCardNumber(G, cardID) : privateNumber);
     const revealed = !!result || G.status === 'finished';
-    const label = `${nameOf(owner)}的強度牌`;
-    const body = <><span className="turing-desk-owner">{nameOf(owner)}{!readonly && owner === ownID && <span className="you-label">你</span>}</span>
+    const ready = G.status === 'sorting' ? approvals.includes(owner)
+      : G.status === 'briefing' || G.status === 'round-review' ? !!G.players[owner]?.acknowledged : undefined;
+    const label = `${nameOf(owner)}的強度牌${ready === undefined ? '' : ready ? '，已準備' : '，尚未準備'}`;
+    const body = <><span className="turing-desk-owner"><span className="turing-desk-name">{nameOf(owner)}</span>{!readonly && owner === ownID && <span className="you-label">你</span>}
+      {ready !== undefined && <span className={`turing-ready-badge ${ready ? 'is-ready' : 'is-waiting'}`}>{ready ? '已準備' : '尚未準備'}</span>}</span>
       <span className="turing-desk-face"><strong className="turing-desk-number">{number ?? '?'}</strong>
       {(revealed || number !== undefined) && <small>{revealed ? result?.error ? '順序下降 · 生命 −1' : result ? '強度已公開' : '終局公開' : readonly ? '目前視角可見' : '只有你可見'}</small>}</span></>;
     const className = `turing-desk-card${selected === cardID ? ' is-selected' : ''}${result?.error ? ' is-error' : ''}${revealed ? ' is-revealed' : ''}${drag?.cardID === cardID ? ' is-dragging' : ''}`;
@@ -117,10 +118,6 @@ export function TuringSharedTable({ G, ownID, visible, readonly, nameOf, actions
         {card(cardID)}
       </div>)}
     </div>
-    {G.status === 'sorting' && <div className="turing-order-approval"><p className="small">尚未同意：{Object.keys(G.players).filter(id => !approvals.includes(id)).map(nameOf).join('、') || '全員已同意'}</p>
-      <p className="small muted">調整任何卡牌位置，都會取消全員先前的同意；最後一人同意後立即揭牌。</p>
-      {!readonly && <button className="button primary" type="button" disabled={!actions || ids.length === 0 || !!G.redrawApprovals?.length} onClick={() => approvals.includes(ownID) ? actions?.withdraw() : actions?.approve()}>{G.redrawApprovals?.length ? '先決定是否重抽' : approvals.includes(ownID) ? '撤回同意' : '同意這個順序'}</button>}
-    </div>}
     {drag && cards[drag.cardID] && <div className="turing-drag-ghost" aria-hidden="true" style={{ left: drag.x, top: drag.y }}>{nameOf(cards[drag.cardID].playerID)}<span>放到想排的位置</span></div>}
   </section>;
 }
