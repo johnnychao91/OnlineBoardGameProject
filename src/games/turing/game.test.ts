@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CreateGameReducer, createMatch } from 'boardgame.io/internal';
 import type { State } from 'boardgame.io';
-import { TuringGame, isTuringSharedTable, turingCards, turingCardNumber, turingObserverView, turingPlayerView, type TuringState } from './game';
+import { TuringGame, isTuringSharedTable, turingCards, turingTableOrder, turingCardNumber, turingObserverView, turingPlayerView, type TuringState } from './game';
 import { normalizeTuringOptions, validateTuringOptions, type TuringOptions } from './rules';
 import { turingQuestionPool } from './questions';
 
@@ -119,7 +119,7 @@ describe('圖靈測試合作流程與快照', () => {
         expect(f.G.private[id].cards).toHaveLength(1);
         expect(f.G.private[id].cards!.map(card => card.id)).toEqual([id]);
       }
-      if (count <= 3) { expect(f.G.tableOrder).toEqual([]); expect(f.G.orderApprovals).toEqual([]); }
+      if (count <= 3) { expect(f.G.tableOrder).toEqual(ids); expect(f.G.orderApprovals).toEqual([]); }
       expect(numbers.every(number => Number.isInteger(number) && number >= 1 && number <= 10)).toBe(true);
       expect(f.G.answers).toEqual({}); expect(f.G.revealed).toEqual([]);
       questions.add(f.G.question!.id);
@@ -399,6 +399,64 @@ describe('圖靈測試有限生命無盡挑戰與舊局相容', () => {
 });
 
 describe('圖靈測試雙人與三人共同排序桌', () => {
+  it.each([2, 3])('%i players can approve the complete initial table without placing a card first', count => {
+    const f = match(count), ids = Object.keys(f.G.players), epoch = f.G.epoch;
+    expect(f.G.tableOrder).toEqual(ids);
+    const numbers = ids.map(id => turingCardNumber(f.G, id));
+    for (const id of ids.slice(0, -1)) {
+      expect(f.act(id, 'approveOrder', epoch)).toBe(true);
+      expect(f.G.revealed).toEqual([]); expect(f.G.epoch).toBe(epoch);
+    }
+    expect(f.act(ids.at(-1)!, 'approveOrder', epoch)).toBe(true);
+    expect(f.G.status).toBe('round-review');
+    expect(f.G.revealed.map(card => card.cardID)).toEqual(ids);
+    expect(f.G.revealed.map(card => card.number)).toEqual(numbers);
+  });
+  it.each([
+    [3, 'missing'], [3, 'empty'], [3, 'partial'], [4, 'missing'], [4, 'empty'], [4, 'partial'],
+  ] as const)('saved v%i %s tables project every card and accept direct agreement after restart', (version, layout) => {
+    const f = match(3, {}, 'old-table-layout', version === 3 ? 3 : false), ids = Object.keys(f.G.players);
+    const savedOrder = layout === 'missing' ? undefined : layout === 'empty' ? [] : [ids[2]];
+    const fullOrder = layout === 'partial' ? [ids[2], ids[0], ids[1]] : ids;
+    f.patch({ tableOrder: savedOrder, orderApprovals: [] }); f.reload();
+    const original = clone(f.G);
+    for (const view of [turingPlayerView({ G: f.G, playerID: ids[0] }), turingObserverView(f.G, 'blind'), turingObserverView(f.G, 'god')]) {
+      expect(turingTableOrder(view)).toEqual(fullOrder); expect(view.tableOrder).toEqual(fullOrder);
+      view.tableOrder!.reverse();
+    }
+    expect(f.G).toEqual(original);
+    const blind = turingObserverView(f.G, 'blind');
+    expect(blind.private).toEqual({});
+    expect(fullOrder.every(id => turingCardNumber(blind, id) === undefined)).toBe(true);
+    if (version === 3) {
+      expect(f.G.status).toBe('briefing');
+      expect(f.act(ids[0], 'approveOrder', f.G.epoch)).toBe(false);
+      prepareSorting(f);
+    }
+    const epoch = f.G.epoch;
+    for (const id of ids) expect(f.act(id, 'approveOrder', epoch)).toBe(true);
+    expect(f.G.tableOrder).toEqual(fullOrder);
+    expect(f.G.revealed.map(card => card.cardID)).toEqual(fullOrder);
+    expect(f.G.status).toBe('round-review');
+    acknowledgeAll(f);
+    expect(f.G.tableOrder).toEqual(ids);
+    expect(f.G.status).toBe(version === 3 ? 'briefing' : 'sorting');
+  });
+  it('reorders an omitted legacy card against the full table and never leaves another card waiting', () => {
+    const f = match(3), ids = Object.keys(f.G.players);
+    f.patch({ tableOrder: [ids[2]], orderApprovals: [] }); f.reload();
+    expect(turingTableOrder(f.G)).toEqual([ids[2], ids[0], ids[1]]);
+    const epoch = f.G.epoch;
+    expect(f.act(ids[0], 'placeCard', ids[1], 0, epoch)).toBe(true);
+    expect(f.G.tableOrder).toEqual([ids[1], ids[2], ids[0]]);
+    expect(f.G.epoch).toBe(epoch + 1);
+    expect(f.act(ids[1], 'approveOrder', epoch)).toBe(false);
+    expect(f.act(ids[1], 'approveOrder', f.G.epoch)).toBe(true);
+    expect(f.act(ids[2], 'removeCard', ids[1], f.G.epoch)).toBe(true);
+    expect(f.G.tableOrder).toEqual([ids[2], ids[0], ids[1]]);
+    expect(f.G.orderApprovals).toEqual([]);
+    expect(f.G.revealed).toEqual([]);
+  });
   it.each([2, 3])('%i players place any face-down card and reveal atomically only after everyone agrees', count => {
     const ids = count === 2 ? ['2', '11'] : ['1', '7', '11'];
     const f = match(count, { participantIDs: ids });
@@ -444,7 +502,7 @@ describe('圖靈測試雙人與三人共同排序桌', () => {
     expect(f.act(ids[0], 'placeCard', sorted[0], count - 1, f.G.epoch)).toBe(false);
     expect(f.act(ids[0], 'withdrawApproval', f.G.epoch)).toBe(false);
     acknowledgeAll(f);
-    expect(f.G).toMatchObject({ round: 2, examinerID: '', tableOrder: [], orderApprovals: [] });
+    expect(f.G).toMatchObject({ round: 2, examinerID: '', tableOrder: ids, orderApprovals: [] });
   });
   it('revisions invalidate prior consent, unchanged placements retain it, and players may withdraw only their own approval', () => {
     const f = match(3), ids = Object.keys(f.G.players); prepareSorting(f);
@@ -470,9 +528,11 @@ describe('圖靈測試雙人與三人共同排序桌', () => {
     epoch = f.G.epoch;
     expect(f.act(ids[0], 'approveOrder', epoch)).toBe(true);
     expect(f.act(ids[1], 'removeCard', ids[2], epoch)).toBe(true);
-    expect(f.G.orderApprovals).toEqual([]); expect(f.G.tableOrder).toEqual([ids[1], ids[0]]);
-    expect(f.act(ids[2], 'approveOrder', f.G.epoch)).toBe(false);
-    expect(f.act(ids[0], 'removeCard', ids[2], f.G.epoch)).toBe(false);
+    expect(f.G.orderApprovals).toEqual([]); expect(f.G.tableOrder).toEqual([ids[1], ids[0], ids[2]]);
+    expect(f.act(ids[2], 'approveOrder', f.G.epoch)).toBe(true);
+    const beforeNoop = clone(f.G);
+    expect(f.act(ids[0], 'removeCard', ids[2], f.G.epoch)).toBe(true);
+    expect(f.G).toEqual(beforeNoop);
     expect(f.act(ids[0], 'placeCard', ids[2], 1, f.G.epoch)).toBe(true);
     expect(f.G.tableOrder).toEqual([ids[1], ids[2], ids[0]]);
     epoch = f.G.epoch;
@@ -489,14 +549,14 @@ describe('圖靈測試雙人與三人共同排序桌', () => {
     expect(f.act(ids[0], 'confirmSpoken', ids[1], epoch)).toBe(false);
     expect(f.act(ids[0], 'submitAnswer', '不能打字繞過共同桌', epoch)).toBe(false);
     expect(f.G.status).toBe('sorting');
-    for (const [card, index] of [[ids[0], -1], [ids[0], 1], [ids[0], '0'], [ids[0], .5], [ids[0], null], ['__proto__', 0], ['99', 0], [null, 0]] as [unknown, unknown][]) {
+    for (const [card, index] of [[ids[0], -1], [ids[0], ids.length], [ids[0], '0'], [ids[0], .5], [ids[0], null], ['__proto__', 0], ['99', 0], [null, 0]] as [unknown, unknown][]) {
       expect(f.act(ids[0], 'placeCard', card, index, f.G.epoch)).toBe(false);
     }
     expect(f.act('99', 'placeCard', ids[0], 0, f.G.epoch)).toBe(false);
     expect(f.act(ids[0], 'placeCard', ids[0], 0, initialEpoch)).toBe(false);
     expect(f.act(ids[0], 'placeCard', ids[0], 0, String(f.G.epoch))).toBe(false);
-    expect(f.act(ids[0], 'approveOrder', f.G.epoch)).toBe(false);
-    expect(f.act(ids[0], 'removeCard', ids[0], f.G.epoch)).toBe(false);
+    expect(f.act('99', 'approveOrder', f.G.epoch)).toBe(false);
+    expect(f.act(ids[0], 'removeCard', '99', f.G.epoch)).toBe(false);
     expect(f.act(ids[0], 'revealAnswer', ids[0], f.G.epoch)).toBe(false);
     for (const [index, id] of ids.entries()) expect(f.act(ids[0], 'placeCard', id, index, f.G.epoch)).toBe(true);
     expect(f.act('99', 'approveOrder', f.G.epoch)).toBe(false);
@@ -566,7 +626,7 @@ describe('圖靈測試直接排序與全員重抽', () => {
     expect(f.G).toMatchObject({ status: 'sorting', round: before.round, completedRounds: before.completedRounds,
       examinerID: before.examinerID, integrity: before.integrity, maxIntegrity: before.maxIntegrity,
       private: before.private, players: before.players, cards: before.cards, revealed: [], redrawApprovals: [] });
-    if (isTuringSharedTable(f.G)) { expect(f.G.tableOrder).toEqual([]); expect(f.G.orderApprovals).toEqual([]); }
+    if (isTuringSharedTable(f.G)) { expect(f.G.tableOrder).toEqual(ids); expect(f.G.orderApprovals).toEqual([]); }
     expect(f.G.log[0].question).toEqual(firstQuestion);
     expect(f.G.log.at(-1)).toEqual({ type: 'question-redraw', round: 1, actorID: ids.at(-1),
       examinerID: before.examinerID, question: f.G.question, integrity: 7 });

@@ -85,7 +85,7 @@ export function TuringBoard({ G, playerID, moves, isConnected }: Props) {
     <TuringLayout G={G} info={info} nameOf={nameOf} ownID={id} visible={visible} onVisible={setVisible} controls={G.status === 'finished' ? undefined : controls}
       questionFeedback={questionFeedback} questionControls={questionControls}
       sound={<GameSoundControl gameID="turing-test" G={G} matchID={info.matchID} playerID={id} connected={isConnected !== false} />}
-      tableActions={sharedTable && canAct ? { place: (cardID, index) => send('placeCard', cardID, index), remove: cardID => send('removeCard', cardID), approve: () => send('approveOrder'), withdraw: () => send('withdrawApproval') } : undefined}
+      tableActions={sharedTable && canAct ? { place: (cardID, index) => send('placeCard', cardID, index), approve: () => send('approveOrder'), withdraw: () => send('withdrawApproval') } : undefined}
       onReveal={examiner && canAct && !redrawApprovals.length ? target => send('revealAnswer', target) : undefined} />
   </>;
 }
@@ -116,7 +116,7 @@ export function TuringLayout({ G, info, nameOf, ownID, visible, onVisible, contr
           const revealedIndex = G.revealed.findIndex(entry => legacy ? entry.playerID === id : entry.cardID === cardID);
           const answer = legacy ? G.answers[id] : undefined;
           return <article className={`turing-response ${result?.error ? 'turing-response-error' : ''}`} key={cardID} data-card-id={cardID}>
-            <div className="turing-response-header"><strong>{cardName(id, card.slot)}{id === ownID && !readonly && <span className="you-label">你</span>}</strong><span>{result ? `第 ${revealedIndex + 1} 張` : legacy ? card.spoken ? '已提交' : '待作答' : '秘密強度'}</span></div>
+            <div className="turing-response-header"><strong>{cardName(id, card.slot)}{id === ownID && !readonly && <span className="you-label">你</span>}</strong>{(result || legacy) && <span>{result ? `第 ${revealedIndex + 1} 張` : card.spoken ? '已提交' : '待作答'}</span>}</div>
             <p>{legacy ? answer ?? (card.spoken ? '回答已封存，等待全員公開。' : '等待本輪回答…') : '請依語音中的回答判斷強度。'}</p>
             {result ? <div className="turing-result"><b>{result.number}</b><span>{result.error ? `順序下降 · ${legacy ? '容錯' : '生命'} −1` : revealedIndex === 0 ? '排序起點' : '順序上升'}</span></div>
               : finalNumber !== undefined ? <div className="turing-result"><b>{finalNumber}</b><span>終局公開 · 未參與排序</span></div>
@@ -150,7 +150,7 @@ function TuringPrivate({ G, id, visible, onVisible, nameOf, readonly, children }
   return <section className="panel turing-private"><button className="turing-toggle" type="button" aria-expanded={visible} onClick={() => onVisible(!visible)}><Icon type="shield" size={17} /><strong>{readonly ? '受測者情報' : '我的秘密資訊'}</strong><span>{visible ? '收起 −' : '展開 +'}</span></button>
     {children}
     {visible && <div className="turing-private-content"><p className="small muted">{nameOf(id)}</p>{id === G.examinerID ? <><span className="turing-terminal-art" aria-hidden="true" /><h2>本輪檢測員</h2><p>你不抽取強度，也不作答。觀察全部回答，再由低到高逐張揭曉。</p></>
-      : <><div className={`turing-private-cards${cards.length > 1 ? ' turing-double-cards' : ''}`}>{cards.map(([cardID, card]) => <div className="turing-chip" key={cardID}><span>{cards.length > 1 ? `${card.slot} 卡 · 秘密強度` : '秘密強度'}</span><strong>{turingCardNumber(G, cardID) ?? '?'}</strong>{turingCardNumber(G, cardID) === undefined && <small>目前視角不可查看</small>}</div>)}</div>
+      : <><div className={`turing-private-cards${cards.length > 1 ? ' turing-double-cards' : ''}`}>{cards.map(([cardID, card]) => <div className="turing-chip" key={cardID}>{cards.length > 1 && <span>{card.slot} 卡</span>}<strong>{turingCardNumber(G, cardID) ?? '?'}</strong>{turingCardNumber(G, cardID) === undefined && <small>目前視角不可查看</small>}</div>)}</div>
         {secret && <p>{!legacy && cards.length > 1 ? 'A、B 是兩份獨立回答，請分別對應各自強度。先說卡牌代號，再說答案；不要透露數字。' : '讓你的回答落在量表的這個位置。全隊合作，不要直接透露數字。'}</p>}
         {legacy && secret?.answer && !G.answers[id] && <div className="turing-sealed"><strong>已封存的回答</strong><p>{secret.answer}</p></div>}</>}
       <p className="small muted">機器人是故事背景；玩家都是同隊。切到其他分頁時會自動收起。</p>

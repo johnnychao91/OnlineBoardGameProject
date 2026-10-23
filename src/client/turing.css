@@ -87,13 +87,11 @@
 .turing-custom-list .button { font-size: 12px; min-height: 38px; padding: 7px 12px; }
 .turing-import-label { cursor: pointer; }
 .turing-import-label input { display: block; max-width: 100%; font-size: 12px; margin-top: 8px; }
-.turing-layout { --turing-card-width: 150px; --turing-card-height: 225px; }
+.turing-layout { --turing-card-width: 150px; --turing-card-height: 225px; --turing-private-width: 150px; --turing-private-height: 225px; }
 .turing-main > .turing-shared-table { display: flex; flex-direction: column; gap: 8px; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
 .turing-shared-table > .turing-scale { width: 100%; flex: none; padding: 3px 0 7px; }
 .turing-order-slots { display: flex; justify-content: center; align-items: center; gap: 18px; flex: 1 0 auto; min-height: 0; padding: 10px 5px; width: 100%; }
 .turing-order-slot { flex: 0 0 var(--turing-card-width); display: flex; flex-direction: column; align-items: center; gap: 5px; position: relative; min-width: 0; border: 0; background: transparent; }
-.turing-slot-label { min-height: 14px; text-align: center; color: var(--mint); font-size: 10px; }
-.turing-order-slot.is-unplaced .turing-slot-label { color: var(--muted); }
 .turing-desk-card { display: flex; flex: none; flex-direction: column; align-items: center; gap: 5px; width: var(--turing-card-width); height: calc(var(--turing-card-height) + 32px); min-height: 0; max-width: none; margin: 0; border: 0; border-radius: 5px; background: transparent; color: #d8f5f0; padding: 0; text-align: center; font-family: inherit; box-shadow: none; }
 button.turing-desk-card { cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none; }
 button.turing-desk-card:active { cursor: grabbing; }
@@ -103,16 +101,11 @@ button.turing-desk-card:active { cursor: grabbing; }
 .turing-desk-number { font-size: 72px; line-height: 1.1; }
 .turing-desk-face > small { font-size: 9px; line-height: 1.4; max-width: 85%; }
 .turing-desk-card.is-selected .turing-desk-face { outline: 3px solid #a4ecce; outline-offset: 2px; }
-.turing-desk-card:focus-visible, .turing-place-button:focus-visible { outline: 3px solid #a4ecce; outline-offset: 3px; }
+.turing-desk-card:focus-visible { outline: 3px solid #a4ecce; outline-offset: 3px; }
 .turing-desk-card.is-dragging { opacity: .45; }
 .turing-desk-card.is-error .turing-desk-face { border-color: #f297a2; background-color: #472c35; color: #ffd5db; }
-.turing-order-slot.is-drop-target::before, .turing-order-slot.is-drop-after::after { position: absolute; left: -10px; top: 30px; bottom: 35px; width: 3px; content: ''; pointer-events: none; border-radius: 3px; background: var(--mint); box-shadow: 0 0 10px #a4ecce99; }
+.turing-order-slot.is-drop-target::before, .turing-order-slot.is-drop-after::after { position: absolute; left: -10px; top: 30px; bottom: 0; width: 3px; content: ''; pointer-events: none; border-radius: 3px; background: var(--mint); box-shadow: 0 0 10px #a4ecce99; }
 .turing-order-slot.is-drop-after::after { left: auto; right: -10px; }
-.turing-place-button { width: 100%; border: 0; border-radius: 4px; background: #274842; color: #cef2e4; min-height: 28px; padding: 4px; font: inherit; font-size: 11px; }
-.turing-place-button:disabled { opacity: .45; cursor: default; background: transparent; }
-.turing-card-pool { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 10px; min-height: 28px; padding: 3px 8px; font-size: 10px; color: var(--muted); border: 0; background: transparent; }
-.turing-card-pool .text-button { min-height: 26px; padding: 3px 5px; font-size: 10px; }
-.turing-card-pool.is-drop-target { background: #25483a; border-radius: 6px; }
 .turing-order-approval { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding-top: 7px; border-top: 1px solid #46616a; }
 .turing-order-approval p { margin: 0; overflow-wrap: anywhere; flex: 1 1 120px; font-size: 11px; }
 .turing-order-approval p.muted { flex: 1 0 100%; order: 2; font-size: 10px; }
@@ -145,7 +138,7 @@ button.turing-desk-card:active { cursor: grabbing; }
   .turing-double-cards .turing-chip { width: 100%; }
   .turing-mode-settings { grid-template-columns: minmax(0,1fr); }
   .turing-scale > div { gap: 6px; }
-  .turing-layout { --turing-card-width: 90px; --turing-card-height: 135px; }
+  .turing-layout { --turing-card-width: clamp(76px,calc((100vw - 88px) / 3),100px); --turing-card-height: calc(var(--turing-card-width) * 1.5); --turing-private-width: var(--turing-card-width); --turing-private-height: var(--turing-card-height); }
   .turing-order-slots { gap: 8px; padding-inline: 0; }
   .turing-desk-number { font-size: 42px; }
   .turing-desk-owner { font-size: 10px; }
@@ -200,10 +193,10 @@ button.turing-desk-card:active { cursor: grabbing; }
 :root[data-visual-style="art"] .turing-desk-card.is-error .turing-desk-face { filter: drop-shadow(0 0 4px #e29a9b); background-color: transparent; }
 :root[data-visual-style="art"] .turing-main > .turing-shared-table { background: transparent; border: 0; box-shadow: none; }
 .turing-layout .turing-private-cards { display: flex; justify-content: center; gap: 8px; }
-.turing-layout .turing-chip { flex: none; width: var(--turing-card-width); height: var(--turing-card-height); min-height: 0; padding: 12px 6px; margin: 0; }
+.turing-layout .turing-chip { flex: none; width: var(--turing-private-width); height: var(--turing-private-height); min-height: 0; padding: 12px 6px; margin: 0; }
 .turing-layout .turing-chip strong { font-size: 72px; line-height: 1.1; }
 .turing-layout .turing-chip > span { font-size: 10px; }
-.turing-layout .turing-double-cards { --turing-card-width: 90px; --turing-card-height: 135px; }
+.turing-layout .turing-double-cards { --turing-private-width: 90px; --turing-private-height: 135px; }
 .turing-layout .turing-double-cards .turing-chip strong { font-size: 42px; }
 :root[data-visual-style="art"] .turing-layout .turing-chip { background-size: contain; padding: 20px 8px; }
 @media (max-width: 600px) {
@@ -220,8 +213,8 @@ button.turing-desk-card:active { cursor: grabbing; }
   .turing-main:has(.turing-shared-table) .turing-status p { display: none; }
 }
 @media (min-width: 1100px) and (min-height: 700px) and (max-height: 850px) {
-  .turing-layout { --turing-card-width: 120px; --turing-card-height: 180px; }
-  .turing-desk-number, .turing-layout .turing-chip strong { font-size: 58px; }
+  .turing-layout { --turing-card-width: 150px; --turing-card-height: 225px; }
+  .turing-desk-number, .turing-layout .turing-chip strong { font-size: 72px; }
   .turing-main > .turing-shared-table { gap: 2px; padding-block: 4px; }
   .turing-main:has(.turing-shared-table) { gap: 3px; }
   .turing-main > .turing-heading { margin-bottom: 0; }
@@ -239,23 +232,25 @@ button.turing-desk-card:active { cursor: grabbing; }
   .turing-shared-table > .turing-scale span { font-size: 11px; }
   .turing-desk-owner { height: 20px; }
   .turing-desk-card { height: calc(var(--turing-card-height) + 25px); }
-  .turing-card-pool { min-height: 24px; padding-block: 0; }
-  .turing-card-pool .text-button { min-height: 22px; }
   .turing-shared-table .turing-order-slots { padding-block: 0; }
-  .turing-place-button { min-height: 24px; }
   .turing-main:has(.turing-shared-table) .turing-round-footer { padding-block: 0; }
   .turing-main:has(.turing-shared-table) .turing-reveal-strip > span:not(:first-child) { padding: 1px 6px; }
   .turing-redraw-status p { display: inline; margin-right: 8px; }
   .turing-redraw-status small { display: block; }
 }
-@media (min-width: 1100px) and (min-height: 1000px) {
+@media (min-width: 1280px) and (min-height: 851px) {
   .turing-layout { --turing-card-width: 180px; --turing-card-height: 270px; }
-  .turing-desk-number, .turing-layout .turing-chip strong { font-size: 88px; }
+  .turing-desk-number { font-size: 88px; }
   .turing-order-slots { gap: 28px; }
   .turing-desk-owner { font-size: 13px; }
   .turing-desk-face > small { font-size: 11px; }
 }
-@media (min-width: 1500px) and (min-height: 1200px) {
-  .turing-layout { --turing-card-width: 200px; --turing-card-height: 300px; }
-  .turing-desk-number, .turing-layout .turing-chip strong { font-size: 100px; }
+@media (min-width: 1500px) and (min-height: 1000px) {
+  .turing-layout { --turing-card-width: 240px; --turing-card-height: 360px; --turing-private-width: 180px; --turing-private-height: 270px; }
+  .turing-desk-number { font-size: 120px; }
+  .turing-layout .turing-chip strong { font-size: 88px; }
+}
+@media (min-width: 1900px) and (min-height: 1200px) {
+  .turing-layout { --turing-card-width: 260px; --turing-card-height: 390px; }
+  .turing-desk-number { font-size: 130px; }
 }

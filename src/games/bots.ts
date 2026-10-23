@@ -5,7 +5,7 @@ import { cipherPlayerView, type CipherState } from './cipher/game';
 import { fogAllowedQuestCards, fogPlayerView, type FogState } from './fog/game';
 import { fogTeamSizes } from './fog/rules';
 import { moonPlayerView, type MoonState } from './moon/game';
-import { isTuringSharedTable, turingCards, turingPlayerView, type TuringState } from './turing/game';
+import { isTuringSharedTable, turingCards, turingTableOrder, turingPlayerView, type TuringState } from './turing/game';
 
 export interface BotAction { move: string; args: unknown[] }
 type Random = () => number;
@@ -156,9 +156,12 @@ function turingAction(G: TuringState, id: string, random: Random): BotAction | n
     return G.redrawApprovals!.includes(id) ? null : action('approveRedraw', G.epoch);
   }
   if (G.status === 'sorting' && isTuringSharedTable(G)) {
-    const order = G.tableOrder ?? [];
-    const unplaced = Object.keys(turingCards(G)).filter(cardID => !order.includes(cardID));
-    if (unplaced.length) return action('placeCard', pick(unplaced, random), Math.floor(random() * (order.length + 1)), G.epoch);
+    const order = turingTableOrder(G);
+    if (!(G.orderApprovals?.length) && random() < 0.35) {
+      const index = Math.floor(random() * order.length);
+      const target = (index + 1 + Math.floor(random() * (order.length - 1))) % order.length;
+      return action('placeCard', order[index], target, G.epoch);
+    }
     return G.orderApprovals?.includes(id) ? null : action('approveOrder', G.epoch);
   }
   if (G.status === 'sorting' && G.examinerID === id) {

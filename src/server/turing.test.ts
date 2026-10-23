@@ -4,7 +4,7 @@ import { basename, dirname, join, resolve } from 'node:path';
 import type { State, SyncInfo } from 'boardgame.io';
 import { io, type Socket } from 'socket.io-client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { isTuringSharedTable, turingCardNumber, turingCards, type TuringState } from '../games/turing/game';
+import { isTuringSharedTable, turingCardNumber, turingCards, turingTableOrder, type TuringState } from '../games/turing/game';
 import { normalizeTuringOptions } from '../games/turing/rules';
 import { turingQuestionPool } from '../games/turing/questions';
 import { createApplication } from './app';
@@ -171,7 +171,9 @@ async function revealAll(f: Fixture, g: Group, descending = false) {
   if (isTuringSharedTable(G)) {
     for (const [index, cardID] of cards.entries()) {
       const current = (await f.state(g.matchID)).G;
-      await f.move(g, g.seats[index % g.seats.length].playerID, 'placeCard', [cardID, index, current.epoch]);
+      if (turingTableOrder(current)[index] !== cardID) {
+        await f.move(g, g.seats[index % g.seats.length].playerID, 'placeCard', [cardID, index, current.epoch]);
+      }
     }
     const arranged = (await f.state(g.matchID)).G;
     for (const seat of g.seats) await f.move(g, seat.playerID, 'approveOrder', [arranged.epoch]);
@@ -245,6 +247,7 @@ describe('Turing custom questions, private answers and replay integration', () =
       await speakAll(f, g);
       const sorting = (await f.state(g.matchID)).G;
       expect(sorting.status).toBe('sorting'); expect(sorting.answers).toEqual({});
+      if (sharedTable) expect(turingTableOrder(sorting)).toEqual(Object.keys(turingCards(sorting)));
       await f.rejectMove(g, Object.keys(sorting.private)[0], 'revealAnswer', [Object.keys(turingCards(sorting))[0], sorting.epoch]);
       await revealAll(f, g, mode === 'endless' && round === rounds);
       expect((await f.state(other.matchID)).G).toEqual(untouched);
@@ -299,27 +302,90 @@ describe('Turing custom questions, private answers and replay integration', () =
     expect(restored.history).toEqual(lobby.history);
   }, 30000);
 
+  it.each(['fresh', 'legacy-empty', 'legacy-partial'] as const)('keeps every card on a %s shared table and permits unanimous reveal after restart without a placement prerequisite', async source => {
+    const f = await fixture(), g = await group(f, 3);
+    await start(f, g, source === 'fresh' ? undefined : 3);
+    const ids = g.seats.map(seat => seat.playerID);
+    if (source !== 'fresh') {
+      // Persist an old table as it existed before the pending-card area was
+      // removed. Loading projects the missing cards without rewriting storage.
+      const saved = await f.state(g.matchID);
+      saved.G.status = 'sorting'; saved.G.epoch += 1;
+      saved.G.tableOrder = source === 'legacy-empty' ? [] : [ids[2]];
+      saved.G.orderApprovals = [];
+      for (const card of Object.values(saved.G.cards ?? {})) card.spoken = true;
+      for (const player of Object.values(saved.G.players)) player.answered = true;
+      saved._stateID += 1;
+      await f.app.db.setState(g.matchID, saved);
+    }
+    const persisted = await f.state(g.matchID);
+    let order = source === 'legacy-partial' ? [ids[2], ids[0], ids[1]] : ids;
+    await f.restart();
+    expect(await f.state(g.matchID)).toEqual(persisted);
+    await connectGroup(f, g);
+    for (const [index, socket] of g.clients.entries()) {
+      const projected = f.views.get(socket)!.G;
+      expect(projected.tableOrder).toEqual(order);
+      expect(Object.keys(projected.private)).toEqual([ids[index]]);
+      expect(projected.revealed).toEqual([]); noServerSecrets(projected);
+    }
+    for (const perspective of ['blind', 'god']) {
+      const observed = (await f.request(path(g.host, `view?perspective=${perspective}`), undefined, g.observer)).body.G;
+      expect(observed.tableOrder).toEqual(order);
+      expect(Object.keys(observed.private)).toHaveLength(perspective === 'blind' ? 0 : 3);
+      noServerSecrets(observed);
+    }
+    expect(await f.state(g.matchID)).toEqual(persisted);
+    if (source === 'legacy-partial') {
+      // A card that was previously outside the stored order can be moved by a
+      // different player. Every other card remains on the shared table.
+      await f.move(g, ids[1], 'placeCard', [ids[0], 0, persisted.G.epoch]);
+      order = [ids[0], ids[2], ids[1]];
+      expect((await f.state(g.matchID)).G.tableOrder).toEqual(order);
+    }
+    const voting = (await f.state(g.matchID)).G;
+    await f.move(g, ids[0], 'approveOrder', [voting.epoch]);
+    const pending = await f.state(g.matchID);
+    expect(pending.G.tableOrder).toEqual(order);
+    expect(pending.G.orderApprovals).toEqual([ids[0]]);
+    expect(pending.G.revealed).toEqual([]);
+    await f.restart(); expect(await f.state(g.matchID)).toEqual(pending);
+    await connectGroup(f, g);
+    for (const socket of g.clients) expect(f.views.get(socket)!.G.orderApprovals).toEqual([ids[0]]);
+    await f.move(g, ids[1], 'approveOrder', [pending.G.epoch]);
+    expect((await f.state(g.matchID)).G.revealed).toEqual([]);
+    await f.move(g, ids[2], 'approveOrder', [pending.G.epoch]);
+    const revealed = (await f.state(g.matchID)).G;
+    expect(revealed.status).toBe('round-review');
+    expect(revealed.revealed.map(card => card.cardID)).toEqual(order);
+    expect(revealed.log.filter(event => event.type === 'reveal')).toHaveLength(3);
+    expect(revealed.private).toEqual(persisted.G.private);
+    await ack(f, g);
+    const next = (await f.state(g.matchID)).G;
+    expect(next.round).toBe(2);
+    expect(next.tableOrder).toEqual(Object.keys(turingCards(next)));
+    expect(next.orderApprovals).toEqual([]);
+  }, 15000);
+
   it('serializes competing table edits and approvals, invalidates old consent, and preserves a pending order through restart', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => {});
     const f = await fixture(), g = await group(f, 3);
     await start(f, g); await ack(f, g); await speakAll(f, g);
     const ids = g.seats.map(seat => seat.playerID);
     const place = async (cardID: string, index: number, actorID = ids[0]) => {
-      const { G } = await f.state(g.matchID);
+      const current = await f.state(g.matchID), { G } = current;
+      if (turingTableOrder(G)[index] === cardID) return current;
       return f.move(g, actorID, 'placeCard', [cardID, index, G.epoch]);
     };
-    await place(ids[0], 0);
-    await f.rejectMove(g, ids[0], 'approveOrder', [(await f.state(g.matchID)).G.epoch]);
-    await place(ids[1], 1, ids[2]); await place(ids[2], 2, ids[1]);
+    expect((await f.state(g.matchID)).G.tableOrder).toEqual(ids);
+    await place(ids[2], 0, ids[1]);
     const full = (await f.state(g.matchID)).G;
     await f.move(g, ids[0], 'approveOrder', [full.epoch]);
     await f.move(g, ids[1], 'removeCard', [ids[2], full.epoch]);
     const removed = (await f.state(g.matchID)).G;
-    expect(removed.tableOrder).toEqual(ids.slice(0, 2)); expect(removed.orderApprovals).toEqual([]);
+    expect(removed.tableOrder).toEqual(ids); expect(removed.orderApprovals).toEqual([]);
     expect(removed.epoch).toBe(full.epoch + 1);
     await f.rejectMove(g, ids[1], 'approveOrder', [full.epoch]);
-    await f.rejectMove(g, ids[1], 'approveOrder', [removed.epoch]);
-    await place(ids[2], 2);
     const before = await f.state(g.matchID);
     await f.move(g, ids[0], 'approveOrder', [before.G.epoch]);
     const race = async (commands: { id: string; type: string; args: unknown[] }[]) => {
@@ -389,7 +455,7 @@ describe('Turing custom questions, private answers and replay integration', () =
     const ids = g.seats.map(seat => seat.playerID);
     const original = (await f.state(g.matchID)).G, untouched = await f.state(other.matchID);
     expect(original).toMatchObject({ rulesVersion: 4, status: 'sorting', round: 1 });
-    for (const [index, id] of ids.entries()) await f.move(g, ids[0], 'placeCard', [id, index, (await f.state(g.matchID)).G.epoch]);
+    expect(original.tableOrder).toEqual(ids);
     await f.move(g, ids[0], 'approveOrder', [(await f.state(g.matchID)).G.epoch]);
     const before = (await f.state(g.matchID)).G;
     await f.move(g, ids[0], 'approveRedraw', [before.epoch]);
@@ -420,7 +486,7 @@ describe('Turing custom questions, private answers and replay integration', () =
     await f.move(g, ids[2], 'approveRedraw', [moved.epoch]);
     const redrawn = (await f.state(g.matchID)).G;
     expect(redrawn.question!.id).not.toBe(original.question!.id);
-    expect(redrawn).toMatchObject({ status: 'sorting', round: 1, completedRounds: 0, integrity: original.integrity, private: original.private, tableOrder: [], orderApprovals: [], redrawApprovals: [], revealed: [] });
+    expect(redrawn).toMatchObject({ status: 'sorting', round: 1, completedRounds: 0, integrity: original.integrity, private: original.private, tableOrder: ids, orderApprovals: [], redrawApprovals: [], revealed: [] });
     expect(redrawn.log.filter(event => event.type === 'question-redraw')).toEqual([expect.objectContaining({ round: 1, question: redrawn.question })]);
     await f.rejectMove(g, ids[1], 'placeCard', [ids[0], 0, moved.epoch]);
     await f.rejectMove(g, ids[2], 'approveRedraw', [moved.epoch]);
@@ -436,6 +502,7 @@ describe('Turing custom questions, private answers and replay integration', () =
     expect(replay.body.frames.some((frame: any) => frame.G.question?.id === original.question!.id && frame.G.redrawApprovals?.length === 2)).toBe(true);
     const afterRedraw = replay.body.frames.find((frame: any) => frame.G.question?.id === redrawn.question!.id && frame.G.status === 'sorting');
     expect(afterRedraw.G.question).toEqual(redrawn.question);
+    expect(afterRedraw.G.tableOrder).toEqual(ids);
     expect(afterRedraw.G.private).toEqual({});
     noServerSecrets(replay.body);
     expect((await f.request('/api/stats')).body.completedGames).toBe(1);

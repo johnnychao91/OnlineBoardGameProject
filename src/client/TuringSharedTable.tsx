@@ -1,9 +1,8 @@
 import { useEffect, useRef, useState, type PointerEvent, type ReactNode } from 'react';
-import { turingCards, turingCardNumber, type TuringState } from '../games/turing/game';
+import { turingCards, turingCardNumber, turingTableOrder, type TuringState } from '../games/turing/game';
 
 export interface TuringTableActions {
   place: (cardID: string, index: number) => void;
-  remove: (cardID: string) => void;
   approve: () => void;
   withdraw: () => void;
 }
@@ -11,31 +10,34 @@ type Props = {
   G: TuringState; ownID: string; visible: boolean; readonly: boolean;
   nameOf: (id: string) => string; actions?: TuringTableActions; scale?: ReactNode;
 };
-type DropTarget = { type: 'slot'; index: number; marker?: number } | { type: 'pool' };
+type DropTarget = { index: number; marker?: number };
 type Drag = { cardID: string; pointerID: number; startX: number; startY: number; epoch: number; active: boolean };
 
 /** A public order with locally projected card faces; no browser-generated ordering is authoritative. */
 export function TuringSharedTable({ G, ownID, visible, readonly, nameOf, actions, scale }: Props) {
   const cards = turingCards(G), ids = Object.keys(cards);
-  const order = G.tableOrder ?? [];
-  const pool = ids.filter(id => !order.includes(id));
+  const order = turingTableOrder(G);
   const approvals = G.orderApprovals ?? [];
   const editable = !readonly && G.status === 'sorting' && !!actions;
-  const displayOrder = [...order, ...pool];
-  const complete = order.length === ids.length && ids.length > 0;
   const root = useRef<HTMLElement>(null);
   const dragging = useRef<Drag | null>(null);
   const suppressClickUntil = useRef(0);
+  const keyboardFocus = useRef<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
   const [drag, setDrag] = useState<{ cardID: string; x: number; y: number; target: DropTarget | null } | null>(null);
   useEffect(() => { setSelected(null); dragging.current = null; setDrag(null); }, [G.epoch, G.status]);
   useEffect(() => { if (!editable) { dragging.current = null; setDrag(null); } }, [editable]);
+  useEffect(() => {
+    if (!editable || !keyboardFocus.current) return;
+    const button = [...(root.current?.querySelectorAll<HTMLButtonElement>('button[data-card-id]') ?? [])].find(element => element.dataset.cardId === keyboardFocus.current);
+    button?.focus(); keyboardFocus.current = null;
+  }, [editable, G.epoch]);
 
   function dropAt(x: number, y: number): DropTarget | null {
     const hit = document.elementFromPoint(x, y);
     if (!hit || !root.current?.contains(hit)) return null;
     const slot = hit.closest<HTMLElement>('[data-turing-slot]');
-    if (slot) return { type: 'slot', index: Number(slot.dataset.turingSlot) };
+    if (slot) return { index: Number(slot.dataset.turingSlot) };
     const row = hit.closest<HTMLElement>('.turing-order-slots');
     if (row) {
       const slots = [...row.querySelectorAll<HTMLElement>('[data-turing-slot]')];
@@ -43,10 +45,10 @@ export function TuringSharedTable({ G, ownID, visible, readonly, nameOf, actions
         const next = slots.findIndex(element => { const bounds = element.getBoundingClientRect(); return x <= bounds.x + bounds.width / 2; });
         const insertion = next < 0 ? slots.length : next;
         const previous = dragging.current ? order.indexOf(dragging.current.cardID) : -1;
-        return { type: 'slot', index: previous >= 0 && previous < insertion ? insertion - 1 : insertion, marker: insertion };
+        return { index: previous >= 0 && previous < insertion ? insertion - 1 : insertion, marker: insertion };
       }
     }
-    return hit.closest('[data-turing-pool]') ? { type: 'pool' } : null;
+    return null;
   }
   function place(cardID: string, index: number) {
     if (!editable || !cards[cardID]) return;
@@ -78,8 +80,7 @@ export function TuringSharedTable({ G, ownID, visible, readonly, nameOf, actions
     if (!current.active) return;
     suppressClickUntil.current = Date.now() + 300;
     if (!editable || current.epoch !== G.epoch || !target) return;
-    if (target.type === 'slot') place(current.cardID, target.index);
-    else if (order.includes(current.cardID)) actions!.remove(current.cardID);
+    place(current.cardID, target.index);
   }
   function card(cardID: string) {
     const owner = cards[cardID].playerID;
@@ -90,32 +91,35 @@ export function TuringSharedTable({ G, ownID, visible, readonly, nameOf, actions
     const label = `${nameOf(owner)}的強度牌`;
     const body = <><span className="turing-desk-owner">{nameOf(owner)}{!readonly && owner === ownID && <span className="you-label">你</span>}</span>
       <span className="turing-desk-face"><strong className="turing-desk-number">{number ?? '?'}</strong>
-      <small>{revealed ? result?.error ? '順序下降 · 生命 −1' : result ? '強度已公開' : '終局公開' : number !== undefined ? readonly ? '目前視角可見' : '只有你可見' : '秘密強度'}</small></span></>;
+      {(revealed || number !== undefined) && <small>{revealed ? result?.error ? '順序下降 · 生命 −1' : result ? '強度已公開' : '終局公開' : readonly ? '目前視角可見' : '只有你可見'}</small>}</span></>;
     const className = `turing-desk-card${selected === cardID ? ' is-selected' : ''}${result?.error ? ' is-error' : ''}${revealed ? ' is-revealed' : ''}${drag?.cardID === cardID ? ' is-dragging' : ''}`;
-    return editable ? <button type="button" className={className} data-card-id={cardID} aria-label={`選取${label}`} aria-pressed={selected === cardID}
+    return editable ? <button type="button" className={className} data-card-id={cardID} aria-label={`選取${label}`} aria-pressed={selected === cardID} aria-description="拖曳調整順序，或先選一張再點另一張。也可用左右方向鍵移動。"
       onPointerDown={event => pointerDown(event, cardID)} onPointerMove={pointerMove} onPointerUp={pointerUp} onPointerCancel={cancelDrag} onLostPointerCapture={cancelDrag}
-      onClick={() => { if (Date.now() >= suppressClickUntil.current) setSelected(selected === cardID ? null : cardID); }}>
+      onClick={() => {
+        if (Date.now() < suppressClickUntil.current) return;
+        if (selected && selected !== cardID) place(selected, order.indexOf(cardID));
+        else setSelected(selected === cardID ? null : cardID);
+      }}
+      onKeyDown={event => {
+        if (event.key === 'Escape') { setSelected(null); return; }
+        if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+        event.preventDefault();
+        const index = order.indexOf(cardID), next = Math.max(0, Math.min(order.length - 1, index + (event.key === 'ArrowLeft' ? -1 : 1)));
+        if (next !== index) { keyboardFocus.current = cardID; place(cardID, next); }
+      }}>
       {body}
     </button> : <div className={className} data-card-id={cardID} aria-label={label}>{body}</div>;
   }
-  const currentSelection = selected && cards[selected] ? selected : null;
-  const selectedIndex = currentSelection ? order.indexOf(currentSelection) : -1;
   return <section className={`panel turing-table turing-shared-table turing-shared-${ids.length}`} ref={root} aria-label="共同排序桌面">
     {scale}
     <div className={`turing-order-slots turing-slots-${ids.length}`} aria-label="由左到右排列的桌面">
-      {displayOrder.map((cardID, index) => <div className={`turing-order-slot${index >= order.length ? ' is-unplaced' : ''}${drag?.target?.type === 'slot' && (drag.target.marker ?? drag.target.index) === index ? ' is-drop-target' : ''}${drag?.target?.type === 'slot' && drag.target.marker === ids.length && index === ids.length - 1 ? ' is-drop-after' : ''}`} data-turing-slot={index} key={cardID}>
-        <span className="turing-slot-label">{index < order.length ? `第 ${index + 1} 位${index === 0 ? ' · 最低' : complete && index === ids.length - 1 ? ' · 最高' : ''}` : '待排'}</span>
+      {order.map((cardID, index) => <div className={`turing-order-slot${drag?.target && (drag.target.marker ?? drag.target.index) === index ? ' is-drop-target' : ''}${drag?.target?.marker === ids.length && index === ids.length - 1 ? ' is-drop-after' : ''}`} data-turing-slot={index} key={cardID}>
         {card(cardID)}
-        {editable && <button className="turing-place-button" type="button" style={{ visibility: index > order.filter(id => id !== currentSelection).length ? 'hidden' : undefined }} disabled={!currentSelection || selectedIndex === index} onClick={() => currentSelection && place(currentSelection, index)} aria-label={`將選取的卡放到第 ${index + 1} 位`}>放第 {index + 1} 位</button>}
       </div>)}
     </div>
-    {editable && <div className={`turing-card-pool${drag?.target?.type === 'pool' ? ' is-drop-target' : ''}`} style={{ visibility: currentSelection ? 'visible' : 'hidden' }} data-turing-pool="true" aria-label="移回待排">
-      <button className="text-button" type="button" disabled={!currentSelection || selectedIndex < 0} onClick={() => currentSelection && actions!.remove(currentSelection)}>移回待排</button>
-      {currentSelection && <button className="text-button" type="button" onClick={() => setSelected(null)}>取消選取</button>}
-    </div>}
-    {G.status === 'sorting' && <div className="turing-order-approval"><p className="small">{complete ? `尚未同意：${Object.keys(G.players).filter(id => !approvals.includes(id)).map(nameOf).join('、') || '全員已同意'}` : `還有 ${pool.length} 張牌待排。`}</p>
+    {G.status === 'sorting' && <div className="turing-order-approval"><p className="small">尚未同意：{Object.keys(G.players).filter(id => !approvals.includes(id)).map(nameOf).join('、') || '全員已同意'}</p>
       <p className="small muted">調整任何卡牌位置，都會取消全員先前的同意；最後一人同意後立即揭牌。</p>
-      {!readonly && <button className="button primary" type="button" disabled={!actions || !complete || !!G.redrawApprovals?.length} onClick={() => approvals.includes(ownID) ? actions?.withdraw() : actions?.approve()}>{G.redrawApprovals?.length ? '先決定是否重抽' : approvals.includes(ownID) ? '撤回同意' : '同意這個順序'}</button>}
+      {!readonly && <button className="button primary" type="button" disabled={!actions || ids.length === 0 || !!G.redrawApprovals?.length} onClick={() => approvals.includes(ownID) ? actions?.withdraw() : actions?.approve()}>{G.redrawApprovals?.length ? '先決定是否重抽' : approvals.includes(ownID) ? '撤回同意' : '同意這個順序'}</button>}
     </div>}
     {drag && cards[drag.cardID] && <div className="turing-drag-ghost" aria-hidden="true" style={{ left: drag.x, top: drag.y }}>{nameOf(cards[drag.cardID].playerID)}<span>放到想排的位置</span></div>}
   </section>;

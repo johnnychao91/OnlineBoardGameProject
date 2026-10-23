@@ -120,7 +120,7 @@ describe('Turing read-only and private surfaces', () => {
   it('renders only the inspected voice player’s A/B secrets and reprojects cached god frames to blind', () => {
     const G = voiceFixture(), before = structuredClone(G);
     const god = snapshot(G, 'god', voiceInfo), blind = snapshot(G, 'blind', voiceInfo);
-    expect(god).toContain('A 卡 · 秘密強度'); expect(god).toContain('B 卡 · 秘密強度');
+    expect(god).toContain('<span>A 卡</span>'); expect(god).toContain('<span>B 卡</span>');
     expect(god).toContain('<strong>2</strong>'); expect(god).toContain('<strong>8</strong>');
     expect(god).not.toContain('<strong>4</strong>'); expect(god).not.toContain('<strong>9</strong>');
     expect(blind.match(/目前視角不可查看/g)).toHaveLength(2);
@@ -212,12 +212,23 @@ describe('Turing read-only and private surfaces', () => {
     const G = sharedFixture(3); G.orderApprovals = []; G.redrawApprovals = [];
     const html = liveBoard(G);
     expect(html).toContain('提議重抽題目'); expect(html).toContain('turing-question-feedback');
-    expect(html).toContain('將選取的卡放到第'); expect(html).toContain('同意這個順序');
+    expect(html).toContain('選取受測者 0的強度牌'); expect(html).toContain('同意這個順序');
+    const table = sharedSurface(html);
+    expect(table).not.toContain('turing-slot-label'); expect(table).not.toContain('turing-place-button');
+    expect(table).not.toContain('待排'); expect(table).not.toContain('秘密強度');
     expect(html).not.toContain('我已了解本輪任務'); expect(html).not.toContain('我已口頭回答');
     expect(html).not.toContain('只代表這次回答的程度'); expect(html).not.toContain('turing-desk-spoken');
     expect(html).not.toContain('turing-empty-slot'); expect(html).not.toContain('turing-chip-state');
     const readonly = snapshot(G, 'blind', sharedInfo(3));
     expect(readonly).not.toContain('提議重抽題目'); expect(readonly).not.toContain('turing-question-feedback');
+  });
+  it('keeps every old partially arranged card on the live table and allows immediate order approval', () => {
+    const G = sharedFixture(3); G.tableOrder = ['2']; G.orderApprovals = [];
+    const table = sharedSurface(liveBoard(G));
+    expect([...table.matchAll(/data-card-id="([^"]+)"/g)].map(match => match[1])).toEqual(['2', '0', '1']);
+    expect(table).toContain('<button class="button primary" type="button">同意這個順序</button>');
+    expect(table).not.toContain('待排'); expect(table).not.toContain('放第');
+    expect(G.tableOrder).toEqual(['2']);
   });
   it('shows redraw consent and waiting names while suspending final reveal, without hiding round-result confirmation', () => {
     const G = sharedFixture(3); G.tableOrder = ['0', '1', '2']; G.redrawApprovals = ['0', '2'];

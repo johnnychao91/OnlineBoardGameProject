@@ -74,6 +74,16 @@ export function turingCards(G: TuringState): Record<string, TuringCard> {
   }]));
 }
 
+/** A complete public table, including cards omitted by older saved layouts. */
+export function turingTableOrder(G: TuringState): string[] {
+  if (!isTuringSharedTable(G)) return [];
+  const cards = turingCards(G), order: string[] = [];
+  for (const id of [...(G.tableOrder ?? []), ...Object.keys(cards)]) {
+    if (Object.hasOwn(cards, id) && !order.includes(id)) order.push(id);
+  }
+  return order;
+}
+
 /** Only reads authorized private data; a revealed public card is handled separately by callers. */
 export function turingCardNumber(G: TuringState, cardID: string): number | undefined {
   if (G.rulesVersion === 1) return Object.hasOwn(G.players, cardID) ? G.private[cardID]?.number : undefined;
@@ -137,6 +147,7 @@ function beginRound(G: TuringState, random: RandomAPI): void {
       G.cards![card.id] = { playerID: id, slot: slot === 0 ? 'A' : 'B', spoken: false };
     }
   });
+  if (isTuringSharedTable(G)) G.tableOrder = Object.keys(G.cards!);
   for (const player of Object.values(G.players)) player.answered = false;
   transition(G, G.rulesVersion >= 4 ? 'sorting' : 'briefing');
   G.log.push({ type: 'round-start', round: G.round, examinerID: G.examinerID, question: { ...question }, integrity: G.integrity });
@@ -227,26 +238,27 @@ function canArrange(G: TuringState, playerID: unknown, epoch: unknown): boolean 
 function placeCard({ G, playerID }: MoveContext, cardID: unknown, index: unknown, epoch: unknown) {
   if (!canArrange(G, playerID, epoch) || typeof cardID !== 'string' || !G.cards || !Object.hasOwn(G.cards, cardID)
     || typeof index !== 'number' || !Number.isInteger(index)) return INVALID_MOVE;
-  const next = (G.tableOrder ?? []).filter(id => id !== cardID);
+  const previous = turingTableOrder(G);
+  const next = previous.filter(id => id !== cardID);
   if (index < 0 || index > next.length) return INVALID_MOVE;
   next.splice(index, 0, cardID);
-  if (next.length === G.tableOrder?.length && next.every((id, i) => G.tableOrder![i] === id)) return;
+  if (next.every((id, i) => previous[i] === id)) return;
   G.tableOrder = next;
   G.orderApprovals = [];
   G.epoch += 1;
 }
-function removeCard({ G, playerID }: MoveContext, cardID: unknown, epoch: unknown) {
-  if (!canArrange(G, playerID, epoch) || typeof cardID !== 'string' || !G.tableOrder?.includes(cardID)) return INVALID_MOVE;
-  G.tableOrder = G.tableOrder.filter(id => id !== cardID);
-  G.orderApprovals = [];
-  G.epoch += 1;
+function removeCard(context: MoveContext, cardID: unknown, epoch: unknown) {
+  // Older clients may still send this move. Keep every card on the table and
+  // treat it as moving the selected card to the far end instead of removing it.
+  return placeCard(context, cardID, turingTableOrder(context.G).length - 1, epoch);
 }
 function approveOrder({ G, playerID }: MoveContext, epoch: unknown) {
-  if (!canArrange(G, playerID, epoch) || G.orderApprovals?.includes(playerID) || (G.redrawApprovals?.length ?? 0) > 0 || !G.tableOrder || !G.cards
-    || G.tableOrder.length !== Object.keys(G.cards).length || new Set(G.tableOrder).size !== G.tableOrder.length
-    || G.tableOrder.some(id => !Object.hasOwn(G.cards!, id))) return INVALID_MOVE;
-  const cards = G.tableOrder.map(id => ({ id, card: G.cards![id], number: turingCardNumber(G, id) }));
+  if (!canArrange(G, playerID, epoch) || G.orderApprovals?.includes(playerID) || (G.redrawApprovals?.length ?? 0) > 0 || !G.cards) return INVALID_MOVE;
+  const order = turingTableOrder(G);
+  if (order.length !== Object.keys(G.players).length) return INVALID_MOVE;
+  const cards = order.map(id => ({ id, card: G.cards![id], number: turingCardNumber(G, id) }));
   if (cards.some(card => card.number === undefined)) return INVALID_MOVE;
+  G.tableOrder = order;
   G.orderApprovals ??= [];
   G.orderApprovals.push(playerID);
   if (!Object.keys(G.players).every(id => G.orderApprovals!.includes(id))) return;
@@ -280,7 +292,7 @@ function approveRedraw({ G, playerID, random }: MoveContext, epoch: unknown) {
   if (!Object.keys(G.players).every(id => G.redrawApprovals!.includes(id))) return;
   const question = drawQuestion(G, random)!;
   G.question = { ...question };
-  if (G.tableOrder) G.tableOrder = [];
+  if (isTuringSharedTable(G)) G.tableOrder = Object.keys(G.cards!);
   if (G.orderApprovals) G.orderApprovals = [];
   G.redrawApprovals = [];
   G.epoch += 1;
@@ -333,7 +345,7 @@ export function turingPlayerView({ G, playerID }: { G: TuringState; playerID: st
     integrity: G.integrity, maxIntegrity: G.maxIntegrity, examinerID: G.examinerID,
     question: G.question ? copyQuestion(G.question) : null,
     answers: { ...G.answers }, ...(G.cards === undefined ? {} : { cards: turingCards(G) }),
-    ...(G.tableOrder === undefined ? {} : { tableOrder: [...G.tableOrder] }),
+    ...(isTuringSharedTable(G) ? { tableOrder: turingTableOrder(G) } : G.tableOrder === undefined ? {} : { tableOrder: [...G.tableOrder] }),
     ...(G.orderApprovals === undefined ? {} : { orderApprovals: [...G.orderApprovals] }),
     ...(G.redrawApprovals === undefined ? {} : { redrawApprovals: [...G.redrawApprovals] }),
     revealed: G.revealed.map(({ playerID, number, error, cardID, slot }) => ({ playerID, number, error,
