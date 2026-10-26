@@ -4,6 +4,35 @@ import type { FileStorage } from './storage';
 import type { RoomRecord, RoomStore } from './rooms';
 
 describe('Challenge score aggregation', () => {
+  it('groups individual competitions by rules and player count without treating a champion as a public faction', async () => {
+    const finished = (mode: string, count: number, rounds: number) => ({ ctx: { numPlayers: count }, G: {
+      status: 'finished', mode, round: rounds, winner: mode === 'black-letter' ? 'couriers' : 'delivery',
+      winReason: mode === 'black-letter' ? 'director-defeated' : 'delivery-champion', directorID: '7',
+      players: Object.fromEntries(Array.from({ length: count }, (_, i) => [String(7 + i), {}])),
+    } });
+    const states = new Map([
+      ['a', finished('classic', 3, 8)], ['b', finished('classic', 3, 9)], ['c', finished('classic', 4, 12)],
+      ['d', finished('premium', 8, 15)], ['e', finished('black-letter', 3, 1)], ['test', finished('premium', 8, 90)],
+    ]);
+    const room = (ids: string[], testRoom = false) => ({ roomId: ids[0], gameId: 'midnight-post', testRoom,
+      currentMatchID: ids.at(-1), history: ids.map(matchID => ({ matchID, gameName: 'midnight-post', ending: 'completed' })),
+    } as RoomRecord);
+    const rooms = { rooms: new Map([['main', room(['a', 'b', 'c', 'd', 'e'])], ['test', room(['test'], true)]]) } as RoomStore;
+    const db = { fetch: async (id: string) => ({ state: states.get(id) }) } as unknown as FileStorage;
+    const result = await collectStatistics(db, rooms), summary = result.byGame.find(game => game.gameId === 'midnight-post')!;
+    expect(result).toMatchObject({ completedGames: 5, totalPlayerParticipations: 21 });
+    expect(summary).toMatchObject({ completed: 5, rankedCompleted: 1, wins: { couriers: 1 },
+      byPlayerCount: [{ numPlayers: 3, completed: 1, draws: 0, wins: { couriers: 1 } }],
+      competitions: [
+        { mode: 'classic', numPlayers: 3, runs: 2, totalRounds: 17, averageRounds: 8.5 },
+        { mode: 'classic', numPlayers: 4, runs: 1, totalRounds: 12, averageRounds: 12 },
+        { mode: 'premium', numPlayers: 8, runs: 1, totalRounds: 15, averageRounds: 15 },
+      ],
+    });
+    expect(summary.wins).not.toHaveProperty('delivery');
+    expect(summary.reasons).toEqual({ 'director-defeated': 1 });
+    expect(await collectStatistics(db, rooms)).toEqual(result);
+  });
   it('separates life and player-count groups from ranked wins, includes zero scores and counts each stored match only once', async () => {
     const state = (count: number, rounds: number, lives: number, endless = true, rulesVersion = 2) => ({
       ctx: { numPlayers: count }, G: { rulesVersion, status: 'finished', players: Object.fromEntries(Array.from({ length: count }, (_, id) => [id, {}])),

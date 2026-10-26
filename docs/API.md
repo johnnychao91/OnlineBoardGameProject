@@ -2,7 +2,7 @@
 
 API 與網頁同源，正式環境使用 HTTPS；開發由 Vite 代理。POST 使用 `Content-Type: application/json`，body 為物件且不超過 4096 bytes，無參數時傳 `{}`。API 回應為 `Cache-Control: no-store`，錯誤為 `{"error":"可顯示的說明"}`。
 
-公開詳細規則網頁使用 `GET`／`HEAD /rules`、`/rules/space-station`、`/rules/encrypted-call`、`/rules/black-fog`，也接受尾端 `/`。不需加入房間，回傳 `no-cache` 的前端頁面；預覽只包含平台名稱、圖示與以 `PUBLIC_ORIGIN` 產生的公開路徑，不含 query、邀請、身份或對局資料。未知規則路徑回 404。房內規則連結在新分頁開啟，保留原遊戲連線；規則路由依共用遊戲目錄與註冊表辨識，不另維護固定白名單。
+公開詳細規則網頁使用 `GET`／`HEAD /rules` 及 `/rules/:gameID`，包含目錄登錄的所有遊戲（例如 `/rules/midnight-post`），也接受尾端 `/`。不需加入房間，回傳 `no-cache` 的前端頁面；預覽只包含平台名稱、圖示與以 `PUBLIC_ORIGIN` 產生的公開路徑，不含 query、邀請、身份或對局資料。未知規則路徑回 404。房內規則連結在新分頁開啟，保留原遊戲連線；規則路由依共用遊戲目錄與註冊表辨識，不另維護固定白名單。
 
 ## 身份與權限
 
@@ -74,6 +74,12 @@ API 與網頁同源，正式環境使用 HTTPS；開發由 Vite 代理。POST �
 每次成功切換會建立新的等待室 `matchID`，舊等待室不加入歷史、回放或戰績。新身分、觀戰名單及重試紀錄隨房間索引一起發布；發布失敗時舊身分仍可使用。客戶端收到新 session 後應完整替換身分，不能只更改 `access`。舊 Socket 關閉，舊 `matchID` 的操作不能套用至新等待室。
 
 同一次請求遺失回應時，保留原身分授權與原 `access,matchID,requestID` 重試，可取回相同的新憑證；伺服器重啟或其他成員切換不會使這次恢復失效。若目標身分已離開、被移出或再次切換，舊重試回 401，不能復活它。舊憑證不能換用新的 UUID 或不同操作取得另一個身分，原加入請求也不能重新占位。重試取回的是既有切換結果，即使此後開局也不會執行第二次切換。
+
+## 午夜郵局與個人競賽
+
+`midnight-post` 透過既有 `/game`、`/options`、`/start` 路由管理。公開房規為 `{mode:"auto"|"classic"|"premium"|"black-letter",directorID:"random"|playerID}`；模式與人數限制、原創角色及網站固定判定見[午夜郵局](MIDNIGHT_POST.md)。設定可先於人數湊齊時保存，開局另外以當時的參與 ID 驗證指定局長；對方已離席或改觀戰時回 409，不改成其他局長。
+
+投遞競賽的 `RoomInfo.history[].competition` 保存 `{mode,rounds}`。`GET /api/stats` 各遊戲新增 `competitions`，按玩法及人數回傳 `{mode,numPlayers,runs,totalRounds,averageRounds}`；這些完成局包含於全站完成數及參與人次，但不加到 `rankedCompleted` 或陣營 `wins`。黑函局長仍採固定 `director`／`couriers` 陣營統計，測試房一律排除。
 
 ## 房主單次移出
 

@@ -1,5 +1,7 @@
 /** Public, environment-free metadata shared by the room, rules pages and registries. */
 export const gameCatalog = {
+  'midnight-post': { name: '午夜郵局', description: '雨夜郵局亮起燈火，讓密函穿過查驗與調包，或聯手阻止黑函局長。', minPlayers: 2, maxPlayers: 8,
+    detail: '2～8 人 · 密函推理 · 三種玩法', intro: '城市入睡後，一間不存在於地圖上的郵局才開始營業。3～4 人以密函投遞爭取信任，5～8 人在全城夜遞中運用額外人物；2～6 人也能挑戰黑函局長，由一人蒐集六封印，其餘午夜信使聯手守住郵路。' },
   'turing-test': { name: '圖靈測試', description: '用千奇百怪的回答校準人性，讓冰冷的機器看懂你們的默契。', minPlayers: 2, maxPlayers: 10,
     detail: '2～10 人 · 全員合作 · 語音回答與排序', intro: '機器混入人群的傳聞，讓整座城市啟動了人性檢測。你們透過語音軟體回答題目，從回答判斷秘密強度。「群體校準」讓 2～10 人各持一張牌、在共用桌面一起排序；4～9 人也能選擇輪流擔任檢測員的玩法。可以完成五關校準，也可以用有限生命挑戰無盡模式。機器人是故事背景，玩家全員同隊。' },
   'space-station': { name: '太空維修站', description: '在未知與信任之間，讓太空站恢復運作。', minPlayers: 4, maxPlayers: 8,

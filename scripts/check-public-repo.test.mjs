@@ -21,6 +21,14 @@ test('permits reserved examples, loopback and narrowly scoped public sources', (
   assert.equal(allowedHost('andyventure.com', 'docs/TURING_TEST.md'), true);
   assert.equal(allowedHost('andyventure.com', 'deploy/apache.conf.example'), false);
   assert.equal(allowedHost('andyventure.com', 'README.md'), false);
+  for (const host of ['alderac.com', 'cdn.svc.asmodee.net']) {
+    assert.equal(allowedHost(host, 'docs/MIDNIGHT_POST.md'), true);
+    assert.equal(allowedHost(host, 'deploy/apache.conf.example'), false);
+    assert.equal(allowedHost(host, 'README.md'), false);
+  }
+  assert.equal(allowedHost('www.w3.org', 'src/client/assets/post/roles/seal-1.svg'), true);
+  assert.equal(allowedHost('www.w3.org', 'deploy/apache.conf.example'), false);
+  assert.equal(allowedHost('www.w3.org', 'src/client/assets/post/roles/unexpected.svg'), false);
   assert.equal(allowedHost('registry.npmjs.org', 'package-lock.json'), true);
   assert.equal(allowedHost('registry.npmjs.org', 'deploy/apache.conf.example'), false);
   assert.equal(allowedHost(`example.com.${privateHost}`, 'README.md'), false);

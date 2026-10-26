@@ -1,11 +1,20 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-import { ChallengeStandings, factionRecord } from './Statistics';
+import { ChallengeStandings, CompetitionStandings, factionRecord } from './Statistics';
 import { RoomHistory } from './RoomHistory';
 import type { RoomInfo } from './api';
 
 describe('Challenge score presentation', () => {
+  it('shows individual competition runs and rounds without inventing a shared faction win rate', () => {
+    const html = renderToStaticMarkup(createElement(CompetitionStandings, { competitions: [
+      { mode: 'classic', numPlayers: 3, runs: 2, totalRounds: 17, averageRounds: 8.5 },
+      { mode: 'premium', numPlayers: 8, runs: 1, totalRounds: 15, averageRounds: 15 },
+    ] }));
+    expect(html).toContain('密函投遞'); expect(html).toContain('全城夜遞');
+    expect(html).toContain('8.5'); expect(html).toContain('平均夜數');
+    expect(html).not.toMatch(/勝率|\d+ 敗|delivery|premium/);
+  });
   it('keeps endless runs out of ranked losses and supports older statistics without a ranked count', () => {
     expect(factionRecord({ completed: 10, rankedCompleted: 2, wins: { humans: 1 } }, 'humans'))
       .toEqual({ wins: 1, losses: 1, draws: 0, rate: 50 });

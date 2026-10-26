@@ -253,6 +253,7 @@ export async function createApplication(config: AppConfig) {
     const history: RoomHistory = { matchID: previousID, gameName: room.gameId, endedAt: Date.now(), ending,
       numPlayers: state.ctx.numPlayers, ...(outcome && ending === 'completed' ? {
         winner: outcome.winner, reason: outcome.reason, ...(outcome.challenge ? { challenge: outcome.challenge } : {}),
+        ...(outcome.competition ? { competition: outcome.competition } : {}),
       } : {}) };
     const next: RoomRecord = { ...room, currentMatchID: matchID, ...nextHost, completedDisplay: undefined,
       departedPlayerIDs: [], history: [...(room.history || []), history] };
@@ -836,7 +837,7 @@ export async function createApplication(config: AppConfig) {
         const count = participants.length;
         if (count < definition.minPlayers || count > definition.maxPlayers) fail(409, `需要 ${definition.minPlayers}～${definition.maxPlayers} 位參與者`);
         if (participants.some((p) => !state.G.players[p.id]?.ready)) fail(409, '所有參與者準備後才能開始');
-        const optionsError = definition.validateOptions?.(current.gameOptions, count);
+        const optionsError = definition.validateOptions?.(current.gameOptions, count, participants.map(player => String(player.id)));
         if (optionsError) fail(409, optionsError);
         const match = createMatch({ game: { ...definition.game, seed: randomToken() }, numPlayers: count,
           setupData: definition.startSetupData(participants.map((player) => String(player.id)), current.gameOptions), unlisted: true });

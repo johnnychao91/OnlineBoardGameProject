@@ -28,6 +28,10 @@ export function allowedHost(input, file) {
     && host === 'indieboardsandcards.com') return true;
   if (['docs/TURING_TEST.md', 'scripts/check-public-repo.mjs', 'scripts/check-public-repo.test.mjs'].includes(file)
     && host === 'andyventure.com') return true;
+  if (['docs/MIDNIGHT_POST.md', 'scripts/check-public-repo.mjs', 'scripts/check-public-repo.test.mjs'].includes(file)
+    && ['alderac.com', 'cdn.svc.asmodee.net'].includes(host)) return true;
+  if ((/^src\/client\/assets\/post\/roles\/seal-[1-6]\.svg$/.test(file)
+    || ['scripts/check-public-repo.mjs', 'scripts/check-public-repo.test.mjs'].includes(file)) && host === 'www.w3.org') return true;
   if (['localhost', '127.0.0.1', '[::1]', '::1'].includes(host)) return true;
   if (/(?:^|\.)example\.(?:com|org|net)$/.test(host)) return true;
   if (/(?:^|\.)(?:example|test|invalid|localhost)$/.test(host)) return true;

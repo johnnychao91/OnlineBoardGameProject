@@ -8,6 +8,8 @@ import { MOON_PRESETS, normalizeMoonOptions, validateMoonOptions } from './moon/
 import { TuringGame, isTuringSharedTable, turingObserverView, type TuringState } from './turing/game';
 import { normalizeTuringOptions, validateTuringOptions } from './turing/rules';
 import { gameCatalog, type GameID } from './catalog';
+import { MailGame, mailObserverView, type MailState } from './post/game';
+import { normalizeMailOptions, validateMailOptions } from './post/rules';
 
 export type ObserverPerspective = 'blind' | 'god';
 export interface GameOutcome {
@@ -15,6 +17,8 @@ export interface GameOutcome {
   reason: string;
   roles: Record<string, string>;
   challenge?: { mode: string; completedRounds: number; startingLives: number };
+  /** Individual competition summaries never aggregate a person's name or seat as a faction. */
+  competition?: { mode: string; rounds: number };
 }
 
 /** A registered game has an isolated rules module and a matching client renderer. */
@@ -32,7 +36,7 @@ export interface GameDefinition {
   normalizeOptions?: (options: unknown) => Record<string, unknown>;
   /** Validate a preset before its participants have all joined the waiting room. */
   validateLobbyOptions?: (options: Record<string, unknown> | undefined) => string | undefined;
-  validateOptions?: (options: Record<string, unknown> | undefined, numPlayers: number) => string | undefined;
+  validateOptions?: (options: Record<string, unknown> | undefined, numPlayers: number, participantIDs?: string[]) => string | undefined;
   /** The caller must authorize this perspective before returning the projection. */
   observerView: (state: any, perspective: ObserverPerspective) => unknown;
   getOutcome: (state: any) => GameOutcome | null;
@@ -120,6 +124,23 @@ export const gameDefinitions: GameDefinition[] = [{
         mode: isTuringSharedTable(state) ? 'endless-table' : 'endless', completedRounds: state.completedRounds ?? 0, startingLives: state.maxIntegrity,
       } } : {}),
       roles: Object.fromEntries(Object.keys(state.players).map(id => [id, 'humans'])) };
+  },
+}, {
+  id: 'midnight-post', ...gameCatalog['midnight-post'], game: MailGame,
+  isJoinable: state => state.status === 'lobby',
+  normalizeOptions: options => ({ ...normalizeMailOptions(options) }),
+  validateLobbyOptions: options => validateMailOptions(options),
+  validateOptions: (options, count, participants) => validateMailOptions(options, count, participants),
+  startSetupData: (participantIDs, options) => ({ startImmediately: true, participantIDs, options: normalizeMailOptions(options) }),
+  observerView: mailObserverView,
+  hideMoveMetadata: true,
+  completedDisplayMs: () => 8000,
+  getOutcome: (state: MailState) => {
+    if (state.status !== 'finished' || !state.winner || !state.winReason) return null;
+    return { winner: state.winner, reason: state.winReason,
+      ...(state.mode !== 'black-letter' ? { competition: { mode: state.mode, rounds: state.round } } : {}),
+      roles: Object.fromEntries(Object.keys(state.players).map(id => [id,
+        state.mode === 'black-letter' && state.directorID === id ? 'director' : 'couriers'])) };
   },
 }];
 

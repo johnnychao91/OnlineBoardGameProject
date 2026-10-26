@@ -9,6 +9,7 @@ export async function collectStatistics(db: FileStorage, rooms: RoomStore) {
     wins: {} as Record<string, number>, reasons: {} as Record<string, number>,
     byPlayerCount: [] as { numPlayers: number; completed: number; draws: number; wins: Record<string, number> }[],
     challenges: [] as { mode: string; numPlayers: number; startingLives: number; runs: number; bestCompletedRounds: number; totalCompletedRounds: number; averageCompletedRounds: number }[],
+    competitions: [] as { mode: string; numPlayers: number; runs: number; totalRounds: number; averageRounds: number }[],
   }));
   let totalPlayerParticipations = 0;
   for (const room of rooms.rooms.values()) {
@@ -43,6 +44,18 @@ export async function collectStatistics(db: FileStorage, rooms: RoomStore) {
         group.averageCompletedRounds = Math.round(group.totalCompletedRounds / group.runs * 100) / 100;
         continue;
       }
+      if (outcome.competition) {
+        const competition = outcome.competition;
+        let group = summary.competitions.find(entry => entry.mode === competition.mode && entry.numPlayers === numPlayers);
+        if (!group) {
+          group = { mode: competition.mode, numPlayers, runs: 0, totalRounds: 0, averageRounds: 0 };
+          summary.competitions.push(group);
+        }
+        group.runs += 1;
+        group.totalRounds += competition.rounds;
+        group.averageRounds = Math.round(group.totalRounds / group.runs * 100) / 100;
+        continue;
+      }
       summary.rankedCompleted += 1;
       if (outcome.winner === 'draw') summary.draws += 1;
       else summary.wins[outcome.winner] = (summary.wins[outcome.winner] || 0) + 1;
@@ -56,6 +69,7 @@ export async function collectStatistics(db: FileStorage, rooms: RoomStore) {
   }
   byGame.forEach((game) => {
     game.byPlayerCount.sort((a, b) => a.numPlayers - b.numPlayers);
+    game.competitions.sort((a, b) => a.mode.localeCompare(b.mode) || a.numPlayers - b.numPlayers);
     game.challenges.sort((a, b) => a.mode.localeCompare(b.mode) || a.numPlayers - b.numPlayers || a.startingLives - b.startingLives);
   });
   return { completedGames: byGame.reduce((sum, game) => sum + game.completed, 0), totalPlayerParticipations, byGame };

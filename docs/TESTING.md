@@ -7,6 +7,7 @@
 | 範圍 | 主要檔案 | 必須保留的差異 |
 | --- | --- | --- |
 | 各遊戲規則 | `src/games/{station,cipher,fog,moon,turing}/game.test.ts`、`station/view-model.test.ts` | 各人數、角色、模式、勝敗、非法／重複／過期操作、不同觀看身分及舊版存檔 |
+| 午夜郵局 | `src/games/post/game.test.ts`、`src/server/mail.test.ts`、`src/client/mail-*.test.ts` | 三種玩法、17 種投遞人物與封印、待處理選項、秘密投影、決勝輪、兩個牌堆、真實 Socket、重啟、回放及個人競賽／陣營統計 |
 | 全遊戲接入契約 | `src/server/framework.test.ts`、`src/client/framework-contract.test.ts` | 依目錄遍歷所有遊戲；伺服器與前端適配器、觀戰、房主、中止、重開、規則頁、音效 |
 | 房間與身分 | `src/server/features.test.ts`、`role-switch.test.ts`、`game-switch.test.ts` | 真實 HTTP 授權、失效憑證、重試、競態、房主觀戰、容量及換遊戲 |
 | 即時連線與生命週期 | `src/server/transport.test.ts`、`lifecycle.test.ts`、`room-isolation.test.ts` | 真實 Socket.IO、多分頁、重連寬限、離線中止、原房再開、多房並行與隔離 |

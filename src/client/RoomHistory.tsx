@@ -22,6 +22,9 @@ export function RoomHistory({ seat, info }: { seat: AuthSession; info: RoomInfo 
       {latest.ending === 'completed' && latest.challenge && <p className="mint">
         {challengeModeLabel(latest.challenge.mode)} · 通過 {latest.challenge.completedRounds} 關 · 挑戰至第 {latest.challenge.completedRounds + 1} 關 · 起始 {latest.challenge.startingLives} 點生命
       </p>}
+      {latest.ending === 'completed' && latest.competition && <p className="mint">
+        {latest.competition.mode === 'classic' ? '密函投遞' : '全城夜遞'} · 共 {latest.competition.rounds} 夜 · 冠軍與郵戳記錄可在復盤查看
+      </p>}
       {info.testRoom && <p className="small amber">測試房間的結果僅供復盤，不計入全站戰績。</p>}
       <p className="muted">{latest.ending === 'completed'
         ? definition?.reasonLabels[latest.reason ?? ''] ?? '對局已完成，結果已保存。'

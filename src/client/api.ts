@@ -24,6 +24,7 @@ export interface RoomHistoryEntry {
   winner?: string;
   reason?: string;
   challenge?: { mode: string; completedRounds: number; startingLives: number };
+  competition?: { mode: string; rounds: number };
 }
 export interface RoomInfo {
   roomId: string;

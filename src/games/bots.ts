@@ -6,6 +6,7 @@ import { fogAllowedQuestCards, fogPlayerView, type FogState } from './fog/game';
 import { fogTeamSizes } from './fog/rules';
 import { moonPlayerView, type MoonState } from './moon/game';
 import { isTuringSharedTable, turingCards, turingTableOrder, turingPlayerView, type TuringState } from './turing/game';
+import { legalMailActions, mailPlayerView, type MailState } from './post/game';
 
 export interface BotAction { move: string; args: unknown[] }
 type Random = () => number;
@@ -177,6 +178,10 @@ function turingAction(G: TuringState, id: string, random: Random): BotAction | n
 }
 
 const adapters = {
+  'midnight-post': (G: MailState, id: string, random: Random) => {
+    const actions = legalMailActions(mailPlayerView({ G, playerID: id }), id);
+    return actions.length ? pick(actions, random) : null;
+  },
   'space-station': (G: StationState, id: string, random: Random) => stationAction(stationPlayerView({ G, playerID: id }), id, random),
   'encrypted-call': (G: CipherState, id: string, random: Random) => cipherAction(cipherPlayerView({ G, playerID: id }), id, random),
   'black-fog': (G: FogState, id: string, random: Random) => fogAction(fogPlayerView({ G, playerID: id }), id, random),

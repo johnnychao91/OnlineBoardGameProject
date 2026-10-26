@@ -73,7 +73,9 @@ describe('Game framework registration and shared room lifecycle', () => {
     expect(Object.keys(blind.body.G.private ?? {})).toHaveLength(0);
     expect(Object.keys(god.body.G.private)).toHaveLength(gameCatalog[gameID].minPlayers);
     expect(blind.body.G.secret).toBeUndefined();
-    if (gameID === 'black-fog' || gameID === 'silver-moon') expect(god.body.G.secret).toBeUndefined();
+    // Station's god view intentionally includes current equipment positions;
+    // other games keep future draws and resolving effects server-only.
+    if (gameID !== 'space-station') expect(god.body.G.secret).toBeUndefined();
     expect(blind.body.G.secretQuestionQueue).toBeUndefined();
     expect(god.body.G.secretQuestionQueue).toBeUndefined();
     expect(blind.body.G.secretDrawIDs).toBeUndefined();

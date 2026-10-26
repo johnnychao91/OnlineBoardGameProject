@@ -9,13 +9,14 @@ export interface GameStatistics {
   gameId: string;
   name: string;
   completed: number;
-  /** Challenge runs count toward site participation, not the win-rate denominator. */
+  /** Challenges and individual competitions count toward participation, not faction win rates. */
   rankedCompleted?: number;
   draws?: number;
   wins: Record<string, number>;
   byPlayerCount: { numPlayers: number; completed: number; draws?: number; wins: Record<string, number> }[];
   reasons: Record<string, number>;
   challenges?: { mode: string; numPlayers: number; startingLives: number; runs: number; bestCompletedRounds: number; averageCompletedRounds: number }[];
+  competitions?: { mode: string; numPlayers: number; runs: number; totalRounds: number; averageRounds: number }[];
 }
 interface StatisticsData { completedGames: number; totalPlayerParticipations: number; byGame: GameStatistics[]; }
 
@@ -82,6 +83,20 @@ function FactionStandings({ game, factions }: { game: GameStatistics; factions: 
   </div>;
 }
 
+export function CompetitionStandings({ competitions }: { competitions: NonNullable<GameStatistics['competitions']> }) {
+  if (!competitions.length) return null;
+  return <section className="challenge-statistics">
+    <h4>投遞競賽紀錄</h4><p className="small muted">每位信使各自爭取冠軍，依玩法與人數記錄完成局數及平均夜數。</p>
+    <div className="table-scroll"><table><caption className="visually-hidden">投遞競賽各組完成紀錄</caption>
+      <thead><tr><th>玩法</th><th>玩家</th><th>完成局數</th><th>平均夜數</th></tr></thead>
+      <tbody>{competitions.map(row => <tr key={`${row.mode}-${row.numPlayers}`}>
+        <td>{row.mode === 'classic' ? '密函投遞' : row.mode === 'premium' ? '全城夜遞' : row.mode}</td>
+        <td>{row.numPlayers} 人</td><td>{row.runs} 局</td><td>{row.averageRounds} 夜</td>
+      </tr>)}</tbody>
+    </table></div>
+  </section>;
+}
+
 export function Statistics() {
   const [data, setData] = useState<StatisticsData | null>(null);
   const [error, setError] = useState('');
@@ -94,7 +109,7 @@ export function Statistics() {
   }, [revision]);
   return <section className="statistics-section panel">
     <div className="section-heading"><div><div className="section-label">MISSION ARCHIVE</div><h2>這裡的每一場任務</h2></div><button className="text-button" onClick={() => setRevision(n => n + 1)}>更新統計</button></div>
-    <p className="small muted">全站已完成的對局與勝敗；無盡挑戰另記通關成績，觀戰不計入參與人次。</p>
+    <p className="small muted">全站已完成的對局與勝敗；無盡挑戰及個人競賽另列紀錄，觀戰不計入參與人次。</p>
     <ErrorMessage>{error}</ErrorMessage>
     {!data && !error && <p className="small muted" role="status">正在讀取統計…</p>}
     {data && <>
@@ -104,18 +119,22 @@ export function Statistics() {
         const definition = clientGames[game.gameId];
         const factions = Object.keys(definition?.factionLabels || game.wins).filter(faction => faction !== 'draw');
         const hasChallenges = Boolean(game.challenges?.length);
+        const hasCompetitions = Boolean(game.competitions?.length);
+        const hasRanked = (game.rankedCompleted ?? game.completed) > 0 || !hasCompetitions;
         return <article className="game-statistics" key={game.gameId}>
           <div className="section-heading"><h3>{game.name}</h3><span>{game.completed} 局{(game.draws ?? 0) > 0 && ` · ${game.draws} 平局`}</span></div>
           {hasChallenges && <p className="small muted">五關模式：{game.rankedCompleted ?? game.completed} 局</p>}
-          <FactionStandings game={game} factions={factions} />
+          {hasCompetitions && hasRanked && <p className="small muted">黑函局長陣營對抗：{game.rankedCompleted ?? 0} 局</p>}
+          {hasRanked && <FactionStandings game={game} factions={factions} />}
+          <CompetitionStandings competitions={game.competitions ?? []} />
           <ChallengeStandings challenges={game.challenges ?? []} />
-          <details className="statistics-details"><summary>{hasChallenges ? '五關模式：依玩家人數與結束原因查看' : '依玩家人數與結束原因查看'}</summary>
+          {hasRanked && <details className="statistics-details"><summary>{hasChallenges ? '五關模式：依玩家人數與結束原因查看' : hasCompetitions ? '黑函局長：依玩家人數與結束原因查看' : '依玩家人數與結束原因查看'}</summary>
             <div className="table-scroll"><table><caption className="visually-hidden">{game.name} 各人數陣營勝利次數</caption>
               <thead><tr><th>人數</th><th>完成局數</th><th>平局</th>{factions.map(faction => <th key={faction}>{definition?.factionLabels[faction] || faction}勝</th>)}</tr></thead>
               <tbody>{[...game.byPlayerCount].sort((a, b) => a.numPlayers - b.numPlayers).map(row => <tr key={row.numPlayers}><td>{row.numPlayers} 人</td><td>{row.completed}</td><td>{row.draws ?? 0}</td>{factions.map(faction => <td key={faction}>{row.wins[faction] || 0}</td>)}</tr>)}</tbody>
             </table></div>
             <ul className="reason-stats">{Object.entries(game.reasons).map(([reason, count]) => <li key={reason}><span>{definition?.reasonLabels[reason] || reason}</span><strong>{count} 局</strong></li>)}</ul>
-          </details>
+          </details>}
         </article>;
       })}
     </>}

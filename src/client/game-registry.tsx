@@ -34,6 +34,13 @@ import { TuringOptions } from './TuringOptions';
 import { TuringRules } from './TuringRules';
 import { validateTuringOptions } from '../games/turing/rules';
 import { createTuringPoster } from './turing-poster';
+import { MailGame, type MailState } from '../games/post/game';
+import { validateMailOptions } from '../games/post/rules';
+import { MailBoard } from './MailBoard';
+import { MailSnapshot } from './MailSnapshot';
+import { MailOptions } from './MailOptions';
+import { MailRules, MailRuleSummary, mailChapters } from './MailRules';
+import { createMailPoster } from './mail-poster';
 
 function ConnectingGame() {
   return <main className="narrow"><section className="panel center" role="status" aria-live="polite"><span className="large-orbit"><Icon type="signal" size={38} /></span><h2>正在連線到遊戲伺服器…</h2><p className="muted">正在同步你的座位與最新對局，請稍候。</p><p className="small muted">若持續停在這裡，請確認網路連線，並請房主檢查遊戲伺服器是否正常運作。保留此頁面，連線恢復後會自動繼續。</p></section></main>;
@@ -44,6 +51,7 @@ const CipherClient = Client({ game: CipherGame, board: CipherBoard, loading: Con
 const FogClient = Client({ game: FogGame, board: FogBoard, loading: ConnectingGame, multiplayer: SocketIO({ server: typeof window === 'undefined' ? undefined : window.location.origin }), debug: false });
 const MoonClient = Client({ game: MoonGame, board: MoonBoard, loading: ConnectingGame, multiplayer: SocketIO({ server: typeof window === 'undefined' ? undefined : window.location.origin }), debug: false });
 const TuringClient = Client({ game: TuringGame, board: TuringBoard, loading: ConnectingGame, multiplayer: SocketIO({ server: typeof window === 'undefined' ? undefined : window.location.origin }), debug: false });
+const MailClient = Client({ game: MailGame, board: MailBoard, loading: ConnectingGame, multiplayer: SocketIO({ server: typeof window === 'undefined' ? undefined : window.location.origin }), debug: false });
 
 export interface ClientGameDefinition {
   name: string;
@@ -70,6 +78,23 @@ export interface ClientGameDefinition {
 
 /** Add each game's player client, snapshot renderer and statistics labels together. */
 export const clientGames: Record<GameID, ClientGameDefinition> & Record<string, ClientGameDefinition> = {
+  'midnight-post': {
+    name: gameCatalog['midnight-post'].name,
+    PlayerClient: props => <MailClient {...props} />,
+    Snapshot: MailSnapshot, Rules: MailRuleSummary, DetailedRules: MailRules, LobbyOptions: MailOptions,
+    validateLobby: (options, count) => validateMailOptions(options, count >= 2 ? count : undefined),
+    chapters: mailChapters,
+    gallery: { chapter: 'roles', label: '人物與封印圖鑑' },
+    createPoster: createMailPoster,
+    soundAdapter: (G: MailState, id) => ({ revision: G.epoch * 1000 + G.log.length,
+      events: G.log.filter(event => ['round', 'defeat', 'finish'].includes(event.type)).map(event => JSON.stringify(event)),
+      attention: id && G.players[id] && ((G.status === 'playing' && (G.pending ? G.pending.actorID === id : G.activePlayer === id))
+        || (['briefing', 'round-review'].includes(G.status) && !G.players[id].acknowledged)) ? `${G.epoch}:${G.status}:${id}` : undefined }),
+    lobbyTitle: '地圖上找不到，夜裡總會亮起一盞燈。', lobbyDescription: gameCatalog['midnight-post'].description,
+    factionLabels: { couriers: '午夜信使', director: '黑函局長' },
+    resultLabels: { delivery: '投遞競賽完成', couriers: '午夜信使獲勝', director: '黑函局長獲勝' },
+    reasonLabels: { 'delivery-champion': '信任郵戳決出最終投遞冠軍', 'director-defeated': '局長生命耗盡', 'couriers-defeated': '信使生命耗盡', 'six-seals': '集齊六封印並封鎖郵路' },
+  },
   'turing-test': {
     name: gameCatalog['turing-test'].name,
     PlayerClient: props => <TuringClient {...props} />,

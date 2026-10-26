@@ -6,6 +6,7 @@
 :root[data-visual-style="art"] {
   --art-station: url('./assets/art/ink-space-station.png');
   --art-cipher: url('./assets/art/ink-cipher-room.png');
+  --art-post: url('./assets/post/scene.webp');
   --art-scene: var(--art-station);
   --bg: #101719;
   --surface: #192323;
@@ -20,6 +21,10 @@
 
 :root[data-visual-style="art"] [data-art-game="encrypted-call"] {
   --art-scene: var(--art-cipher);
+}
+
+:root[data-visual-style="art"] [data-art-game="midnight-post"] {
+  --art-scene: var(--art-post);
 }
 
 :root[data-visual-style="art"] :is(.home-page, .join-page, .room-page, .shared-replay-page, .rules-page) {
