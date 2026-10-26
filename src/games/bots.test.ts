@@ -11,6 +11,7 @@ import { MoonGame, advanceMoonClock, moonPlayerView } from './moon/game';
 import { MOON_PRESETS, normalizeMoonOptions } from './moon/rules';
 import { TuringGame, turingPlayerView } from './turing/game';
 import { MailGame, mailPlayerView } from './post/game';
+import { BakerGame, bakerPlayerView } from './baker/game';
 
 let now = 1_800_000_000_000;
 beforeEach(() => { now = 1_800_000_000_000; vi.spyOn(Date, 'now').mockImplementation(() => now); });
@@ -51,7 +52,7 @@ describe('Test-room bot adapters', () => {
     expect(chooseBotAction('unknown', { G: { players: { '0': {} } } }, '0')).toBeNull();
   });
 
-  it.each([StationGame, CipherGame, FogGame, MoonGame, TuringGame, MailGame])('readies a %s seat once and leaves starting to the human host', game => {
+  it.each([StationGame, CipherGame, FogGame, MoonGame, TuringGame, MailGame, BakerGame])('readies a %s seat once and leaves starting to the human host', game => {
     const f = match(game, game.minPlayers!, undefined, 'bot-ready', undefined, false);
     const move = chooseBotAction(game.name!, f.state, '0');
     expect(move).toEqual({ move: 'setReady', args: [true] });
@@ -79,12 +80,14 @@ describe('Test-room bot adapters', () => {
     ...[3, 4].map(count => ({ game: MailGame, count, options: { mode: 'classic' } })),
     ...[5, 6, 7, 8].map(count => ({ game: MailGame, count, options: { mode: 'premium' } })),
     ...[2, 3, 4, 5, 6].map(count => ({ game: MailGame, count, options: { mode: 'black-letter' } })),
+    ...['industrial', 'victorian', 'wartime', 'modern'].flatMap(era => [4, 5, 6, 8, 12].map(count => ({ game: BakerGame, count, options: { era, specialScenes: true } }))),
   ];
   for (const { game, count, options } of scenarios) {
     const groupSorting = count <= 3 || !!(options && 'sortingMode' in options && options.sortingMode === 'group');
     const modeLabel = game.name === 'turing-test'
       ? ` (${groupSorting ? 'group' : 'examiner'} / ${options && 'mode' in options ? options.mode : 'standard'})`
-      : game.name === 'midnight-post' ? ` (${options && 'mode' in options ? options.mode : 'auto'})` : '';
+      : game.name === 'midnight-post' ? ` (${options && 'mode' in options ? options.mode : 'auto'})`
+      : game.name === 'baker-street' ? ` (${options && 'era' in options ? options.era : 'victorian'})` : '';
     it(`${game.name}${modeLabel} completes ${count}-seat matches with only legal suggested moves`, () => {
       const moves = new Set<string>();
       for (const seed of [1, 27, 83]) {
@@ -111,6 +114,7 @@ describe('Test-room bot adapters', () => {
         : game.name === 'black-fog' ? ['acknowledge', 'selectTeam', 'confirmTeam', 'vote', 'submitQuest']
         : game.name === 'turing-test' ? ['acknowledge', ...(groupSorting ? ['placeCard', 'approveOrder'] : ['revealAnswer'])]
         : game.name === 'midnight-post' ? ['acknowledge', 'playCard', 'choose']
+        : game.name === 'baker-street' ? ['acknowledge', 'chooseCrime', 'chooseLocation', 'markScene']
         : ['acknowledge', 'wolfVote', 'inspect', 'witch', 'finishSpeech', 'exileVote'];
       if (game.name === 'silver-moon' && count === 12) expected.push('guard', 'standForSheriff', 'sheriffVote', 'chooseOrder');
       for (const name of expected) expect(moves.has(name), `${game.name} did not exercise ${name}`).toBe(true);
@@ -261,6 +265,7 @@ describe('Test-room bot adapters', () => {
     { game: MoonGame, project: moonPlayerView },
     { game: TuringGame, project: turingPlayerView },
     { game: MailGame, project: mailPlayerView },
+    { game: BakerGame, project: bakerPlayerView },
   ])('$game.name decisions need only the same information as a real player', ({ game, project }) => {
     const f = match(game, game.minPlayers!);
     const ids = Object.keys(f.state.G.players);

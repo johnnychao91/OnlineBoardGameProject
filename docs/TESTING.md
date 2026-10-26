@@ -8,6 +8,7 @@
 | --- | --- | --- |
 | 各遊戲規則 | `src/games/{station,cipher,fog,moon,turing}/game.test.ts`、`station/view-model.test.ts` | 各人數、角色、模式、勝敗、非法／重複／過期操作、不同觀看身分及舊版存檔 |
 | 午夜郵局 | `src/games/post/game.test.ts`、`src/server/mail.test.ts`、`src/client/mail-*.test.ts` | 三種玩法、17 種投遞人物與封印、待處理選項、秘密投影、決勝輪、兩個牌堆、真實 Socket、重啟、回放及個人競賽／陣營統計 |
+| 貝克街迷霧 | `src/games/baker/{game,content}.test.ts`、`src/server/baker.test.ts`、`src/client/baker-*.test.ts` | 四年代各 180 手法／400 線索、64 圖板、4～12 人與角色配置、犯罪選牌、三輪鑑證、警徽與華生反轉、特別圖板、秘密投影、版本檢查、真實 Socket 重啟、復盤分享與統計 |
 | 全遊戲接入契約 | `src/server/framework.test.ts`、`src/client/framework-contract.test.ts` | 依目錄遍歷所有遊戲；伺服器與前端適配器、觀戰、房主、中止、重開、規則頁、音效 |
 | 房間與身分 | `src/server/features.test.ts`、`role-switch.test.ts`、`game-switch.test.ts` | 真實 HTTP 授權、失效憑證、重試、競態、房主觀戰、容量及換遊戲 |
 | 即時連線與生命週期 | `src/server/transport.test.ts`、`lifecycle.test.ts`、`room-isolation.test.ts` | 真實 Socket.IO、多分頁、重連寬限、離線中止、原房再開、多房並行與隔離 |
@@ -61,6 +62,8 @@ npm run build
 精簡前後應比對測試名稱及斷言對應，再執行完整測試。測試總數或單次耗時不能代表覆蓋完整度；時間會受磁碟與系統負載影響。若要保存 JSON 測試報告，輸出到 Git 外的私人工作目錄。
 
 SSR 測試驗證產生的標記與資訊邊界；它不驗證真正瀏覽器的像素排版或點擊流程。修改介面時仍須依[遊戲框架驗收](GAME_FRAMEWORK.md)檢查桌機、手機、觀戰與回放。
+
+貝克街迷霧的瀏覽器檢查需包含四年代、4／6／12 人及兩種風格；分別操作執行者選牌、福爾摩斯六板提示與換板、發言、錯誤破案扣警徽、正確破案及華生指認。另檢查手機證物放大、圖鑑搜尋分頁、年代背景、PNG 及盲／上帝復盤切換。完整牌庫的圖鍵必須對應實際圖片，不能以尚未載入的空圖通過最終美術驗收。
 
 房主移出觀戰者由 `role-switch.test.ts` 覆蓋全部遊戲、參與／觀戰房主、跨房與非房主拒絕、身分切換競態、儲存失敗、重啟後撤銷及多分頁在線期限；`host-identity.test.ts` 檢查等待室、對局與結束畫面的按鈕權限。瀏覽器另驗證確認／取消、被移出者所有分頁退出、有效邀請重新加入，以及兩種風格在桌機與手機的名單排版。
 

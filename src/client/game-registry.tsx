@@ -41,6 +41,13 @@ import { MailSnapshot } from './MailSnapshot';
 import { MailOptions } from './MailOptions';
 import { MailRules, MailRuleSummary, mailChapters } from './MailRules';
 import { createMailPoster } from './mail-poster';
+import { BakerGame, type BakerState } from '../games/baker/game';
+import { validateBakerOptions } from '../games/baker/rules';
+import { BakerBoard } from './BakerBoard';
+import { BakerSnapshot } from './BakerSnapshot';
+import { BakerOptions } from './BakerOptions';
+import { BakerRules, BakerRuleSummary, bakerChapters } from './BakerRules';
+import { createBakerPoster } from './baker-poster';
 
 function ConnectingGame() {
   return <main className="narrow"><section className="panel center" role="status" aria-live="polite"><span className="large-orbit"><Icon type="signal" size={38} /></span><h2>正在連線到遊戲伺服器…</h2><p className="muted">正在同步你的座位與最新對局，請稍候。</p><p className="small muted">若持續停在這裡，請確認網路連線，並請房主檢查遊戲伺服器是否正常運作。保留此頁面，連線恢復後會自動繼續。</p></section></main>;
@@ -52,6 +59,7 @@ const FogClient = Client({ game: FogGame, board: FogBoard, loading: ConnectingGa
 const MoonClient = Client({ game: MoonGame, board: MoonBoard, loading: ConnectingGame, multiplayer: SocketIO({ server: typeof window === 'undefined' ? undefined : window.location.origin }), debug: false });
 const TuringClient = Client({ game: TuringGame, board: TuringBoard, loading: ConnectingGame, multiplayer: SocketIO({ server: typeof window === 'undefined' ? undefined : window.location.origin }), debug: false });
 const MailClient = Client({ game: MailGame, board: MailBoard, loading: ConnectingGame, multiplayer: SocketIO({ server: typeof window === 'undefined' ? undefined : window.location.origin }), debug: false });
+const BakerClient = Client({ game: BakerGame, board: BakerBoard, loading: ConnectingGame, multiplayer: SocketIO({ server: typeof window === 'undefined' ? undefined : window.location.origin }), debug: false });
 
 export interface ClientGameDefinition {
   name: string;
@@ -78,6 +86,25 @@ export interface ClientGameDefinition {
 
 /** Add each game's player client, snapshot renderer and statistics labels together. */
 export const clientGames: Record<GameID, ClientGameDefinition> & Record<string, ClientGameDefinition> = {
+  'baker-street': {
+    name: gameCatalog['baker-street'].name,
+    PlayerClient: props => <BakerClient {...props} />,
+    Snapshot: BakerSnapshot, Rules: BakerRuleSummary, DetailedRules: BakerRules, LobbyOptions: BakerOptions,
+    validateLobby: (options, count) => validateBakerOptions(options, count >= 4 ? count : undefined),
+    chapters: bakerChapters, gallery: { chapter: 'roles', label: '人物、證物與圖板圖鑑' },
+    createPoster: createBakerPoster,
+    soundAdapter: (G: BakerState, id) => ({ revision: G.epoch * 1000 + G.log.length,
+      events: G.log.filter(event => ['mark', 'accusation', 'finish', 'round'].includes(event.type)).map(event => JSON.stringify(event)),
+      attention: id && G.players[id] && ((G.status === 'briefing' && !G.players[id].acknowledged)
+        || G.status === 'crime'
+        || (G.private[id]?.role === 'murderer' && G.status === 'witness-hunt')
+        || G.speakerID === id || (G.holmesID === id && ['scene-setup', 'evidence', 'discussion', 'replacement', 'special'].includes(G.status)))
+        ? `${G.epoch}:${G.status}:${id}` : undefined }),
+    lobbyTitle: '霧中每一件物證，都有人希望你看錯。', lobbyDescription: gameCatalog['baker-street'].description,
+    factionLabels: { police: '倫敦調查組', criminals: '莫里亞蒂犯罪網' },
+    resultLabels: { police: '真相大白', criminals: '莫里亞蒂的計畫得逞' },
+    reasonLabels: { 'crime-solved': '作案手段與關鍵物證均被識破', 'witness-found': '華生遭到指認', 'witness-protected': '華生身分保密，罪證成立', 'badges-exhausted': '正式破案機會耗盡', 'investigation-expired': '三輪調查結束' },
+  },
   'midnight-post': {
     name: gameCatalog['midnight-post'].name,
     PlayerClient: props => <MailClient {...props} />,

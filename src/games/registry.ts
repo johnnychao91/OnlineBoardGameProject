@@ -10,6 +10,8 @@ import { normalizeTuringOptions, validateTuringOptions } from './turing/rules';
 import { gameCatalog, type GameID } from './catalog';
 import { MailGame, mailObserverView, type MailState } from './post/game';
 import { normalizeMailOptions, validateMailOptions } from './post/rules';
+import { BakerGame, bakerObserverView, type BakerState } from './baker/game';
+import { normalizeBakerOptions, validateBakerOptions } from './baker/rules';
 
 export type ObserverPerspective = 'blind' | 'god';
 export interface GameOutcome {
@@ -143,6 +145,21 @@ export const gameDefinitions: GameDefinition[] = [{
         state.mode === 'black-letter' && state.directorID === id ? 'director' : 'couriers'])) };
   },
 }];
+
+gameDefinitions.push({
+  id: 'baker-street', ...gameCatalog['baker-street'], game: BakerGame,
+  isJoinable: state => state.status === 'lobby',
+  normalizeOptions: options => ({ ...normalizeBakerOptions(options) }),
+  validateLobbyOptions: options => validateBakerOptions(options),
+  validateOptions: (options, count, participants) => validateBakerOptions(options, count, participants),
+  startSetupData: (participantIDs, options) => ({ startImmediately: true, participantIDs, options: normalizeBakerOptions(options) }),
+  observerView: bakerObserverView, hideMoveMetadata: true, completedDisplayMs: () => 8000,
+  getOutcome: (state: BakerState) => {
+    if (state.status !== 'finished' || !state.winner || !state.winReason) return null;
+    return { winner: state.winner, reason: state.winReason,
+      roles: Object.fromEntries(Object.entries(state.players).map(([id, player]) => [id, player.revealedFaction!])) };
+  },
+});
 
 export const getGameDefinition = (id: string) => gameDefinitions.find((game) => game.id === id);
 export const publicGameDefinitions = () => gameDefinitions.map(({ id, name, description, minPlayers, maxPlayers }) => ({ id, name, description, minPlayers, maxPlayers }));

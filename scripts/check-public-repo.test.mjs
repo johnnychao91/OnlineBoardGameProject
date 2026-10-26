@@ -15,6 +15,11 @@ test('permits reserved examples, loopback and narrowly scoped public sources', (
     assert.equal(allowedHost(host, 'README.md'), true);
   }
   assert.equal(allowedHost('github.com', 'README.md'), true);
+  for (const host of ['www.gen42.com', 'www.met.police.uk']) {
+    assert.equal(allowedHost(host, 'docs/BAKER_STREET.md'), true);
+    assert.equal(allowedHost(host, 'deploy/apache.conf.example'), false);
+    assert.equal(allowedHost(host, 'README.md'), false);
+  }
   assert.equal(allowedHost('indieboardsandcards.com', 'docs/BLACK_FOG.md'), true);
   assert.equal(allowedHost('indieboardsandcards.com', 'deploy/apache.conf.example'), false);
   assert.equal(allowedHost('indieboardsandcards.com', 'README.md'), false);

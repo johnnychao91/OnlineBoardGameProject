@@ -24,6 +24,8 @@ const metadataHostFiles = new Set([
 export function allowedHost(input, file) {
   const host = input.toLowerCase().replace(/^\*\./, '').replace(/\.$/, '');
   // Rules provenance only; this is never an allowed deployment target.
+  if (['docs/BAKER_STREET.md', 'scripts/check-public-repo.mjs', 'scripts/check-public-repo.test.mjs'].includes(file)
+    && ['www.gen42.com', 'www.met.police.uk'].includes(host)) return true;
   if (['docs/BLACK_FOG.md', 'scripts/check-public-repo.mjs', 'scripts/check-public-repo.test.mjs'].includes(file)
     && host === 'indieboardsandcards.com') return true;
   if (['docs/TURING_TEST.md', 'scripts/check-public-repo.mjs', 'scripts/check-public-repo.test.mjs'].includes(file)

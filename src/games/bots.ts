@@ -7,6 +7,7 @@ import { fogTeamSizes } from './fog/rules';
 import { moonPlayerView, type MoonState } from './moon/game';
 import { isTuringSharedTable, turingCards, turingTableOrder, turingPlayerView, type TuringState } from './turing/game';
 import { legalMailActions, mailPlayerView, type MailState } from './post/game';
+import { legalBakerActions, bakerPlayerView, type BakerState } from './baker/game';
 
 export interface BotAction { move: string; args: unknown[] }
 type Random = () => number;
@@ -178,6 +179,16 @@ function turingAction(G: TuringState, id: string, random: Random): BotAction | n
 }
 
 const adapters = {
+  'baker-street': (G: BakerState, id: string, random: Random) => {
+    const actions = legalBakerActions(bakerPlayerView({ G, playerID: id }), id);
+    if (!actions.length) return null;
+    // Give the group time to interpret evidence instead of spending every badge
+    // immediately when a human is still placing the first round's markers.
+    const progression = actions.filter(candidate => candidate.move !== 'accuse');
+    if (progression.length && random() < 0.9) return pick(progression, random);
+    if (!progression.length && random() >= 0.12) return null;
+    return pick(actions, random);
+  },
   'midnight-post': (G: MailState, id: string, random: Random) => {
     const actions = legalMailActions(mailPlayerView({ G, playerID: id }), id);
     return actions.length ? pick(actions, random) : null;

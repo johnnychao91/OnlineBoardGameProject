@@ -7,6 +7,7 @@
   --art-station: url('./assets/art/ink-space-station.png');
   --art-cipher: url('./assets/art/ink-cipher-room.png');
   --art-post: url('./assets/post/scene.webp');
+  --art-baker: url('./assets/baker/scene-victorian.webp');
   --art-scene: var(--art-station);
   --bg: #101719;
   --surface: #192323;
@@ -26,6 +27,11 @@
 :root[data-visual-style="art"] [data-art-game="midnight-post"] {
   --art-scene: var(--art-post);
 }
+
+:root[data-visual-style="art"] [data-art-game="baker-street"] { --art-scene: var(--art-baker); }
+:root[data-visual-style="art"] [data-baker-era="industrial"] { --art-scene: url('./assets/baker/scene-industrial.webp'); }
+:root[data-visual-style="art"] [data-baker-era="wartime"] { --art-scene: url('./assets/baker/scene-wartime.webp'); }
+:root[data-visual-style="art"] [data-baker-era="modern"] { --art-scene: url('./assets/baker/scene-modern.webp'); }
 
 :root[data-visual-style="art"] :is(.home-page, .join-page, .room-page, .shared-replay-page, .rules-page) {
   background-color: #101719;

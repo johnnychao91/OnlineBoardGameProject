@@ -1,5 +1,7 @@
 /** Public, environment-free metadata shared by the room, rules pages and registries. */
 export const gameCatalog = {
+  'baker-street': { name: '貝克街迷霧', description: '福爾摩斯以無聲鑑證引導調查，莫里亞蒂的執行者與內應藏在倫敦警察之中。', minPlayers: 4, maxPlayers: 12,
+    detail: '4～12 人 · 鑑證推理 · 四個案件年代', intro: '選擇工業革命、維多利亞、世界大戰或 2026 現代的案件。福爾摩斯只以推演圖板與西洋棋標記給出線索；倫敦警察必須找出作案手段及關鍵物證，並在三輪調查中識破莫里亞蒂的陰謀。' },
   'midnight-post': { name: '午夜郵局', description: '雨夜郵局亮起燈火，讓密函穿過查驗與調包，或聯手阻止黑函局長。', minPlayers: 2, maxPlayers: 8,
     detail: '2～8 人 · 密函推理 · 三種玩法', intro: '城市入睡後，一間不存在於地圖上的郵局才開始營業。3～4 人以密函投遞爭取信任，5～8 人在全城夜遞中運用額外人物；2～6 人也能挑戰黑函局長，由一人蒐集六封印，其餘午夜信使聯手守住郵路。' },
   'turing-test': { name: '圖靈測試', description: '用千奇百怪的回答校準人性，讓冰冷的機器看懂你們的默契。', minPlayers: 2, maxPlayers: 10,
