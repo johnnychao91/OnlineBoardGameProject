@@ -32,6 +32,9 @@ export function allowedHost(input, file) {
     && host === 'andyventure.com') return true;
   if (['docs/MIDNIGHT_POST.md', 'scripts/check-public-repo.mjs', 'scripts/check-public-repo.test.mjs'].includes(file)
     && ['alderac.com', 'cdn.svc.asmodee.net'].includes(host)) return true;
+  if (['src/games/banquet/content.ts', 'scripts/check-public-repo.mjs', 'scripts/check-public-repo.test.mjs'].includes(file)
+    && ['www.rprod.com', 'cdn.svc.asmodee.net'].includes(host)) return true;
+  if (file === 'docs/HUNDRED_GHOSTS.md' && host === 'cdn.svc.asmodee.net') return true;
   if ((/^src\/client\/assets\/post\/roles\/seal-[1-6]\.svg$/.test(file)
     || ['scripts/check-public-repo.mjs', 'scripts/check-public-repo.test.mjs'].includes(file)) && host === 'www.w3.org') return true;
   if (['localhost', '127.0.0.1', '[::1]', '::1'].includes(host)) return true;

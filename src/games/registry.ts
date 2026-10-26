@@ -12,6 +12,8 @@ import { MailGame, mailObserverView, type MailState } from './post/game';
 import { normalizeMailOptions, validateMailOptions } from './post/rules';
 import { BakerGame, bakerObserverView, type BakerState } from './baker/game';
 import { normalizeBakerOptions, validateBakerOptions } from './baker/rules';
+import { BanquetGame, banquetObserverView, type BanquetState } from './banquet/game';
+import { normalizeBanquetOptions, validateBanquetOptions } from './banquet/rules';
 
 export type ObserverPerspective = 'blind' | 'god';
 export interface GameOutcome {
@@ -158,6 +160,22 @@ gameDefinitions.push({
     if (state.status !== 'finished' || !state.winner || !state.winReason) return null;
     return { winner: state.winner, reason: state.winReason,
       roles: Object.fromEntries(Object.entries(state.players).map(([id, player]) => [id, player.revealedFaction!])) };
+  },
+});
+
+gameDefinitions.push({
+  id: 'hundred-ghosts', ...gameCatalog['hundred-ghosts'], game: BanquetGame,
+  isJoinable: state => state.status === 'lobby',
+  normalizeOptions: options => ({ ...normalizeBanquetOptions(options) }),
+  validateLobbyOptions: options => validateBanquetOptions(options),
+  validateOptions: (options, count) => validateBanquetOptions(options, count),
+  startSetupData: (participantIDs, options) => ({ startImmediately: true, participantIDs, options: normalizeBanquetOptions(options) }),
+  observerView: banquetObserverView, hideMoveMetadata: true, completedDisplayMs: () => 8000,
+  getOutcome: (state: BanquetState) => {
+    if (state.status !== 'finished' || !state.winner || !state.winReason) return null;
+    return { winner: state.winner, reason: state.winReason,
+      competition: { mode: state.options.scenario, rounds: 1 },
+      roles: Object.fromEntries(Object.keys(state.players).map(id => [id, 'guests'])) };
   },
 });
 

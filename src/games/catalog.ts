@@ -1,5 +1,7 @@
 /** Public, environment-free metadata shared by the room, rules pages and registries. */
 export const gameCatalog = {
+  'hundred-ghosts': { name: '百鬼夜宴', description: '夜宴只認面具，不認本人。交換身分、冒領供奉，在妖怪之間爭奪香火錢。', minPlayers: 4, maxPlayers: 12,
+    detail: '4～12 人 · 面具交換 · 記憶與虛張聲勢', intro: '朱紅鳥居下，百鬼戴著面具入席。你可以暗換面具、查看自己，或宣稱某位妖怪的名號領取供奉；旁人若也認領，便當場翻牌驗明。先累積十三枚妖金，或在有人破產時成為最富有的妖怪，贏下這場夜宴。' },
   'baker-street': { name: '貝克街迷霧', description: '福爾摩斯以無聲鑑證引導調查，莫里亞蒂的執行者與內應藏在倫敦警察之中。', minPlayers: 4, maxPlayers: 12,
     detail: '4～12 人 · 鑑證推理 · 四個案件年代', intro: '選擇工業革命、維多利亞、世界大戰或 2026 現代的案件。福爾摩斯只以推演圖板與西洋棋標記給出線索；倫敦警察必須找出作案手段及關鍵物證，並在三輪調查中識破莫里亞蒂的陰謀。' },
   'midnight-post': { name: '午夜郵局', description: '雨夜郵局亮起燈火，讓密函穿過查驗與調包，或聯手阻止黑函局長。', minPlayers: 2, maxPlayers: 8,

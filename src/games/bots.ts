@@ -8,6 +8,7 @@ import { moonPlayerView, type MoonState } from './moon/game';
 import { isTuringSharedTable, turingCards, turingTableOrder, turingPlayerView, type TuringState } from './turing/game';
 import { legalMailActions, mailPlayerView, type MailState } from './post/game';
 import { legalBakerActions, bakerPlayerView, type BakerState } from './baker/game';
+import { legalBanquetActions, banquetPlayerView, type BanquetState } from './banquet/game';
 
 export interface BotAction { move: string; args: unknown[] }
 type Random = () => number;
@@ -179,6 +180,15 @@ function turingAction(G: TuringState, id: string, random: Random): BotAction | n
 }
 
 const adapters = {
+  'hundred-ghosts': (G: BanquetState, id: string, random: Random) => {
+    const actions = legalBanquetActions(banquetPlayerView({ G, playerID: id }), id);
+    if (!actions.length) return null;
+    // Choose an action category before a target: enumerating every possible
+    // exchange must not drown out declarations and stall the coin race.
+    const moves = [...new Set(actions.map(candidate => candidate.move))];
+    const move = pick(moves, random);
+    return pick(actions.filter(candidate => candidate.move === move), random);
+  },
   'baker-street': (G: BakerState, id: string, random: Random) => {
     const actions = legalBakerActions(bakerPlayerView({ G, playerID: id }), id);
     if (!actions.length) return null;

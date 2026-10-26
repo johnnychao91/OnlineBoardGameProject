@@ -1,0 +1,26 @@
+import type { ReactNode } from 'react';
+import { BANQUET_ROLES, BANQUET_ROLE_IDS, BANQUET_PRESETS, BANQUET_RULE_SOURCES, BANQUET_ONLINE_RULINGS } from '../games/banquet/rules';
+import { RoleGallery } from './RoleGallery';
+import { banquetArt, banquetPortrait } from './banquet-art';
+import './banquet.css';
+export { BanquetRuleSummary } from './BanquetBoard';
+
+export const banquetChapters = [['setup', '夜宴與面具配置'], ['flow', '回合與認領'], ['roles', '百鬼面具圖鑑'], ['powers', '能力的細節'], ['victory', '勝利與線上裁定'], ['privacy', '記憶、觀戰與復盤']] as const;
+function Chapter({ id, title, children }: { id: string; title: string; children: ReactNode }) { return <section className="rules-chapter panel" id={id}><h2>{title}</h2>{children}</section>; }
+export function BanquetRoleGallery() { return <><RoleGallery idPrefix="banquet" entries={BANQUET_ROLE_IDS.map(role => ({ id: role, name: BANQUET_ROLES[role].name, image: banquetPortrait(role), category: `${BANQUET_ROLES[role].count} 張 · ${BANQUET_ROLES[role].minPlayers} 人起${BANQUET_ROLES[role].producesCoins ? ' · 金庫收入' : ''}`, description: BANQUET_ROLES[role].description, tone: 'neutral' as const }))} /><h3>妖金與供奉道具</h3><RoleGallery idPrefix="banquet-prop" entries={[
+  { id: 'coin', name: '妖金', image: banquetArt('coin'), category: '公開財富 · 每人 6 枚起始', description: '持有至少 13 枚立即獲勝。財富始終公開；有人用盡妖金時，夜宴也會立即結束，最富有者獲勝。', tone: 'neutral' },
+  { id: 'court', name: '裁決堂', image: banquetArt('court'), category: '認領罰款 · 公開供奉池', description: '錯誤認領者在能力結算後各繳 1 枚妖金。閻魔可收走堂內已有的全部妖金；本次罰款稍後才繳入。', tone: 'neutral' },
+]} /></>; }
+export function BanquetRules() { return <div className="banquet-rulebook">
+  <Chapter id="setup" title="1. 燈籠亮起，百鬼入宴"><p className="banquet-rulebook-intro">山門在子夜打開，妖怪們戴著面具赴宴。妖金放在明處，真身藏在暗處；一雙手在桌下交錯，方才的酒吞童子，也許已成了雪女。你可以記住名字，卻不能確定名字仍在原處。</p><p>4～12 人，各自競爭妖金。每人以 6 枚開始，所有人的財富與裁決堂妖金皆公開。面具隨機配給每人一張，多出的 1～2 張放中央。全員先看清開場配置並確認，之後把面具蓋住。第一位入席者開始，依畫面座次順時針進行。</p>
+    <p>開場的前四個回合只能選擇盲換或假換。這是全桌合計四次行動；第五回合起才開放查看與宣告。中央面具也能成為普通盲換的目標。沒有行動倒數，必須完成選擇才會繼續。</p>
+    <h3>預設與自訂配置</h3><p>房主可選場景 A、場景 B，或自訂。預設場景按照實際開局人數配置，以下列出全部面具名單。</p><div className="rules-table-wrap"><table><thead><tr><th>人數</th><th>場景 A</th><th>場景 B</th></tr></thead><tbody>{Object.entries(BANQUET_PRESETS).map(([count, scenes]) => <tr key={count}><th>{count}</th><td>{scenes.A.map(role => BANQUET_ROLES[role].name).join('、')}</td><td>{scenes.B.map(role => BANQUET_ROLES[role].name).join('、')}</td></tr>)}</tbody></table></div>
+    <p>自訂必須包含閻魔，小豆洗必須同時放入兩張或全部不放。至少三分之一的面具要能從金庫帶入妖金。4～5 人固定用 6 張；6 人以上使用與人數相同、或多一至兩張面具。每種面具需符合圖鑑標示的最低人數，每種一張，只有小豆洗有兩張。</p></Chapter>
+  <Chapter id="flow" title="2. 一個回合，一個選擇"><ol><li><strong>查看：</strong>私下看自己的面具，把所見記在自己的歷史記憶，這樣就花完一個回合。</li><li><strong>盲換：</strong>選另一位賓客或中央的一張面具，不看正面，秘密決定真交換或假交換。假換保持兩張牌原位，公開動作與真換完全相同。</li><li><strong>宣告：</strong>宣告自己是本局出現的任一種面具，無須先看牌，也不必說真話。其他賓客依座次決定是否認領同一種面具。</li></ol>
+    <h3>有人認領時如何處理？</h3><p>如果沒人認領，發起者不必亮牌，直接使用所宣告面具的能力。如果至少一人認領，發起者與所有認領者一起亮牌。真正持有該面具的人使用能力，所有猜錯的認領者（包括發起者）各付 1 枚妖金到裁決堂。若沒有一張符合，就沒人使用能力，所有認領者仍要繳罰款。</p><p>能力先處理、罰款後處理。即使猜錯，你也不會失去自己的正常回合。只有認領者亮牌，其他賓客繼續保密。兩張小豆洗同時被正確認領時，各自取得 2 枚妖金。</p>
+    <p>若上一回合剛亮出你的面具，接著就輪到你，這一回合只能查看或盲換，不能宣告。包括認領驗證、白澤驗證與青行燈亮牌。系統會標示「本回合不能宣告」。</p></Chapter>
+  <Chapter id="roles" title="3. 百鬼面具圖鑑"><p>以下是公開能力參考，與任何人的當前面具無關。圖鑑共 16 種能力、17 張面具，採用原創妖怪人物與插畫。</p><BanquetRoleGallery /></Chapter>
+  <Chapter id="powers" title="4. 夜宴裡的細節"><ul><li><strong>閻魔：</strong>只能收走能力開始時已在裁決堂裡的妖金；本次認領的罰款要等能力完成才進裁決堂。</li><li><strong>白澤：</strong>選另一位賓客，由對方猜自己的面具，而不是由你替他猜。隨後公開驗證。猜錯交你 4 枚；不足就交出全部。</li><li><strong>垢嘗：</strong>由左鄰起依座次逐一比較當時的財富。每收一枚，你的妖金就增加，所以後面的賓客可能已不用支付。</li><li><strong>唐傘小僧：</strong>先從金庫得 1 枚，再選其他兩位賓客，盲換或假換他們的面具。不能把自己或中央面具列入這個能力。</li><li><strong>百目鬼：</strong>先選另一位賓客，只讓能力使用者看見自己與對方的面具，再秘密決定真換或假換。其他賓客看不到這次查驗結果。</li><li><strong>絡新婦：</strong>先選其他兩位賓客，每人交你 1 枚，再交換他們的座位。面具和扣款後的財富留在原席；因此兩人取得對方剩餘的財富與面具，也改變之後的相鄰關係。</li><li><strong>青行燈：</strong>先從金庫得 2 枚，再選另一位賓客亮牌。除了被亮牌者本人，其他賓客與觀眾都看得到。對本人只顯示亮牌事件，不提供面具結果。</li><li><strong>山姥：</strong>可以選另一人交換全部財富，也可以選擇不交換。本次認領的罰款在交換後才從錯誤認領者的財富扣除。</li><li><strong>河童：</strong>比較的是其他賓客，不包括能力使用者。向其中最富有的一人收 2 枚，並列由你選；不足就交出全部。</li><li><strong>招財貓、煙煙羅：</strong>左右鄰依當下座位判定。招財貓讓自己得 3、左右各得 1；煙煙羅向左右各收 1。</li></ul><p>雪女只補足至 10 枚，已有至少 10 枚時不變。只有天邪鬼在成功發動能力且至少持有 10 枚時，才會以特殊條件贏得夜宴。</p></Chapter>
+  <Chapter id="victory" title="5. 妖金與勝利"><p>任何人達到至少 13 枚妖金，立即贏得夜宴。有人降到 0 枚時，夜宴同樣立即結束，由當時妖金最多者獲勝，最高分並列共享勝利。天邪鬼成功發動且有至少 10 枚時立即勝利；單純持有面具或只有 10 枚，皆不會自動獲勝。</p><h3>線上多人結算方式</h3><ul>{BANQUET_ONLINE_RULINGS.map(rule => <li key={rule}>{rule}</li>)}</ul><p>多方付款一併結算包含招財貓、煙煙羅、絡新婦收款、兩張小豆洗與一批認領罰款。若能力的前一段已造成終局，後續換牌、亮牌與罰款皆不再進行。</p></Chapter>
+  <Chapter id="privacy" title="6. 記憶，並不是面具本身"><p>右側記錄的是你過去看過的牌面。普通盲換與假換都會把相關紀錄標成「可能已改變」，不會因真假不同而給出提示。記錄的席位與人物指當時位置；有人被絡新婦換位後，要配合公開座次理解。</p><p>可以手動收起面具記憶與私人操作，切換視窗不會自動展開或收起。按「展開記憶」不會重新查驗面具；若要看自己目前的牌，必須花一回合選擇「查看」。</p><p>盲視角觀戰與復盤只顯示公開事件，以及觀眾當時能看到的歷史面具。上帝視角可查看當時所有面具與選定賓客的私人記憶，切回盲視角後即移除這些私人資料。觀戰與回放都不能操作。PNG 戰報只收錄財富、勝者與公開事件，不含面具記憶或交換真假；提示音也不編碼秘密。</p><p>本作保留正式基礎規則的能力與勝利條件，採原創夜宴主題。規則依據：<a href={BANQUET_RULE_SOURCES.rules} target="_blank" rel="noreferrer">官方規則</a>、<a href={BANQUET_RULE_SOURCES.playerAid} target="_blank" rel="noreferrer">官方能力表</a>、<a href={BANQUET_RULE_SOURCES.scenarios} target="_blank" rel="noreferrer">官方場景配置</a>。</p></Chapter>
+</div>; }

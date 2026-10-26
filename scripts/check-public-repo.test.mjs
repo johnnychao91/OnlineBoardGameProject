@@ -48,6 +48,33 @@ test('rejects private filenames even when empty or binary', () => {
   assert.equal(inspectFile('server.p12', Buffer.from([0, 1, 2])).problems.length, 1);
 });
 
+test('limits banquet rules provenance to the exact source files and official hosts', async () => {
+  const contentFile = 'src/games/banquet/content.ts', documentFile = 'docs/HUNDRED_GHOSTS.md';
+  const publisher = 'www.rprod.com', distributor = 'cdn.svc.asmodee.net';
+  for (const host of [publisher, distributor]) {
+    assert.equal(allowedHost(host, contentFile), true);
+    assert.deepEqual(inspect(contentFile, `const source = 'https://${host}/rules';`).problems, []);
+    for (const file of ['README.md', 'docs/FOUR_GAME_ROLLOUT.md', 'deploy/apache.conf.example',
+      'src/games/banquet/rules.ts', 'src/games/banquet/game.ts', 'src/games/post/content.ts',
+      'src/client/BanquetRules.tsx', 'src/server/app.ts', `${contentFile}.backup`, `copy/${contentFile}`]) {
+      assert.equal(allowedHost(host, file), false, `${host} must remain denied in ${file}`);
+      assert.ok(inspect(file, `https://${host}/rules`).problems.includes('non-public-example URL host'));
+    }
+    for (const otherHost of [`mirror.${host}`, `${host}.${privateHost}`]) {
+      assert.equal(allowedHost(otherHost, contentFile), false);
+      assert.ok(inspect(contentFile, `https://${otherHost}/rules`).problems.includes('non-public-example URL host'));
+    }
+  }
+  assert.equal(allowedHost(distributor, documentFile), true);
+  assert.equal(allowedHost(publisher, documentFile), false);
+  assert.deepEqual(inspect(documentFile, `Official rules: https://${distributor}/rules`).problems, []);
+  assert.ok(inspect(contentFile, `https://${['person', 'password'].join(':')}@${publisher}/rules`).problems.includes('URL contains credentials'));
+  for (const file of [contentFile, documentFile]) {
+    const bytes = await readFile(new URL(`../${file}`, import.meta.url));
+    assert.deepEqual(inspectFile(file, bytes).problems, [], file);
+  }
+});
+
 test('rejects non-example URLs, Apache names and certificate names without exposing values', () => {
   for (const content of [`https://${privateHost}/api`, `ServerName ${privateHost}`, `ServerAlias game.example.com ${privateHost}`, `/etc/letsencrypt/live/${privateHost}/fullchain.pem`]) {
     const result = inspect('deploy/apache.conf.example', content);

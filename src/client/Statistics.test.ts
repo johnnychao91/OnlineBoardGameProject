@@ -1,19 +1,38 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-import { ChallengeStandings, CompetitionStandings, factionRecord } from './Statistics';
+import { ChallengeStandings, CompetitionStandings, GameStatisticsCard, factionRecord } from './Statistics';
 import { RoomHistory } from './RoomHistory';
 import type { RoomInfo } from './api';
 
 describe('Challenge score presentation', () => {
   it('shows individual competition runs and rounds without inventing a shared faction win rate', () => {
-    const html = renderToStaticMarkup(createElement(CompetitionStandings, { competitions: [
+    const html = renderToStaticMarkup(createElement(CompetitionStandings, { gameID: 'midnight-post', competitions: [
       { mode: 'classic', numPlayers: 3, runs: 2, totalRounds: 17, averageRounds: 8.5 },
       { mode: 'premium', numPlayers: 8, runs: 1, totalRounds: 15, averageRounds: 15 },
     ] }));
     expect(html).toContain('密函投遞'); expect(html).toContain('全城夜遞');
     expect(html).toContain('8.5'); expect(html).toContain('平均夜數');
     expect(html).not.toMatch(/勝率|\d+ 敗|delivery|premium/);
+  });
+  it('uses the registered game theme for a banquet competition', () => {
+    const html = renderToStaticMarkup(createElement(CompetitionStandings, { gameID: 'hundred-ghosts', competitions: [
+      { mode: 'B', numPlayers: 12, runs: 3, totalRounds: 3, averageRounds: 1 },
+      { mode: 'custom', numPlayers: 6, runs: 1, totalRounds: 1, averageRounds: 1 },
+    ] }));
+    expect(html).toContain('夜宴競賽紀錄'); expect(html).toContain('場景 B'); expect(html).toContain('自訂場景');
+    expect(html).not.toMatch(/投遞|信使|夜數|勝率/);
+  });
+  it.each([false, true])('does not invent faction records for an individual game, with completed rows=%s', completed => {
+    const html = renderToStaticMarkup(createElement(GameStatisticsCard, { game: {
+      gameId: 'hundred-ghosts', name: '百鬼夜宴', completed: completed ? 1 : 0, rankedCompleted: 0,
+      wins: {}, reasons: {}, byPlayerCount: [], competitions: completed ? [
+        { mode: 'A', numPlayers: 4, runs: 1, totalRounds: 1, averageRounds: 1 },
+      ] : [],
+    } }));
+    expect(html).toContain('百鬼夜宴');
+    expect(html).not.toMatch(/陣營|勝率|勝利次數|faction-standings|投遞|信使/);
+    if (completed) expect(html).toContain('夜宴競賽紀錄');
   });
   it('keeps endless runs out of ranked losses and supports older statistics without a ranked count', () => {
     expect(factionRecord({ completed: 10, rankedCompleted: 2, wins: { humans: 1 } }, 'humans'))

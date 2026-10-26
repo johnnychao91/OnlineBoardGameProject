@@ -48,6 +48,13 @@ import { BakerSnapshot } from './BakerSnapshot';
 import { BakerOptions } from './BakerOptions';
 import { BakerRules, BakerRuleSummary, bakerChapters } from './BakerRules';
 import { createBakerPoster } from './baker-poster';
+import { BanquetGame } from '../games/banquet/game';
+import { validateBanquetOptions } from '../games/banquet/rules';
+import { BanquetBoard, BanquetSnapshot } from './BanquetBoard';
+import { BanquetLobbyOptions } from './BanquetLobbyOptions';
+import { BanquetRules, BanquetRuleSummary, banquetChapters } from './BanquetRules';
+import { createBanquetPoster } from './banquet-poster';
+import { banquetSoundAdapter } from './banquet-sounds';
 
 function ConnectingGame() {
   return <main className="narrow"><section className="panel center" role="status" aria-live="polite"><span className="large-orbit"><Icon type="signal" size={38} /></span><h2>正在連線到遊戲伺服器…</h2><p className="muted">正在同步你的座位與最新對局，請稍候。</p><p className="small muted">若持續停在這裡，請確認網路連線，並請房主檢查遊戲伺服器是否正常運作。保留此頁面，連線恢復後會自動繼續。</p></section></main>;
@@ -60,6 +67,7 @@ const MoonClient = Client({ game: MoonGame, board: MoonBoard, loading: Connectin
 const TuringClient = Client({ game: TuringGame, board: TuringBoard, loading: ConnectingGame, multiplayer: SocketIO({ server: typeof window === 'undefined' ? undefined : window.location.origin }), debug: false });
 const MailClient = Client({ game: MailGame, board: MailBoard, loading: ConnectingGame, multiplayer: SocketIO({ server: typeof window === 'undefined' ? undefined : window.location.origin }), debug: false });
 const BakerClient = Client({ game: BakerGame, board: BakerBoard, loading: ConnectingGame, multiplayer: SocketIO({ server: typeof window === 'undefined' ? undefined : window.location.origin }), debug: false });
+const BanquetClient = Client({ game: BanquetGame, board: BanquetBoard, loading: ConnectingGame, multiplayer: SocketIO({ server: typeof window === 'undefined' ? undefined : window.location.origin }), debug: false });
 
 export interface ClientGameDefinition {
   name: string;
@@ -82,10 +90,25 @@ export interface ClientGameDefinition {
   /** Cooperative games have one player team, including when the mission fails. */
   cooperative?: boolean;
   resultLabels?: Record<string, string>;
+  competitionLabels?: { title: string; description: string; roundsLabel: string; roundUnit: string; modes: Record<string, string> };
+  individualCompetition?: boolean;
 }
 
 /** Add each game's player client, snapshot renderer and statistics labels together. */
 export const clientGames: Record<GameID, ClientGameDefinition> & Record<string, ClientGameDefinition> = {
+  'hundred-ghosts': {
+    name: gameCatalog['hundred-ghosts'].name,
+    PlayerClient: props => <BanquetClient {...props} />,
+    Snapshot: BanquetSnapshot, Rules: BanquetRuleSummary, DetailedRules: BanquetRules, LobbyOptions: BanquetLobbyOptions,
+    validateLobby: (options, count) => validateBanquetOptions(options, count >= 4 ? count : undefined),
+    chapters: banquetChapters, gallery: { chapter: 'roles', label: '妖怪面具與供奉圖鑑' },
+    createPoster: createBanquetPoster, soundAdapter: banquetSoundAdapter,
+    lobbyTitle: '夜宴只認面具，不認本人。', lobbyDescription: gameCatalog['hundred-ghosts'].description,
+    factionLabels: { guests: '夜宴賓客' }, resultLabels: { wealth: '夜宴財富競賽完成' },
+    individualCompetition: true,
+    competitionLabels: { title: '夜宴競賽紀錄', description: '每位賓客各自爭取妖金，依場景與人數記錄已完成的夜宴。', roundsLabel: '平均夜宴數', roundUnit: '場', modes: { A: '場景 A', B: '場景 B', custom: '自訂場景' } },
+    reasonLabels: { 'thirteen-coins': '累積十三枚妖金', bankruptcy: '有人破產，以最多妖金決勝', cheater: '天邪鬼以十枚妖金勝出' },
+  },
   'baker-street': {
     name: gameCatalog['baker-street'].name,
     PlayerClient: props => <BakerClient {...props} />,
@@ -119,6 +142,7 @@ export const clientGames: Record<GameID, ClientGameDefinition> & Record<string, 
         || (['briefing', 'round-review'].includes(G.status) && !G.players[id].acknowledged)) ? `${G.epoch}:${G.status}:${id}` : undefined }),
     lobbyTitle: '地圖上找不到，夜裡總會亮起一盞燈。', lobbyDescription: gameCatalog['midnight-post'].description,
     factionLabels: { couriers: '午夜信使', director: '黑函局長' },
+    competitionLabels: { title: '投遞競賽紀錄', description: '每位信使各自爭取冠軍，依玩法與人數記錄完成局數及平均夜數。', roundsLabel: '平均夜數', roundUnit: '夜', modes: { classic: '密函投遞', premium: '全城夜遞' } },
     resultLabels: { delivery: '投遞競賽完成', couriers: '午夜信使獲勝', director: '黑函局長獲勝' },
     reasonLabels: { 'delivery-champion': '信任郵戳決出最終投遞冠軍', 'director-defeated': '局長生命耗盡', 'couriers-defeated': '信使生命耗盡', 'six-seals': '集齊六封印並封鎖郵路' },
   },
