@@ -14,6 +14,8 @@ import { BakerGame, bakerObserverView, type BakerState } from './baker/game';
 import { normalizeBakerOptions, validateBakerOptions } from './baker/rules';
 import { BanquetGame, banquetObserverView, type BanquetState } from './banquet/game';
 import { normalizeBanquetOptions, validateBanquetOptions } from './banquet/rules';
+import { HeistGame, heistObserverView, type HeistState } from './heist/game';
+import { normalizeHeistOptions, validateHeistOptions } from './heist/rules';
 
 export type ObserverPerspective = 'blind' | 'god';
 export interface GameOutcome {
@@ -53,6 +55,20 @@ export interface GameDefinition {
 }
 
 export const gameDefinitions: GameDefinition[] = [{
+  id: 'curtain-heist', ...gameCatalog['curtain-heist'], game: HeistGame,
+  isJoinable: state => state.status === 'lobby',
+  normalizeOptions: options => normalizeHeistOptions(options),
+  validateLobbyOptions: options => validateHeistOptions(options),
+  validateOptions: (options, count) => validateHeistOptions(options, count),
+  startSetupData: (participantIDs, options) => ({ startImmediately: true, participantIDs, options: normalizeHeistOptions(options) }),
+  observerView: heistObserverView, hideMoveMetadata: true, completedDisplayMs: () => 8000,
+  getOutcome: (state: HeistState) => {
+    if (state.status !== 'finished' || !state.winner || !state.winReason) return null;
+    return { winner: state.winner, reason: state.winReason,
+      competition: { mode: 'five-acts', rounds: state.round },
+      roles: Object.fromEntries(Object.keys(state.players).map(id => [id, 'illusionists'])) };
+  },
+}, {
   id: 'space-station', ...gameCatalog['space-station'], game: StationGame,
   isJoinable: (state) => state.status === 'lobby',
   startSetupData: (participantIDs) => ({ startImmediately: true, participantIDs }),

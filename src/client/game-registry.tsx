@@ -1,4 +1,9 @@
 import type { ComponentType } from 'react';
+import { HeistGame } from '../games/heist/game';
+import { HeistBoard, HeistSnapshot } from './HeistBoard';
+import { HeistRules, HeistRuleSummary, heistChapters } from './HeistRules';
+import { createHeistPoster } from './heist-poster';
+import { heistSoundAdapter } from './heist-sounds';
 import { Client } from 'boardgame.io/react';
 import { SocketIO } from 'boardgame.io/multiplayer';
 import { StationGame, type StationObserverState } from '../games/station/game';
@@ -68,6 +73,7 @@ const TuringClient = Client({ game: TuringGame, board: TuringBoard, loading: Con
 const MailClient = Client({ game: MailGame, board: MailBoard, loading: ConnectingGame, multiplayer: SocketIO({ server: typeof window === 'undefined' ? undefined : window.location.origin }), debug: false });
 const BakerClient = Client({ game: BakerGame, board: BakerBoard, loading: ConnectingGame, multiplayer: SocketIO({ server: typeof window === 'undefined' ? undefined : window.location.origin }), debug: false });
 const BanquetClient = Client({ game: BanquetGame, board: BanquetBoard, loading: ConnectingGame, multiplayer: SocketIO({ server: typeof window === 'undefined' ? undefined : window.location.origin }), debug: false });
+const HeistClient = Client({ game: HeistGame, board: HeistBoard, loading: ConnectingGame, multiplayer: SocketIO({ server: typeof window === 'undefined' ? undefined : window.location.origin }), debug: false });
 
 export interface ClientGameDefinition {
   name: string;
@@ -96,6 +102,18 @@ export interface ClientGameDefinition {
 
 /** Add each game's player client, snapshot renderer and statistics labels together. */
 export const clientGames: Record<GameID, ClientGameDefinition> & Record<string, ClientGameDefinition> = {
+  'curtain-heist': {
+    name: gameCatalog['curtain-heist'].name,
+    PlayerClient: props => <HeistClient {...props} />,
+    Snapshot: HeistSnapshot, Rules: HeistRuleSummary, DetailedRules: HeistRules,
+    chapters: heistChapters, gallery: { chapter: 'gallery', label: '贓物、警戒與珍藏圖鑑' },
+    createPoster: createHeistPoster, soundAdapter: heistSoundAdapter,
+    lobbyTitle: '掌聲是掩護，分紅才是壓軸。', lobbyDescription: gameCatalog['curtain-heist'].description,
+    factionLabels: { illusionists: '幻術師' }, resultLabels: { heist: '五幕劫案競賽完成' },
+    individualCompetition: true,
+    competitionLabels: { title: '劫案競賽紀錄', description: '每位幻術師各自累積分紅，依人數記錄完成的五幕劫案。', roundsLabel: '平均幕數', roundUnit: '幕', modes: { 'five-acts': '五幕劫案' } },
+    reasonLabels: { score: '五幕分紅與珍藏結算' },
+  },
   'hundred-ghosts': {
     name: gameCatalog['hundred-ghosts'].name,
     PlayerClient: props => <BanquetClient {...props} />,

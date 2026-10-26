@@ -48,6 +48,19 @@ test('rejects private filenames even when empty or binary', () => {
   assert.equal(inspectFile('server.p12', Buffer.from([0, 1, 2])).problems.length, 1);
 });
 
+test('limits heist provenance to its source content and rulebook', async () => {
+  for (const host of ['www.eagle-gryphon.com', 'drive.google.com', 'faidutti.com']) {
+    assert.equal(allowedHost(host, 'src/games/heist/content.ts'), true);
+    assert.equal(allowedHost(host, 'docs/CURTAIN_HEIST.md'), host !== 'faidutti.com');
+    for (const file of ['README.md', 'deploy/apache.conf.example', 'src/server/app.ts', 'src/games/heist/game.ts']) {
+      assert.equal(allowedHost(host, file), false);
+    }
+  }
+  for (const file of ['src/games/heist/content.ts', 'docs/CURTAIN_HEIST.md']) {
+    assert.deepEqual(inspectFile(file, await readFile(new URL(`../${file}`, import.meta.url))).problems, [], file);
+  }
+});
+
 test('limits banquet rules provenance to the exact source files and official hosts', async () => {
   const contentFile = 'src/games/banquet/content.ts', documentFile = 'docs/HUNDRED_GHOSTS.md';
   const publisher = 'www.rprod.com', distributor = 'cdn.svc.asmodee.net';

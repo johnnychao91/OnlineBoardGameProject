@@ -9,6 +9,7 @@
   --art-post: url('./assets/post/scene.webp');
   --art-baker: url('./assets/baker/scene-victorian.webp');
   --art-banquet: url('./assets/banquet/background.webp');
+  --art-heist: url('./assets/heist/background.webp');
   --art-scene: var(--art-station);
   --bg: #101719;
   --surface: #192323;
@@ -31,6 +32,7 @@
 
 :root[data-visual-style="art"] [data-art-game="baker-street"] { --art-scene: var(--art-baker); }
 :root[data-visual-style="art"] [data-art-game="hundred-ghosts"] { --art-scene: var(--art-banquet); }
+:root[data-visual-style="art"] [data-art-game="curtain-heist"] { --art-scene: var(--art-heist); }
 :root[data-visual-style="art"] [data-baker-era="industrial"] { --art-scene: url('./assets/baker/scene-industrial.webp'); }
 :root[data-visual-style="art"] [data-baker-era="wartime"] { --art-scene: url('./assets/baker/scene-wartime.webp'); }
 :root[data-visual-style="art"] [data-baker-era="modern"] { --art-scene: url('./assets/baker/scene-modern.webp'); }

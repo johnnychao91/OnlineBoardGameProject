@@ -9,6 +9,7 @@ import { isTuringSharedTable, turingCards, turingTableOrder, turingPlayerView, t
 import { legalMailActions, mailPlayerView, type MailState } from './post/game';
 import { legalBakerActions, bakerPlayerView, type BakerState } from './baker/game';
 import { legalBanquetActions, banquetPlayerView, type BanquetState } from './banquet/game';
+import { legalHeistActions, heistPlayerView, type HeistState } from './heist/game';
 
 export interface BotAction { move: string; args: unknown[] }
 type Random = () => number;
@@ -180,6 +181,10 @@ function turingAction(G: TuringState, id: string, random: Random): BotAction | n
 }
 
 const adapters = {
+  'curtain-heist': (G: HeistState, id: string, random: Random) => {
+    const actions = legalHeistActions(heistPlayerView({ G, playerID: id }), id);
+    return actions.length ? pick(actions, random) : null;
+  },
   'hundred-ghosts': (G: BanquetState, id: string, random: Random) => {
     const actions = legalBanquetActions(banquetPlayerView({ G, playerID: id }), id);
     if (!actions.length) return null;

@@ -35,6 +35,9 @@ export function allowedHost(input, file) {
   if (['src/games/banquet/content.ts', 'scripts/check-public-repo.mjs', 'scripts/check-public-repo.test.mjs'].includes(file)
     && ['www.rprod.com', 'cdn.svc.asmodee.net'].includes(host)) return true;
   if (file === 'docs/HUNDRED_GHOSTS.md' && host === 'cdn.svc.asmodee.net') return true;
+  if (['src/games/heist/content.ts', 'scripts/check-public-repo.mjs', 'scripts/check-public-repo.test.mjs'].includes(file)
+    && ['www.eagle-gryphon.com', 'drive.google.com', 'faidutti.com'].includes(host)) return true;
+  if (file === 'docs/CURTAIN_HEIST.md' && ['www.eagle-gryphon.com', 'drive.google.com'].includes(host)) return true;
   if ((/^src\/client\/assets\/post\/roles\/seal-[1-6]\.svg$/.test(file)
     || ['scripts/check-public-repo.mjs', 'scripts/check-public-repo.test.mjs'].includes(file)) && host === 'www.w3.org') return true;
   if (['localhost', '127.0.0.1', '[::1]', '::1'].includes(host)) return true;

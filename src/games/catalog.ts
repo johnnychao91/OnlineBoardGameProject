@@ -1,5 +1,7 @@
 /** Public, environment-free metadata shared by the room, rules pages and registries. */
 export const gameCatalog = {
+  'curtain-heist': { name: '謝幕劫案', description: '以幻術表演掩護金庫劫案，繼續深入或帶著分紅提前謝幕。', minPlayers: 3, maxPlayers: 8,
+    detail: '3～8 人 · 秘密決策 · 五幕風險與分紅', intro: '富豪劇院的地下藏著真正的壓軸節目。眾人沿途分取財物，每一步都秘密決定繼續深入或提前謝幕；相同危機再次出現，還沒離場的人便失去手上的所得。只有獨自撤退，才能把路上的珍藏一併帶走。五幕之後，最豐厚的分紅就是最好的掌聲。' },
   'hundred-ghosts': { name: '百鬼夜宴', description: '夜宴只認面具，不認本人。交換身分、冒領供奉，在妖怪之間爭奪香火錢。', minPlayers: 4, maxPlayers: 12,
     detail: '4～12 人 · 面具交換 · 記憶與虛張聲勢', intro: '朱紅鳥居下，百鬼戴著面具入席。你可以暗換面具、查看自己，或宣稱某位妖怪的名號領取供奉；旁人若也認領，便當場翻牌驗明。先累積十三枚妖金，或在有人破產時成為最富有的妖怪，贏下這場夜宴。' },
   'baker-street': { name: '貝克街迷霧', description: '福爾摩斯以無聲鑑證引導調查，莫里亞蒂的執行者與內應藏在倫敦警察之中。', minPlayers: 4, maxPlayers: 12,

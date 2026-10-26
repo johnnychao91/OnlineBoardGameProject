@@ -23,16 +23,21 @@ describe('Challenge score presentation', () => {
     expect(html).toContain('夜宴競賽紀錄'); expect(html).toContain('場景 B'); expect(html).toContain('自訂場景');
     expect(html).not.toMatch(/投遞|信使|夜數|勝率/);
   });
-  it.each([false, true])('does not invent faction records for an individual game, with completed rows=%s', completed => {
+  it.each([
+    ['hundred-ghosts', '百鬼夜宴', 'A', '夜宴競賽紀錄', '場景 A', 1],
+    ['curtain-heist', '謝幕劫案', 'five-acts', '劫案競賽紀錄', '五幕劫案', 5],
+  ] as const)('renders %s individual results without inventing faction records', (gameId, name, mode, title, modeName, rounds) => {
+    for (const completed of [false, true]) {
     const html = renderToStaticMarkup(createElement(GameStatisticsCard, { game: {
-      gameId: 'hundred-ghosts', name: '百鬼夜宴', completed: completed ? 1 : 0, rankedCompleted: 0,
+      gameId, name, completed: completed ? 1 : 0, rankedCompleted: 0,
       wins: {}, reasons: {}, byPlayerCount: [], competitions: completed ? [
-        { mode: 'A', numPlayers: 4, runs: 1, totalRounds: 1, averageRounds: 1 },
+        { mode, numPlayers: 4, runs: 1, totalRounds: rounds, averageRounds: rounds },
       ] : [],
     } }));
-    expect(html).toContain('百鬼夜宴');
+    expect(html).toContain(name);
     expect(html).not.toMatch(/陣營|勝率|勝利次數|faction-standings|投遞|信使/);
-    if (completed) expect(html).toContain('夜宴競賽紀錄');
+    if (completed) { expect(html).toContain(title); expect(html).toContain(modeName); }
+    }
   });
   it('keeps endless runs out of ranked losses and supports older statistics without a ranked count', () => {
     expect(factionRecord({ completed: 10, rankedCompleted: 2, wins: { humans: 1 } }, 'humans'))
@@ -41,6 +46,21 @@ describe('Challenge score presentation', () => {
       .toEqual({ wins: 0, losses: 0, draws: 0, rate: 0 });
     expect(factionRecord({ completed: 2, wins: { humans: 1 } }, 'humans'))
       .toEqual({ wins: 1, losses: 1, draws: 0, rate: 50 });
+  });
+  it.each([
+    ['midnight-post', 'classic', 'delivery', 8, '密函投遞', '8 夜'],
+    ['midnight-post', 'premium', 'delivery', 12, '全城夜遞', '12 夜'],
+    ['hundred-ghosts', 'B', 'wealth', 1, '場景 B', '1 場'],
+    ['curtain-heist', 'five-acts', 'heist', 5, '五幕劫案', '5 幕'],
+  ] as const)('keeps archived %s/%s competition labels after the room changes game', (gameName, mode, winner, rounds, label, duration) => {
+    const info: RoomInfo = { roomId: 'room', matchID: 'current', gameName: 'turing-test', status: 'lobby',
+      numPlayers: 4, minPlayers: 2, maxPlayers: 10, spectatorCount: 0, godViewAllowed: true, players: [], history: [{
+        matchID: 'old-match', gameName, endedAt: 1, ending: 'completed', numPlayers: 4,
+        winner, competition: { mode, rounds },
+      }] };
+    const html = renderToStaticMarkup(createElement(RoomHistory, { info, seat: { ...info, playerID: '0', credentials: 'test' } }));
+    expect(html).toContain(label); expect(html).toContain(duration); expect(html).toContain('查看上一局結果與復盤');
+    if (gameName !== 'midnight-post') expect(html).not.toMatch(/投遞|郵戳|夜遞/);
   });
   it('labels completed levels and conditions clearly, including a zero-level challenge', () => {
     const html = renderToStaticMarkup(createElement(ChallengeStandings, { challenges: [
