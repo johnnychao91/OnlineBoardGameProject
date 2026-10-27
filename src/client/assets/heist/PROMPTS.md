@@ -69,4 +69,3 @@ Use case: stylized-concept. Portrait 2:3 boardgame card illustration. Original p
 ## loot-b.webp
 
 Use case: stylized-concept. Portrait 2:3 boardgame card illustration. Original premium boardgame illustration for 謝幕劫案, a modern stage-illusionist heist inside a billionaire's private theatre. Cinematic painterly realism, burgundy velvet, charcoal black, brushed gold, icy glass reflections, dramatic focused stage lighting. Elegant and playful criminal caper, no violence. No lettering, numbers, logos, watermarks, or existing franchise designs. An open slim black attaché case containing a neat stack of generic unbranded currency bundles with plain cream bands, reflected burgundy curtain in its lid. Abstract currency engraving without legible text or numerals. Entire case visible with space around it, cinematic close view. No card border.
-

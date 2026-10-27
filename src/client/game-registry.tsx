@@ -1,4 +1,9 @@
 import type { ComponentType } from 'react';
+import { FirewallGame } from '../games/firewall/game';
+import { FirewallBoard, FirewallSnapshot } from './FirewallBoard';
+import { FirewallRules, FirewallRuleSummary, firewallChapters } from './FirewallRules';
+import { createFirewallPoster } from './firewall-poster';
+import { firewallSoundAdapter } from './firewall-sounds';
 import { HeistGame } from '../games/heist/game';
 import { HeistBoard, HeistSnapshot } from './HeistBoard';
 import { HeistRules, HeistRuleSummary, heistChapters } from './HeistRules';
@@ -74,6 +79,7 @@ const MailClient = Client({ game: MailGame, board: MailBoard, loading: Connectin
 const BakerClient = Client({ game: BakerGame, board: BakerBoard, loading: ConnectingGame, multiplayer: SocketIO({ server: typeof window === 'undefined' ? undefined : window.location.origin }), debug: false });
 const BanquetClient = Client({ game: BanquetGame, board: BanquetBoard, loading: ConnectingGame, multiplayer: SocketIO({ server: typeof window === 'undefined' ? undefined : window.location.origin }), debug: false });
 const HeistClient = Client({ game: HeistGame, board: HeistBoard, loading: ConnectingGame, multiplayer: SocketIO({ server: typeof window === 'undefined' ? undefined : window.location.origin }), debug: false });
+const FirewallClient = Client({ game: FirewallGame, board: FirewallBoard, loading: ConnectingGame, multiplayer: SocketIO({ server: typeof window === 'undefined' ? undefined : window.location.origin }), debug: false });
 
 export interface ClientGameDefinition {
   name: string;
@@ -102,6 +108,18 @@ export interface ClientGameDefinition {
 
 /** Add each game's player client, snapshot renderer and statistics labels together. */
 export const clientGames: Record<GameID, ClientGameDefinition> & Record<string, ClientGameDefinition> = {
+  'firewall-breach': {
+    name: gameCatalog['firewall-breach'].name,
+    PlayerClient: props => <FirewallClient {...props} />,
+    Snapshot: FirewallSnapshot, Rules: FirewallRuleSummary, DetailedRules: FirewallRules,
+    chapters: firewallChapters, gallery: { chapter: 'gallery', label: '身分、程式與拓撲圖鑑' },
+    createPoster: createFirewallPoster, soundAdapter: firewallSoundAdapter,
+    lobbyTitle: '連線通往核心，同行者各有目的。', lobbyDescription: gameCatalog['firewall-breach'].description,
+    factionLabels: { hackers: '駭客' }, resultLabels: { wealth: '三輪滲透競賽完成' },
+    individualCompetition: true,
+    competitionLabels: { title: '滲透競賽紀錄', description: '每位駭客各自累積資產，依人數記錄完成的三輪滲透。', roundsLabel: '平均輪數', roundUnit: '輪', modes: { combined: '基本＋擴充' } },
+    reasonLabels: { 'three-rounds': '三輪累積資產結算' },
+  },
   'curtain-heist': {
     name: gameCatalog['curtain-heist'].name,
     PlayerClient: props => <HeistClient {...props} />,

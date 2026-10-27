@@ -16,6 +16,8 @@ import { BanquetGame, banquetObserverView, type BanquetState } from './banquet/g
 import { normalizeBanquetOptions, validateBanquetOptions } from './banquet/rules';
 import { HeistGame, heistObserverView, type HeistState } from './heist/game';
 import { normalizeHeistOptions, validateHeistOptions } from './heist/rules';
+import { FirewallGame, firewallObserverView, type FirewallState } from './firewall/game';
+import { normalizeFirewallOptions, validateFirewallOptions } from './firewall/rules';
 
 export type ObserverPerspective = 'blind' | 'god';
 export interface GameOutcome {
@@ -55,6 +57,20 @@ export interface GameDefinition {
 }
 
 export const gameDefinitions: GameDefinition[] = [{
+  id: 'firewall-breach', ...gameCatalog['firewall-breach'], game: FirewallGame,
+  isJoinable: state => state.status === 'lobby',
+  normalizeOptions: options => normalizeFirewallOptions(options),
+  validateLobbyOptions: options => validateFirewallOptions(options),
+  validateOptions: (options, count) => validateFirewallOptions(options, count),
+  startSetupData: (participantIDs, options) => ({ startImmediately: true, participantIDs, options: normalizeFirewallOptions(options) }),
+  observerView: firewallObserverView, hideMoveMetadata: true, completedDisplayMs: () => 8000,
+  getOutcome: (state: FirewallState) => {
+    if (state.status !== 'finished' || !state.winner || !state.winReason) return null;
+    return { winner: state.winner, reason: state.winReason,
+      competition: { mode: 'combined', rounds: state.round },
+      roles: Object.fromEntries(Object.keys(state.players).map(id => [id, 'hackers'])) };
+  },
+}, {
   id: 'curtain-heist', ...gameCatalog['curtain-heist'], game: HeistGame,
   isJoinable: state => state.status === 'lobby',
   normalizeOptions: options => normalizeHeistOptions(options),

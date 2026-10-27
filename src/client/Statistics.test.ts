@@ -26,6 +26,7 @@ describe('Challenge score presentation', () => {
   it.each([
     ['hundred-ghosts', '百鬼夜宴', 'A', '夜宴競賽紀錄', '場景 A', 1],
     ['curtain-heist', '謝幕劫案', 'five-acts', '劫案競賽紀錄', '五幕劫案', 5],
+    ['firewall-breach', '潛入防火牆', 'combined', '滲透競賽紀錄', '基本＋擴充', 3],
   ] as const)('renders %s individual results without inventing faction records', (gameId, name, mode, title, modeName, rounds) => {
     for (const completed of [false, true]) {
     const html = renderToStaticMarkup(createElement(GameStatisticsCard, { game: {
@@ -52,6 +53,7 @@ describe('Challenge score presentation', () => {
     ['midnight-post', 'premium', 'delivery', 12, '全城夜遞', '12 夜'],
     ['hundred-ghosts', 'B', 'wealth', 1, '場景 B', '1 場'],
     ['curtain-heist', 'five-acts', 'heist', 5, '五幕劫案', '5 幕'],
+    ['firewall-breach', 'combined', 'wealth', 3, '基本＋擴充', '3 輪'],
   ] as const)('keeps archived %s/%s competition labels after the room changes game', (gameName, mode, winner, rounds, label, duration) => {
     const info: RoomInfo = { roomId: 'room', matchID: 'current', gameName: 'turing-test', status: 'lobby',
       numPlayers: 4, minPlayers: 2, maxPlayers: 10, spectatorCount: 0, godViewAllowed: true, players: [], history: [{

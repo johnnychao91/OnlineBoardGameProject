@@ -38,6 +38,8 @@ export function allowedHost(input, file) {
   if (['src/games/heist/content.ts', 'scripts/check-public-repo.mjs', 'scripts/check-public-repo.test.mjs'].includes(file)
     && ['www.eagle-gryphon.com', 'drive.google.com', 'faidutti.com'].includes(host)) return true;
   if (file === 'docs/CURTAIN_HEIST.md' && ['www.eagle-gryphon.com', 'drive.google.com'].includes(host)) return true;
+  if (['src/games/firewall/content.ts', 'docs/FIREWALL_BREACH.md', 'scripts/check-public-repo.mjs', 'scripts/check-public-repo.test.mjs'].includes(file)
+    && host === 'blog.amigo-spiele.de') return true;
   if ((/^src\/client\/assets\/post\/roles\/seal-[1-6]\.svg$/.test(file)
     || ['scripts/check-public-repo.mjs', 'scripts/check-public-repo.test.mjs'].includes(file)) && host === 'www.w3.org') return true;
   if (['localhost', '127.0.0.1', '[::1]', '::1'].includes(host)) return true;

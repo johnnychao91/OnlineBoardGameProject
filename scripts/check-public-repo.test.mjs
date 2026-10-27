@@ -48,6 +48,17 @@ test('rejects private filenames even when empty or binary', () => {
   assert.equal(inspectFile('server.p12', Buffer.from([0, 1, 2])).problems.length, 1);
 });
 
+test('limits firewall provenance to its source content and rulebook', async () => {
+  const host = 'blog.amigo-spiele.de';
+  for (const file of ['src/games/firewall/content.ts', 'docs/FIREWALL_BREACH.md']) {
+    assert.equal(allowedHost(host, file), true);
+    assert.deepEqual(inspectFile(file, await readFile(new URL(`../${file}`, import.meta.url))).problems, [], file);
+  }
+  for (const file of ['README.md', 'deploy/apache.conf.example', 'src/server/app.ts', 'src/games/firewall/game.ts']) {
+    assert.equal(allowedHost(host, file), false);
+  }
+});
+
 test('limits heist provenance to its source content and rulebook', async () => {
   for (const host of ['www.eagle-gryphon.com', 'drive.google.com', 'faidutti.com']) {
     assert.equal(allowedHost(host, 'src/games/heist/content.ts'), true);

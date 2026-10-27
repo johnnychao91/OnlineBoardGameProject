@@ -1,5 +1,7 @@
 /** Public, environment-free metadata shared by the room, rules pages and registries. */
 export const gameCatalog = {
+  'firewall-breach': { name: '潛入防火牆', description: '駭客小隊連向企業資料核心，偽裝的追蹤程式卻正架設死路、封鎖工具。', minPlayers: 2, maxPlayers: 12,
+    detail: '2～12 人 · 秘密身分 · 網路路線與工具攻防', intro: '資料堡壘深處藏著真正的機密核心。你可以延伸連線、修復工具或干擾他人；藍域與綠域各有利益，企業追蹤程式則希望所有連線都失敗。橋接、權限門與跳躍節點讓每一條路都值得懷疑，三輪之後，以資料點數決定最終贏家。' },
   'curtain-heist': { name: '謝幕劫案', description: '以幻術表演掩護金庫劫案，繼續深入或帶著分紅提前謝幕。', minPlayers: 3, maxPlayers: 8,
     detail: '3～8 人 · 秘密決策 · 五幕風險與分紅', intro: '富豪劇院的地下藏著真正的壓軸節目。眾人沿途分取財物，每一步都秘密決定繼續深入或提前謝幕；相同危機再次出現，還沒離場的人便失去手上的所得。只有獨自撤退，才能把路上的珍藏一併帶走。五幕之後，最豐厚的分紅就是最好的掌聲。' },
   'hundred-ghosts': { name: '百鬼夜宴', description: '夜宴只認面具，不認本人。交換身分、冒領供奉，在妖怪之間爭奪香火錢。', minPlayers: 4, maxPlayers: 12,

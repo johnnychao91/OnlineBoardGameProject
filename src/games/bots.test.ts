@@ -14,6 +14,7 @@ import { MailGame, mailPlayerView } from './post/game';
 import { BakerGame, bakerPlayerView } from './baker/game';
 import { BanquetGame, banquetPlayerView } from './banquet/game';
 import { HeistGame, heistPlayerView } from './heist/game';
+import { FirewallGame, firewallPlayerView } from './firewall/game';
 
 let now = 1_800_000_000_000;
 beforeEach(() => { now = 1_800_000_000_000; vi.spyOn(Date, 'now').mockImplementation(() => now); });
@@ -54,7 +55,7 @@ describe('Test-room bot adapters', () => {
     expect(chooseBotAction('unknown', { G: { players: { '0': {} } } }, '0')).toBeNull();
   });
 
-  it.each([StationGame, CipherGame, FogGame, MoonGame, TuringGame, MailGame, BakerGame, BanquetGame, HeistGame])('readies a %s seat once and leaves starting to the human host', game => {
+  it.each([StationGame, CipherGame, FogGame, MoonGame, TuringGame, MailGame, BakerGame, BanquetGame, HeistGame, FirewallGame])('readies a %s seat once and leaves starting to the human host', game => {
     const f = match(game, game.minPlayers!, undefined, 'bot-ready', undefined, false);
     const move = chooseBotAction(game.name!, f.state, '0');
     expect(move).toEqual({ move: 'setReady', args: [true] });
@@ -65,6 +66,7 @@ describe('Test-room bot adapters', () => {
   });
 
   const scenarios = [
+    ...Array.from({ length: 11 }, (_, i) => ({ game: FirewallGame, count: i + 2, options: undefined })),
     ...[3, 4, 5, 6, 7, 8].map(count => ({ game: HeistGame, count, options: undefined })),
     ...[4, 5, 6, 8, 12].flatMap(count => ['A', 'B'].map(scenario => ({ game: BanquetGame, count, options: { scenario } }))),
     { game: StationGame, count: 4, options: undefined },
@@ -122,6 +124,7 @@ describe('Test-room bot adapters', () => {
         : game.name === 'baker-street' ? ['acknowledge', 'chooseCrime', 'chooseLocation', 'markScene']
         : game.name === 'hundred-ghosts' ? ['acknowledge', 'exchange', 'announce', 'respondClaim']
         : game.name === 'curtain-heist' ? ['acknowledge', 'decide']
+        : game.name === 'firewall-breach' ? ['acknowledge', 'placePath', 'playAction', 'discard']
         : ['acknowledge', 'wolfVote', 'inspect', 'witch', 'finishSpeech', 'exileVote'];
       if (game.name === 'silver-moon' && count === 12) expected.push('guard', 'standForSheriff', 'sheriffVote', 'chooseOrder');
       for (const name of expected) expect(moves.has(name), `${game.name} did not exercise ${name}`).toBe(true);
@@ -275,6 +278,7 @@ describe('Test-room bot adapters', () => {
     { game: BakerGame, project: bakerPlayerView },
     { game: BanquetGame, project: banquetPlayerView },
     { game: HeistGame, project: heistPlayerView },
+    { game: FirewallGame, project: firewallPlayerView },
   ])('$game.name decisions need only the same information as a real player', ({ game, project }) => {
     const f = match(game, game.minPlayers!);
     const ids = Object.keys(f.state.G.players);

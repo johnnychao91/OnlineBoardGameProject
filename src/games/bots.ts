@@ -10,6 +10,7 @@ import { legalMailActions, mailPlayerView, type MailState } from './post/game';
 import { legalBakerActions, bakerPlayerView, type BakerState } from './baker/game';
 import { legalBanquetActions, banquetPlayerView, type BanquetState } from './banquet/game';
 import { legalHeistActions, heistPlayerView, type HeistState } from './heist/game';
+import { legalFirewallActions, firewallPlayerView, type FirewallState } from './firewall/game';
 
 export interface BotAction { move: string; args: unknown[] }
 type Random = () => number;
@@ -181,6 +182,14 @@ function turingAction(G: TuringState, id: string, random: Random): BotAction | n
 }
 
 const adapters = {
+  'firewall-breach': (G: FirewallState, id: string, random: Random) => {
+    const actions = legalFirewallActions(firewallPlayerView({ G, playerID: id }), id);
+    if (!actions.length) return null;
+    // Choose the kind of move before a target, so the many legal grid cells
+    // do not drown out tool interactions or discards.
+    const move = pick([...new Set(actions.map(candidate => candidate.move))], random);
+    return pick(actions.filter(candidate => candidate.move === move), random);
+  },
   'curtain-heist': (G: HeistState, id: string, random: Random) => {
     const actions = legalHeistActions(heistPlayerView({ G, playerID: id }), id);
     return actions.length ? pick(actions, random) : null;
