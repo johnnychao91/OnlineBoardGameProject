@@ -54,7 +54,7 @@ describe('Private room admission API', () => {
     expect(invalidName).toMatchObject({ status: 400, body: { error: '暱稱需為 1～24 個字，不能含控制字元' } });
     const games = await f.request('/api/games');
     expect(games.status).toBe(200);
-    expect(games.body.games.map((game: { id: string }) => game.id).sort()).toEqual([...GAME_IDS].sort());
+    expect(games.body.games.map((game: { id: string }) => game.id)).toEqual(GAME_IDS);
     for (const game of games.body.games) {
       expect(Object.keys(game).sort()).toEqual(['id', 'name', 'description', 'minPlayers', 'maxPlayers'].sort());
       expect(game).toMatchObject({ id: expect.any(String), name: expect.any(String), description: expect.any(String), minPlayers: expect.any(Number), maxPlayers: expect.any(Number) });

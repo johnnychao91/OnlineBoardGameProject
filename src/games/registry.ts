@@ -7,7 +7,7 @@ import { MoonGame, moonObserverView, advanceMoonClock, type MoonState } from './
 import { MOON_PRESETS, normalizeMoonOptions, validateMoonOptions } from './moon/rules';
 import { TuringGame, isTuringSharedTable, turingObserverView, type TuringState } from './turing/game';
 import { normalizeTuringOptions, validateTuringOptions } from './turing/rules';
-import { gameCatalog, type GameID } from './catalog';
+import { GAME_IDS, gameCatalog, type GameID } from './catalog';
 import { MailGame, mailObserverView, type MailState } from './post/game';
 import { normalizeMailOptions, validateMailOptions } from './post/rules';
 import { BakerGame, bakerObserverView, type BakerState } from './baker/game';
@@ -58,7 +58,7 @@ export interface GameDefinition {
   hideMoveMetadata?: boolean;
 }
 
-export const gameDefinitions: GameDefinition[] = [{
+const registeredGames: GameDefinition[] = [{
   id: 'star-workshop', ...gameCatalog['star-workshop'], game: StarGame,
   isJoinable: state => state.status === 'lobby',
   normalizeOptions: options => normalizeStarOptions(options),
@@ -196,7 +196,7 @@ export const gameDefinitions: GameDefinition[] = [{
   },
 }];
 
-gameDefinitions.push({
+registeredGames.push({
   id: 'baker-street', ...gameCatalog['baker-street'], game: BakerGame,
   isJoinable: state => state.status === 'lobby',
   normalizeOptions: options => ({ ...normalizeBakerOptions(options) }),
@@ -211,7 +211,7 @@ gameDefinitions.push({
   },
 });
 
-gameDefinitions.push({
+registeredGames.push({
   id: 'hundred-ghosts', ...gameCatalog['hundred-ghosts'], game: BanquetGame,
   isJoinable: state => state.status === 'lobby',
   normalizeOptions: options => ({ ...normalizeBanquetOptions(options) }),
@@ -227,5 +227,7 @@ gameDefinitions.push({
   },
 });
 
+// API game lists and statistics follow the catalog, independent of registration order.
+export const gameDefinitions = registeredGames.sort((a, b) => GAME_IDS.indexOf(a.id) - GAME_IDS.indexOf(b.id));
 export const getGameDefinition = (id: string) => gameDefinitions.find((game) => game.id === id);
 export const publicGameDefinitions = () => gameDefinitions.map(({ id, name, description, minPlayers, maxPlayers }) => ({ id, name, description, minPlayers, maxPlayers }));

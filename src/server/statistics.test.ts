@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { collectStatistics } from './statistics';
 import type { FileStorage } from './storage';
 import type { RoomRecord, RoomStore } from './rooms';
+import { GAME_IDS } from '../games/catalog';
 
 describe('Challenge score aggregation', () => {
   it('groups individual competitions by rules and player count without treating a champion as a public faction', async () => {
@@ -20,6 +21,7 @@ describe('Challenge score aggregation', () => {
     const rooms = { rooms: new Map([['main', room(['a', 'b', 'c', 'd', 'e'])], ['test', room(['test'], true)]]) } as RoomStore;
     const db = { fetch: async (id: string) => ({ state: states.get(id) }) } as unknown as FileStorage;
     const result = await collectStatistics(db, rooms), summary = result.byGame.find(game => game.gameId === 'midnight-post')!;
+    expect(result.byGame.map(game => game.gameId)).toEqual(GAME_IDS);
     expect(result).toMatchObject({ completedGames: 5, totalPlayerParticipations: 21 });
     expect(summary).toMatchObject({ completed: 5, rankedCompleted: 1, wins: { couriers: 1 },
       byPlayerCount: [{ numPlayers: 3, completed: 1, draws: 0, wins: { couriers: 1 } }],
