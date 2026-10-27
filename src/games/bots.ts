@@ -11,6 +11,7 @@ import { legalBakerActions, bakerPlayerView, type BakerState } from './baker/gam
 import { legalBanquetActions, banquetPlayerView, type BanquetState } from './banquet/game';
 import { legalHeistActions, heistPlayerView, type HeistState } from './heist/game';
 import { legalFirewallActions, firewallPlayerView, type FirewallState } from './firewall/game';
+import { legalStarActions, starPlayerView, type StarState } from './star/game';
 
 export interface BotAction { move: string; args: unknown[] }
 type Random = () => number;
@@ -182,6 +183,14 @@ function turingAction(G: TuringState, id: string, random: Random): BotAction | n
 }
 
 const adapters = {
+  'star-workshop': (G: StarState, id: string, random: Random) => {
+    const actions = legalStarActions(starPlayerView({ G, playerID: id }), id);
+    if (!actions.length) return null;
+    const purchases = actions.filter(candidate => candidate.move === 'buyCard');
+    if (purchases.length && random() < 0.85) return pick(purchases, random);
+    const move = pick([...new Set(actions.map(candidate => candidate.move))], random);
+    return pick(actions.filter(candidate => candidate.move === move), random);
+  },
   'firewall-breach': (G: FirewallState, id: string, random: Random) => {
     const actions = legalFirewallActions(firewallPlayerView({ G, playerID: id }), id);
     if (!actions.length) return null;

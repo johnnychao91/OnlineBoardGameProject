@@ -59,6 +59,15 @@ test('limits firewall provenance to its source content and rulebook', async () =
   }
 });
 
+test('limits star provenance to its source content and rulebook', async () => {
+  const host = 'cdn.svc.asmodee.net';
+  for (const file of ['src/games/star/content.ts', 'docs/STAR_WORKSHOP.md']) {
+    assert.equal(allowedHost(host, file), true);
+    assert.deepEqual(inspectFile(file, await readFile(new URL(`../${file}`, import.meta.url))).problems, [], file);
+  }
+  for (const file of ['README.md', 'deploy/apache.conf.example', 'src/server/app.ts', 'src/games/star/game.ts']) assert.equal(allowedHost(host, file), false);
+});
+
 test('limits heist provenance to its source content and rulebook', async () => {
   for (const host of ['www.eagle-gryphon.com', 'drive.google.com', 'faidutti.com']) {
     assert.equal(allowedHost(host, 'src/games/heist/content.ts'), true);

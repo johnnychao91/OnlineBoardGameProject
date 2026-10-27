@@ -1,4 +1,9 @@
 import type { ComponentType } from 'react';
+import { StarGame } from '../games/star/game';
+import { StarBoard, StarSnapshot, StarRuleSummary } from './StarBoard';
+import { StarRules, starChapters } from './StarRules';
+import { createStarPoster } from './star-poster';
+import { starSoundAdapter } from './star-sounds';
 import { FirewallGame } from '../games/firewall/game';
 import { FirewallBoard, FirewallSnapshot } from './FirewallBoard';
 import { FirewallRules, FirewallRuleSummary, firewallChapters } from './FirewallRules';
@@ -80,6 +85,7 @@ const BakerClient = Client({ game: BakerGame, board: BakerBoard, loading: Connec
 const BanquetClient = Client({ game: BanquetGame, board: BanquetBoard, loading: ConnectingGame, multiplayer: SocketIO({ server: typeof window === 'undefined' ? undefined : window.location.origin }), debug: false });
 const HeistClient = Client({ game: HeistGame, board: HeistBoard, loading: ConnectingGame, multiplayer: SocketIO({ server: typeof window === 'undefined' ? undefined : window.location.origin }), debug: false });
 const FirewallClient = Client({ game: FirewallGame, board: FirewallBoard, loading: ConnectingGame, multiplayer: SocketIO({ server: typeof window === 'undefined' ? undefined : window.location.origin }), debug: false });
+const StarClient = Client({ game: StarGame, board: StarBoard, loading: ConnectingGame, multiplayer: SocketIO({ server: typeof window === 'undefined' ? undefined : window.location.origin }), debug: false });
 
 export interface ClientGameDefinition {
   name: string;
@@ -108,6 +114,18 @@ export interface ClientGameDefinition {
 
 /** Add each game's player client, snapshot renderer and statistics labels together. */
 export const clientGames: Record<GameID, ClientGameDefinition> & Record<string, ClientGameDefinition> = {
+  'star-workshop': {
+    name: gameCatalog['star-workshop'].name,
+    PlayerClient: props => <StarClient {...props} />,
+    Snapshot: StarSnapshot, Rules: StarRuleSummary, DetailedRules: StarRules,
+    chapters: starChapters, gallery: { chapter: 'gallery', label: '星材、作品與守護者圖鑑' },
+    createPoster: createStarPoster, soundAdapter: starSoundAdapter,
+    lobbyTitle: '從一枚星材，打造整片星空。', lobbyDescription: gameCatalog['star-workshop'].description,
+    factionLabels: { artisans: '星匠' }, resultLabels: { prestige: '工坊聲望競賽完成' },
+    individualCompetition: true,
+    competitionLabels: { title: '工坊競賽紀錄', description: '每位星匠各自打造作品，依人數記錄完成的聲望競賽。', roundsLabel: '平均輪數', roundUnit: '輪', modes: { base: '基本工坊' } },
+    reasonLabels: { 'completed-round': '十五點聲望觸發後完成本桌輪', stalemate: '全員皆無可用行動，依目前聲望結算' },
+  },
   'firewall-breach': {
     name: gameCatalog['firewall-breach'].name,
     PlayerClient: props => <FirewallClient {...props} />,

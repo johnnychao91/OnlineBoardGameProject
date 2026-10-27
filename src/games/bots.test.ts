@@ -15,6 +15,7 @@ import { BakerGame, bakerPlayerView } from './baker/game';
 import { BanquetGame, banquetPlayerView } from './banquet/game';
 import { HeistGame, heistPlayerView } from './heist/game';
 import { FirewallGame, firewallPlayerView } from './firewall/game';
+import { StarGame, starPlayerView } from './star/game';
 
 let now = 1_800_000_000_000;
 beforeEach(() => { now = 1_800_000_000_000; vi.spyOn(Date, 'now').mockImplementation(() => now); });
@@ -55,7 +56,7 @@ describe('Test-room bot adapters', () => {
     expect(chooseBotAction('unknown', { G: { players: { '0': {} } } }, '0')).toBeNull();
   });
 
-  it.each([StationGame, CipherGame, FogGame, MoonGame, TuringGame, MailGame, BakerGame, BanquetGame, HeistGame, FirewallGame])('readies a %s seat once and leaves starting to the human host', game => {
+  it.each([StationGame, CipherGame, FogGame, MoonGame, TuringGame, MailGame, BakerGame, BanquetGame, HeistGame, FirewallGame, StarGame])('readies a %s seat once and leaves starting to the human host', game => {
     const f = match(game, game.minPlayers!, undefined, 'bot-ready', undefined, false);
     const move = chooseBotAction(game.name!, f.state, '0');
     expect(move).toEqual({ move: 'setReady', args: [true] });
@@ -66,6 +67,7 @@ describe('Test-room bot adapters', () => {
   });
 
   const scenarios = [
+    ...[2, 3, 4].map(count => ({ game: StarGame, count, options: undefined })),
     ...Array.from({ length: 11 }, (_, i) => ({ game: FirewallGame, count: i + 2, options: undefined })),
     ...[3, 4, 5, 6, 7, 8].map(count => ({ game: HeistGame, count, options: undefined })),
     ...[4, 5, 6, 8, 12].flatMap(count => ['A', 'B'].map(scenario => ({ game: BanquetGame, count, options: { scenario } }))),
@@ -125,12 +127,29 @@ describe('Test-room bot adapters', () => {
         : game.name === 'hundred-ghosts' ? ['acknowledge', 'exchange', 'announce', 'respondClaim']
         : game.name === 'curtain-heist' ? ['acknowledge', 'decide']
         : game.name === 'firewall-breach' ? ['acknowledge', 'placePath', 'playAction', 'discard']
+        : game.name === 'star-workshop' ? ['acknowledge', 'takeTokens', 'buyCard', 'reserveCard']
         : ['acknowledge', 'wolfVote', 'inspect', 'witch', 'finishSpeech', 'exileVote'];
       if (game.name === 'silver-moon' && count === 12) expected.push('guard', 'standForSheriff', 'sheriffVote', 'chooseOrder');
       for (const name of expected) expect(moves.has(name), `${game.name} did not exercise ${name}`).toBe(true);
       if (game.name === 'turing-test') { expect(moves.has('confirmSpoken')).toBe(false); expect(moves.has('approveRedraw')).toBe(false); }
     });
   }
+
+  it.each([2, 3, 4])('Star %i-seat bots resolve a real excess-token choice before the next player acts', count => {
+    const f = match(StarGame, count), ids = Object.keys(f.state.G.players);
+    for (const id of ids) f.move(id, chooseBotAction('star-workshop', f.state, id)!);
+    for (let round = 0; round < 3; round++) {
+      f.move(ids[0], { move: 'takeTokens', args: [['white', 'blue', 'green'], f.state.G.epoch] });
+      for (const id of ids.slice(1)) f.move(id, { move: 'reserveCard', args: [{ kind: 'deck', tier: 3 }, f.state.G.epoch] });
+    }
+    f.move(ids[0], { move: 'takeTokens', args: [['white', 'blue', 'green'], f.state.G.epoch] });
+    expect(f.state.G.status).toBe('return-tokens'); expect(f.state.G.pending.returnCount).toBe(2);
+    for (const id of ids.slice(1)) expect(chooseBotAction('star-workshop', f.state, id)).toBeNull();
+    const move = chooseBotAction('star-workshop', f.state, ids[0])!;
+    expect(move.move).toBe('returnTokens'); f.move(ids[0], move);
+    expect(Object.values(f.state.G.players[ids[0]].tokens).reduce((sum: number, value) => sum + Number(value), 0)).toBe(10);
+    expect(f.state.G.activePlayer).toBe(ids[1]); expect(f.state.G.status).toBe('turn');
+  });
 
   it.each([2, 3])('saved v2 Turing %i-seat bots retain examiner sorting and dual voice cards', count => {
     const f = match(TuringGame, count);
@@ -279,6 +298,7 @@ describe('Test-room bot adapters', () => {
     { game: BanquetGame, project: banquetPlayerView },
     { game: HeistGame, project: heistPlayerView },
     { game: FirewallGame, project: firewallPlayerView },
+    { game: StarGame, project: starPlayerView },
   ])('$game.name decisions need only the same information as a real player', ({ game, project }) => {
     const f = match(game, game.minPlayers!);
     const ids = Object.keys(f.state.G.players);

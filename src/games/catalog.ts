@@ -1,5 +1,6 @@
 /** Public, environment-free metadata shared by the room, rules pages and registries. */
 export const gameCatalog = {
+  'star-workshop': { name: '星匠工坊', description: '收集五種星材，打造天體工藝，吸引星座守護者前來委託。', minPlayers: 2, maxPlayers: 4, detail: '2～4 人 · 資源引擎 · 工藝與聲望競賽', intro: '夜空是一座尚未完工的工坊。從透鏡、刻針與小熔爐起步，運用累積工藝減少未來作品的成本；保留心儀藍圖、調度星材，將聲望推向十五分，並在同一輪結束時決出最出色的星匠。' },
   'firewall-breach': { name: '潛入防火牆', description: '駭客小隊連向企業資料核心，偽裝的追蹤程式卻正架設死路、封鎖工具。', minPlayers: 2, maxPlayers: 12,
     detail: '2～12 人 · 秘密身分 · 網路路線與工具攻防', intro: '資料堡壘深處藏著真正的機密核心。你可以延伸連線、修復工具或干擾他人；藍域與綠域各有利益，企業追蹤程式則希望所有連線都失敗。橋接、權限門與跳躍節點讓每一條路都值得懷疑，三輪之後，以資料點數決定最終贏家。' },
   'curtain-heist': { name: '謝幕劫案', description: '以幻術表演掩護金庫劫案，繼續深入或帶著分紅提前謝幕。', minPlayers: 3, maxPlayers: 8,

@@ -18,6 +18,8 @@ import { HeistGame, heistObserverView, type HeistState } from './heist/game';
 import { normalizeHeistOptions, validateHeistOptions } from './heist/rules';
 import { FirewallGame, firewallObserverView, type FirewallState } from './firewall/game';
 import { normalizeFirewallOptions, validateFirewallOptions } from './firewall/rules';
+import { StarGame, starObserverView, type StarState } from './star/game';
+import { normalizeStarOptions, validateStarOptions } from './star/rules';
 
 export type ObserverPerspective = 'blind' | 'god';
 export interface GameOutcome {
@@ -57,6 +59,20 @@ export interface GameDefinition {
 }
 
 export const gameDefinitions: GameDefinition[] = [{
+  id: 'star-workshop', ...gameCatalog['star-workshop'], game: StarGame,
+  isJoinable: state => state.status === 'lobby',
+  normalizeOptions: options => normalizeStarOptions(options),
+  validateLobbyOptions: options => validateStarOptions(options),
+  validateOptions: (options, count) => validateStarOptions(options, count),
+  startSetupData: (participantIDs, options) => ({ startImmediately: true, participantIDs, options: normalizeStarOptions(options) }),
+  observerView: starObserverView, hideMoveMetadata: true, completedDisplayMs: () => 8000,
+  getOutcome: (state: StarState) => {
+    if (state.status !== 'finished' || !state.winner || !state.winReason) return null;
+    return { winner: state.winner, reason: state.winReason,
+      competition: { mode: 'base', rounds: state.round },
+      roles: Object.fromEntries(Object.keys(state.players).map(id => [id, 'artisans'])) };
+  },
+}, {
   id: 'firewall-breach', ...gameCatalog['firewall-breach'], game: FirewallGame,
   isJoinable: state => state.status === 'lobby',
   normalizeOptions: options => normalizeFirewallOptions(options),

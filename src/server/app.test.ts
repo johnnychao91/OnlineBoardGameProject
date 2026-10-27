@@ -1,4 +1,4 @@
-import { ROOM_CAPACITY } from '../games/catalog';
+import { GAME_IDS, ROOM_CAPACITY } from '../games/catalog';
 import { afterEach, describe, expect, it } from 'vitest';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -53,7 +53,13 @@ describe('Private room admission API', () => {
     const invalidName = await f.request('/api/rooms', { gameId: 'space-station', displayName: '\u0000bad' });
     expect(invalidName).toMatchObject({ status: 400, body: { error: '暱稱需為 1～24 個字，不能含控制字元' } });
     const games = await f.request('/api/games');
-    expect(games.body.games[0]).toEqual({ id: 'space-station', name: '太空維修站', description: expect.any(String), minPlayers: 4, maxPlayers: 8 });
+    expect(games.status).toBe(200);
+    expect(games.body.games.map((game: { id: string }) => game.id).sort()).toEqual([...GAME_IDS].sort());
+    for (const game of games.body.games) {
+      expect(Object.keys(game).sort()).toEqual(['id', 'name', 'description', 'minPlayers', 'maxPlayers'].sort());
+      expect(game).toMatchObject({ id: expect.any(String), name: expect.any(String), description: expect.any(String), minPlayers: expect.any(Number), maxPlayers: expect.any(Number) });
+    }
+    expect(games.body.games.find((game: { id: string }) => game.id === 'space-station')).toEqual({ id: 'space-station', name: '太空維修站', description: expect.any(String), minPlayers: 4, maxPlayers: 8 });
   });
   it('exchanges an invite for an independent seat and never returns other credentials', async () => {
     const f = await fixture(); const host = await f.create();
