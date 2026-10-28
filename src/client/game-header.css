@@ -1,0 +1,10 @@
+.header-brand-group{display:flex;align-items:center;gap:24px;min-width:0}
+.site-header .header-game-name{font-family:Georgia,"Noto Serif TC",serif;font-size:clamp(1.1rem,1.8vw,1.65rem);line-height:1.35;margin:0;padding-left:22px;border-left:1px solid var(--line);white-space:nowrap;color:var(--text,#edf4ff)}
+.header-sound-slot:empty{display:none}
+.header-sound-slot .station-sound-controls{flex-wrap:nowrap;gap:8px}
+.header-sound-slot .station-sound-volume input[type=range]{width:76px}
+/* Titles live in the common header; round and phase controls stay on the table. */
+:is(.room-page,.shared-replay-page):has(.site-header.has-game-title) .game-title>div:first-child{display:none}
+:is(.room-page,.shared-replay-page):has(.site-header.has-game-title) .game-title{justify-content:flex-end}
+@media(max-width:1100px){.site-header.has-game-title{height:auto;min-height:72px;flex-wrap:wrap;gap:10px;padding-top:10px;padding-bottom:10px}.has-game-title .header-links{flex-wrap:wrap;gap:10px}.header-brand-group{gap:14px}.site-header .header-game-name{padding-left:14px}}
+@media(max-width:700px){.site-header.has-game-title{padding:12px 18px;align-items:center}.has-game-title .header-brand-group{width:100%;justify-content:space-between;gap:10px}.site-header .header-game-name{font-size:1.2rem;white-space:normal;text-align:right}.has-game-title .header-links{display:flex;width:100%;justify-content:flex-end;align-items:center;gap:8px}.header-sound-slot{margin-right:auto;min-width:0}.header-sound-slot .station-sound-controls{gap:5px}.header-sound-slot .station-sound-volume input[type=range]{width:52px}.header-sound-slot .station-sound-volume{gap:4px}.header-sound-slot .station-sound-volume>span{display:none}}

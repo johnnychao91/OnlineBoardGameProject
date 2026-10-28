@@ -265,7 +265,7 @@ function Room({ seat, onSwitch }: { seat: AuthSession; onSwitch: (seat: AuthSess
     <button className="button secondary full" onClick={() => navigate('/')}>回到首頁</button>
   </section></main></div>;
   return <div data-art-game={info.gameSelected !== false ? info.gameName : undefined} className={`room-page ${info.status === 'lobby' ? 'room-lobby' : isPlayer(seat) ? 'room-playing room-game' : 'room-observer room-game'}${stationActive ? ' station-active-room' : ''}`}>
-    <Header room={seat.roomId} rulesGame={info.gameSelected !== false ? info.gameName : undefined} />
+    <Header room={seat.roomId} gameID={info.status !== 'lobby' ? info.gameName : undefined} rulesGame={info.gameSelected !== false ? info.gameName : undefined} />
     {error && <div className="room-error"><ErrorMessage>{error}</ErrorMessage><p className="small muted">連線恢復後會自動重試。請保留這個頁面。</p></div>}
     {!loaded ? !error && <main className="narrow"><p className="loading" role="status">正在確認你的房間身分…</p></main>
       : <RoomContext.Provider value={{ seat: session, info, inviteUrl, setInviteUrl, onUpdate: acceptInfo, managementContainer }}>

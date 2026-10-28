@@ -1,8 +1,10 @@
-import type { ReactNode } from 'react';
+import { useContext, type ReactNode } from 'react';
+import { GameHeaderContext } from './game-header-context';
+import './game-header.css';
 import siteIcon from './assets/site-icon.png';
 import { VisualStyleSwitch } from './visual-style';
 import './brand.css';
-import { isGameID } from '../games/catalog';
+import { gameCatalog, isGameID } from '../games/catalog';
 
 export function navigate(path: string) {
   history.pushState(null, '', path);
@@ -23,9 +25,13 @@ export function Icon({ type, size = 20 }: { type: 'orbit' | 'link' | 'arrow' | '
   return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{paths[type]}</svg>;
 }
 
-export function Header({ room, rulesGame }: { room?: string; rulesGame?: string }) {
-  const rulesPath = rulesGame && isGameID(rulesGame) ? `/rules/${rulesGame}` : '/rules';
-  return <header className="site-header"><button className="brand" onClick={() => navigate('/')} aria-label="回捷寶桌遊室首頁"><span className="brand-symbol"><img src={siteIcon} alt="" /></span><span>捷寶桌遊室<small>BOARDGAME</small></span></button><div className="header-links"><VisualStyleSwitch /><a className="header-rules-link" href={rulesPath} target={room ? '_blank' : undefined} rel={room ? 'noopener noreferrer' : undefined}>詳細規則</a>{room ? <span className="room-tag">私人房間</span> : <span className="beta-tag">試玩版</span>}</div></header>;
+export function Header({ room, rulesGame, gameID }: { room?: string; rulesGame?: string; gameID?: string }) {
+  const chrome = useContext(GameHeaderContext);
+  const activeGame = chrome?.replayGameID ?? gameID;
+  const gameName = activeGame && isGameID(activeGame) ? gameCatalog[activeGame].name : undefined;
+  const rulesTarget = activeGame ?? rulesGame;
+  const rulesPath = rulesTarget && isGameID(rulesTarget) ? `/rules/${rulesTarget}` : '/rules';
+  return <header className={`site-header${gameName ? ' has-game-title' : ''}`}><div className="header-brand-group"><button className="brand" onClick={() => navigate('/')} aria-label="回捷寶桌遊室首頁"><span className="brand-symbol"><img src={siteIcon} alt="" /></span><span>捷寶桌遊室<small>BOARDGAME</small></span></button>{gameName && <h1 className="header-game-name">{gameName}</h1>}</div><div className="header-links"><div className="header-sound-slot" ref={chrome?.setSoundTarget} /><VisualStyleSwitch /><a className="header-rules-link" href={rulesPath} target={room ? '_blank' : undefined} rel={room ? 'noopener noreferrer' : undefined}>詳細規則</a>{room ? <span className="room-tag">私人房間</span> : <span className="beta-tag">試玩版</span>}</div></header>;
 }
 
 export function ErrorMessage({ children }: { children: ReactNode }) { return children ? <p className="error-message" role="alert">{children}</p> : null; }

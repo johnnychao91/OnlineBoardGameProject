@@ -60,7 +60,7 @@ describe('Curtain Heist player, snapshot and rule surfaces', () => {
   });
   it('renders only the player vault and public path, never a future card or another sealed choice', () => {
     const G = fixture(), before = structuredClone(G), html = board(G);
-    expect(html).toContain('data-private-bank="true">123'); expect(html).toContain('1 / 3 位已密封決定');
+    expect(html).toContain('data-private-bank="true">123'); expect(html).not.toContain('位已密封決定'); expect(html).toContain('仍在現場 · 已密封');
     expect(html).not.toContain('98761'); expect(html).not.toContain('98765'); expect(html).not.toContain('你的選擇：撤退'); expect(html).not.toContain(seat.credentials);
     const route = html.split('class="heist-path"')[1].split('</details>')[0];
     expect((route.match(/class="heist-card"/g) ?? []).length).toBe(3); expect(G).toEqual(before);
@@ -107,13 +107,14 @@ describe('Curtain Heist player, snapshot and rule surfaces', () => {
   });
   it('publishes resolved simultaneous choices but never labels another pending choice', () => {
     const G = fixture(); G.lastDecision = { round: 2, step: 2, choices: { '0': 'explore', '3': 'explore', '7': 'exit' }, exited: ['7'], continued: ['0', '3'], returns: [{ playerID: '7', carried: 4, pathShare: 2, bankedDelta: 6, artifacts: [] }] };
-    const html = snapshot(G, 'blind'); expect(html).toContain('上一批公開決定'); expect(html).toContain('成員-7'); expect(html).toContain('存入 6 點'); expect(html).not.toContain('你的選擇：撤退');
+    G.log.push({ type: 'decision', round: 2, step: 2, message: '所有密封選擇同時公開。', choices: G.lastDecision.choices }, { type: 'exit', round: 2, step: 2, message: '撤離入庫', returns: G.lastDecision.returns });
+    const html = snapshot(G, 'blind'); expect(html).not.toContain('上一批公開決定'); expect(html).toContain('玩家狀態'); expect(html).toContain('成員-7'); expect(html).toContain('存入 6 點'); expect(html).not.toContain('你的選擇：撤退');
   });
   it('reveals final score breakdown only after the fifth review completes, including shared winners', () => {
     const G = fixture(); G.round = 5; G.status = 'review';
     expect(board(G)).toContain('確認結果，公開總分'); expect(snapshot(G, 'blind')).not.toContain('五幕財富總帳');
     G.status = 'finished'; G.winnerIDs = ['0', '7']; G.finalScores = { '0': { banked: 20, artifactValue: 12, artifactCount: 1, total: 32 }, '3': { banked: 12, artifactValue: 0, artifactCount: 0, total: 12 }, '7': { banked: 27, artifactValue: 5, artifactCount: 1, total: 32 } };
-    const html = snapshot(G, 'blind'); expect(html).toContain('成員-0、成員-7贏得謝幕劫案'); expect(html).toContain('五幕財富總帳'); expect(html).toContain('data-private-bank="true">20'); expect(html).toContain('件數');
+    const html = snapshot(G, 'blind'); expect(html).toContain('成員-0 · 勝者'); expect(html).toContain('成員-7 · 勝者'); expect(html).toContain('五幕財富總帳'); expect(html).toContain('data-private-bank="true">20'); expect(html).toContain('件數');
   });
   it('offers all chapters, fifteen original illustrated references and exact base values', () => {
     const html = renderToStaticMarkup(createElement(HeistRules));

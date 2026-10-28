@@ -1,3 +1,6 @@
+import { useContext } from 'react';
+import { createPortal } from 'react-dom';
+import { GameHeaderContext } from './game-header-context';
 import { clientGames } from './game-registry';
 import { StationSoundToggle, useGameSounds } from './station-sounds';
 
@@ -8,5 +11,7 @@ export function GameSoundControl({ gameID, G, matchID, playerID, connected = tru
   const adapter = clientGames[gameID]?.soundAdapter;
   const controls = useGameSounds({ G: G && adapter ? adapter(G, playerID) : undefined,
     matchID, playerID, connected, enabled: !!adapter });
-  return <StationSoundToggle controls={controls} />;
+  const header = useContext(GameHeaderContext);
+  const toggle = <StationSoundToggle controls={controls} />;
+  return header?.soundTarget ? createPortal(toggle, header.soundTarget) : toggle;
 }

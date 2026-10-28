@@ -106,7 +106,22 @@
 
 @media(min-width:1100px) and (min-height:700px){
   .heist-layout .heist-main>.heist-hazards{margin-top:10px}
-  .heist-layout .heist-main>.heist-hazards>div{display:grid;grid-template-columns:24px minmax(0,1fr);gap:2px 5px;padding:6px}
-  .heist-layout .heist-main>.heist-hazards img{grid-column:1;grid-row:1/4;width:22px;height:34px;align-self:center}
+  .heist-layout .heist-main>.heist-hazards>div{display:grid;grid-template-columns:48px minmax(0,1fr);gap:4px 8px;padding:10px}
+  .heist-layout .heist-main>.heist-hazards img{grid-column:1;grid-row:1/4;width:48px;height:72px;align-self:center}
   .heist-layout .heist-main>.heist-hazards :is(strong,span,small){grid-column:2;text-align:center}
 }
+
+/* Public crew now follows the last decisions in the right column. */
+.heist-personal-aside .heist-crew{grid-template-columns:minmax(0,1fr);gap:10px;margin:14px 0 0;padding:0;border-top:0}
+.heist-personal-aside .heist-crew article{padding:11px 12px}
+.heist-personal-aside .heist-crew article>div:first-child>strong{font-size:.82rem}
+.heist-personal-aside .heist-crew p{font-size:.75rem;margin-top:8px}
+.heist-personal-aside .heist-crew p>span{font-size:.68rem}
+@media(min-width:1100px) and (min-height:700px){
+  .heist-layout .heist-main>.heist-hazards strong{font-size:.72rem;line-height:1.5;overflow-wrap:anywhere}
+  .heist-layout .heist-main>.heist-hazards span{font-size:1.2rem;line-height:1.2}
+  .heist-layout .heist-main>.heist-hazards small{font-size:.58rem}
+}
+
+.heist-layout .heist-card-caption{display:block;max-width:100%;margin-top:6px;padding:4px 6px;border-top:1px solid #b99a5755;border-radius:4px;background:#0c1621b3;color:#ffe9c6;font-size:.68rem;line-height:1.45;overflow-wrap:anywhere}
+:root[data-visual-style=simple] .heist-layout .heist-card-caption{background:#e3d4ba;color:#544325;border-color:#b99a57}
