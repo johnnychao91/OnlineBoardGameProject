@@ -1,7 +1,8 @@
+import { GAME_IDS, gameCatalog } from '../games/catalog';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-import { ChallengeStandings, CompetitionStandings, GameStatisticsCard, factionRecord } from './Statistics';
+import { ChallengeStandings, CompetitionStandings, GameStatisticsCard, StatisticsBody, factionRecord } from './Statistics';
 import { RoomHistory } from './RoomHistory';
 import type { RoomInfo } from './api';
 
@@ -99,4 +100,26 @@ it('shows heist earnings with player names, tied ranks and escaped nickname text
 it('renders a separate single-act leaderboard with the player and act number',()=>{
   const html=renderToStaticMarkup(createElement(CompetitionStandings,{gameID:'curtain-heist',competitions:[{mode:'five-acts-hazard-3',numPlayers:3,runs:1,totalRounds:5,averageRounds:5,roundHighScores:[{name:'Johnny',total:42,round:4}]}]}));
   expect(html).toContain('單幕最高收益排行');expect(html).toContain('Johnny');expect(html).toContain('第 4 幕');expect(html).toContain('42 點');expect(html).not.toContain('單局最高收益排行');
+});
+
+describe('Lobby selected-game statistics', () => {
+  const data = { completedGames: 11, totalPlayerParticipations: 55, byGame: GAME_IDS.map(gameId => ({ gameId, name: gameCatalog[gameId].name, completed: 1, wins: {}, reasons: {}, byPlayerCount: [] })) };
+  it.each(GAME_IDS)('selects only %s without showing site totals or other games', gameID => {
+    const before = structuredClone(data);
+    const html = renderToStaticMarkup(createElement(StatisticsBody, { data, gameID }));
+    expect(html).toContain(gameCatalog[gameID].name);
+    for (const other of GAME_IDS.filter(id => id !== gameID)) expect(html).not.toContain(gameCatalog[other].name);
+    expect(html).not.toContain('site-totals');
+    expect((html.match(/class="game-statistics"/g) ?? [])).toHaveLength(1);
+    expect(data).toEqual(before);
+  });
+  it('retains every game and the site totals on the home page', () => {
+    const html = renderToStaticMarkup(createElement(StatisticsBody, { data }));
+    for (const id of GAME_IDS) expect(html).toContain(gameCatalog[id].name);
+    expect(html).toContain('site-totals');
+  });
+  it('handles unavailable records without substituting another game', () => {
+    const html = renderToStaticMarkup(createElement(StatisticsBody, { data: { ...data, byGame: [] }, gameID: 'curtain-heist' }));
+    expect(html).toContain('此遊戲尚無統計資料'); expect(html).not.toContain('game-statistics');
+  });
 });

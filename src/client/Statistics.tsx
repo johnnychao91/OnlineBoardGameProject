@@ -18,7 +18,7 @@ export interface GameStatistics {
   challenges?: { mode: string; numPlayers: number; startingLives: number; runs: number; bestCompletedRounds: number; averageCompletedRounds: number }[];
   competitions?: { mode: string; numPlayers: number; runs: number; totalRounds: number; averageRounds: number; highScores?: { name: string; total: number }[]; roundHighScores?: { name: string; total: number; round: number }[] }[];
 }
-interface StatisticsData { completedGames: number; totalPlayerParticipations: number; byGame: GameStatistics[]; }
+export interface StatisticsData { completedGames: number; totalPlayerParticipations: number; byGame: GameStatistics[]; }
 
 export function factionRecord(game: Pick<GameStatistics, 'completed' | 'rankedCompleted' | 'draws' | 'wins'>, faction: string) {
   const ranked = Math.max(0, Math.min(game.completed, game.rankedCompleted ?? game.completed));
@@ -137,7 +137,7 @@ export function GameStatisticsCard({ game }: { game: GameStatistics }) {
   </article>;
 }
 
-export function Statistics() {
+export function Statistics({ gameID }: { gameID?: string } = {}) {
   const [data, setData] = useState<StatisticsData | null>(null);
   const [error, setError] = useState('');
   const [revision, setRevision] = useState(0);
@@ -148,14 +148,23 @@ export function Statistics() {
     return () => controller.abort();
   }, [revision]);
   return <section className="statistics-section panel">
-    <div className="section-heading"><div><div className="section-label">MISSION ARCHIVE</div><h2>這裡的每一場任務</h2></div><button className="text-button" onClick={() => setRevision(n => n + 1)}>更新統計</button></div>
-    <p className="small muted">全站已完成的對局與勝敗；無盡挑戰及個人競賽另列紀錄，觀戰不計入參與人次。</p>
+    <div className="section-heading"><div><div className="section-label">MISSION ARCHIVE</div><h2>{gameID ? '遊戲統計' : '這裡的每一場任務'}</h2></div><button className="text-button" onClick={() => setRevision(n => n + 1)}>更新統計</button></div>
+    <p className="small muted">{gameID ? '此遊戲' : '全站'}已完成的對局與勝敗；無盡挑戰及個人競賽另列紀錄，觀戰不計入參與人次。</p>
     <ErrorMessage>{error}</ErrorMessage>
     {!data && !error && <p className="small muted" role="status">正在讀取統計…</p>}
-    {data && <>
+    {data && <StatisticsBody data={data} gameID={gameID} />}
+  </section>;
+}
+
+/** Lobby and home render the same records; the lobby selects just one game. */
+export function StatisticsBody({ data, gameID }: { data: StatisticsData; gameID?: string }) {
+  if (gameID) {
+    const game = data.byGame.find(game => game.gameId === gameID);
+    return game ? <GameStatisticsCard game={game} /> : <p className="small muted">此遊戲尚無統計資料。</p>;
+  }
+  return <>
       <div className="site-totals"><div><strong>{data.completedGames.toLocaleString()}</strong><span>完成對局</span></div><div><strong>{data.totalPlayerParticipations.toLocaleString()}</strong><span>玩家參與人次</span></div></div>
       {data.completedGames === 0 && <p className="small muted">第一場任務完成後，這裡就會開始累積戰績。</p>}
       {data.byGame.map(game => <GameStatisticsCard key={game.gameId} game={game} />)}
-    </>}
-  </section>;
+  </>;
 }

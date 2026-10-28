@@ -169,6 +169,7 @@ function Lobby({ onUpdate }: { onUpdate: (info: RoomInfo) => void }) {
       </button>}
       {(isPlayer(seat) || host) && <p className="small muted center">{selected ? `${ready} / ${players.length} 位已準備 · ${host ? '開始時鎖定隊員名單與本局人數。' : '全員準備後，等待房主開始。'}` : '先選遊戲，再一起準備；切換遊戲後需要重新準備。'}</p>}
     </div>
+    {selected && <Statistics gameID={info.gameName} />}
   </section><aside className="lobby-info-column">{host ? <ShareInvite active /> : <Note>邀請由房主管理。遊戲開始後，仍可邀請其他朋友來觀戰。</Note>}
     <RoomGamePicker seat={seat} info={info} disabled={busy} onBusy={value => { gameLocked.current = value; setGameBusy(value); }} onUpdate={onUpdate} />
     {Rules && presentation && <div className="panel mission-brief"><div className="section-label">任務簡報</div><h2>{presentation.lobbyTitle || '遊戲簡介'}</h2><p>{presentation.lobbyDescription}</p><button className="text-button" onClick={() => setRules(!rules)}>{rules ? '收起玩法' : '展開玩法說明'} ↓</button>{rules && <Rules />}<a className="full-rules-link" href={`/rules/${info.gameName}`} target="_blank" rel="noopener noreferrer">閱讀完整詳細規則 ↗</a></div>}

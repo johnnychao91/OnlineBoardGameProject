@@ -92,3 +92,6 @@
   .faction-duel-record { column-gap: 6px; }
   :root[data-visual-style="art"] .faction-clash { height: 68px; }
 }
+
+.lobby-player-column>.statistics-section{margin-top:24px;min-width:0}
+.lobby-player-column>.statistics-section>.game-statistics{margin-top:18px}
