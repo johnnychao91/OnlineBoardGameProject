@@ -125,3 +125,15 @@
 
 .heist-layout .heist-card-caption{display:block;max-width:100%;margin-top:6px;padding:4px 6px;border-top:1px solid #b99a5755;border-radius:4px;background:#0c1621b3;color:#ffe9c6;font-size:.68rem;line-height:1.45;overflow-wrap:anywhere}
 :root[data-visual-style=simple] .heist-layout .heist-card-caption{background:#e3d4ba;color:#544325;border-color:#b99a57}
+
+/* With the shared title and audio above, no empty heading row is needed. */
+:is(.room-page,.shared-replay-page):has(.site-header.has-game-title) .heist-layout .heist-heading{display:none}
+
+.heist-layout .heist-path{border-top:0;padding-top:0;margin-top:0}
+
+/* Remaining counts stay expanded with the fixed warning footer. */
+.heist-layout .heist-main>.heist-deck-summary{flex-shrink:0;margin:10px 0 0;padding:10px 12px}
+.heist-deck-heading{display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 14px}
+.heist-deck-heading h2{font-size:.82rem;line-height:1.5;margin:0;color:var(--heist-ink)}
+.heist-layout .heist-deck-heading p{font-size:.66rem;line-height:1.5;margin:0}
+.heist-layout .heist-deck-summary ul{font-size:.73rem;line-height:1.6;gap:5px 12px;margin:8px 0 0}

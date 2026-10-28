@@ -62,7 +62,7 @@ describe('Curtain Heist player, snapshot and rule surfaces', () => {
     const G = fixture(), before = structuredClone(G), html = board(G);
     expect(html).toContain('data-private-bank="true">123'); expect(html).not.toContain('位已密封決定'); expect(html).toContain('仍在現場 · 已密封');
     expect(html).not.toContain('98761'); expect(html).not.toContain('98765'); expect(html).not.toContain('你的選擇：撤退'); expect(html).not.toContain(seat.credentials);
-    const route = html.split('class="heist-path"')[1].split('</details>')[0];
+    const route = html.split('class="heist-path"')[1].split('</section>')[0];
     expect((route.match(/class="heist-card"/g) ?? []).length).toBe(3); expect(G).toEqual(before);
   });
   it('reprojects a cached god snapshot before showing blind mode and preserves input', () => {
