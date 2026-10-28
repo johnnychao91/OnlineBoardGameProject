@@ -112,12 +112,19 @@ async function fixture() {
     // Every participant acts from the same pre-submission snapshot. Later
     // packets therefore intentionally carry an old boardgame.io state ID.
     for (const entry of entries) emitMove(g, entry.id, entry.action, before._stateID);
-    await Promise.all(entries.map(entry => {
-      const index = g.seats.findIndex(seat => seat.playerID === entry.id);
-      return sync(g.clients[index], g, g.seats[index]);
-    }));
+    // A sync also persists connection metadata. Queueing one per participant
+    // adds N full archive rewrites behind the batch and can time out on a Pi.
+    // First prove every real socket move was durably accepted (cross-socket
+    // arrival order is not guaranteed), then use one authorized sync barrier.
+    await vi.waitFor(async () => {
+      expect((await state(g.matchID))._stateID).toBe(before._stateID + entries.length);
+    }, ioWait);
+    const last = entries.at(-1)!;
+    const index = g.seats.findIndex(seat => seat.playerID === last.id);
+    const committed = await sync(g.clients[index], g, g.seats[index]);
     const after = await state(g.matchID);
     expect(after._stateID).toBe(before._stateID + entries.length);
+    expect(committed.state._stateID).toBe(after._stateID);
     await vi.waitFor(() => g.clients.forEach(socket => expect(broadcasts.get(socket)).toBe(after._stateID)), ioWait);
     return after;
   };
@@ -238,6 +245,26 @@ async function exhaustRound(f: Fixture, g: Group) {
 }
 
 describe('Firewall Breach authenticated hidden information, three-round archives and durable turns', () => {
+  it('commits a 12-player batch on slow storage with one full sync and all private views', async () => {
+    const f = await fixture(), g = await group(f, 12);
+    await start(f, g);
+    const fetch = f.app.db.fetch.bind(f.app.db);
+    const reads = vi.spyOn(f.app.db, 'fetch').mockImplementation(async (matchID, options) => {
+      // Full sync loads the archive and initial state. Slow only that read,
+      // leaving normal move validation and durable writes at their real speed.
+      if (options.initialState) await new Promise(resolve => setTimeout(resolve, 1000));
+      return fetch(matchID, options);
+    });
+    try {
+      const before = await f.state(g.matchID);
+      const committed = await acknowledgeAll(f, g);
+      expect(committed._stateID).toBe(before._stateID + 12);
+      expect(committed.G.status).toBe('turn');
+      expect(reads.mock.calls.filter(([, options]) => options.initialState)).toHaveLength(1);
+      assertPlayerViews(f, g, committed);
+    } finally { reads.mockRestore(); }
+  }, 30000);
+
   it('rejects a one-person launch even when the host forges the participant count', async () => {
     const f = await fixture(), g = await group(f, 1);
     await ready(f, g);
