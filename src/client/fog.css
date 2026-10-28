@@ -190,29 +190,29 @@
 }
 
 /* Original art loads only when the player selects the art style. */
-:root[data-visual-style="art"] [data-art-game="black-fog"] { --art-scene: url('./assets/art/fog/city.webp'); }
-:root[data-visual-style="art"] .fog-role-art { display: block; width: 100%; height: 154px; margin-bottom: 11px; background-position: center; background-size: contain; background-repeat: no-repeat; border-radius: 8px; border: 1px solid #b49e6c; }
-:root[data-visual-style="art"] .fog-role-art[data-fog-role="merlin"] { background-image: url('./assets/art/fog/merlin.webp'); }
-:root[data-visual-style="art"] .fog-role-art[data-fog-role="percival"] { background-image: url('./assets/art/fog/percival.webp'); }
-:root[data-visual-style="art"] .fog-role-art[data-fog-role="loyal-servant"] { background-image: url('./assets/art/fog/loyal.webp'); }
-:root[data-visual-style="art"] .fog-role-art[data-fog-role="assassin"] { background-image: url('./assets/art/fog/assassin.webp'); }
-:root[data-visual-style="art"] .fog-role-art[data-fog-role="morgana"] { background-image: url('./assets/art/fog/morgana.webp'); }
-:root[data-visual-style="art"] .fog-role-art[data-fog-role="mordred"] { background-image: url('./assets/art/fog/mordred.webp'); }
-:root[data-visual-style="art"] .fog-role-art[data-fog-role="oberon"] { background-image: url('./assets/art/fog/oberon.webp'); }
-:root[data-visual-style="art"] .fog-role-art[data-fog-role="minion"] { background-image: url('./assets/art/fog/minion.webp'); }
-:root[data-visual-style="art"] .fog-role-art[data-fog-role="good-lancelot"] { background-image: url('./assets/art/fog/lancelot-good.webp'); }
-:root[data-visual-style="art"] .fog-role-art[data-fog-role="evil-lancelot"] { background-image: url('./assets/art/fog/lancelot-evil.webp'); }
-:root[data-visual-style="art"] .fog-lighthouse-art { display: block; height: 60px; width: 100%; background-position: center; background-size: contain; background-repeat: no-repeat; }
-:root[data-visual-style="art"] .fog-lighthouse-art[data-lighthouse-state="unlit"] { background-image: url('./assets/art/fog/lighthouse-unlit.webp'); }
-:root[data-visual-style="art"] .fog-lighthouse-art[data-lighthouse-state="lit"] { background-image: url('./assets/art/fog/lighthouse-lit.webp'); }
-:root[data-visual-style="art"] .fog-lighthouse-art[data-lighthouse-state="corrupted"] { background-image: url('./assets/art/fog/lighthouse-corrupted.webp'); }
-:root[data-visual-style="art"] .fog-bell-art { display: block; height: 37px; width: 37px; flex: 0 0 37px; background: url('./assets/art/fog/bell.webp') center / cover; border-radius: 7px; }
-:root[data-visual-style="art"] .fog-layout .panel { border-color: #716c57; }
-:root[data-visual-style="art"] .fog-status { background: #34382f; border-color: #ac9460; }
-:root[data-visual-style="art"] .fog-player.selected { background: #35483a; border-color: #b9b27c; }
-:root[data-visual-style="art"] .fog-role-card { background-color: #253b31; }
-:root[data-visual-style="art"] .fog-role-card.apostles { background-color: #3d3038; }
+:root:root [data-art-game="black-fog"] { --art-scene: url('./assets/art/fog/city.webp'); }
+:root:root .fog-role-art { display: block; width: 100%; height: 154px; margin-bottom: 11px; background-position: center; background-size: contain; background-repeat: no-repeat; border-radius: 8px; border: 1px solid #b49e6c; }
+:root:root .fog-role-art[data-fog-role="merlin"] { background-image: url('./assets/art/fog/merlin.webp'); }
+:root:root .fog-role-art[data-fog-role="percival"] { background-image: url('./assets/art/fog/percival.webp'); }
+:root:root .fog-role-art[data-fog-role="loyal-servant"] { background-image: url('./assets/art/fog/loyal.webp'); }
+:root:root .fog-role-art[data-fog-role="assassin"] { background-image: url('./assets/art/fog/assassin.webp'); }
+:root:root .fog-role-art[data-fog-role="morgana"] { background-image: url('./assets/art/fog/morgana.webp'); }
+:root:root .fog-role-art[data-fog-role="mordred"] { background-image: url('./assets/art/fog/mordred.webp'); }
+:root:root .fog-role-art[data-fog-role="oberon"] { background-image: url('./assets/art/fog/oberon.webp'); }
+:root:root .fog-role-art[data-fog-role="minion"] { background-image: url('./assets/art/fog/minion.webp'); }
+:root:root .fog-role-art[data-fog-role="good-lancelot"] { background-image: url('./assets/art/fog/lancelot-good.webp'); }
+:root:root .fog-role-art[data-fog-role="evil-lancelot"] { background-image: url('./assets/art/fog/lancelot-evil.webp'); }
+:root:root .fog-lighthouse-art { display: block; height: 60px; width: 100%; background-position: center; background-size: contain; background-repeat: no-repeat; }
+:root:root .fog-lighthouse-art[data-lighthouse-state="unlit"] { background-image: url('./assets/art/fog/lighthouse-unlit.webp'); }
+:root:root .fog-lighthouse-art[data-lighthouse-state="lit"] { background-image: url('./assets/art/fog/lighthouse-lit.webp'); }
+:root:root .fog-lighthouse-art[data-lighthouse-state="corrupted"] { background-image: url('./assets/art/fog/lighthouse-corrupted.webp'); }
+:root:root .fog-bell-art { display: block; height: 37px; width: 37px; flex: 0 0 37px; background: url('./assets/art/fog/bell.webp') center / cover; border-radius: 7px; }
+:root:root .fog-layout .panel { border-color: #716c57; }
+:root:root .fog-status { background: #34382f; border-color: #ac9460; }
+:root:root .fog-player.selected { background: #35483a; border-color: #b9b27c; }
+:root:root .fog-role-card { background-color: #253b31; }
+:root:root .fog-role-card.apostles { background-color: #3d3038; }
 @media (min-width: 1100px) and (min-height: 700px) {
-  :root[data-visual-style="art"] .fog-lighthouse-art { width: 100%; height: clamp(80px,calc(14vh - 18px),133px); margin-bottom: 3px; }
-  :root[data-visual-style="art"] .fog-bell-art { width: 28px; height: 28px; flex-basis: 28px; }
+  :root:root .fog-lighthouse-art { width: 100%; height: clamp(80px,calc(14vh - 18px),133px); margin-bottom: 3px; }
+  :root:root .fog-bell-art { width: 28px; height: 28px; flex-basis: 28px; }
 }

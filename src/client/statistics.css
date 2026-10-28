@@ -30,38 +30,38 @@
 .faction-duel-note { margin: 0 0 8px; color: var(--muted); font-size: 11px; }
 
 /* Both waves meet at the real win ratio. Effects are purely decorative. */
-:root[data-visual-style="art"] .faction-clash { height: 80px; margin-top: 0; }
-:root[data-visual-style="art"] .faction-clash-track {
+:root:root .faction-clash { height: 80px; margin-top: 0; }
+:root:root .faction-clash-track {
   height: 28px; border-radius: 50% / 35%; background: #293c3c;
   box-shadow: 0 0 20px #050b0c80;
 }
-:root[data-visual-style="art"] .faction-wave--left { background: linear-gradient(90deg, #244e47, #428e79 25%, #7ce3c5 80%, #d8fff0); }
-:root[data-visual-style="art"] .faction-wave--right { background: linear-gradient(90deg, #ffe5dd, #ff7987 20%, #a34755 75%, #522d38); }
-:root[data-visual-style="art"] .faction-wave::before {
+:root:root .faction-wave--left { background: linear-gradient(90deg, #244e47, #428e79 25%, #7ce3c5 80%, #d8fff0); }
+:root:root .faction-wave--right { background: linear-gradient(90deg, #ffe5dd, #ff7987 20%, #a34755 75%, #522d38); }
+:root:root .faction-wave::before {
   content: ''; position: absolute; top: 42%; left: 0; right: 0; height: 16%;
   background: #e7fff3; opacity: .85; box-shadow: 0 0 9px 3px #a8ffe3;
 }
-:root[data-visual-style="art"] .faction-wave--right::before { background: #fff1e7; box-shadow: 0 0 9px 3px #ffb8ae; }
-:root[data-visual-style="art"] .faction-wave::after {
+:root:root .faction-wave--right::before { background: #fff1e7; box-shadow: 0 0 9px 3px #ffb8ae; }
+:root:root .faction-wave::after {
   content: ''; position: absolute; inset: 0; opacity: .45;
   background: repeating-linear-gradient(115deg, transparent 0 12px, #f5fff64d 13px, transparent 17px 36px);
 }
-:root[data-visual-style="art"] .faction-wave--right::after { background-image: repeating-linear-gradient(65deg, transparent 0 12px, #fff1e74d 13px, transparent 17px 36px); }
-:root[data-visual-style="art"] .faction-clash-contact { width: 72px; height: 76px; background: none; }
-:root[data-visual-style="art"] .faction-clash-contact::before {
+:root:root .faction-wave--right::after { background-image: repeating-linear-gradient(65deg, transparent 0 12px, #fff1e74d 13px, transparent 17px 36px); }
+:root:root .faction-clash-contact { width: 72px; height: 76px; background: none; }
+:root:root .faction-clash-contact::before {
   content: ''; position: absolute; inset: 3px -8px;
   background: radial-gradient(ellipse, #fff9dc 0, #fcf5c1b3 9%, #e0f1ba59 25%, transparent 65%);
 }
-:root[data-visual-style="art"] .faction-clash-contact::after {
+:root:root .faction-clash-contact::after {
   content: ''; position: absolute; inset: 10px 22px; border: 1px solid #fff5c585;
   border-radius: 50%; transform: rotate(16deg); box-shadow: 0 0 10px #f2e9b544;
 }
-:root[data-visual-style="art"] .faction-clash-core {
+:root:root .faction-clash-core {
   display: block; position: absolute; inset: 5px 23px; background: #fff7d8;
   clip-path: polygon(43% 0, 60% 21%, 47% 35%, 83% 43%, 60% 51%, 83% 69%, 56% 64%, 48% 100%, 32% 77%, 44% 59%, 15% 52%, 39% 42%, 23% 27%, 46% 32%);
   filter: drop-shadow(0 0 4px #f7edbb);
 }
-:root[data-visual-style="art"] .faction-clash-contact i {
+:root:root .faction-clash-contact i {
   display: block; position: absolute; top: 50%; left: 50%; height: 2px; width: 4px;
   border-radius: 50%; background: #fff2c4; box-shadow: 0 0 5px #fff2c4; opacity: 0;
 }
@@ -73,10 +73,10 @@
 .faction-clash-contact i:nth-of-type(6) { --spark-x: 13px; --spark-y: -32px; --spark-delay: -1.5s; }
 
 @media (prefers-reduced-motion: no-preference) {
-  :root[data-visual-style="art"] .faction-wave::after { animation: faction-wave-flow 1.8s linear infinite; }
-  :root[data-visual-style="art"] .faction-wave--right::after { animation-direction: reverse; }
-  :root[data-visual-style="art"] .faction-clash-contact::before { animation: faction-clash-glow 2.8s ease-in-out infinite alternate; }
-  :root[data-visual-style="art"] .faction-clash-contact i { animation: faction-clash-spark 2.4s var(--spark-delay) ease-out infinite; }
+  :root:root .faction-wave::after { animation: faction-wave-flow 1.8s linear infinite; }
+  :root:root .faction-wave--right::after { animation-direction: reverse; }
+  :root:root .faction-clash-contact::before { animation: faction-clash-glow 2.8s ease-in-out infinite alternate; }
+  :root:root .faction-clash-contact i { animation: faction-clash-spark 2.4s var(--spark-delay) ease-out infinite; }
 }
 @keyframes faction-wave-flow { to { background-position: 36px 0; } }
 @keyframes faction-clash-glow { from { opacity: .6; transform: scale(.85); } to { opacity: 1; transform: scale(1.1); } }
@@ -90,7 +90,7 @@
   .faction-duel-name { font-size: 13px; }
   .faction-duel-wins { font-size: 26px; }
   .faction-duel-record { column-gap: 6px; }
-  :root[data-visual-style="art"] .faction-clash { height: 68px; }
+  :root:root .faction-clash { height: 68px; }
 }
 
 .lobby-player-column>.statistics-section{margin-top:24px;min-width:0}

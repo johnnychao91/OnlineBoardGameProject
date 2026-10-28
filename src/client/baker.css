@@ -170,13 +170,6 @@
 .baker-scene-reference li { padding:5px 0; border-top:1px solid #b6ab7330; color:#d0dac5; font-size:12px; }
 .baker-scene-reference.special { border-color:#ad7e6488; background:#352f29; }
 .baker-scene-reference p { font-size:13px; line-height:2; }
-:root[data-visual-style=simple] .baker-layout .baker-object-art,:root[data-visual-style=simple] .baker-layout .baker-identity-card .baker-art { display:none; }
-:root[data-visual-style=simple] .baker-layout .baker-card { box-shadow:none; background:#1b3440; border-color:#638e9a; }
-:root[data-visual-style=simple] .baker-layout .baker-card[data-kind=clue] { border-color:#ba8790; }
-:root[data-visual-style=simple] .baker-layout .baker-card-name { color:#e3e9dc; background:transparent; border:0; min-height:62px; }
-:root[data-visual-style=simple] .baker-layout .baker-card-inspect { background:#274552; color:#c4ddd8; }
-:root[data-visual-style=simple] .baker-layout .baker-card-select:not(:disabled):hover .baker-card-name { background:#3d5861; }
-:root[data-visual-style=simple] .baker-card-dialog .baker-art { display:block; }
 @media(min-width:1100px) and (min-height:700px) {
   :is(.room-game,.replay-panel,.shared-replay) .baker-layout { display:grid; flex:1; grid-template-columns:205px minmax(0,1fr) 275px; grid-template-rows:minmax(0,1fr); gap:13px; min-height:0; height:100%; width:100%; max-width:none; margin:0; padding:0 20px 12px; align-items:stretch; overflow:hidden; }
   :is(.replay-panel,.shared-replay,.observation-panel) .baker-layout { padding:0; }

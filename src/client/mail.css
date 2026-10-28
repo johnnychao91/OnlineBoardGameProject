@@ -126,11 +126,7 @@ button.mail-card:disabled { cursor:default; opacity:.72; }
 .mail-seal-portrait { position:relative; aspect-ratio:1; display:grid; place-items:center; background:radial-gradient(circle,#a04c58,#40272f 48%,#152b29 70%); color:#edd5a8; }
 .mail-seal-portrait > span { display:grid; place-items:center; width:64%; height:64%; border:3px double #d5b980; border-radius:50%; box-shadow:0 0 0 6px #b9875140,inset 0 0 22px #0008; font-size:clamp(50px,8vw,96px); }
 .mail-seal-portrait > b { position:absolute; left:12px; top:12px; color:#e6d3a8; border:1px solid #c4aa75; border-radius:50%; width:28px; height:28px; display:grid; place-items:center; font-size:16px; }
-:root[data-visual-style=art] .mail-card { border-color:#bda16d; box-shadow:0 8px 20px #0007; }
-:root[data-visual-style=simple] .mail-art { aspect-ratio:2/1; background:linear-gradient(130deg,#244544,#182f38); }
-:root[data-visual-style=simple] .mail-art img { display:none; }
-:root[data-visual-style=simple] .mail-card { box-shadow:none; border-color:#577d80; }
-:root[data-visual-style=simple] .mail-card-copy { background:#172d35; }
+:root:root .mail-card { border-color:#bda16d; box-shadow:0 8px 20px #0007; }
 @media(min-width:1100px) and (min-height:700px) {
   :is(.room-game,.replay-panel,.shared-replay) .mail-layout { display:grid; grid-template-columns:220px minmax(0,1fr) 290px; grid-template-rows:minmax(0,1fr); gap:13px; min-height:0; height:100%; padding:0; align-items:stretch; overflow:hidden; }
   .mail-layout .mail-main { grid-column:2; grid-row:1; min-height:0; overflow:hidden; gap:12px; }

@@ -1,9 +1,8 @@
-/* Optional visual experiment. Every rule is scoped to the browser preference;
-   the simple style and game state do not depend on these decorative assets. */
-.station-device-art, .role-card > .station-role-art,
-.cipher-resource-art, .cipher-metrics .cipher-resource-art { display: none; }
+/* Permanent illustrated presentation. Repeating :root preserves the cascade
+   specificity of the former mode scope while removing its runtime dependency. */
+.station-device-art, .role-card > .station-role-art, .cipher-resource-art, .cipher-metrics .cipher-resource-art { display: none; }
 
-:root[data-visual-style="art"] {
+:root:root {
   --art-station: url('./assets/art/ink-space-station.png');
   --art-cipher: url('./assets/art/ink-cipher-room.png');
   --art-post: url('./assets/post/scene.webp');
@@ -24,91 +23,91 @@
   background: var(--bg);
 }
 
-:root[data-visual-style="art"] [data-art-game="encrypted-call"] {
+:root:root [data-art-game="encrypted-call"] {
   --art-scene: var(--art-cipher);
 }
 
-:root[data-visual-style="art"] [data-art-game="midnight-post"] {
+:root:root [data-art-game="midnight-post"] {
   --art-scene: var(--art-post);
 }
 
-:root[data-visual-style="art"] [data-art-game="baker-street"] { --art-scene: var(--art-baker); }
-:root[data-visual-style="art"] [data-art-game="hundred-ghosts"] { --art-scene: var(--art-banquet); }
-:root[data-visual-style="art"] [data-art-game="curtain-heist"] { --art-scene: var(--art-heist); }
-:root[data-visual-style="art"] [data-art-game="firewall-breach"] { --art-scene: var(--art-firewall); }
-:root[data-visual-style="art"] [data-art-game="star-workshop"] { --art-scene: var(--art-star); }
-:root[data-visual-style="art"] [data-baker-era="industrial"] { --art-scene: url('./assets/baker/scene-industrial.webp'); }
-:root[data-visual-style="art"] [data-baker-era="wartime"] { --art-scene: url('./assets/baker/scene-wartime.webp'); }
-:root[data-visual-style="art"] [data-baker-era="modern"] { --art-scene: url('./assets/baker/scene-modern.webp'); }
+:root:root [data-art-game="baker-street"] { --art-scene: var(--art-baker); }
+:root:root [data-art-game="hundred-ghosts"] { --art-scene: var(--art-banquet); }
+:root:root [data-art-game="curtain-heist"] { --art-scene: var(--art-heist); }
+:root:root [data-art-game="firewall-breach"] { --art-scene: var(--art-firewall); }
+:root:root [data-art-game="star-workshop"] { --art-scene: var(--art-star); }
+:root:root [data-baker-era="industrial"] { --art-scene: url('./assets/baker/scene-industrial.webp'); }
+:root:root [data-baker-era="wartime"] { --art-scene: url('./assets/baker/scene-wartime.webp'); }
+:root:root [data-baker-era="modern"] { --art-scene: url('./assets/baker/scene-modern.webp'); }
 
-:root[data-visual-style="art"] :is(.home-page, .join-page, .room-page, .shared-replay-page, .rules-page) {
+:root:root :is(.home-page, .join-page, .room-page, .shared-replay-page, .rules-page) {
   background-color: #101719;
   background-image: linear-gradient(180deg, #0c141b80, #0c141bd9), var(--art-scene);
   background-position: center;
   background-size: cover;
   background-attachment: fixed;
 }
-:root[data-visual-style="art"] :is(.home-page, .join-page, .room-lobby, .rules-page) { min-height: 100dvh; }
-:root[data-visual-style="art"] .site-header {
+:root:root :is(.home-page, .join-page, .room-lobby, .rules-page) { min-height: 100dvh; }
+:root:root .site-header {
   background: #0d151be8;
   border-bottom-color: #8d91714d;
 }
-:root[data-visual-style="art"] :is(h1, h2) {
+:root:root :is(h1, h2) {
   font-family: Georgia, 'Noto Serif TC', 'PMingLiU', serif;
   color: #f0e7ce;
 }
-:root[data-visual-style="art"] .intro-copy { color: #d6d9c9; }
-:root[data-visual-style="art"] .intro h1 { text-shadow: 2px 3px 0 #080e13, 0 0 28px #000; }
+:root:root .intro-copy { color: #d6d9c9; }
+:root:root .intro h1 { text-shadow: 2px 3px 0 #080e13, 0 0 28px #000; }
 
 /* Flat, opaque reading surfaces keep the illustration behind public text. */
-:root[data-visual-style="art"] :is(.panel, .note, .action-dock, .spectator-roster-panel) {
+:root:root :is(.panel, .note, .action-dock, .spectator-roster-panel) {
   background-color: #182323;
   background-image: repeating-linear-gradient(164deg, #b5aa7e05 0 1px, transparent 1px 5px), linear-gradient(120deg, #222e2bf5, #131d22fa);
   border-color: #747862;
   border-radius: 9px 13px 8px 12px;
   box-shadow: inset 0 0 0 3px #0a111533, 0 4px 14px #0004;
 }
-:root[data-visual-style="art"] :is(input:not([type="range"]):not([type="checkbox"]), select) {
+:root:root :is(input:not([type="range"]):not([type="checkbox"]), select) {
   background-color: #101c20;
   color: #eee9d9;
   border-color: #717c68;
 }
-:root[data-visual-style="art"] input::placeholder { color: #a4b1a5; }
-:root[data-visual-style="art"] .button.primary {
+:root:root input::placeholder { color: #a4b1a5; }
+:root:root .button.primary {
   background: #c4d7a7;
   color: #17231c;
   border-color: #dfdfae;
   box-shadow: inset 0 -3px 0 #52674433, 1px 3px 0 #070f13;
 }
-:root[data-visual-style="art"] .button.primary:disabled {
+:root:root .button.primary:disabled {
   background: #3e4b3c;
   color: #bbc5af;
   border-color: #68745d;
   box-shadow: none;
 }
-:root[data-visual-style="art"] .button.secondary {
+:root:root .button.secondary {
   background: #1b2929;
   border-color: #697960;
   color: #e5e8d7;
 }
-:root[data-visual-style="art"] :is(.room-tag, .beta-tag, .round-badge) {
+:root:root :is(.room-tag, .beta-tag, .round-badge) {
   background: #172327;
   border-color: #75806a;
   color: #d0d9bd;
 }
 
 /* Illustration windows are decorative, with no hidden or randomly assigned
-   card information. They load only when an art-style selector matches. */
-:root[data-visual-style="art"] .station-illustration {
+   card information. They use only already authorized public or private information. */
+:root:root .station-illustration {
   background: linear-gradient(0deg, #070f15a6, transparent 40%), var(--art-station) center / cover;
   border: 1px solid #989476;
   border-radius: 11px 22px 12px 24px;
   box-shadow: inset 0 0 0 4px #111a21, 0 12px 40px #0005;
   overflow: hidden;
 }
-:root[data-visual-style="art"] .station-illustration > * { visibility: hidden; }
-:root[data-visual-style="art"] .room-game-picker::before,
-:root[data-visual-style="art"] .rules-game-card::before {
+:root:root .station-illustration > * { visibility: hidden; }
+:root:root .room-game-picker::before,
+:root:root .rules-game-card::before {
   content: '';
   display: block;
   height: 104px;
@@ -118,8 +117,8 @@
   border-radius: 5px 10px 5px 10px;
   pointer-events: none;
 }
-:root[data-visual-style="art"] .rules-game-card::before { height: 148px; }
-:root[data-visual-style="art"] .rules-intro {
+:root:root .rules-game-card::before { height: 148px; }
+:root:root .rules-intro {
   background: linear-gradient(90deg, #121d23fa 15%, #121d23d9 60%, #121d234d), var(--art-scene) center / cover;
   border-left: 3px solid #9da57d;
   padding: 24px;
@@ -127,169 +126,169 @@
 }
 
 /* The existing board grid, dimensions and interaction targets stay in charge. */
-:root[data-visual-style="art"] .game-title {
+:root:root .game-title {
   background: none;
   box-shadow: none;
 }
-:root[data-visual-style="art"] .game-title h1 {
+:root:root .game-title h1 {
   text-shadow: 0 2px 3px #080e13, 0 0 10px #080e13;
 }
-:root[data-visual-style="art"] :is(.mission-progress, .cipher-metrics) {
+:root:root :is(.mission-progress, .cipher-metrics) {
   background: #1b2928;
   border-color: #78836c;
 }
-:root[data-visual-style="art"] :is(.turn-notice, .cipher-status) {
+:root:root :is(.turn-notice, .cipher-status) {
   background: #21372bf5;
   border-color: #8ba17c;
 }
-:root[data-visual-style="art"] .turn-notice.your-turn {
+:root:root .turn-notice.your-turn {
   background: #304a32;
   border-color: #e7d59b;
   box-shadow: inset 0 0 0 1px #e7d59b, 0 0 14px #c8de9726;
 }
-:root[data-visual-style="art"] .station-table .player-modules {
+:root:root .station-table .player-modules {
   background: #152126f5;
   border-color: #5b6a60;
   border-radius: 7px 10px 8px 6px;
 }
-:root[data-visual-style="art"] .station-table .player-modules.active-player {
+:root:root .station-table .player-modules.active-player {
   background: #20362df5;
   border-color: #d8d49b;
 }
-:root[data-visual-style="art"] .station-card:not(.face-stable):not(.face-repair):not(.face-hazard) {
+:root:root .station-card:not(.face-stable):not(.face-repair):not(.face-hazard) {
   background: linear-gradient(#12222bb3, #0c1822eb), var(--art-station) 70% 42% / 240%;
   border-color: #7e8875;
   color: #e2e5d1;
 }
-:root[data-visual-style="art"] .station-card.selected-card {
+:root:root .station-card.selected-card {
   outline: 2px solid #eed69b;
   outline-offset: -2px;
   border-color: #eed69b;
 }
-:root[data-visual-style="art"] .role-card.engineer { background: #20372f; border-color: #8cb99c; }
-:root[data-visual-style="art"] .role-card.saboteur { background: #37242a; border-color: #b1757a; }
+:root:root .role-card.engineer { background: #20372f; border-color: #8cb99c; }
+:root:root .role-card.saboteur { background: #37242a; border-color: #b1757a; }
 
 /* Only authorized faces receive an artwork marker. Unrevealed equipment uses
    one shared back; art never reads or encodes the hidden deck. */
-:root[data-visual-style="art"] .station-device-art {
+:root:root .station-device-art {
   display: block;
   background-repeat: no-repeat;
   background-position: center;
   background-size: contain;
   pointer-events: none;
 }
-:root[data-visual-style="art"] .station-device-art[data-art-kind="stable"] { background-image: url('./assets/art/ink-stable-equipment.png'); }
-:root[data-visual-style="art"] .station-device-art[data-art-kind="repair"] { background-image: url('./assets/art/ink-repair-module.png'); }
-:root[data-visual-style="art"] .station-device-art[data-art-kind="hazard"] { background-image: url('./assets/art/ink-reactor-crisis.png'); }
-:root[data-visual-style="art"] .station-table .station-card:has(.station-device-art) {
+:root:root .station-device-art[data-art-kind="stable"] { background-image: url('./assets/art/ink-stable-equipment.png'); }
+:root:root .station-device-art[data-art-kind="repair"] { background-image: url('./assets/art/ink-repair-module.png'); }
+:root:root .station-device-art[data-art-kind="hazard"] { background-image: url('./assets/art/ink-reactor-crisis.png'); }
+:root:root .station-table .station-card:has(.station-device-art) {
   position: relative;
   display: block;
   min-height: 110px;
   isolation: isolate;
   background-image: radial-gradient(ellipse at 50% 35%, #a9bda32b, transparent 70%);
 }
-:root[data-visual-style="art"] .station-card .station-device-art { position: absolute; inset: 3px 2px 28px; z-index: -1; }
-:root[data-visual-style="art"] .station-card:has(.station-device-art) > svg { display: none; }
-:root[data-visual-style="art"] .station-card:has(.station-device-art) > .slot-number {
+:root:root .station-card .station-device-art { position: absolute; inset: 3px 2px 28px; z-index: -1; }
+:root:root .station-card:has(.station-device-art) > svg { display: none; }
+:root:root .station-card:has(.station-device-art) > .slot-number {
   position: absolute; top: 3px; left: 4px; padding: 0 2px; border-radius: 3px; background: #0d1824d9; color: #e8e7d5;
 }
-:root[data-visual-style="art"] .station-card:has(.station-device-art) > strong {
+:root:root .station-card:has(.station-device-art) > strong {
   position: absolute; bottom: 13px; left: 0; right: 0; font-size: 10px; line-height: 1.4;
   background: #0d1824e8; padding: 1px 0; color: inherit;
 }
-:root[data-visual-style="art"] .station-card:has(.station-device-art) > .card-state-label {
+:root:root .station-card:has(.station-device-art) > .card-state-label {
   position: absolute; bottom: 1px; left: 0; right: 0; font-size: 8px; line-height: 1.3;
 }
-:root[data-visual-style="art"] .composition .station-device-art { width: 100%; height: 52px; margin: 0 0 3px; }
-:root[data-visual-style="art"] .station-round-reveals .station-device-art { width: 36px; height: 36px; flex: 0 0 36px; }
-:root[data-visual-style="art"] .role-card > .station-role-art {
+:root:root .composition .station-device-art { width: 100%; height: 52px; margin: 0 0 3px; }
+:root:root .station-round-reveals .station-device-art { width: 36px; height: 36px; flex: 0 0 36px; }
+:root:root .role-card > .station-role-art {
   display: block; float: right; width: 96px; height: 96px; margin: -6px -6px 4px 5px;
   background: center / contain no-repeat; pointer-events: none;
 }
-:root[data-visual-style="art"] .station-role-art[data-art-role="engineer"] { background-image: url('./assets/art/ink-engineer.png'); }
-:root[data-visual-style="art"] .station-role-art[data-art-role="saboteur"] { background-image: url('./assets/art/ink-saboteur.png'); }
-:root[data-visual-style="art"] .role-card .possible-roles { clear: both; }
-:root[data-visual-style="art"] :is(.station-round-reveals, .cipher-log) {
+:root:root .station-role-art[data-art-role="engineer"] { background-image: url('./assets/art/ink-engineer.png'); }
+:root:root .station-role-art[data-art-role="saboteur"] { background-image: url('./assets/art/ink-saboteur.png'); }
+:root:root .role-card .possible-roles { clear: both; }
+:root:root :is(.station-round-reveals, .cipher-log) {
   background-image: linear-gradient(180deg, #122025fa, #122025e6 40%, #12202580), var(--art-scene);
   background-size: cover;
   background-position: center;
 }
-:root[data-visual-style="art"] .cipher-transmission {
+:root:root .cipher-transmission {
   background-image: linear-gradient(180deg, #142123fa, #142123db 48%, #14212394), var(--art-cipher);
   background-size: cover;
   background-position: center;
 }
-:root[data-visual-style="art"] .cipher-card { aspect-ratio: 2 / 3; align-self: start; height: auto; container-type: inline-size; }
-:root[data-visual-style="art"] .cipher-card:not(.cipher-card-back) {
+:root:root .cipher-card { aspect-ratio: 2 / 3; align-self: start; height: auto; container-type: inline-size; }
+:root:root .cipher-card:not(.cipher-card-back) {
   background: #d6c6a0 url('./assets/art/ink-cipher-card.png') center / 100% 100% no-repeat;
   border-color: #a99a75;
   box-shadow: inset 0 0 0 2px #1c2e2a, 1px 3px 0 #050b0c80;
   color: #172d28;
   opacity: 1;
 }
-:root[data-visual-style="art"] .cipher-card:not(.cipher-card-back) strong {
+:root:root .cipher-card:not(.cipher-card-back) strong {
   color: #172d28; font-family: Georgia, 'Times New Roman', serif; font-weight: 700;
   text-shadow: 0 1px 0 #fff2c6; background: transparent;
   padding: 0 3px; line-height: 1.1;
   font-size: min(64cqi, 112px);
 }
-:root[data-visual-style="art"] .cipher-card:not(.cipher-card-back) strong.cipher-number-three-digits { font-size: min(49cqi, 112px); }
-:root[data-visual-style="art"] .cipher-card:not(.cipher-card-back) :is(.cipher-card-mark, .cipher-card-caption) {
+:root:root .cipher-card:not(.cipher-card-back) strong.cipher-number-three-digits { font-size: min(49cqi, 112px); }
+:root:root .cipher-card:not(.cipher-card-back) :is(.cipher-card-mark, .cipher-card-caption) {
   color: #172d28; background: #e9dcb6e8; padding: 0 3px; border-radius: 3px;
 }
-:root[data-visual-style="art"] .cipher-card-send:not(:disabled) {
+:root:root .cipher-card-send:not(:disabled) {
   outline: 2px solid #cbeeb0; outline-offset: 1px; border-color: #203b2e;
   box-shadow: 0 0 15px #c7e99a38;
 }
-:root[data-visual-style="art"] .cipher-card-send:not(:disabled) .cipher-card-caption { color: #eaffd9; background: #23462f; }
-:root[data-visual-style="art"] .cipher-card-send:disabled { filter: saturate(.55); }
-:root[data-visual-style="art"] .cipher-card:focus-visible { outline: 3px solid #f5d598; outline-offset: 3px; }
-:root[data-visual-style="art"] .cipher-number-strip > span {
+:root:root .cipher-card-send:not(:disabled) .cipher-card-caption { color: #eaffd9; background: #23462f; }
+:root:root .cipher-card-send:disabled { filter: saturate(.55); }
+:root:root .cipher-card:focus-visible { outline: 3px solid #f5d598; outline-offset: 3px; }
+:root:root .cipher-number-strip > span {
   background: #d6c6a0; color: #203b2e; border: 2px double #8e8a65; box-shadow: inset 0 0 0 1px #eadfbc;
 }
-:root[data-visual-style="art"] .cipher-discarded .cipher-number-strip > span { color: #67412c; background: #caba95; }
-:root[data-visual-style="art"] .cipher-resource-art {
+:root:root .cipher-discarded .cipher-number-strip > span { color: #67412c; background: #caba95; }
+:root:root .cipher-resource-art {
   display: inline-block; width: 26px; height: 26px; flex: 0 0 26px;
   background: center / contain no-repeat; pointer-events: none; vertical-align: middle;
 }
-:root[data-visual-style="art"] .cipher-resource-art[data-art-resource="pulse"] { background-image: url('./assets/art/ink-silent-pulse.png'); }
-:root[data-visual-style="art"] .cipher-resource-art[data-art-resource="cover"] { background-image: url('./assets/art/ink-cover.png'); }
-:root[data-visual-style="art"] .cipher-metrics .cipher-resource-art { display: block; float: right; width: 42px; height: 48px; margin: 0; }
-:root[data-visual-style="art"] .cipher-pulse > .cipher-resource-art { float: right; width: 64px; height: 64px; margin: 0 0 5px 8px; }
-:root[data-visual-style="art"] .cipher-card-back {
+:root:root .cipher-resource-art[data-art-resource="pulse"] { background-image: url('./assets/art/ink-silent-pulse.png'); }
+:root:root .cipher-resource-art[data-art-resource="cover"] { background-image: url('./assets/art/ink-cover.png'); }
+:root:root .cipher-metrics .cipher-resource-art { display: block; float: right; width: 42px; height: 48px; margin: 0; }
+:root:root .cipher-pulse > .cipher-resource-art { float: right; width: 64px; height: 64px; margin: 0 0 5px 8px; }
+:root:root .cipher-card-back {
   background: linear-gradient(#12222bad, #0c1822e8), var(--art-cipher) 12% 42% / 260%;
   border-color: #8b9279;
   color: #dedfca;
 }
-:root[data-visual-style="art"] :is(.confirm-dialog, .station-room-menu-content, .replay-sharing-disclosure .replay-sharing) {
+:root:root :is(.confirm-dialog, .station-room-menu-content, .replay-sharing-disclosure .replay-sharing) {
   background: #162329;
   border-color: #939d7b;
 }
-:root[data-visual-style="art"] .room-history-replay {
+:root:root .room-history-replay {
   background: linear-gradient(#0c141bcc, #0c141bd9), var(--art-scene) center / cover;
 }
-:root[data-visual-style="art"] [data-art-game="space-station"] { --art-scene: var(--art-station); }
-:root[data-visual-style="art"] .replay-controls { background: #17252bf5; }
+:root:root [data-art-game="space-station"] { --art-scene: var(--art-station); }
+:root:root .replay-controls { background: #17252bf5; }
 
 @media (min-width: 1100px) and (min-height: 700px) {
-  :root[data-visual-style="art"] .station-live .station-players { grid-template-rows: repeat(var(--station-rows), minmax(110px, 1fr)); }
-  :root[data-visual-style="art"] .station-table .station-card:has(.station-device-art) { min-height: 56px; }
-  :root[data-visual-style="art"] .station-card .station-device-art { inset: 0 0 24px; }
-  :root[data-visual-style="art"] .role-card > .station-role-art { width: 62px; height: 62px; margin: -3px -3px 3px 3px; }
-  :root[data-visual-style="art"] .composition .station-device-art { height: 38px; }
-  :root[data-visual-style="art"] .station-round-reveals .station-device-art { width: 28px; height: 28px; flex-basis: 28px; }
-  :root[data-visual-style="art"] .cipher-metrics .cipher-resource-art { width: 34px; height: 38px; }
-  :root[data-visual-style="art"] .cipher-tools .cipher-resource-art { width: 20px; height: 20px; flex-basis: 20px; }
-  :root[data-visual-style="art"] .cipher-pulse > .cipher-resource-art { width: 40px; height: 40px; }
+  :root:root .station-live .station-players { grid-template-rows: repeat(var(--station-rows), minmax(110px, 1fr)); }
+  :root:root .station-table .station-card:has(.station-device-art) { min-height: 56px; }
+  :root:root .station-card .station-device-art { inset: 0 0 24px; }
+  :root:root .role-card > .station-role-art { width: 62px; height: 62px; margin: -3px -3px 3px 3px; }
+  :root:root .composition .station-device-art { height: 38px; }
+  :root:root .station-round-reveals .station-device-art { width: 28px; height: 28px; flex-basis: 28px; }
+  :root:root .cipher-metrics .cipher-resource-art { width: 34px; height: 38px; }
+  :root:root .cipher-tools .cipher-resource-art { width: 20px; height: 20px; flex-basis: 20px; }
+  :root:root .cipher-pulse > .cipher-resource-art { width: 40px; height: 40px; }
 }
 
 @media (max-width: 700px) {
-  :root[data-visual-style="art"] .cipher-metrics .cipher-resource-art { width: 28px; height: 32px; }
-  :root[data-visual-style="art"] .cipher-tools .button { gap: 4px; }
-  :root[data-visual-style="art"] .cipher-tools .cipher-resource-art { width: 20px; height: 20px; flex-basis: 20px; }
+  :root:root .cipher-metrics .cipher-resource-art { width: 28px; height: 32px; }
+  :root:root .cipher-tools .button { gap: 4px; }
+  :root:root .cipher-tools .cipher-resource-art { width: 20px; height: 20px; flex-basis: 20px; }
 }
 
 @media (max-width: 700px) {
-  :root[data-visual-style="art"] :is(.home-page, .join-page, .room-page, .shared-replay-page, .rules-page) { background-attachment: scroll; }
-  :root[data-visual-style="art"] .rules-intro { padding: 18px; }
+  :root:root :is(.home-page, .join-page, .room-page, .shared-replay-page, .rules-page) { background-attachment: scroll; }
+  :root:root .rules-intro { padding: 18px; }
 }

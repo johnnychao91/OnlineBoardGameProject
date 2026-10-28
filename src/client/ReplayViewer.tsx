@@ -5,7 +5,6 @@ import { BattleReport } from './BattleReport';
 import { clientGames } from './game-registry';
 import { PerspectiveNote, PerspectiveSwitch } from './ObservationPanel';
 import { ErrorMessage, Header } from './ui';
-import { VisualStyleSwitch } from './visual-style';
 import { TestRoomBadge } from './TestRoom';
 import './snapshot-layout.css';
 
@@ -37,7 +36,7 @@ export function ReplayPanel({ seat, info, matchID = info.matchID, initialLast = 
     return () => controller.abort();
   }, [seat.roomId, seat.credentials, matchID, perspective]);
   useReplayHeader(data?.replay.room?.gameName ?? info.gameName);
-  return <section className="replay-panel" data-art-game={data?.replay.room?.gameName ?? info.gameName}><div className="observer-toolbar"><div><div className="eyebrow">REPLAY THE MISSION</div><h2>這一步，重新看一次。</h2><TestRoomBadge info={data?.replay.room ?? info} /><p className="small muted">逐步查看歷史，任何操作都不會改變已結束的對局。</p></div><div className="observer-controls"><VisualStyleSwitch /><PerspectiveSwitch perspective={perspective} onChange={setPerspective} /></div></div><PerspectiveNote perspective={perspective} /><ErrorMessage>{error}</ErrorMessage>{data?.perspective === perspective && data.matchID === matchID ? <ReplayViewer key={`${matchID}-${perspective}`} info={data.replay.room ?? info} data={data.replay} perspective={perspective} seat={seat} matchID={matchID} canManageShares={isRoomHost(seat, info)} initialIndex={selectedIndex ?? (initialLast ? data.replay.frames.length - 1 : 0)} onIndexChange={setSelectedIndex} /> : !error && <p className="loading" role="status">正在讀取對局紀錄…</p>}</section>;
+  return <section className="replay-panel" data-art-game={data?.replay.room?.gameName ?? info.gameName}><div className="observer-toolbar"><div><div className="eyebrow">REPLAY THE MISSION</div><h2>這一步，重新看一次。</h2><TestRoomBadge info={data?.replay.room ?? info} /><p className="small muted">逐步查看歷史，任何操作都不會改變已結束的對局。</p></div><div className="observer-controls"><PerspectiveSwitch perspective={perspective} onChange={setPerspective} /></div></div><PerspectiveNote perspective={perspective} /><ErrorMessage>{error}</ErrorMessage>{data?.perspective === perspective && data.matchID === matchID ? <ReplayViewer key={`${matchID}-${perspective}`} info={data.replay.room ?? info} data={data.replay} perspective={perspective} seat={seat} matchID={matchID} canManageShares={isRoomHost(seat, info)} initialIndex={selectedIndex ?? (initialLast ? data.replay.frames.length - 1 : 0)} onIndexChange={setSelectedIndex} /> : !error && <p className="loading" role="status">正在讀取對局紀錄…</p>}</section>;
 }
 
 export function SharedReplay({ roomId }: { roomId: string }) {

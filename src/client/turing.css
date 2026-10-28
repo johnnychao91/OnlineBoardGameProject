@@ -190,30 +190,30 @@ button.turing-desk-card:active { cursor: grabbing; }
   .turing-log ol { max-height: none; }
   .turing-log h2 { font-size: 14px; }
 }
-:root[data-visual-style="art"] [data-art-game="turing-test"] { --art-scene: url('./assets/art/turing/lab.png'); }
-:root[data-visual-style="art"] .turing-terminal-art { display: block; width: 100%; height: 130px; background: url('./assets/art/turing/terminal.png') center / contain no-repeat; }
-:root[data-visual-style="art"] .turing-chip { min-height: 240px; padding: 45px 30px; background: url('./assets/art/turing/chip.png') center / contain no-repeat; border: 0; color: #17372f; }
-:root[data-visual-style="art"] .turing-chip strong { color: #17372f; font-family: Georgia,serif; }
-:root[data-visual-style="art"] .turing-double-cards .turing-chip { min-height: 165px; padding: 24px 6px; }
-:root[data-visual-style="art"] .turing-double-cards .turing-chip strong { font-size: 42px; }
-:root[data-visual-style="art"] .turing-double-cards .turing-chip > small { font-size: 8px; }
-:root[data-visual-style="art"] .turing-response { background: #1c3231; border-color: #8a8664; }
-:root[data-visual-style="art"] .turing-response-error { background: #412e31; border-color: #d48484; }
-:root[data-visual-style="art"] .turing-desk-card { background: transparent; border: 0; color: #e6ecd3; box-shadow: none; }
-:root[data-visual-style="art"] .turing-desk-face { background: url('./assets/art/turing/chip.png') center / contain no-repeat; border: 0; border-radius: 0; color: #18382f; padding: 12cqw 6cqw; box-shadow: none; }
-:root[data-visual-style="art"] .turing-desk-number { font-family: Georgia,serif; color: #18382f; }
-:root[data-visual-style="art"] .turing-desk-card.is-error .turing-desk-face { filter: drop-shadow(0 0 4px #e29a9b); background-color: transparent; }
-:root[data-visual-style="art"] .turing-main > .turing-shared-table { background: transparent; border: 0; box-shadow: none; }
-:root[data-visual-style="art"] .turing-scale b { font-family: Georgia,serif; text-shadow: 0 0 14px #8ae5d144; }
-:root[data-visual-style="art"] .turing-scale > div:last-child b { text-shadow: 0 0 14px #efcd9744; }
-:root[data-visual-style="art"] .turing-scale-line { box-shadow: -12px 0 14px #8ae5d12b, 12px 0 14px #efcd972b; }
+:root:root [data-art-game="turing-test"] { --art-scene: url('./assets/art/turing/lab.png'); }
+:root:root .turing-terminal-art { display: block; width: 100%; height: 130px; background: url('./assets/art/turing/terminal.png') center / contain no-repeat; }
+:root:root .turing-chip { min-height: 240px; padding: 45px 30px; background: url('./assets/art/turing/chip.png') center / contain no-repeat; border: 0; color: #17372f; }
+:root:root .turing-chip strong { color: #17372f; font-family: Georgia,serif; }
+:root:root .turing-double-cards .turing-chip { min-height: 165px; padding: 24px 6px; }
+:root:root .turing-double-cards .turing-chip strong { font-size: 42px; }
+:root:root .turing-double-cards .turing-chip > small { font-size: 8px; }
+:root:root .turing-response { background: #1c3231; border-color: #8a8664; }
+:root:root .turing-response-error { background: #412e31; border-color: #d48484; }
+:root:root .turing-desk-card { background: transparent; border: 0; color: #e6ecd3; box-shadow: none; }
+:root:root .turing-desk-face { background: url('./assets/art/turing/chip.png') center / contain no-repeat; border: 0; border-radius: 0; color: #18382f; padding: 12cqw 6cqw; box-shadow: none; }
+:root:root .turing-desk-number { font-family: Georgia,serif; color: #18382f; }
+:root:root .turing-desk-card.is-error .turing-desk-face { filter: drop-shadow(0 0 4px #e29a9b); background-color: transparent; }
+:root:root .turing-main > .turing-shared-table { background: transparent; border: 0; box-shadow: none; }
+:root:root .turing-scale b { font-family: Georgia,serif; text-shadow: 0 0 14px #8ae5d144; }
+:root:root .turing-scale > div:last-child b { text-shadow: 0 0 14px #efcd9744; }
+:root:root .turing-scale-line { box-shadow: -12px 0 14px #8ae5d12b, 12px 0 14px #efcd972b; }
 .turing-layout .turing-private-cards { display: flex; justify-content: center; gap: 8px; }
 .turing-layout .turing-chip { flex: none; width: var(--turing-private-width); height: var(--turing-private-height); min-height: 0; padding: 12px 6px; margin: 0; }
 .turing-layout .turing-chip strong { font-size: 72px; line-height: 1.1; }
 .turing-layout .turing-chip > span { font-size: 10px; }
 .turing-layout .turing-double-cards { --turing-private-width: 90px; --turing-private-height: 135px; }
 .turing-layout .turing-double-cards .turing-chip strong { font-size: 42px; }
-:root[data-visual-style="art"] .turing-layout .turing-chip { background-size: contain; padding: 20px 8px; }
+:root:root .turing-layout .turing-chip { background-size: contain; padding: 20px 8px; }
 @media (max-width: 600px) {
   .turing-layout .turing-chip strong { font-size: 42px; }
 }

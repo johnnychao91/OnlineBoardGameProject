@@ -161,26 +161,26 @@
   .moon-passenger strong { font-size:16px; }
   .moon-passenger { min-height:86px; padding:13px; }
 }
-:root[data-visual-style="art"] [data-art-game="silver-moon"] { --art-scene:url('./assets/art/moon/train.webp'); }
-:root[data-visual-style="art"] .moon-role-art { display:block; height:160px; width:100%; margin-bottom:12px; background-position:center 30%; background-size:cover; border:1px solid #aa9068; border-radius:8px; }
-:root[data-visual-style="art"] .moon-role-art[data-moon-role="wolf"] { background-image:url('./assets/art/moon/wolf.webp'); }
-:root[data-visual-style="art"] .moon-role-art[data-moon-role="villager"] { background-image:url('./assets/art/moon/villager.webp'); }
-:root[data-visual-style="art"] .moon-role-art[data-moon-role="seer"] { background-image:url('./assets/art/moon/seer.webp'); }
-:root[data-visual-style="art"] .moon-role-art[data-moon-role="witch"] { background-image:url('./assets/art/moon/witch.webp'); }
-:root[data-visual-style="art"] .moon-role-art[data-moon-role="hunter"] { background-image:url('./assets/art/moon/hunter.webp'); }
-:root[data-visual-style="art"] .moon-role-art[data-moon-role="guard"] { background-image:url('./assets/art/moon/guard.webp'); }
-:root[data-visual-style="art"] .moon-layout .panel { border-color:#73684f; }
-:root[data-visual-style="art"] .moon-status { background:#35332e; border-color:#b89a66; }
-:root[data-visual-style="art"] .moon-status.night { background:#2d293d; }
-:root[data-visual-style="art"] .moon-passenger { background:#302e2d; border-color:#746c58; }
-:root[data-visual-style="art"] .moon-passenger.speaking { background:#48402e; border-color:#e2c691; }
-:root[data-visual-style="art"] .moon-passenger.known-wolves { background:#412c34; border-color:#bd7882; }
-:root[data-visual-style="art"] .moon-passenger.known-town { background:#253e35; border-color:#7ba78c; }
-:root[data-visual-style="art"] .moon-passenger .moon-seat { width:38px; height:30px; flex-basis:38px; border:0; border-radius:0; background:url('./assets/art/moon/ticket.webp') center / 100% 140% no-repeat; color:#342518; font-size:14px; font-weight:800; font-variant-numeric:tabular-nums; line-height:1; text-shadow:0 1px 0 #f8e2b3; }
-:root[data-visual-style="art"] .moon-target { border-color:#756d5d; background:#2c3236; }
-:root[data-visual-style="art"] .moon-target.selected { background:#4b422e; border-color:#f1d09d; }
-:root[data-visual-style="art"] .moon-target .moon-seat { width:27px; height:27px; flex-basis:27px; border:0; border-radius:0; background:url('./assets/art/moon/ticket.webp') center / contain no-repeat; color:#fff3c9; font-weight:800; text-shadow:0 1px 2px #000,1px 0 2px #000; }
-:root[data-visual-style="art"] .moon-status-emblem { font-size:0; display:block; width:37px; height:45px; flex:0 0 37px; background:url('./assets/art/moon/lantern.webp') center / contain no-repeat; }
+:root:root [data-art-game="silver-moon"] { --art-scene:url('./assets/art/moon/train.webp'); }
+:root:root .moon-role-art { display:block; height:160px; width:100%; margin-bottom:12px; background-position:center 30%; background-size:cover; border:1px solid #aa9068; border-radius:8px; }
+:root:root .moon-role-art[data-moon-role="wolf"] { background-image:url('./assets/art/moon/wolf.webp'); }
+:root:root .moon-role-art[data-moon-role="villager"] { background-image:url('./assets/art/moon/villager.webp'); }
+:root:root .moon-role-art[data-moon-role="seer"] { background-image:url('./assets/art/moon/seer.webp'); }
+:root:root .moon-role-art[data-moon-role="witch"] { background-image:url('./assets/art/moon/witch.webp'); }
+:root:root .moon-role-art[data-moon-role="hunter"] { background-image:url('./assets/art/moon/hunter.webp'); }
+:root:root .moon-role-art[data-moon-role="guard"] { background-image:url('./assets/art/moon/guard.webp'); }
+:root:root .moon-layout .panel { border-color:#73684f; }
+:root:root .moon-status { background:#35332e; border-color:#b89a66; }
+:root:root .moon-status.night { background:#2d293d; }
+:root:root .moon-passenger { background:#302e2d; border-color:#746c58; }
+:root:root .moon-passenger.speaking { background:#48402e; border-color:#e2c691; }
+:root:root .moon-passenger.known-wolves { background:#412c34; border-color:#bd7882; }
+:root:root .moon-passenger.known-town { background:#253e35; border-color:#7ba78c; }
+:root:root .moon-passenger .moon-seat { width:38px; height:30px; flex-basis:38px; border:0; border-radius:0; background:url('./assets/art/moon/ticket.webp') center / 100% 140% no-repeat; color:#342518; font-size:14px; font-weight:800; font-variant-numeric:tabular-nums; line-height:1; text-shadow:0 1px 0 #f8e2b3; }
+:root:root .moon-target { border-color:#756d5d; background:#2c3236; }
+:root:root .moon-target.selected { background:#4b422e; border-color:#f1d09d; }
+:root:root .moon-target .moon-seat { width:27px; height:27px; flex-basis:27px; border:0; border-radius:0; background:url('./assets/art/moon/ticket.webp') center / contain no-repeat; color:#fff3c9; font-weight:800; text-shadow:0 1px 2px #000,1px 0 2px #000; }
+:root:root .moon-status-emblem { font-size:0; display:block; width:37px; height:45px; flex:0 0 37px; background:url('./assets/art/moon/lantern.webp') center / contain no-repeat; }
 
 .moon-preset-summary { border:1px solid #586c7d; border-radius:10px; padding:12px; margin:12px 0; }
 .moon-preset-summary p:last-child { margin-bottom:0; }
@@ -188,7 +188,7 @@
 .moon-rule-tags span { border:1px solid #6e7680; border-radius:5px; padding:4px 7px; font-size:11px; white-space:nowrap; }
 .moon-explosion { border-top:1px solid #72515e; margin-top:12px; padding-top:10px; }
 .moon-explosion summary { cursor:pointer; color:var(--moon-red); font-size:12px; margin-bottom:8px; }
-:root[data-visual-style="art"] .moon-role-art[data-moon-role="wolf-king"] { background-image:url('./assets/art/moon/wolf-king.webp'); }
-:root[data-visual-style="art"] .moon-role-art[data-moon-role="white-wolf-king"] { background-image:url('./assets/art/moon/white-wolf-king.webp'); }
-:root[data-visual-style="art"] .moon-role-art[data-moon-role="ghost-rider"] { background-image:url('./assets/art/moon/ghost-rider.webp'); }
-:root[data-visual-style="art"] .moon-role-art[data-moon-role="idiot"] { background-image:url('./assets/art/moon/idiot.webp'); }
+:root:root .moon-role-art[data-moon-role="wolf-king"] { background-image:url('./assets/art/moon/wolf-king.webp'); }
+:root:root .moon-role-art[data-moon-role="white-wolf-king"] { background-image:url('./assets/art/moon/white-wolf-king.webp'); }
+:root:root .moon-role-art[data-moon-role="ghost-rider"] { background-image:url('./assets/art/moon/ghost-rider.webp'); }
+:root:root .moon-role-art[data-moon-role="idiot"] { background-image:url('./assets/art/moon/idiot.webp'); }
