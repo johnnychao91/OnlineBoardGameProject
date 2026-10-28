@@ -2,6 +2,7 @@ import type { HeistState } from '../games/heist/game';
 import { HEIST_ARTIFACTS, HEIST_HAZARDS, type HeistCard } from '../games/heist/content';
 import type { PosterOptions } from './game-types';
 import { heistArt } from './heist-art';
+import { heistHazardLimit } from '../games/heist/rules';
 
 const clean = (value: string, limit = 40) => Array.from(value.normalize('NFC').replace(/[\u0000-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069]/g, ' ').replace(/https?:\/\/\S+/gi, '…').replace(/\s+/g, ' ').trim()).slice(0, limit).join('');
 const integer = (value: number) => Number.isFinite(value) ? Math.min(99999, Math.max(0, Math.trunc(value))) : 0;
@@ -16,7 +17,7 @@ export function buildHeistPosterModel({ G: state, info, step, totalSteps }: Post
   const nameOf = (id: string) => clean(info.players.find(player => String(player.id) === id)?.name || '劫案成員', 24);
   const total = Math.max(1, integer(totalSteps));
   return {
-    round: integer(G.round), stage: integer(G.step), leftovers: integer(G.leftovers), deckCount: integer(G.deckCount),
+    round: integer(G.round), stage: integer(G.step), leftovers: integer(G.leftovers), deckCount: integer(G.deckCount), hazardLimit: heistHazardLimit(G.options),
     step: Math.min(Math.max(1, integer(step)), total), totalSteps: total, finished,
     players: G.turnOrder.map(id => {
       const player = G.players[id], score = finished ? G.finalScores[id] : undefined;
@@ -61,7 +62,7 @@ export async function createHeistPoster(options: PosterOptions): Promise<Blob> {
   const overlay = ctx.createLinearGradient(0, 0, 0, 1350); overlay.addColorStop(0, '#101b2466'); overlay.addColorStop(1, '#0e1926f5'); ctx.fillStyle = overlay; ctx.fillRect(0, 0, 1080, 1350);
   ctx.strokeStyle = '#c7a26770'; ctx.lineWidth = 2; ctx.strokeRect(25, 25, 1030, 1300); ctx.strokeRect(33, 33, 1014, 1284);
   write(ctx, 'THE CURTAIN HEIST', 65, 94, 20, '#d6b77e', 650); write(ctx, '謝幕劫案', 61, 182, 76, '#f5e1b8', 750); write(ctx, '最後的掌聲之後，真正的冒險才開始。', 66, 231, 25, '#ccbcb9');
-  panel(ctx, 64, 264, 952, 105); write(ctx, `第 ${model.round} / 5 幕 · 第 ${model.stage} 段通道`, 91, 308, 28, '#ecd7b7', 650); write(ctx, `路線餘款 ${model.leftovers}　｜　未揭牌 ${model.deckCount}　｜　復盤 ${model.step} / ${model.totalSteps}`, 91, 348, 22, '#bcaeaa');
+  panel(ctx, 64, 264, 952, 105); write(ctx, `第 ${model.round} / 5 幕 · 第 ${model.stage} 段通道 · 同類第 ${model.hazardLimit} 張封鎖`, 91, 308, 28, '#ecd7b7', 650); write(ctx, `路線餘款 ${model.leftovers}　｜　未揭牌 ${model.deckCount}　｜　復盤 ${model.step} / ${model.totalSteps}`, 91, 348, 22, '#bcaeaa');
   const columns = model.players.length > 4 ? 4 : Math.max(1, model.players.length), rows = Math.ceil(model.players.length / columns), gap = 12, width = (952 - gap * (columns - 1)) / columns;
   model.players.forEach((player, index) => { const x = 64 + index % columns * (width + gap), y = 393 + Math.floor(index / columns) * 110; panel(ctx, x, y, width, 98, player.winner ? '#503c36ed' : '#1c2935ed', player.winner ? '#d8b36f' : '#bf9c6155'); write(ctx, player.name, x + 14, y + 30, 21, '#e8d6cb', 650, width - 28); write(ctx, model.finished ? `${player.total} 點${player.winner ? ' · 勝者' : ''}` : `隨身 ${player.carried} 點`, x + 14, y + 66, 24, '#e2bb71', 650, width - 28); write(ctx, `珍藏 ${player.artifacts.length} 件${model.finished ? ` · 入庫 ${player.banked}` : player.exploring ? ' · 仍在現場' : ' · 已撤退'}`, x + 14, y + 87, 15, '#b8a9a7', 500, width - 28); });
   const routeTop = 412 + rows * 110; write(ctx, '已揭路線 · 最後八張', 65, routeTop + 12, 22, '#d5b77c', 650);

@@ -185,7 +185,7 @@ function assertPlayerViews(f: Fixture, g: Group, state: Snapshot) {
     for (const player of Object.values(snapshot.G.players)) expect(player).not.toHaveProperty('banked');
   }
 }
-async function arrangeFutureCards(f: Fixture, g: Group) {
+async function arrangeFutureCards(f: Fixture, g: Group, hazardLimit = 2) {
   // Reorder only a valid saved future deck. All money, artifacts and decisions
   // below still come from real moves; the exact card multiset is preserved.
   const state = await f.state(g.matchID), deck = [...state.G.secret!.deck], prefix: HeistCard[] = [];
@@ -196,7 +196,7 @@ async function arrangeFutureCards(f: Fixture, g: Group) {
   if (!state.G.availableArtifacts.length) take(card => card.kind === 'artifact');
   take(card => card.kind === 'loot' && card.value === 11);
   const hazard = state.G.path.some(card => card.kind === 'hazard' && card.hazard === 'camera') ? 'laser' : 'camera';
-  for (let index = 0; index < 2; index++) take(card => card.kind === 'hazard' && card.hazard === hazard);
+  for (let index = 0; index < hazardLimit; index++) take(card => card.kind === 'hazard' && card.hazard === hazard);
   const reordered = [...prefix, ...deck];
   expect(reordered.map(card => JSON.stringify(card)).sort()).toEqual(state.G.secret!.deck.map(card => JSON.stringify(card)).sort());
   state.G.secret!.deck = reordered; state._stateID++;
@@ -206,6 +206,38 @@ async function arrangeFutureCards(f: Fixture, g: Group) {
 }
 
 describe('Curtain Heist authenticated simultaneous decisions, private banks and five-act archives', () => {
+  it('restricts the hazard setting to the lobby host, persists it through restart and only closes on the third matching socket reveal', async () => {
+    const f = await fixture(), g = await group(f, 3);
+    await ready(f, g);
+    const body = { matchID: g.matchID, options: { hazardLimit: 3 } }, before = await f.state(g.matchID);
+    for (const member of [g.seats[1], g.observer]) expect((await f.request(path(g.host, 'options'), body, member)).status).toBe(403);
+    expect((await f.request(path(g.host, 'options'), { ...body, options: { hazardLimit: '3' } }, g.host)).status).toBe(400);
+    expect(await f.state(g.matchID)).toEqual(before);
+    const changed = await f.request(path(g.host, 'options'), body, g.host);
+    expect(changed.status).toBe(200); expect(changed.body.gameOptions).toEqual({ hazardLimit: 3 });
+    expect(changed.body.players.filter((player: any) => player.name).every((player: any) => !player.ready)).toBe(true);
+    const previousID = g.matchID; g.matchID = changed.body.matchID;
+    expect(g.matchID).not.toBe(previousID);
+    expect((await f.request(path(g.host, 'options'), body, g.host)).status).toBe(409);
+    await f.restart(); expect((await f.request(path(g.host), undefined, g.observer)).body.gameOptions).toEqual({ hazardLimit: 3 });
+    await start(f, g);
+    expect((await f.request(path(g.host, 'options'), { matchID: g.matchID, options: { hazardLimit: 2 } }, g.host)).status).toBe(409);
+    let state = await acknowledgeAll(f, g);
+    const hazard = await arrangeFutureCards(f, g, 3);
+    do { state = await decideAll(f, g, 'explore'); } while (state.G.path.filter(card => card.kind === 'hazard' && card.hazard === hazard).length < 2);
+    expect(state.G.status).toBe('decision'); expect(state.G.removedHazards[hazard]).toBe(0);
+    assertPlayerViews(f, g, state);
+    for (const perspective of ['blind', 'god']) {
+      const view = await f.request(path(g.host, `view?perspective=${perspective}`), undefined, g.observer);
+      expect(view.status).toBe(200); expect(view.body.G.options).toEqual({ hazardLimit: 3 }); noServerSecrets(view.body);
+    }
+    await f.restart(); expect(await f.state(g.matchID)).toEqual(state); await connectGroup(f, g);
+    state = await decideAll(f, g, 'explore');
+    expect(state.G.status).toBe('review'); expect(state.G.options).toEqual({ hazardLimit: 3 });
+    expect(state.G.roundResult).toMatchObject({ reason: 'hazard', hazard }); expect(state.G.removedHazards[hazard]).toBe(1);
+    expect(state.G.secret!.recycle.filter(card => card.kind === 'hazard' && card.hazard === hazard)).toHaveLength(2);
+    assertPlayerViews(f, g, state);
+  }, 60000);
   it.each([2, 9])('rejects %i actual participants without dropping seats or accepting a forged count', async count => {
     const f = await fixture(), g = await group(f, count);
     await ready(f, g);
@@ -320,10 +352,15 @@ describe('Curtain Heist authenticated simultaneous decisions, private banks and 
     }
   }, 60000);
 
-  it.each([{ count: 3, testRoom: false }, { count: 8, testRoom: false }, { count: 3, testRoom: true }])(
-    'completes all five acts with $count nonconsecutive seats, preserving replay/shares and test-room exclusion $testRoom',
-    async ({ count, testRoom }) => {
+  it.each([{ count: 3, testRoom: false, hazardLimit: 2 }, { count: 8, testRoom: false, hazardLimit: 2 },
+    { count: 3, testRoom: true, hazardLimit: 2 }, { count: 3, testRoom: false, hazardLimit: 3 }])(
+    'completes all five acts with $count nonconsecutive seats, hazard limit $hazardLimit, preserving replay/shares and test-room exclusion $testRoom',
+    async ({ count, testRoom, hazardLimit }) => {
       const f = await fixture(), g = await group(f, count, testRoom);
+      if (hazardLimit === 3) {
+        const changed = await f.request(path(g.host, 'options'), { matchID: g.matchID, options: { hazardLimit } }, g.host);
+        expect(changed.status).toBe(200); g.matchID = changed.body.matchID;
+      }
       await start(f, g);
       const initial = await f.state(g.matchID), participantIDs = g.seats.map(seat => seat.playerID);
       expect(initial.ctx.numPlayers).toBe(count); expect(Object.keys(initial.G.players)).toEqual(participantIDs);
@@ -361,7 +398,10 @@ describe('Curtain Heist authenticated simultaneous decisions, private banks and 
       expect(godReplay.body.room).toMatchObject({ gameName: 'curtain-heist', testRoom });
       expect(godReplay.body.frames.length).toBeGreaterThan(count * 10);
       noServerSecrets(godReplay.body);
-      for (const frame of godReplay.body.frames) expect(Object.values(frame.G.private).every((entry: any) => entry.choice === null)).toBe(true);
+      for (const frame of godReplay.body.frames) {
+        expect(Object.values(frame.G.private).every((entry: any) => entry.choice === null)).toBe(true);
+        expect(frame.G.options).toEqual({ hazardLimit });
+      }
       const shared = await f.request(path(g.host, 'share'), { matchID: g.matchID, perspective: 'blind', frameIndex: 0 }, g.host);
       expect(shared.status).toBe(200);
       const publicReplay = await f.request(`/api/replays/${g.host.roomId}`, undefined, undefined, { 'X-Replay-Token': token(shared.body.url, 'share') });
@@ -380,7 +420,7 @@ describe('Curtain Heist authenticated simultaneous decisions, private banks and 
       expect(statistics.totalPlayerParticipations).toBe(testRoom ? 0 : count);
       expect(summary.completed).toBe(testRoom ? 0 : 1);
       expect(summary.rankedCompleted).toBe(0); expect(summary.wins).toEqual({}); expect(summary.byPlayerCount).toEqual([]);
-      expect(summary.competitions).toEqual(testRoom ? [] : [expect.objectContaining({ mode: 'five-acts', numPlayers: count, runs: 1, totalRounds: 5, averageRounds: 5 })]);
+      expect(summary.competitions).toEqual(testRoom ? [] : [expect.objectContaining({ mode: hazardLimit === 3 ? 'five-acts-hazard-3' : 'five-acts', numPlayers: count, runs: 1, totalRounds: 5, averageRounds: 5 })]);
       expect(JSON.stringify(statistics)).not.toMatch(/劫案房主|劫案隊員|winnerIDs|credentials|playerID/);
       await f.restart(); expect(await f.state(g.matchID)).toEqual(finished);
       expect((await f.request('/api/stats')).body).toEqual(statistics);

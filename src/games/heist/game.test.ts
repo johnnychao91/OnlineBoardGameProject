@@ -4,11 +4,11 @@ import { createMatch } from 'boardgame.io/internal';
 import type { State } from 'boardgame.io';
 import { HeistGame, heistObserverView, heistPlayerView, legalHeistActions, type HeistCard, type HeistChoice, type HeistState } from './game';
 import { createHeistBaseDeck, HEIST_ARTIFACTS, HEIST_ARTIFACT_IDS, HEIST_HAZARD_IDS, HEIST_LOOT_VALUES } from './content';
-import { normalizeHeistOptions, validateHeistOptions } from './rules';
+import { normalizeHeistOptions, validateHeistOptions, type HeistOptions } from './rules';
 
-function makeClient(n = 3, participantIDs?: string[], seed = 'curtain-calls') {
+function makeClient(n = 3, participantIDs?: string[], seed = 'curtain-calls', options?: HeistOptions) {
   const game = { ...HeistGame, seed }, client = Client({ game, numPlayers: n, playerID: participantIDs?.[0] ?? '0', debug: false });
-  const match = createMatch({ game, numPlayers: n, setupData: { startImmediately: true, participantIDs }, unlisted: true });
+  const match = createMatch({ game, numPlayers: n, setupData: { startImmediately: true, participantIDs, options }, unlisted: true });
   if ('setupDataError' in match) throw new Error(match.setupDataError);
   client.store.dispatch({ type: 'UPDATE', state: match.initialState, deltalog: [], clientOnly: true }); return client;
 }
@@ -29,8 +29,8 @@ const loot = (value: number): HeistCard => ({ kind: 'loot', value });
 const hazard = (kind: typeof HEIST_HAZARD_IDS[number]): HeistCard => ({ kind: 'hazard', hazard: kind });
 const artifact = (id: typeof HEIST_ARTIFACT_IDS[number]): HeistCard => ({ kind: 'artifact', artifact: id });
 /** A controlled, partial room sequence; every tested transition still uses the real Immer reducer. */
-function fixture(n: number, cards: HeistCard[]) {
-  const client = makeClient(n); ackAll(client);
+function fixture(n: number, cards: HeistCard[], hazardLimit: 2 | 3 = 2) {
+  const client = makeClient(n, undefined, 'curtain-calls', { hazardLimit }); ackAll(client);
   patch(client, G => {
     G.status = 'decision'; G.round = 1; G.step = 0; G.path = []; G.leftovers = 0; G.availableArtifacts = [];
     G.removedHazards = Object.fromEntries(HEIST_HAZARD_IDS.map(id => [id, 0])) as HeistState['removedHazards'];
@@ -62,9 +62,10 @@ describe('官方基本牌庫、設定與開幕', () => {
     const first = createHeistBaseDeck(); (first[0] as { value: number }).value = 999;
     expect(createHeistBaseDeck()[0]).toEqual(loot(1));
   });
-  it('只接受空設定與3–8人，拒絕錯誤席位、未知房規及錯誤開局形狀', () => {
-    expect(normalizeHeistOptions(undefined)).toEqual({}); expect(normalizeHeistOptions({})).toEqual({});
-    for (const value of [null, [], 'base', { expansion: true }, { rounds: 3 }]) expect(validateHeistOptions(value)).toBeTruthy();
+  it('接受第2或第3張危機門檻與3–8人，舊空設定保留第2張，拒絕其他設定', () => {
+    for (const input of [undefined, {}, { hazardLimit: 2 }]) expect(normalizeHeistOptions(input)).toEqual({ hazardLimit: 2 });
+    expect(normalizeHeistOptions({ hazardLimit: 3 })).toEqual({ hazardLimit: 3 });
+    for (const value of [null, [], 'base', { expansion: true }, { rounds: 3 }, ...[0, 1, 4, 2.5, '3', true, null].map(hazardLimit => ({ hazardLimit }))]) expect(validateHeistOptions(value)).toBeTruthy();
     for (const n of [2, 9, 3.5, NaN]) expect(validateHeistOptions({}, n)).toBeTruthy();
     for (const data of [null, [], { startImmediately: 1 }, { participantIDs: ['0', '0', '2'] }, { participantIDs: ['0', '1'] }, { participantIDs: ['0', '1', '__proto__'] }]) {
       const match = createMatch({ game: HeistGame, numPlayers: 3, setupData: data as any, unlisted: true }); expect('setupDataError' in match).toBe(true);
@@ -166,6 +167,28 @@ describe('贓物、餘額、撤退與名品', () => {
 });
 
 describe('危機、永久移除、跨幕牌庫', () => {
+  it.each(HEIST_HAZARD_IDS)('%s第3張房規讓前兩張警告，第三張才封鎖，只移除一張並保護已入庫財富', kind => {
+    const client = fixture(3, [loot(11), hazard(kind), hazard(kind), hazard(kind)], 3);
+    patch(client, G => { G.private['0'].banked = 12; });
+    decideAll(client, { '0': 'exit' }); decideAll(client);
+    const second = raw(client);
+    expect(second.status).toBe('decision'); expect(second.path.filter(card => card.kind === 'hazard' && card.hazard === kind)).toHaveLength(2);
+    expect(second.removedHazards[kind]).toBe(0); expect(second.secret!.recycle.filter(card => card.kind === 'hazard' && card.hazard === kind)).toHaveLength(2);
+    expect(second.players['1'].carried).toBe(3); expect(second.private['0'].banked).toBe(17);
+    expect(heistPlayerView({ G: second, playerID: '1' }).options).toEqual({ hazardLimit: 3 });
+    expect(heistObserverView(second, 'blind').options).toEqual({ hazardLimit: 3 });
+    decideAll(client);
+    const third = raw(client);
+    expect(third.status).toBe('review'); expect(third.roundResult).toMatchObject({ reason: 'hazard', hazard: kind, escaped: ['0'], lost: { '1': 3, '2': 3 } });
+    expect(third.removedHazards[kind]).toBe(1); expect(third.secret!.recycle.filter(card => card.kind === 'hazard' && card.hazard === kind)).toHaveLength(2);
+    expect(third.private['0'].banked).toBe(17); expect(third.log.find(entry => entry.type === 'disaster')?.message).toContain('第 3 張');
+    ackAll(client); expect(raw(client).options).toEqual({ hazardLimit: 3 }); expect(raw(client).removedHazards[kind]).toBe(1);
+  });
+  it('舊存檔未記錄門檻時仍在同類第2張封鎖', () => {
+    const client = fixture(3, [hazard('camera'), hazard('camera')]);
+    patch(client, G => { G.options = {} as HeistOptions; });
+    decideAll(client); expect(raw(client).status).toBe('review'); expect(raw(client).removedHazards.camera).toBe(1);
+  });
   it.each(HEIST_HAZARD_IDS)('%s第二次出現立即失敗，只永久移除觸發的第二張', kind => {
     const client = fixture(3, [loot(11), hazard(kind), hazard(kind), hazard(kind)]);
     patch(client, G => { G.private['0'].banked = 12; G.players['0'].artifacts = ['moon-watch']; });
@@ -182,6 +205,14 @@ describe('危機、永久移除、跨幕牌庫', () => {
     for (let i = 0; i < 3; i++) { decideAll(client); expect(raw(client).status).toBe('decision'); }
     decideAll(client); decideAll(client, { '0': 'exit' });
     expect(raw(client).status).toBe('review'); expect(raw(client).private['0'].banked).toBe(3); expect(raw(client).roundResult?.lost).toEqual({ '1': 3, '2': 3 });
+  });
+  it('第3張房規不合併不同種類的危機，安全撤退不移除危機牌', () => {
+    const client = fixture(3, [hazard('camera'), hazard('laser'), hazard('camera'), hazard('laser')], 3);
+    for (let i = 0; i < 3; i++) decideAll(client);
+    expect(raw(client).status).toBe('decision'); expect(raw(client).removedHazards.camera).toBe(0);
+    allExit(client); expect(raw(client).roundResult?.reason).toBe('all-exited');
+    expect(raw(client).secret!.recycle.filter(card => card.kind === 'hazard' && card.hazard === 'camera')).toHaveLength(2);
+    expect(raw(client).secret!.recycle.filter(card => card.kind === 'hazard' && card.hazard === 'laser')).toHaveLength(2);
   });
   it('危機結束也移除所有已翻未領名品，未翻名品仍在牌庫', () => {
     const client = fixture(3, [artifact('sapphire-eye'), hazard('camera'), hazard('camera'), artifact('moon-watch')]); decideAll(client); decideAll(client);
@@ -288,6 +319,19 @@ describe('五幕結束、排名及安全框架', () => {
     expect(raw(client).status).toBe('finished'); expect(highestRound).toBe(5); expect(raw(client).log.filter(e => e.type === 'round-start').map(e => e.artifact)).toEqual(HEIST_ARTIFACT_IDS);
     expect(raw(client).log.filter(e => e.type === 'round-end')).toHaveLength(5); expect(raw(client).winnerIDs.length).toBeGreaterThan(0);
     for (const id of raw(client).turnOrder) expect(legalHeistActions(heistPlayerView({ G: raw(client), playerID: id }), id)).toEqual([]);
+  });
+  it.each([3, 8])('%i人第3張房規持續深入，五幕都能結束且不會耗盡牌庫', n => {
+    const client = makeClient(n, undefined, `third-warning-${n}`, { hazardLimit: 3 });
+    let guard = 0;
+    while (raw(client).status !== 'finished' && guard++ < 200) {
+      if (raw(client).status === 'decision') decideAll(client); else ackAll(client);
+    }
+    const G = raw(client);
+    expect(G.status).toBe('finished'); expect(G.round).toBe(5);
+    expect(G.log.filter(entry => entry.type === 'disaster')).toHaveLength(5);
+    expect(Object.values(G.removedHazards)).toEqual([1, 1, 1, 1, 1]);
+    expect([...G.secret!.deck, ...G.secret!.recycle].filter(card => card.kind === 'hazard')).toHaveLength(10);
+    expect([...G.secret!.deck, ...G.secret!.recycle].filter(card => card.kind === 'loot')).toHaveLength(15);
   });
   it('所有動作只由伺服器執行、禁止復原、遮蔽metadata且關閉所有框架事件', () => {
     expect(HeistGame.disableUndo).toBe(true);

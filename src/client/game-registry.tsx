@@ -12,6 +12,7 @@ import { firewallSoundAdapter } from './firewall-sounds';
 import { HeistGame } from '../games/heist/game';
 import { HeistBoard, HeistSnapshot } from './HeistBoard';
 import { HeistRules, HeistRuleSummary, heistChapters } from './HeistRules';
+import { HeistOptions } from './HeistOptions';
 import { createHeistPoster } from './heist-poster';
 import { heistSoundAdapter } from './heist-sounds';
 import { Client } from 'boardgame.io/react';
@@ -141,13 +142,13 @@ export const clientGames: Record<GameID, ClientGameDefinition> & Record<string, 
   'curtain-heist': {
     name: gameCatalog['curtain-heist'].name,
     PlayerClient: props => <HeistClient {...props} />,
-    Snapshot: HeistSnapshot, Rules: HeistRuleSummary, DetailedRules: HeistRules,
+    Snapshot: HeistSnapshot, Rules: HeistRuleSummary, DetailedRules: HeistRules, LobbyOptions: HeistOptions,
     chapters: heistChapters, gallery: { chapter: 'gallery', label: '贓物、警戒與珍藏圖鑑' },
     createPoster: createHeistPoster, soundAdapter: heistSoundAdapter,
     lobbyTitle: '掌聲是掩護，分紅才是壓軸。', lobbyDescription: gameCatalog['curtain-heist'].description,
     factionLabels: { illusionists: '幻術師' }, resultLabels: { heist: '五幕劫案競賽完成' },
     individualCompetition: true,
-    competitionLabels: { title: '劫案競賽紀錄', description: '每位幻術師各自累積分紅，依人數記錄完成的五幕劫案。', roundsLabel: '平均幕數', roundUnit: '幕', modes: { 'five-acts': '五幕劫案' } },
+    competitionLabels: { title: '劫案競賽紀錄', description: '每位幻術師各自累積分紅，依危機門檻與人數記錄完成的五幕劫案。', roundsLabel: '平均幕數', roundUnit: '幕', modes: { 'five-acts': '五幕劫案 · 同類第 2 張', 'five-acts-hazard-3': '五幕劫案 · 同類第 3 張' } },
     reasonLabels: { score: '五幕分紅與珍藏結算' },
   },
   'hundred-ghosts': {

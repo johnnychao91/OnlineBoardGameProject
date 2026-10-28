@@ -2,7 +2,7 @@ import type { FnContext, Game } from 'boardgame.io';
 import { ActivePlayers, INVALID_MOVE } from 'boardgame.io/core';
 import { isPlayerSeatID } from '../catalog';
 import { createHeistBaseDeck, HEIST_ARTIFACTS, HEIST_ARTIFACT_IDS, HEIST_HAZARD_IDS, HEIST_ROUND_COUNT, type HeistArtifact, type HeistCard, type HeistHazard } from './content';
-import { normalizeHeistOptions, validateHeistOptions, type HeistOptions } from './rules';
+import { heistHazardLimit, normalizeHeistOptions, validateHeistOptions, type HeistOptions } from './rules';
 export type { HeistArtifact, HeistCard, HeistHazard } from './content';
 export type HeistChoice = 'explore' | 'exit';
 export type HeistStatus = 'lobby' | 'briefing' | 'decision' | 'review' | 'finished';
@@ -69,7 +69,7 @@ function endRound(G: HeistState, reason: HeistRoundResult['reason'], hazard: Hei
   const lost: Record<string, number> = {}, escaped = G.turnOrder.filter(id => !G.players[id].exploring);
   if (reason === 'hazard') {
     for (const id of explorers(G)) { lost[id] = G.players[id].carried; G.players[id].carried = 0; G.players[id].exploring = false; }
-    log(G, 'disaster', '同類危機第二次出現，仍在金庫內的人失去本幕攜帶的贓物。', { hazard: hazard!, lost: { ...lost } });
+    log(G, 'disaster', `同類危機第 ${heistHazardLimit(G.options)} 張出現，仍在金庫內的人失去本幕攜帶的贓物。`, { hazard: hazard!, lost: { ...lost } });
   }
   G.roundResult = { round: G.round, reason, hazard, escaped, lost, discardedArtifacts: [...G.availableArtifacts], discardedLeftovers: G.leftovers };
   G.discardedArtifacts.push(...G.availableArtifacts); G.availableArtifacts = []; G.leftovers = 0;
@@ -78,8 +78,9 @@ function endRound(G: HeistState, reason: HeistRoundResult['reason'], hazard: Hei
   log(G, 'round-end', reason === 'hazard' ? '本幕被迫謝幕。確認結果後，再準備下一幕。' : '所有人都已撤離，本幕落下。');
 }
 function revealNext(G: HeistState) {
-  // With 15 hazards and only four prior removals, a valid five-round game cannot exhaust the deck before a repeat.
-  const card = G.secret!.deck.shift(); if (!card) throw new Error('謝幕劫案牌庫不應在危機重複前耗盡。');
+  // At most four prior removals leave at least one of the five hazard types with all three cards.
+  // Both thresholds therefore end a valid five-round game before the deck can run out.
+  const card = G.secret!.deck.shift(); if (!card) throw new Error('謝幕劫案牌庫不應在危機觸發前耗盡。');
   G.path.push(card); G.step++; G.deckCount = G.secret!.deck.length;
   log(G, 'reveal', card.kind === 'loot' ? '發現贓物，由仍在場的人均分。' : card.kind === 'artifact' ? '名品留在路上，等待獨自撤離的人帶走。' : '一種危機出現在金庫通道。', { card: { ...card } });
   if (card.kind === 'loot') {
@@ -89,7 +90,7 @@ function revealNext(G: HeistState) {
   } else if (card.kind === 'artifact') G.availableArtifacts.push(card.artifact);
   else {
     const seen = G.path.filter(c => c.kind === 'hazard' && c.hazard === card.hazard).length;
-    if (seen === 2) { G.removedHazards[card.hazard]++; endRound(G, 'hazard', card.hazard); return; }
+    if (seen >= heistHazardLimit(G.options)) { G.removedHazards[card.hazard]++; endRound(G, 'hazard', card.hazard); return; }
     G.secret!.recycle.push(card);
   }
   G.status = 'decision'; G.phaseEpoch = G.epoch; clearSubmissions(G);

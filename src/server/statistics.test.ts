@@ -5,6 +5,22 @@ import type { RoomRecord, RoomStore } from './rooms';
 import { GAME_IDS } from '../games/catalog';
 
 describe('Challenge score aggregation', () => {
+  it('keeps legacy and second-card heists together while separating third-card house rules', async () => {
+    const states = new Map(['legacy', 'second', 'third'].map(id => [id, { ctx: { numPlayers: 3 }, G: {
+      status: 'finished', winner: 'heist', winReason: 'score', round: 5,
+      options: id === 'legacy' ? {} : { hazardLimit: id === 'third' ? 3 : 2 }, players: { '0': {}, '1': {}, '2': {} },
+    } }]));
+    const rooms = { rooms: new Map([['heists', { roomId: 'heists', gameId: 'curtain-heist', currentMatchID: 'third',
+      history: [...states.keys()].map(matchID => ({ matchID, gameName: 'curtain-heist', ending: 'completed' })),
+    } as RoomRecord]]) } as RoomStore;
+    const db = { fetch: async (id: string) => ({ state: states.get(id) }) } as unknown as FileStorage;
+    const result = await collectStatistics(db, rooms), heist = result.byGame.find(game => game.gameId === 'curtain-heist')!;
+    expect(result.completedGames).toBe(3); expect(heist.rankedCompleted).toBe(0);
+    expect(heist.competitions).toEqual([
+      expect.objectContaining({ mode: 'five-acts', runs: 2, totalRounds: 10 }),
+      expect.objectContaining({ mode: 'five-acts-hazard-3', runs: 1, totalRounds: 5 }),
+    ]);
+  });
   it('groups individual competitions by rules and player count without treating a champion as a public faction', async () => {
     const finished = (mode: string, count: number, rounds: number) => ({ ctx: { numPlayers: count }, G: {
       status: 'finished', mode, round: rounds, winner: mode === 'black-letter' ? 'couriers' : 'delivery',

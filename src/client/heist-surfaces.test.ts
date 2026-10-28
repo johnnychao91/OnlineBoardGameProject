@@ -6,6 +6,7 @@ import { HeistGame, heistObserverView, heistPlayerView, type HeistState } from '
 import { HEIST_ARTIFACT_IDS, HEIST_HAZARD_IDS, HEIST_ARTIFACTS } from '../games/heist/content';
 import { HeistBoard, HeistDecision, HeistLayout, HeistSnapshot } from './HeistBoard';
 import { HeistRules, heistChapters } from './HeistRules';
+import { HeistOptions } from './HeistOptions';
 import { buildHeistPosterModel } from './heist-poster';
 import { heistSoundAdapter } from './heist-sounds';
 import { GameSoundTracker } from './sound-cues';
@@ -33,6 +34,30 @@ const snapshot = (G: HeistState, perspective: 'blind' | 'god') => renderToStatic
 const buttons = (html: string) => [...html.matchAll(/<button\b[^>]*>[\s\S]*?<\/button>/g)].map(match => match[0]);
 
 describe('Curtain Heist player, snapshot and rule surfaces', () => {
+  it('shows the saved hazard threshold in play, blind replay and public posters without marking the second card as a disaster', () => {
+    const G = fixture(); G.options = { hazardLimit: 3 }; G.path.push({ kind: 'hazard', hazard: 'camera' });
+    for (const html of [board(G), snapshot(G, 'blind'), snapshot(G, 'god')]) {
+      expect(html).toContain('同類第 3 張危機卡結束本幕'); expect(html).toContain('2 / 3');
+      expect(html).toContain('同類第 3 張才會封鎖'); expect(html).not.toContain('data-triggered="true"');
+    }
+    expect(buildHeistPosterModel({ G, info, step: 1, totalSteps: 1 }).hazardLimit).toBe(3);
+    G.options = {} as HeistState['options'];
+    expect(snapshot(G, 'blind')).toContain('同類第 2 張危機卡結束本幕');
+    expect(buildHeistPosterModel({ G, info, step: 1, totalSteps: 1 }).hazardLimit).toBe(2);
+  });
+  it.each([
+    { role: 'host', status: 'lobby', locked: false }, { role: 'guest', status: 'lobby', locked: true },
+    { role: 'observer-host', status: 'lobby', locked: false }, { role: 'host', status: 'decision', locked: true },
+  ])('renders the saved lobby option for $role/$status and locks unauthorized edits', ({ role, status, locked }) => {
+    const observing = role === 'observer-host';
+    const session = observing ? { ...info, access: 'spectator' as const, observerID: 'watch-host', credentials: 'test-only' }
+      : { ...seat, playerID: role === 'guest' ? '3' : '0' };
+    const room = { ...info, status, hostPlayerID: observing ? null : '0', hostObserverID: observing ? 'watch-host' : null, gameOptions: { hazardLimit: 3 } };
+    const html = renderToStaticMarkup(createElement(HeistOptions, { seat: session, info: room, disabled: false, onBusy: () => {}, onUpdate: () => {} }));
+    expect(html).toContain('<option value="3" selected="">');
+    expect(html.includes('<select disabled=""')).toBe(locked);
+    expect(html).toContain('不同種類不合併'); expect(html).toContain('開局後固定');
+  });
   it('renders only the player vault and public path, never a future card or another sealed choice', () => {
     const G = fixture(), before = structuredClone(G), html = board(G);
     expect(html).toContain('data-private-bank="true">123'); expect(html).toContain('1 / 3 位已密封決定');
@@ -95,7 +120,8 @@ describe('Curtain Heist player, snapshot and rule surfaces', () => {
     for (const [chapter] of heistChapters) expect(html).toContain(`id="${chapter}"`);
     for (const id of [...HEIST_ARTIFACT_IDS, ...HEIST_HAZARD_IDS, 'loot-a', 'loot-b', 'bank', 'decision-explore', 'decision-exit']) expect(html).toContain(`id="heist-${id}"`);
     expect(html).toContain('1、2、3、4、5、5、7、7、9、11、11、13、14、15、17'); expect(html).toContain('5、7、8、10、12');
-    expect(html).toContain('只有第二張'); expect(html).toContain('共享勝利'); expect(html).toContain('沒有行動倒數');
+    expect(html).toContain('只有造成封鎖的那一張'); expect(html).toContain('同類第 2 張'); expect(html).toContain('同類第 3 張');
+    expect(html).toContain('共享勝利'); expect(html).toContain('沒有行動倒數');
   });
 });
 

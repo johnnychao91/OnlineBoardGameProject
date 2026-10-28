@@ -15,7 +15,7 @@ import { normalizeBakerOptions, validateBakerOptions } from './baker/rules';
 import { BanquetGame, banquetObserverView, type BanquetState } from './banquet/game';
 import { normalizeBanquetOptions, validateBanquetOptions } from './banquet/rules';
 import { HeistGame, heistObserverView, type HeistState } from './heist/game';
-import { normalizeHeistOptions, validateHeistOptions } from './heist/rules';
+import { heistHazardLimit, normalizeHeistOptions, validateHeistOptions } from './heist/rules';
 import { FirewallGame, firewallObserverView, type FirewallState } from './firewall/game';
 import { normalizeFirewallOptions, validateFirewallOptions } from './firewall/rules';
 import { StarGame, starObserverView, type StarState } from './star/game';
@@ -97,7 +97,7 @@ const registeredGames: GameDefinition[] = [{
   getOutcome: (state: HeistState) => {
     if (state.status !== 'finished' || !state.winner || !state.winReason) return null;
     return { winner: state.winner, reason: state.winReason,
-      competition: { mode: 'five-acts', rounds: state.round },
+      competition: { mode: heistHazardLimit(state.options) === 3 ? 'five-acts-hazard-3' : 'five-acts', rounds: state.round },
       roles: Object.fromEntries(Object.keys(state.players).map(id => [id, 'illusionists'])) };
   },
 }, {

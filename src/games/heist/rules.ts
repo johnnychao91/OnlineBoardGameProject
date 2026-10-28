@@ -1,10 +1,15 @@
 export * from './content';
-export type HeistOptions = Record<string, never>;
-export const DEFAULT_HEIST_OPTIONS: HeistOptions = {};
+export type HeistOptions = { hazardLimit: 2 | 3 };
+export const DEFAULT_HEIST_OPTIONS: HeistOptions = { hazardLimit: 2 };
+/** Old saved games have an empty options object and retain the original second-card rule. */
+export const heistHazardLimit = (options?: Partial<HeistOptions>): 2 | 3 => options?.hazardLimit === 3 ? 3 : 2;
 export function normalizeHeistOptions(input: unknown): HeistOptions {
-  if (input === undefined) return {};
-  if (!input || typeof input !== 'object' || Array.isArray(input) || Object.keys(input).length) throw new Error('謝幕劫案使用正式五幕基本規則，沒有額外房規。');
-  return {};
+  if (input === undefined) return { ...DEFAULT_HEIST_OPTIONS };
+  if (!input || typeof input !== 'object' || Array.isArray(input)
+    || Object.keys(input).some(key => key !== 'hazardLimit')) throw new Error('謝幕劫案設定格式不正確。');
+  const value = (input as Record<string, unknown>).hazardLimit;
+  if (value !== undefined && value !== 2 && value !== 3) throw new Error('請選擇同類第 2 張或第 3 張危機卡結束本幕。');
+  return { hazardLimit: value === 3 ? 3 : 2 };
 }
 export function validateHeistOptions(input: unknown, numPlayers?: number): string | undefined {
   try { normalizeHeistOptions(input); } catch (error) { return (error as Error).message; }

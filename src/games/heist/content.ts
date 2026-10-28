@@ -2,11 +2,11 @@
 export const HEIST_ROUND_COUNT = 5;
 export const HEIST_LOOT_VALUES = [1, 2, 3, 4, 5, 5, 7, 7, 9, 11, 11, 13, 14, 15, 17] as const;
 export const HEIST_HAZARDS = {
-  camera: { name: '監視鏡頭', description: '鏡頭再次捕捉到你們，仍在金庫中的人丟失本幕攜帶的全部贓物。' },
-  laser: { name: '雷射網', description: '第二道同類雷射網封住去路，仍在金庫中的人丟失本幕攜帶的全部贓物。' },
-  patrol: { name: '巡邏保全', description: '第二批保全包圍金庫，仍在金庫中的人丟失本幕攜帶的全部贓物。' },
-  lockdown: { name: '封鎖閘門', description: '同類閘門再次落下，仍在金庫中的人丟失本幕攜帶的全部贓物。' },
-  alarm: { name: '感應警報', description: '同類警報第二次響起，仍在金庫中的人丟失本幕攜帶的全部贓物。' },
+  camera: { name: '監視鏡頭', description: '同類鏡頭達到本局設定的張數時捕捉到你們，仍在金庫中的人丟失本幕攜帶的全部贓物。' },
+  laser: { name: '雷射網', description: '同類雷射網達到本局設定的張數時封住去路，仍在金庫中的人丟失本幕攜帶的全部贓物。' },
+  patrol: { name: '巡邏保全', description: '同類保全達到本局設定的張數時包圍金庫，仍在金庫中的人丟失本幕攜帶的全部贓物。' },
+  lockdown: { name: '封鎖閘門', description: '同類閘門達到本局設定的張數時落下，仍在金庫中的人丟失本幕攜帶的全部贓物。' },
+  alarm: { name: '感應警報', description: '同類警報達到本局設定的張數時全面響起，仍在金庫中的人丟失本幕攜帶的全部贓物。' },
 } as const;
 export type HeistHazard = keyof typeof HEIST_HAZARDS;
 export const HEIST_HAZARD_IDS = Object.keys(HEIST_HAZARDS) as HeistHazard[];
