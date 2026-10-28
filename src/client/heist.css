@@ -69,3 +69,20 @@
 @media(max-width:900px){.heist-layout{grid-template-columns:minmax(0,1fr) 270px;gap:12px}.heist-main{padding:15px}.heist-heading{flex-wrap:wrap}.heist-acts img{display:none}.heist-crew{grid-template-columns:repeat(2,minmax(0,1fr))}.heist-latest{grid-template-columns:85px minmax(0,1fr);gap:11px}.heist-layout .panel{padding:15px}.heist-route-metrics{gap:9px}.heist-prologue{flex-direction:column;align-items:flex-start}.heist-prologue>img{align-self:center}}
 @media(max-width:700px){.heist-layout{display:flex;flex-direction:column;gap:14px}.heist-layout>*{width:100%}.heist-main{padding:15px;border-radius:15px}.heist-layout .heist-heading h1{font-size:2rem}.heist-acts{gap:5px}.heist-acts>div{padding:7px 5px;gap:4px}.heist-acts span{font-size:.55rem}.heist-acts strong{font-size:.83rem}.heist-status{padding:12px}.heist-stage-heading{align-items:flex-end}.heist-route-metrics{gap:8px}.heist-route-metrics span{font-size:.58rem}.heist-route-metrics b{font-size:.92rem}.heist-latest{grid-template-columns:92px minmax(0,1fr);padding:10px;gap:12px}.heist-latest h3{font-size:1rem}.heist-latest p{font-size:.68rem}.heist-hazards{gap:5px}.heist-hazards strong{font-size:.53rem}.heist-hazards small{font-size:.46rem}.heist-hazards img{width:24px;height:36px}.heist-path>ol{grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}.heist-crew{grid-template-columns:repeat(2,minmax(0,1fr))}.heist-crew article>div:first-child>strong{font-size:.75rem}.heist-crew p{font-size:.68rem}.heist-decision-option>img{height:110px}.heist-decision-option strong{font-size:.92rem}.heist-private-heading .button{font-size:.7rem}.heist-personal-aside h2{font-size:.97rem}.heist-vault>img{width:82px;height:90px}.heist-vault-total{font-size:.72rem}.heist-prologue{flex-direction:row;gap:15px;padding:15px 0}.heist-prologue>img{width:76px;height:114px}.heist-prologue h2{font-size:1rem}.heist-prologue p{font-size:.71rem}.heist-stage-scroll{overflow:visible}.heist-history>ol{max-height:440px}}
 @media(prefers-reduced-motion:reduce){.heist-layout *{scroll-behavior:auto;transition:none;animation:none}}
+
+/* Keep the route prominent; warnings follow the cards. */
+.heist-layout .heist-path>ol{grid-template-columns:repeat(auto-fill,minmax(140px,180px));gap:16px;justify-content:center}
+.heist-layout .heist-path .heist-card{width:100%;max-width:none}
+.heist-layout .heist-path>ol>li>small{font-size:.8rem;line-height:1.6;margin-top:10px}
+.heist-layout .heist-hazards{margin-top:24px}
+@media(max-width:700px){.heist-layout .heist-path>ol{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}}
+
+/* Public presence stays readable beside both ordinary and highlighted player cards. */
+.heist-layout .heist-crew article>div:first-child>.heist-crew-status{display:inline-flex;align-items:center;gap:5px;max-width:100%;margin-top:9px;padding:6px 10px;border-radius:6px;font-size:.82rem;font-weight:750;line-height:1.5;overflow-wrap:anywhere}
+.heist-layout .heist-crew .heist-crew-status[data-presence=inside]{color:#714000;background:#fff0c7;border:1px solid #b78026}
+.heist-layout .heist-crew .heist-crew-status[data-presence=exited]{color:#155542;background:#dbf2e8;border:1px solid #438970}
+.heist-layout .heist-crew article[data-exploring=false]{opacity:1}
+:root[data-visual-style=art] .heist-layout .heist-crew .heist-crew-status[data-presence=inside]{color:#ffe1a0;background:#49351d;border-color:#c99c48;box-shadow:inset 3px 0 #e7b44f}
+:root[data-visual-style=art] .heist-layout .heist-crew .heist-crew-status[data-presence=exited]{color:#aaf0d0;background:#173e36;border-color:#559d83;box-shadow:inset 3px 0 #72cfab}
+
+.heist-deck-summary{margin:20px 0;padding:14px;border:1px solid var(--heist-line);border-radius:10px;color:var(--heist-copy)}.heist-deck-summary summary{cursor:pointer;font-weight:700}.heist-deck-summary p{font-size:.75rem;margin:12px 0}.heist-deck-summary ul{display:flex;flex-wrap:wrap;gap:10px 20px;list-style:none;padding:0;font-size:.85rem}.heist-deck-summary b{color:var(--heist-gold);margin-left:8px}

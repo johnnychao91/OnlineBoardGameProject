@@ -86,3 +86,22 @@ describe('Challenge score aggregation', () => {
     expect(await collectStatistics(db, rooms)).toEqual(result);
   });
 });
+
+it('ranks only completed real heist scores with historical names and never exports metadata', async () => {
+  const ids=['a','b','test','ongoing'];
+  const states=new Map(ids.map(id=>[id,{ctx:{numPlayers:3},G:{status:id==='ongoing'?'decision':'finished',winner:id==='ongoing'?null:'heist',winReason:'score',round:5,options:{hazardLimit:3},players:{'0':{},'3':{},'7':{}},turnOrder:['0','3','7'],log:[] as any[],finalScores:{'0':{total:id==='test'?999:50},'3':{total:20},'7':{total:0}}}}]));
+  for (const state of states.values()) state.G.log = [
+    { type:'exit',round:1,returns:[{playerID:'0',bankedDelta:5,artifacts:['moon-watch']},{playerID:'3',bankedDelta:40,artifacts:[]}] },
+    { type:'round-end',round:1 }, { type:'round-end',round:2 },
+  ];
+  const room=(matchID:string)=>({roomId:matchID,currentMatchID:matchID,gameId:'curtain-heist',testRoom:matchID==='test',history:[],numPlayers:3,inviteHash:'test',inviteExpiresAt:0,createdAt:0} as RoomRecord);
+  const rooms={rooms:new Map(ids.map(id=>[id,room(id)]))} as RoomStore;
+  const db={fetch:async(id:string)=>({state:states.get(id),metadata:{players:{0:{name:'Old name',credentials:'DO-NOT-EXPORT'},3:{name:'Other'},7:{name:''}},secret:'HIDDEN'}})} as unknown as FileStorage;
+  const result=await collectStatistics(db,rooms);
+  const group=result.byGame.find(g=>g.gameId==='curtain-heist')!.competitions[0];
+  expect(group.runs).toBe(2);expect(group.highScores).toEqual([{name:'Old name',total:50},{name:'Old name',total:50},{name:'Other',total:20},{name:'Other',total:20},{name:'未命名成員',total:0},{name:'未命名成員',total:0}]);
+  expect(group.roundHighScores).toHaveLength(10);
+  expect(group.roundHighScores!.slice(0,4)).toEqual([{name:'Other',total:40,round:1},{name:'Other',total:40,round:1},{name:'Old name',total:12,round:1},{name:'Old name',total:12,round:1}]);
+  expect(JSON.stringify(result)).not.toMatch(/DO-NOT-EXPORT|HIDDEN|999/);
+  expect(await collectStatistics(db,rooms)).toEqual(result);
+});

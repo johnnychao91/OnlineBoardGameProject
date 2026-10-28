@@ -27,6 +27,7 @@ export interface HeistState {
   round: number; targetRounds: number; step: number;
   /** Every accepted move changes epoch. A batch keeps phaseEpoch so simultaneous arrivals remain valid. */
   epoch: number; phaseEpoch: number;
+  remainingDeck?: { loot: number; artifacts: number; hazards: Record<HeistHazard, number> };
   path: HeistCard[]; leftovers: number; availableArtifacts: HeistArtifact[]; deckCount: number;
   removedHazards: Record<HeistHazard, number>; discardedArtifacts: HeistArtifact[];
   lastDecision: HeistDecision | null; roundResult: HeistRoundResult | null; log: HeistLogEntry[];
@@ -153,7 +154,12 @@ export function legalHeistActions(view: HeistState, playerID: string): HeistActi
 }
 export function heistPlayerView({ G, playerID }: { G: HeistState; playerID: string | null }): HeistState {
   const { secret: _secret, private: _private, ...publicState } = G;
-  return { ...structuredClone(publicState), private: playerID !== null && isSeat(G, playerID) && G.private[playerID] ? { [playerID]: structuredClone(G.private[playerID]) } : {} };
+  const remainingDeck = G.secret ? {
+    loot: G.secret.deck.filter(card => card.kind === 'loot').length,
+    artifacts: G.secret.deck.filter(card => card.kind === 'artifact').length,
+    hazards: Object.fromEntries(HEIST_HAZARD_IDS.map(id => [id, G.secret!.deck.filter(card => card.kind === 'hazard' && card.hazard === id).length])) as Record<HeistHazard, number>,
+  } : G.remainingDeck;
+  return { ...structuredClone(publicState), remainingDeck: remainingDeck ? structuredClone(remainingDeck) : undefined, private: playerID !== null && isSeat(G, playerID) && G.private[playerID] ? { [playerID]: structuredClone(G.private[playerID]) } : {} };
 }
 export function heistObserverView(G: HeistState, perspective: 'blind' | 'god'): HeistState {
   const view = heistPlayerView({ G, playerID: null });

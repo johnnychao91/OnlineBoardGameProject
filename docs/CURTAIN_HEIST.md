@@ -47,3 +47,5 @@
 - [出版商產品與規則入口](https://www.eagle-gryphon.com/products/incan-gold-2024)
 - [出版商 2024 基本規則](https://drive.google.com/uc?export=download&id=1g9iStN6y5m0VZFrQFYN3a2RFztps4W6s)
 - [出版商 2018 基本規則](https://drive.google.com/uc?export=download&id=1dUqSh-rCYACXEGvL4Hn-wKSthLfwzzks)
+
+牌桌以放大的本幕路線為主，危機統計在下方；每張贓物牌的餘款由公開紀錄重建，撤退領取時按揭牌先後扣除，幕末歸零。剩餘牌庫只公開贓物、珍藏及各類危機張數，不公開順序。五幕總帳列出各幕收益（入庫及珍藏價值）。全站統計新增各門檻、人數組的前十筆單局總收益及單幕收益、當局暱稱與幕次，同名不合併；測試房及未完成局排除。

@@ -4,7 +4,7 @@ import { createMatch } from 'boardgame.io/internal';
 import { describe, expect, it } from 'vitest';
 import { HeistGame, heistObserverView, heistPlayerView, type HeistState } from '../games/heist/game';
 import { HEIST_ARTIFACT_IDS, HEIST_HAZARD_IDS, HEIST_ARTIFACTS } from '../games/heist/content';
-import { HeistBoard, HeistDecision, HeistLayout, HeistSnapshot } from './HeistBoard';
+import { HeistBoard, HeistDecision, HeistLayout, HeistSnapshot, heistPathRemainders, heistRoundIncome } from './HeistBoard';
 import { HeistRules, heistChapters } from './HeistRules';
 import { HeistOptions } from './HeistOptions';
 import { buildHeistPosterModel } from './heist-poster';
@@ -38,7 +38,7 @@ describe('Curtain Heist player, snapshot and rule surfaces', () => {
     const G = fixture(); G.options = { hazardLimit: 3 }; G.path.push({ kind: 'hazard', hazard: 'camera' });
     for (const html of [board(G), snapshot(G, 'blind'), snapshot(G, 'god')]) {
       expect(html).toContain('同類第 3 張危機卡結束本幕'); expect(html).toContain('2 / 3');
-      expect(html).toContain('同類第 3 張才會封鎖'); expect(html).not.toContain('data-triggered="true"');
+      expect(html).not.toContain('最新揭牌'); expect(html).not.toContain('data-triggered="true"');
     }
     expect(buildHeistPosterModel({ G, info, step: 1, totalSteps: 1 }).hazardLimit).toBe(3);
     G.options = {} as HeistState['options'];
@@ -159,4 +159,40 @@ describe('Curtain Heist public poster and sound boundaries', () => {
     G.players['0'].exploring = false; expect(heistSoundAdapter(G, '0')?.attention).toBeUndefined();
     G.status = 'review'; G.phaseEpoch++; expect(tracker.update(input())).toEqual({ reveals: 0, ownTurn: true });
   });
+});
+
+ describe('Heist public route accounting', () => {
+  it('tracks per-card change through staggered exits and clears abandoned coins at act end', () => {
+    const G = fixture(); G.path = [{kind:'loot',value:11},{kind:'loot',value:5}];
+    G.log = [
+      {type:'reveal',round:2,step:1,message:'',card:G.path[0]},
+      {type:'exit',round:2,step:1,message:'',returns:[{playerID:'0',carried:3,pathShare:2,bankedDelta:5,artifacts:['moon-watch']}]},
+      {type:'reveal',round:2,step:2,message:'',card:G.path[1]},
+    ];
+    const before = structuredClone(G);
+    expect(heistPathRemainders(G)).toEqual([0,1]);
+    expect(heistRoundIncome(G,'0',2)).toBe(12);
+    expect(heistRoundIncome(G,'3',2)).toBe(0);
+    expect(heistRoundIncome(G,'0',1)).toBe(0);
+    expect(G).toEqual(before);
+    G.log.push({type:'round-end',round:2,step:2,message:''});
+    expect(heistPathRemainders(G)).toEqual([0,0]);
+  });
+  it('renders larger route before warnings and final per-act income without a duplicate latest card', () => {
+    const G=fixture(); G.status='finished';
+    const html=snapshot(G,'blind');
+    expect(html).not.toContain('最新揭牌');
+    expect(html.indexOf('class="heist-path"')).toBeLessThan(html.indexOf('class="heist-hazards"'));
+    expect(html).toContain('剩餘 0 點贓物');
+    for(let round=1;round<=5;round++) expect(html).toContain('第 '+round+' 幕收益');
+  });
+ });
+
+it('projects remaining deck composition consistently without exposing order or choices',()=>{
+  const G=fixture();G.secret!.deck=[{kind:'loot',value:9},{kind:'hazard',hazard:'camera'},{kind:'hazard',hazard:'camera'},{kind:'artifact',artifact:'moon-watch'}];G.deckCount=4;
+  const before=structuredClone(G), view=heistPlayerView({G,playerID:'0'});
+  expect(view.remainingDeck).toMatchObject({loot:1,artifacts:1,hazards:{camera:2}});
+  expect(view.secret).toBeUndefined();expect(heistObserverView(G,'blind').remainingDeck).toEqual(view.remainingDeck);
+  expect(heistPlayerView({G:view,playerID:'0'}).remainingDeck).toEqual(view.remainingDeck);
+  expect(snapshot(G,'blind')).toContain('剩餘牌庫');expect(G).toEqual(before);
 });

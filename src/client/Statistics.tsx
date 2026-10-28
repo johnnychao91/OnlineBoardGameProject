@@ -16,7 +16,7 @@ export interface GameStatistics {
   byPlayerCount: { numPlayers: number; completed: number; draws?: number; wins: Record<string, number> }[];
   reasons: Record<string, number>;
   challenges?: { mode: string; numPlayers: number; startingLives: number; runs: number; bestCompletedRounds: number; averageCompletedRounds: number }[];
-  competitions?: { mode: string; numPlayers: number; runs: number; totalRounds: number; averageRounds: number }[];
+  competitions?: { mode: string; numPlayers: number; runs: number; totalRounds: number; averageRounds: number; highScores?: { name: string; total: number }[]; roundHighScores?: { name: string; total: number; round: number }[] }[];
 }
 interface StatisticsData { completedGames: number; totalPlayerParticipations: number; byGame: GameStatistics[]; }
 
@@ -93,6 +93,22 @@ export function CompetitionStandings({ competitions, gameID }: { competitions: N
       <tbody>{competitions.map(row => <tr key={`${row.mode}-${row.numPlayers}`}>
         <td>{labels.modes[row.mode] ?? row.mode}</td>
         <td>{row.numPlayers} 人</td><td>{row.runs} 局</td><td>{row.averageRounds} {labels.roundUnit}</td>
+      </tr>)}</tbody>
+    </table></div>
+    {competitions.map(row => <div key={row.mode + '-' + row.numPlayers}>
+      {!!row.highScores?.length && <CompetitionScoreTable title={`單局最高收益排行 · ${labels.modes[row.mode] ?? row.mode} · ${row.numPlayers} 人`} scores={row.highScores} />}
+      {!!row.roundHighScores?.length && <CompetitionScoreTable title={`單幕最高收益排行 · ${labels.modes[row.mode] ?? row.mode} · ${row.numPlayers} 人`} scores={row.roundHighScores} byRound />}
+    </div>)}
+  </section>;
+}
+
+function CompetitionScoreTable({ title, scores, byRound = false }: { title: string; scores: { name: string; total: number; round?: number }[]; byRound?: boolean }) {
+  return <section className="competition-high-scores"><h4>{title}</h4>
+    <p className="small muted">{byRound ? '單幕' : '五幕合計'}收益前 10 筆，包含安全入庫贓物與珍藏價值；暱稱採該局紀錄，同名不合併。</p>
+    <div className="table-scroll"><table><caption className="visually-hidden">{byRound ? '單幕' : '單局'}最高收益排行</caption>
+      <thead><tr><th>名次</th><th>玩家</th>{byRound && <th>幕次</th>}<th>收益</th></tr></thead>
+      <tbody>{scores.map((score, index) => <tr key={index}>
+        <td>{scores.findIndex(entry => entry.total === score.total) + 1}</td><td>{score.name}</td>{byRound && <td>第 {score.round} 幕</td>}<td><strong>{score.total} 點</strong></td>
       </tr>)}</tbody>
     </table></div>
   </section>;

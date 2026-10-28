@@ -1,3 +1,5 @@
+import { heistRoundIncome } from '../games/heist/scoring';
+export { heistRoundIncome } from '../games/heist/scoring';
 import { useContext, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { heistObserverView, heistPlayerView, legalHeistActions, type HeistChoice, type HeistState } from '../games/heist/game';
 import { HEIST_ARTIFACTS, HEIST_ARTIFACT_IDS, HEIST_HAZARDS, HEIST_HAZARD_IDS, type HeistArtifact, type HeistCard } from '../games/heist/content';
@@ -73,6 +75,25 @@ export function HeistSnapshot({ G: state, info, perspective, replay = false }: S
     inspector={perspective === 'god' ? <SnapshotPlayerSelect playerIDs={G.turnOrder} value={id} onChange={setID} nameOf={nameOf} label="檢視成員的私人金庫" /> : undefined} />;
 }
 
+
+/** Reconstruct public road change; withdrawals consume the earliest remaining coins first. */
+export function heistPathRemainders(G: HeistState): number[] {
+  const amounts = G.path.map(() => 0);
+  let active = G.turnOrder.length;
+  for (const entry of G.log.filter(entry => entry.round === G.round)) {
+    if (entry.type === 'reveal' && entry.card?.kind === 'loot') amounts[entry.step - 1] = entry.card.value % active;
+    if (entry.type === 'exit') {
+      let taken = (entry.returns ?? []).reduce((sum, result) => sum + result.pathShare, 0);
+      for (let index = 0; index < amounts.length && taken > 0; index++) {
+        const used = Math.min(amounts[index], taken); amounts[index] -= used; taken -= used;
+      }
+      active -= entry.returns?.length ?? 0;
+    }
+    if (entry.type === 'round-end') amounts.fill(0);
+  }
+  return amounts;
+}
+
 function Art({ asset, alt, className = '' }: { asset: string; alt: string; className?: string }) {
   const src = heistArt(asset);
   return src ? <img className={className} src={src} alt={alt} loading="lazy" decoding="async" /> : null;
@@ -88,7 +109,7 @@ export function HeistLayout({ G, info, ownID, nameOf, visible, onVisible, contro
   controls?: ReactNode; inspector?: ReactNode; sound?: ReactNode; readonly?: boolean; replay?: boolean; god?: boolean;
 }) {
   const active = G.turnOrder.filter(id => G.players[id].exploring), submitted = active.filter(id => G.players[id].submitted).length;
-  const last = G.path.at(-1), background = heistArt('background'), hazardLimit = heistHazardLimit(G.options);
+  const remaining = heistPathRemainders(G), background = heistArt('background'), hazardLimit = heistHazardLimit(G.options);
   let title = '大幕尚未拉開', description = '確認規則後，所有成員一同進入第一幕。';
   if (G.status === 'decision') { title = `${submitted} / ${active.length} 位已密封決定`; description = '留下的人繼續冒險，離場的人先把贓物安全入庫。'; }
   if (G.status === 'review') { title = G.roundResult?.reason === 'hazard' ? '封鎖落下，本幕被迫謝幕' : '全員撤離，本幕安全落下'; description = '先確認這一幕的結果，所有人完成後才繼續。'; }
@@ -103,15 +124,14 @@ export function HeistLayout({ G, info, ownID, nameOf, visible, onVisible, contro
       <div className="heist-stage-scroll">
         {G.status === 'briefing' ? <div className="heist-prologue"><Art asset="card-back" alt="尚未揭開的劫案牌" /><div><span className="eyebrow">AFTER THE LAST APPLAUSE</span><h2>觀眾離席，行動開始。</h2><p>你們將在五幕之間決定何時深入、何時撤退。帶回金庫的贓物才安全；珍藏，只留給獨自離場的人。</p><p>首幕加入：<b>藍寶石之眼 · 5 點</b></p></div></div>
           : <><div className="heist-stage-heading"><div><span className="eyebrow">THE ROUTE / 已揭路線</span><h2>第 {G.step} 段通道</h2></div><div className="heist-route-metrics"><span>路線餘款 <b>{G.leftovers}</b></span><span>未揭牌 <b>{G.deckCount}</b></span></div></div>
-            {last && <div className="heist-latest"><HeistCardFace card={last} large /><div><span className="heist-latest-label">最新揭牌</span><h3>{heistCardName(last)}</h3><p>{last.kind === 'loot' ? '揭開時已由當時在場的成員均分，剩餘零錢累積到路線餘款。' : last.kind === 'artifact' ? '珍藏先留在路上，等待同一批唯一撤退的人帶走。' : G.roundResult?.hazard === last.hazard ? `這是本幕第 ${hazardLimit} 張同種警戒。仍在現場的人失去隨身贓物，這張警戒永久移除。` : `這種警戒已出現 ${G.path.filter(card => card.kind === 'hazard' && card.hazard === last.hazard).length} 張；同類第 ${hazardLimit} 張才會封鎖本幕路線。`}</p>
-              {G.availableArtifacts.length > 0 && <div className="heist-waiting-artifacts"><strong>路上珍藏 · 共 {artifactValue(G.availableArtifacts)} 點</strong><div>{G.availableArtifacts.map(artifact => <span key={artifact}><Art asset={`artifacts/${artifact}`} alt={HEIST_ARTIFACTS[artifact].name} /><small>{HEIST_ARTIFACTS[artifact].name} · {HEIST_ARTIFACTS[artifact].value}</small></span>)}</div></div>}</div></div>}
-            <div className="heist-hazards" aria-label="本幕已出現的警戒">{HEIST_HAZARD_IDS.map(hazard => { const seen = G.path.filter(card => card.kind === 'hazard' && card.hazard === hazard).length; return <div key={hazard} data-seen={seen > 0} data-triggered={seen >= hazardLimit}><Art asset={`hazards/${hazard}`} alt="" /><strong>{HEIST_HAZARDS[hazard].name}</strong><span>{seen} / {hazardLimit}</span><small>已移除 {G.removedHazards[hazard]} 張</small></div>; })}</div>
             {G.roundResult && <HeistRoundSummary G={G} nameOf={nameOf} />}
-            {G.status === 'finished' && <div className="heist-final"><h2>五幕財富總帳</h2><div className="rules-table-wrap"><table><thead><tr><th>成員</th><th>金庫</th><th>珍藏價值</th><th>件數</th><th>總分</th></tr></thead><tbody>{G.turnOrder.map(id => <tr key={id} data-winner={G.winnerIDs.includes(id)}><th>{nameOf(id)}{G.winnerIDs.includes(id) ? ' · 勝者' : ''}</th><td>{G.finalScores[id]?.banked ?? 0}</td><td>{G.finalScores[id]?.artifactValue ?? 0}</td><td>{G.finalScores[id]?.artifactCount ?? 0}</td><td><strong>{G.finalScores[id]?.total ?? 0}</strong></td></tr>)}</tbody></table></div></div>}
-            <details className="heist-path" open><summary>完整本幕路線 · {G.path.length} 張</summary><ol>{G.path.map((card, index) => { const owner = card.kind === 'artifact' ? G.turnOrder.find(id => G.players[id].artifacts.includes(card.artifact)) : undefined; return <li key={index}><span className="heist-path-index">{String(index + 1).padStart(2, '0')}</span><HeistCardFace card={card} /><small>{card.kind === 'artifact' ? owner ? `${nameOf(owner)}已帶走` : G.discardedArtifacts.includes(card.artifact) ? '幕末已失落' : '等待獨行者' : heistCardName(card)}</small></li>; })}</ol></details>
+            {G.status === 'finished' && <div className="heist-final"><h2>五幕財富總帳</h2><div className="rules-table-wrap"><table><thead><tr><th>成員</th>{[1, 2, 3, 4, 5].map(round => <th key={round}>第 {round} 幕收益</th>)}<th>金庫</th><th>珍藏價值</th><th>件數</th><th>總分</th></tr></thead><tbody>{G.turnOrder.map(id => <tr key={id} data-winner={G.winnerIDs.includes(id)}><th>{nameOf(id)}{G.winnerIDs.includes(id) ? ' · 勝者' : ''}</th>{[1, 2, 3, 4, 5].map(round => <td key={round}>{heistRoundIncome(G, id, round)}</td>)}<td>{G.finalScores[id]?.banked ?? 0}</td><td>{G.finalScores[id]?.artifactValue ?? 0}</td><td>{G.finalScores[id]?.artifactCount ?? 0}</td><td><strong>{G.finalScores[id]?.total ?? 0}</strong></td></tr>)}</tbody></table></div></div>}
+            <details className="heist-path" open><summary>完整本幕路線 · {G.path.length} 張</summary><ol>{G.path.map((card, index) => { const owner = card.kind === 'artifact' ? G.turnOrder.find(id => G.players[id].artifacts.includes(card.artifact)) : undefined; return <li key={index}><span className="heist-path-index">{String(index + 1).padStart(2, '0')}</span><HeistCardFace card={card} /><small>{card.kind === 'artifact' ? owner ? `${nameOf(owner)}已帶走` : G.discardedArtifacts.includes(card.artifact) ? '幕末已失落' : '等待獨行者' : card.kind === 'loot' ? `剩餘 ${remaining[index]} 點贓物` : '無贓物'}</small></li>; })}</ol></details>
+            {G.remainingDeck && <details className="heist-deck-summary"><summary>剩餘牌庫 · {G.deckCount} 張</summary><p>只顯示牌數，不顯示抽牌順序。</p><ul><li>贓物牌 <b>{G.remainingDeck.loot}</b> 張</li><li>珍藏牌 <b>{G.remainingDeck.artifacts}</b> 張</li>{HEIST_HAZARD_IDS.map(hazard => <li key={hazard}>{HEIST_HAZARDS[hazard].name} <b>{G.remainingDeck!.hazards[hazard]}</b> 張</li>)}</ul></details>}
+            <div className="heist-hazards" aria-label="本幕已出現的警戒">{HEIST_HAZARD_IDS.map(hazard => { const seen = G.path.filter(card => card.kind === 'hazard' && card.hazard === hazard).length; return <div key={hazard} data-seen={seen > 0} data-triggered={seen >= hazardLimit}><Art asset={`hazards/${hazard}`} alt="" /><strong>{HEIST_HAZARDS[hazard].name}</strong><span>{seen} / {hazardLimit}</span><small>已移除 {G.removedHazards[hazard]} 張</small></div>; })}</div>
           </>}
       </div>
-      <div className="heist-crew" aria-label="公開成員狀態">{G.turnOrder.map(id => <article key={id} data-own={!readonly && ownID === id} data-exploring={G.players[id].exploring} data-winner={G.winnerIDs.includes(id)}><div><strong title={nameOf(id)}>{nameOf(id)}{!readonly && id === ownID ? ' · 你' : ''}</strong><small>{G.status === 'briefing' || G.status === 'review' ? G.players[id].acknowledged ? '✓ 已確認' : '待確認' : G.status === 'finished' ? G.winnerIDs.includes(id) ? '勝者' : '已謝幕' : G.players[id].exploring ? G.players[id].submitted ? '已密封' : '仍在現場' : '已安全撤退'}</small></div><p>{G.status === 'finished' ? <>總分 <b>{G.finalScores[id]?.total ?? 0}</b></> : <>隨身 <b>{G.players[id].carried}</b></>}<span>珍藏 {G.players[id].artifacts.length} 件</span></p>{G.players[id].artifacts.length > 0 && <div className="heist-owned-artifacts">{G.players[id].artifacts.map(artifact => <span key={artifact} title={`${HEIST_ARTIFACTS[artifact].name} · ${HEIST_ARTIFACTS[artifact].value} 點`}><Art asset={`artifacts/${artifact}`} alt={HEIST_ARTIFACTS[artifact].name} /><small>{HEIST_ARTIFACTS[artifact].value}</small></span>)}</div>}</article>)}</div>
+      <div className="heist-crew" aria-label="公開成員狀態">{G.turnOrder.map(id => <article key={id} data-own={!readonly && ownID === id} data-exploring={G.players[id].exploring} data-winner={G.winnerIDs.includes(id)}><div><strong title={nameOf(id)}>{nameOf(id)}{!readonly && id === ownID ? ' · 你' : ''}</strong><small className="heist-crew-status" data-presence={G.status === 'decision' ? G.players[id].exploring ? 'inside' : 'exited' : undefined}>{G.status === 'decision' && <span aria-hidden="true">{G.players[id].exploring ? '◆ ' : '✓ '}</span>}{G.status === 'briefing' || G.status === 'review' ? G.players[id].acknowledged ? '✓ 已確認' : '待確認' : G.status === 'finished' ? G.winnerIDs.includes(id) ? '勝者' : '已謝幕' : G.players[id].exploring ? G.players[id].submitted ? '仍在現場 · 已密封' : '仍在現場' : '已安全撤退'}</small></div><p>{G.status === 'finished' ? <>總分 <b>{G.finalScores[id]?.total ?? 0}</b></> : <>隨身 <b>{G.players[id].carried}</b></>}<span>珍藏 {G.players[id].artifacts.length} 件</span></p>{G.players[id].artifacts.length > 0 && <div className="heist-owned-artifacts">{G.players[id].artifacts.map(artifact => <span key={artifact} title={`${HEIST_ARTIFACTS[artifact].name} · ${HEIST_ARTIFACTS[artifact].value} 點`}><Art asset={`artifacts/${artifact}`} alt={HEIST_ARTIFACTS[artifact].name} /><small>{HEIST_ARTIFACTS[artifact].value}</small></span>)}</div>}</article>)}</div>
       {readonly && <p className="heist-readonly-note">{replay ? '歷史畫面 · 唯讀復盤' : '觀戰席 · 唯讀'}。{god ? '可看所選成員當時的金庫；未公開的決策仍密封。' : '只顯示公開路線與成員狀態，私人金庫與密封選擇不會顯示。'}</p>}
     </section>
     <aside className="heist-personal-aside"><section className="panel heist-private"><div className="heist-private-heading"><h2>{readonly ? god ? '金庫檢視' : '觀戰筆記' : '你的幕後金庫'}</h2><button type="button" className="button secondary" aria-pressed={visible} onClick={() => onVisible(!visible)}>{visible ? '收起秘密' : '展開私人區'}</button></div>{inspector}

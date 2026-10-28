@@ -1,3 +1,5 @@
+import { heistRoundIncome } from '../games/heist/scoring';
+import type { HeistState } from '../games/heist/game';
 import { gameDefinitions } from '../games/registry';
 import type { FileStorage } from './storage';
 import { matchGameID, roomMatchIDs, type RoomStore } from './rooms';
@@ -9,7 +11,7 @@ export async function collectStatistics(db: FileStorage, rooms: RoomStore) {
     wins: {} as Record<string, number>, reasons: {} as Record<string, number>,
     byPlayerCount: [] as { numPlayers: number; completed: number; draws: number; wins: Record<string, number> }[],
     challenges: [] as { mode: string; numPlayers: number; startingLives: number; runs: number; bestCompletedRounds: number; totalCompletedRounds: number; averageCompletedRounds: number }[],
-    competitions: [] as { mode: string; numPlayers: number; runs: number; totalRounds: number; averageRounds: number }[],
+    competitions: [] as { mode: string; numPlayers: number; runs: number; totalRounds: number; averageRounds: number; highScores?: { name: string; total: number }[]; roundHighScores?: { name: string; total: number; round: number }[] }[],
   }));
   let totalPlayerParticipations = 0;
   for (const room of rooms.rooms.values()) {
@@ -19,7 +21,7 @@ export async function collectStatistics(db: FileStorage, rooms: RoomStore) {
       const gameId = matchGameID(room, matchID);
       const definition = gameDefinitions.find((game) => game.id === gameId);
       if (!definition) continue;
-      const { state } = await db.fetch(matchID, { state: true });
+      const { state, metadata } = await db.fetch(matchID, { state: true, ...(gameId === 'curtain-heist' ? { metadata: true } : {}) });
       if (!state) continue;
       const outcome = definition.getOutcome(state.G);
       if (!outcome) continue;
@@ -50,6 +52,22 @@ export async function collectStatistics(db: FileStorage, rooms: RoomStore) {
         if (!group) {
           group = { mode: competition.mode, numPlayers, runs: 0, totalRounds: 0, averageRounds: 0 };
           summary.competitions.push(group);
+        }
+        if (gameId === 'curtain-heist') {
+          const G = state.G as HeistState;
+          const scores = (G.turnOrder ?? Object.keys(G.players)).flatMap(id => {
+            const total = G.finalScores?.[id]?.total;
+            if (!Number.isSafeInteger(total) || total < 0) return [];
+            const name = metadata?.players[Number(id)]?.name;
+            return [{ name: typeof name === 'string' && name.trim() ? name : '未命名成員', total }];
+          });
+          const rounds = [...new Set((G.log ?? []).filter(entry => entry.type === 'round-end').map(entry => entry.round))];
+          const actScores = rounds.flatMap(round => (G.turnOrder ?? Object.keys(G.players)).map(id => {
+            const name = metadata?.players[Number(id)]?.name;
+            return { name: typeof name === 'string' && name.trim() ? name : '未命名成員', round, total: heistRoundIncome(G, id, round) };
+          }));
+          group.roundHighScores = [...(group.roundHighScores ?? []), ...actScores].sort((a, b) => b.total - a.total).slice(0, 10);
+          group.highScores = [...(group.highScores ?? []), ...scores].sort((a, b) => b.total - a.total).slice(0, 10);
         }
         group.runs += 1;
         group.totalRounds += competition.rounds;

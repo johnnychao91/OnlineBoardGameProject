@@ -90,3 +90,13 @@ describe('Challenge score presentation', () => {
     expect(html).toContain(mode === 'endless-table' ? '群體校準' : '檢測員');
   });
 });
+
+it('shows heist earnings with player names, tied ranks and escaped nickname text',()=>{
+  const html=renderToStaticMarkup(createElement(CompetitionStandings,{gameID:'curtain-heist',competitions:[{mode:'five-acts',numPlayers:3,runs:1,totalRounds:5,averageRounds:5,highScores:[{name:'<script>test</script>',total:50},{name:'Johnny',total:50},{name:'Sophie',total:20}]}]}));
+  expect(html).toContain('最高收益排行');expect(html).toContain('Johnny');expect(html).toContain('50');expect(html).toContain('&lt;script&gt;');expect(html).not.toContain('<script>');expect(html).toContain('<td>3</td><td>Sophie');
+});
+
+it('renders a separate single-act leaderboard with the player and act number',()=>{
+  const html=renderToStaticMarkup(createElement(CompetitionStandings,{gameID:'curtain-heist',competitions:[{mode:'five-acts-hazard-3',numPlayers:3,runs:1,totalRounds:5,averageRounds:5,roundHighScores:[{name:'Johnny',total:42,round:4}]}]}));
+  expect(html).toContain('單幕最高收益排行');expect(html).toContain('Johnny');expect(html).toContain('第 4 幕');expect(html).toContain('42 點');expect(html).not.toContain('單局最高收益排行');
+});

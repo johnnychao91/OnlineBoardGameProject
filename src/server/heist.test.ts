@@ -421,7 +421,11 @@ describe('Curtain Heist authenticated simultaneous decisions, private banks and 
       expect(summary.completed).toBe(testRoom ? 0 : 1);
       expect(summary.rankedCompleted).toBe(0); expect(summary.wins).toEqual({}); expect(summary.byPlayerCount).toEqual([]);
       expect(summary.competitions).toEqual(testRoom ? [] : [expect.objectContaining({ mode: hazardLimit === 3 ? 'five-acts-hazard-3' : 'five-acts', numPlayers: count, runs: 1, totalRounds: 5, averageRounds: 5 })]);
-      expect(JSON.stringify(statistics)).not.toMatch(/劫案房主|劫案隊員|winnerIDs|credentials|playerID/);
+      expect(JSON.stringify(statistics)).not.toMatch(/winnerIDs|credentials|playerID/);
+      if (!testRoom) {
+        expect(summary.competitions[0].highScores.map((entry: any) => entry.total)).toEqual(Object.values(finished.G.finalScores).map((entry: any) => entry.total).sort((a, b) => b - a));
+        expect(summary.competitions[0].highScores.every((entry: any) => /劫案房主|劫案隊員/.test(entry.name))).toBe(true);
+      }
       await f.restart(); expect(await f.state(g.matchID)).toEqual(finished);
       expect((await f.request('/api/stats')).body).toEqual(statistics);
       const restored = await f.request(path(g.host, `replay?matchID=${g.matchID}&perspective=god`), undefined, g.observer);
