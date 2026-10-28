@@ -86,3 +86,17 @@
 :root[data-visual-style=art] .heist-layout .heist-crew .heist-crew-status[data-presence=exited]{color:#aaf0d0;background:#173e36;border-color:#559d83;box-shadow:inset 3px 0 #72cfab}
 
 .heist-deck-summary{margin:20px 0;padding:14px;border:1px solid var(--heist-line);border-radius:10px;color:var(--heist-copy)}.heist-deck-summary summary{cursor:pointer;font-weight:700}.heist-deck-summary p{font-size:.75rem;margin:12px 0}.heist-deck-summary ul{display:flex;flex-wrap:wrap;gap:10px 20px;list-style:none;padding:0;font-size:.85rem}.heist-deck-summary b{color:var(--heist-gold);margin-left:8px}
+
+/* Escalate warnings as each hazard approaches this game's chosen threshold. */
+.heist-layout .heist-hazards>div[data-risk=low]{background:#fff2ce;border-color:#b9963c}
+.heist-layout .heist-hazards>div[data-risk=low] span{color:#795a0a}
+.heist-layout .heist-hazards>div[data-risk=high]{background:#ffe1bf;border-color:#bd6c26;box-shadow:inset 0 3px #c67a2d}
+.heist-layout .heist-hazards>div[data-risk=high] span{color:#97400c}
+.heist-layout .heist-hazards>div[data-risk=critical]{background:#f8d7dc;border-color:#b34252;box-shadow:inset 0 3px #b34252,0 0 0 1px #b34252}
+.heist-layout .heist-hazards>div[data-risk=critical] span{color:#a0263b}
+:root[data-visual-style=art] .heist-layout .heist-hazards>div[data-risk=low]{background:#39351f;border-color:#aa934a}
+:root[data-visual-style=art] .heist-layout .heist-hazards>div[data-risk=low] span{color:#f2d67e}
+:root[data-visual-style=art] .heist-layout .heist-hazards>div[data-risk=high]{background:#49301e;border-color:#d28a42;box-shadow:inset 0 3px #d28a42}
+:root[data-visual-style=art] .heist-layout .heist-hazards>div[data-risk=high] span{color:#ffba76}
+:root[data-visual-style=art] .heist-layout .heist-hazards>div[data-risk=critical]{background:#512b36;border-color:#d36c7c;box-shadow:inset 0 3px #d36c7c,0 0 0 1px #d36c7c}
+:root[data-visual-style=art] .heist-layout .heist-hazards>div[data-risk=critical] span{color:#ff9eac}
