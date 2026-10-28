@@ -103,12 +103,13 @@ export function CompetitionStandings({ competitions, gameID }: { competitions: N
 }
 
 function CompetitionScoreTable({ title, scores, byRound = false }: { title: string; scores: { name: string; total: number; round?: number }[]; byRound?: boolean }) {
+  const leaders = scores.slice(0, 3);
   return <section className="competition-high-scores"><h4>{title}</h4>
-    <p className="small muted">{byRound ? '單幕' : '五幕合計'}收益前 10 筆，包含安全入庫贓物與珍藏價值；暱稱採該局紀錄，同名不合併。</p>
+    <p className="small muted">{byRound ? '單幕' : '五幕合計'}收益前 3 筆，包含安全入庫贓物與珍藏價值；暱稱採該局紀錄，同名不合併。</p>
     <div className="table-scroll"><table><caption className="visually-hidden">{byRound ? '單幕' : '單局'}最高收益排行</caption>
       <thead><tr><th>名次</th><th>玩家</th>{byRound && <th>幕次</th>}<th>收益</th></tr></thead>
-      <tbody>{scores.map((score, index) => <tr key={index}>
-        <td>{scores.findIndex(entry => entry.total === score.total) + 1}</td><td>{score.name}</td>{byRound && <td>第 {score.round} 幕</td>}<td><strong>{score.total} 點</strong></td>
+      <tbody>{leaders.map((score, index) => <tr key={index}>
+        <td>{leaders.findIndex(entry => entry.total === score.total) + 1}</td><td>{score.name}</td>{byRound && <td>第 {score.round} 幕</td>}<td><strong>{score.total} 點</strong></td>
       </tr>)}</tbody>
     </table></div>
   </section>;

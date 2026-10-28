@@ -99,9 +99,9 @@ it('ranks only completed real heist scores with historical names and never expor
   const db={fetch:async(id:string)=>({state:states.get(id),metadata:{players:{0:{name:'Old name',credentials:'DO-NOT-EXPORT'},3:{name:'Other'},7:{name:''}},secret:'HIDDEN'}})} as unknown as FileStorage;
   const result=await collectStatistics(db,rooms);
   const group=result.byGame.find(g=>g.gameId==='curtain-heist')!.competitions[0];
-  expect(group.runs).toBe(2);expect(group.highScores).toEqual([{name:'Old name',total:50},{name:'Old name',total:50},{name:'Other',total:20},{name:'Other',total:20},{name:'未命名成員',total:0},{name:'未命名成員',total:0}]);
-  expect(group.roundHighScores).toHaveLength(10);
-  expect(group.roundHighScores!.slice(0,4)).toEqual([{name:'Other',total:40,round:1},{name:'Other',total:40,round:1},{name:'Old name',total:12,round:1},{name:'Old name',total:12,round:1}]);
+  expect(group.runs).toBe(2);expect(group.highScores).toEqual([{name:'Old name',total:50},{name:'Old name',total:50},{name:'Other',total:20}]);
+  expect(group.roundHighScores).toHaveLength(3);
+  expect(group.roundHighScores).toEqual([{name:'Other',total:40,round:1},{name:'Other',total:40,round:1},{name:'Old name',total:12,round:1}]);
   expect(JSON.stringify(result)).not.toMatch(/DO-NOT-EXPORT|HIDDEN|999/);
   expect(await collectStatistics(db,rooms)).toEqual(result);
 });

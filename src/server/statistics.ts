@@ -66,8 +66,8 @@ export async function collectStatistics(db: FileStorage, rooms: RoomStore) {
             const name = metadata?.players[Number(id)]?.name;
             return { name: typeof name === 'string' && name.trim() ? name : '未命名成員', round, total: heistRoundIncome(G, id, round) };
           }));
-          group.roundHighScores = [...(group.roundHighScores ?? []), ...actScores].sort((a, b) => b.total - a.total).slice(0, 10);
-          group.highScores = [...(group.highScores ?? []), ...scores].sort((a, b) => b.total - a.total).slice(0, 10);
+          group.roundHighScores = [...(group.roundHighScores ?? []), ...actScores].sort((a, b) => b.total - a.total).slice(0, 3);
+          group.highScores = [...(group.highScores ?? []), ...scores].sort((a, b) => b.total - a.total).slice(0, 3);
         }
         group.runs += 1;
         group.totalRounds += competition.rounds;
