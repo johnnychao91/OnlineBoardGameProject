@@ -39,14 +39,14 @@ curl --fail --silent --show-error --retry 10 --retry-connrefused --retry-delay 1
 sudo nano /etc/boardgame.env
 ```
 
-保留原有設定，新增一行 `TEST_ROOM_KEY=你自己設定的測試密碼`。至少 16 字元，且不能與 `CREATE_ROOM_KEY` 相同；此處文字是說明，請勿使用公開範例作密碼。按 Ctrl+O、Enter、Ctrl+X 儲存離開。確認目前沒有對局需要保留連線後執行：
+保留原有設定，新增一行 `TEST_ROOM_CODE=你自己設定的測試暗語`。至少 16 字元，且不能與 `ROOM_CODE` 相同；此處文字是說明，請勿使用公開範例作密碼。按 Ctrl+O、Enter、Ctrl+X 儲存離開。確認目前沒有對局需要保留連線後執行：
 
 ```bash
 sudo systemctl restart boardgame
 curl --fail --silent --show-error --retry 10 --retry-connrefused --retry-delay 1 --max-time 5 http://127.0.0.1:3001/api/health
 ```
 
-在首頁原本的開房密碼欄輸入測試密碼，即建立標記為「測試房間 · 不計戰績」的房間。房主在等待室加入虛擬玩家，自己照常準備及開局；也可以改為觀戰，再加入足夠的虛擬玩家觀察整局。原邀請照常可供朋友加入。移除或清空 `TEST_ROOM_KEY` 並重啟，可停用新測試房間的建立；既有測試房間仍保留標記與統計排除，正常密碼仍建立一般房間。此功能不需要修改 Apache。
+在首頁選填的房間暗語欄輸入測試暗語，即建立標記為「測試房間 · 不計戰績」的房間。房主在等待室加入虛擬玩家，自己照常準備及開局；也可以改為觀戰，再加入足夠的虛擬玩家觀察整局。原邀請照常可供朋友加入。移除或清空 `TEST_ROOM_CODE` 並重啟，可停用新測試房間的建立；既有測試房間仍保留標記與統計排除，未填暗語仍可建立一般房間。若舊 `TEST_ROOM_KEY` 尚未移除，請明確保留空白 `TEST_ROOM_CODE=`，避免觸發舊設定的相容讀取。此功能不需要修改 Apache。
 
 ## 2. 做一份停服備份
 
@@ -372,15 +372,15 @@ sudo certbot renew --dry-run
 
 目前資料使用 schema 1。0.1 的既有對局可載入，但缺少逐步快照的舊局不會補造完整回放；更新後才開始的新局才有完整記錄。這不包含更早的 boardgame.io FlatFile 格式，後者沒有自動遷移。未來遊戲規則或資料格式變更時，請先查看對應版本的遷移說明，再決定能否沿用既有對局。
 
-## 7. 換成自己記得住的開房密碼
+## 7. 設定選填的房間暗語
 
-開房密碼只控制「建立新房間」，朋友透過邀請加入不需要它。可以保留目前的隨機密碼，在建立房間頁選擇記住密碼；只在自己的裝置使用此功能。也可以在 Pi 私有設定換成自訂密碼：
+開房不需要密碼。未填暗語建立一般房，`ROOM_CODE` 建立免廣告正式房，`TEST_ROOM_CODE` 建立免廣告測試房；朋友透過邀請加入不需要暗語。在 Pi 私有設定編輯：
 
 ```bash
 sudo nano /etc/boardgame.env
 ```
 
-只修改 `CREATE_ROOM_KEY=` 後面的值。建議用至少 16 個 ASCII 字元、由 4 個彼此無關的單字搭配連字號或數字組成的密語；不要用姓名、網域、生日或本文示例當成實際密碼，也不要留空。不要變更其他設定或把這個檔案放進 Git。
+設定 `ROOM_CODE=` 與 `TEST_ROOM_CODE=` 後面的值，兩者非空時至少 16 字元且不能相同；留空停用對應特殊房。從舊版升級時，先更新程式，再將 `CREATE_ROOM_KEY` 改名為 `ROOM_CODE`，`TEST_ROOM_KEY` 改名為 `TEST_ROOM_CODE`，移除 `ADFREE_ROOM_KEY`。AdSense、聯絡方式及其他設定維持原值；不要把這個檔案放進 Git。
 
 按 `Ctrl+O`、Enter 儲存，再按 `Ctrl+X` 離開。等對局結束後，讓遊戲服務讀取新設定：
 
@@ -390,4 +390,4 @@ curl --fail --silent --show-error --retry 10 --retry-connrefused --retry-delay 1
   http://127.0.0.1:3001/api/health
 ```
 
-不需要重新建置程式或重新載入 Apache。現有玩家身份、房間與邀請不會因此被撤銷；重啟時連線會短暫中斷。若瀏覽器記住舊密碼，下次開房時改填新密碼並重新記住即可。
+不需要重新建置程式或重新載入 Apache。現有玩家身份、房間與邀請不會因此被撤銷；重啟時連線會短暫中斷。舊版記住的開房密碼會清除；可在下次開房時自行填暗語並重新選擇記住。

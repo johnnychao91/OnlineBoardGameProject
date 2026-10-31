@@ -1,4 +1,4 @@
-import { creationKind, roomAdvertising, validAdSettings, validateAdFreeKey, type AdSettings } from './advertising';
+import { creationKind, roomAdvertising, validAdSettings, validateRoomCodes, type AdSettings } from './advertising';
 import { mkdir, readFile } from 'node:fs/promises';
 import { createHmac } from 'node:crypto';
 import { resolve, join, relative, isAbsolute, sep } from 'node:path';
@@ -28,9 +28,8 @@ export interface AppConfig {
   host: string;
   port: number;
   production: boolean;
-  createRoomKey: string;
-  testRoomKey?: string;
-  adFreeRoomKey?: string;
+  roomCode?: string;
+  testRoomCode?: string;
   adsense?: AdSettings;
   privacyContact?: string;
   clientDir?: string;
@@ -90,13 +89,10 @@ async function jsonBody(ctx: Context, maxBytes = 4096): Promise<Record<string, a
 }
 
 export async function createApplication(config: AppConfig) {
-  validateAdFreeKey(config);
+  validateRoomCodes(config);
   const origin = new URL(config.publicOrigin).origin;
   if (config.publicOrigin !== origin) throw new Error('PUBLIC_ORIGIN 必須是完整 origin，不能含路徑或尾斜線');
-  if (config.production && (!origin.startsWith('https://') || config.createRoomKey.length < 16)) throw new Error('正式環境需 HTTPS PUBLIC_ORIGIN 與至少 16 字元 CREATE_ROOM_KEY');
-  if (config.testRoomKey && (config.testRoomKey.length < 16 || safeEqual(config.testRoomKey, config.createRoomKey))) {
-    throw new Error('TEST_ROOM_KEY 需至少 16 字元且不能與 CREATE_ROOM_KEY 相同');
-  }
+  if (config.production && !origin.startsWith('https://')) throw new Error('正式環境需 HTTPS PUBLIC_ORIGIN');
   const origins = config.production ? [origin] : [...new Set([origin, 'http://localhost:5173', 'http://127.0.0.1:5173'])];
   const dataDir = resolve(config.dataDir);
   if (config.clientDir) {
@@ -414,9 +410,10 @@ export async function createApplication(config: AppConfig) {
     if (ctx.method === 'POST' && ctx.path === '/api/rooms') {
       if (!limiter.allow(`create:${ctx.ip}`, 12, 600000)) fail(429, '建立房間太頻繁，請稍後重試');
       const body = await jsonBody(ctx);
-      const kind = creationKind(body.createKey, config);
+      // Older open tabs can still send createKey; an explicit roomCode wins.
+      const kind = creationKind(body.roomCode === undefined ? body.createKey : body.roomCode, config);
       const testRoom = kind === 'test';
-      if (!kind) fail(403, '建立房間密鑰不正確');
+      if (!kind) fail(400, '房間暗語不正確；留空即可建立一般房間');
       const definition = getGameDefinition(body.gameId === undefined ? gameDefinitions[0].id : body.gameId);
       if (!definition) fail(400, '遊戲不正確');
       if (body.numPlayers !== undefined) fail(400, '不需預選人數，開局時依參與者人數決定');

@@ -139,7 +139,7 @@ fi
 sudo install -d -o boardgame -g boardgame -m 0700 /var/lib/boardgame
 ```
 
-首次建立設定。以下在 Pi 本機產生隨機建房密鑰，直接寫入 0600 私有檔；已有設定時拒絕覆蓋：
+首次建立設定。以下在 Pi 本機建立設定（開房不需密碼），直接寫入 0600 私有檔；已有設定時拒絕覆蓋：
 
 ```bash
 sudo bash <<'SH'
@@ -153,7 +153,7 @@ umask 077
     'PORT=3001' \
     'PUBLIC_ORIGIN=https://boardgame.example.com' \
     'DATA_DIR=/var/lib/boardgame'
-  printf 'CREATE_ROOM_KEY=%s\n' "$(openssl rand -hex 32)"
+  printf '%s\n' 'ROOM_CODE=' 'TEST_ROOM_CODE='
 } > /etc/boardgame.env
 chmod 0600 /etc/boardgame.env
 SH
@@ -167,7 +167,7 @@ sudoedit /etc/boardgame.env
 
 把 `PUBLIC_ORIGIN` 的示範值改成你自己的實際遊戲 HTTPS origin，格式為 `https://你的遊戲主機名稱`，不能有結尾 `/`、子路徑或查詢字串。`boardgame.example.com` 只是示範，不能照填作為正式網址。實際值只改在這份 `/etc` 檔案，後續 Apache 與憑證也只設定在 `/etc`；不要修改 Git 裡的 `.env.example`、`deploy/` 範本或文件。
 
-需要建房密鑰時，在自己的私人 SSH 終端機用 `sudo nano /etc/boardgame.env` 查看，保存到密碼管理器。不要將檔案、畫面或密鑰上傳 GitHub。只有建立房間的人需要密鑰，朋友只要邀請連結。
+可選填 `ROOM_CODE`、`TEST_ROOM_CODE` 啟用免廣告正式房或免廣告測試房；非空時至少 16 字元且不得相同。不需要特殊模式時保持空白，仍可直接建立一般房。實際暗語、廣告帳戶及設定只留在私有檔案。
 
 `PUBLIC_ORIGIN` 必須與朋友實際開啟的遊戲網址一致。保留 `HOST=127.0.0.1`，對外只開 Apache 的 80／443，不開 3001。不要啟動兩個程序共用同一個 `DATA_DIR`。
 

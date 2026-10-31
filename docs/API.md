@@ -16,7 +16,7 @@ API 與網頁同源，正式環境使用 HTTPS；開發由 Vite 代理。POST �
 
 ## 端點
 
-`POST /api/rooms` 的 `createKey` 若符合伺服器私有 `TEST_ROOM_KEY`，建立 `testRoom:true` 的測試房間。此設定留空即停用，與一般 `CREATE_ROOM_KEY` 必須不同；API 不接受客戶端指定測試模式，也不回傳任何建房密碼。`RoomInfo.testRoom` 和 `players[].isBot` 是公開標記，房號、邀請、觀戰、歷史及分享仍走相同授權。
+`POST /api/rooms` 不需要開房密碼；可省略 `roomCode` 或傳空字串建立一般房。`roomCode` 符合伺服器私有 `ROOM_CODE` 時建立免廣告正式房，符合 `TEST_ROOM_CODE` 時建立 `testRoom:true` 的免廣告測試房。兩種暗語可各自留空停用，非空時至少 16 字元且不同。錯誤或非字串暗語回傳 400；不接受客戶端指定測試／廣告模式，也不回傳暗語。`RoomInfo.testRoom` 和 `players[].isBot` 是公開標記。舊 `createKey` 僅為相容別名；同時提供時以 `roomCode` 為準。
 
 新增虛擬玩家的 `requestID` 必須為 UUID v4、`matchID` 必須等於目前等待對局。相同房主憑證的同一請求重試不會重複新增，已移除者不會因舊請求復活。每次新增一席，選遊戲後以該遊戲人數上限檢查，未選時以框架容量檢查；房主可用原移出端點釋出席位。虛擬玩家憑證只留伺服器，HTTP 與 Socket 登入都拒絕虛擬席位，即使持有該憑證亦然。開局、換遊戲與中止仍由真人房主決定。
 
@@ -27,7 +27,7 @@ API 與網頁同源，正式環境使用 HTTPS；開發由 Vite 代理。POST �
 | `GET /api/health` | 無 | `{"status":"ok"}` |
 | `GET /api/games` | 無 | `{games:[{id,name,description,minPlayers,maxPlayers}]}` |
 | `GET /api/stats` | 無 | 全站彙整，無房號、姓名或私人資訊 |
-| `POST /api/rooms` | body `createKey` | `201`，玩家 session + `inviteUrl,expiresAt` |
+| `POST /api/rooms` | body 選填 `roomCode` | `201`，玩家 session + `inviteUrl,expiresAt` |
 | `POST /api/rooms/:id/join` | body 邀請 | 玩家 session；開始後拒絕新玩家 |
 | `POST /api/rooms/:id/watch` | body 邀請 | 觀戰 session；任何階段都可加入 |
 | `GET /api/rooms/:id` | 玩家／觀戰 | `RoomInfo` |
@@ -54,7 +54,7 @@ API 與網頁同源，正式環境使用 HTTPS；開發由 Vite 代理。POST �
 ## 建房與動態人數
 
 ```json
-{ "displayName": "小宇", "createKey": "填入建房密鑰" }
+{ "displayName": "小宇" }
 ```
 
 不傳 `numPlayers`，舊格式回 400。暱稱去空白後須 1～24 個 Unicode code points，不含控制字元。正式環境建房密鑰至少 16 字元；開發可留空。

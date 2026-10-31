@@ -29,7 +29,7 @@ async function fixture() {
     if (dirname(resolve(dataDir)) !== resolve(tmpdir()) || !basename(dataDir).startsWith('boardgame-fog-integration-')) throw new Error('Unexpected test directory');
     await rm(dataDir, { recursive: true, force: true });
   });
-  const config = { dataDir, publicOrigin: origin, host: '127.0.0.1', port: 0, production: false, createRoomKey: '', lifecycleSweepMs: 60000 };
+  const config = { dataDir, publicOrigin: origin, host: '127.0.0.1', port: 0, production: false, roomCode: '', lifecycleSweepMs: 60000 };
   let app = await createApplication(config), running = await app.listen();
   const sockets: Socket[] = [];
   const views = new Map<Socket, Snapshot>();

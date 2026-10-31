@@ -6,7 +6,7 @@ import { createApplication } from './app';
 import { GAME_IDS } from '../games/catalog';
 const cleanups: (() => Promise<void>)[] = [];
 afterEach(async () => { for (const cleanup of cleanups.splice(0).reverse()) await cleanup(); });
-const keys={createRoomKey:'normal-fixture-key-123',adFreeRoomKey:'free-fixture-key-12345',testRoomKey:'test-fixture-key-12345'};
+const keys={roomCode:'free-fixture-code-12345',testRoomCode:'test-fixture-code-12345'};
 const ads={client:'ca-pub-1234567890123456',slot:'1234567890'};
 const headers=(seat:any)=>({Authorization:`Bearer ${seat.credentials}`,...(seat.observerID?{'X-Observer-ID':seat.observerID}:{'X-Player-ID':seat.playerID})});
 async function fixture(withPages=false){
@@ -26,16 +26,16 @@ async function fixture(withPages=false){
 describe('Authenticated room-wide advertising',()=>{
   it.each(GAME_IDS)('%s uses the same three server-side room policies',async(gameId)=>{
     const f=await fixture();
-    for(const [createKey,enabled,testRoom] of [[keys.createRoomKey,true,false],[keys.adFreeRoomKey,false,false],[keys.testRoomKey,false,true]] as const){
-      const created=await f.request('/api/rooms',{displayName:'Host',gameId,createKey});
+    for(const [roomCode,enabled,testRoom] of [[undefined,true,false],[keys.roomCode,false,false],[keys.testRoomCode,false,true]] as const){
+      const created=await f.request('/api/rooms',{displayName:'Host',gameId,roomCode});
       expect(created.status).toBe(201);expect(created.body).toMatchObject({gameName:gameId,testRoom,advertising:{enabled}});
     }
   });
   it.each([
-    [keys.createRoomKey,true,false],[keys.adFreeRoomKey,false,false],[keys.testRoomKey,false,true],
+    [undefined,true,false],[keys.roomCode,false,false],[keys.testRoomCode,false,true],
   ] as const)('applies server-selected policy to every member and persists it across restart (ads %s)',async(key,enabled,testRoom)=>{
     const f=await fixture();
-    const created=await f.request('/api/rooms',{displayName:'Host',gameId:'encrypted-call',createKey:key,adsMode:enabled?'adfree':'standard',testRoom:!testRoom});
+    const created=await f.request('/api/rooms',{displayName:'Host',gameId:'encrypted-call',roomCode:key,adsMode:enabled?'adfree':'standard',testRoom:!testRoom});
     expect(created.status).toBe(201);const host=created.body;
     const token=new URLSearchParams(new URL(host.inviteUrl).hash.slice(1)).get('invite');
     const guest=(await f.request(`/api/rooms/${host.roomId}/join`,{displayName:'Guest',inviteToken:token})).body;
@@ -54,11 +54,20 @@ describe('Authenticated room-wide advertising',()=>{
     const changed=await f.request(`/api/rooms/${host.roomId}/game`,{matchID:returned.body.matchID,gameId:'turing-test'},host);
     expect(changed.status).toBe(200);expect(changed.body.advertising.enabled).toBe(enabled);
   });
-  it('rejects invalid keys and keeps the adfree mode in ordinary statistics rather than testing mode',async()=>{
-    const f=await fixture();expect((await f.request('/api/rooms',{displayName:'Host',createKey:'wrong',adsMode:'adfree'})).status).toBe(403);
-    const free=await f.request('/api/rooms',{displayName:'Host',createKey:keys.adFreeRoomKey});
+  it('rejects invalid optional codes and keeps the adfree mode in ordinary statistics rather than testing mode',async()=>{
+    const f=await fixture();expect((await f.request('/api/rooms',{displayName:'Host',roomCode:'wrong',adsMode:'adfree'})).status).toBe(400);
+    const free=await f.request('/api/rooms',{displayName:'Host',roomCode:keys.roomCode});
     expect(free.body.testRoom).toBe(false);expect(f.app.rooms.rooms.get(free.body.roomId)).toMatchObject({adsMode:'adfree',testRoom:false});
     expect((await f.request(`/api/rooms/${free.body.roomId}`)).status).toBe(401);
+  });
+  it('accepts old open-tab request fields without restoring the mandatory creation gate',async()=>{
+    const f=await fixture();
+    const legacy=await f.request('/api/rooms',{displayName:'Old tab',createKey:keys.roomCode});
+    expect(legacy.status).toBe(201);expect(legacy.body.advertising).toEqual({enabled:false});
+    const explicit=await f.request('/api/rooms',{displayName:'No code',roomCode:'',createKey:keys.testRoomCode,testRoom:true,adsMode:'adfree'});
+    expect(explicit.status).toBe(201);expect(explicit.body.testRoom).toBe(false);expect(explicit.body.advertising).toEqual({enabled:true,...ads});
+    for(const roomCode of [null,true,{},42])
+      expect((await f.request('/api/rooms',{displayName:'Invalid',roomCode})).status).toBe(400);
   });
   it('serves readable privacy content without scripts executing and substitutes only safe public contact information',async()=>{
     const f=await fixture(true);

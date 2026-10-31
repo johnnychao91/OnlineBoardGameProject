@@ -33,8 +33,8 @@ async function fixture() {
     if (dirname(resolve(dataDir)) !== resolve(tmpdir()) || !basename(dataDir).startsWith('boardgame-banquet-integration-')) throw new Error('Unexpected test directory');
     await rm(dataDir, { recursive: true, force: true });
   });
-  const config = { dataDir, publicOrigin: origin, host: '127.0.0.1', port: 0, production: false, createRoomKey: '',
-    testRoomKey: testKey, lifecycleSweepMs: 60000, botSweepMs: 60000 };
+  const config = { dataDir, publicOrigin: origin, host: '127.0.0.1', port: 0, production: false, roomCode: '',
+    testRoomCode: testKey, lifecycleSweepMs: 60000, botSweepMs: 60000 };
   let app = await createApplication(config), running = await app.listen();
   const sockets: Socket[] = [], views = new Map<Socket, Snapshot>(), broadcasts = new Map<Socket, number>();
   const wire = new Map<Socket, unknown[]>();
@@ -113,7 +113,7 @@ type Fixture = Awaited<ReturnType<typeof fixture>>;
 
 async function group(f: Fixture, count: number, testRoom = false): Promise<Group> {
   // Assemble before choosing a game so a departed middle seat leaves nonconsecutive IDs.
-  const created = await f.request('/api/rooms', { displayName: '夜宴房主', ...(testRoom ? { createKey: testKey } : {}) });
+  const created = await f.request('/api/rooms', { displayName: '夜宴房主', ...(testRoom ? { roomCode: testKey } : {}) });
   expect(created.status).toBe(201);
   const host = created.body as Room, seats: Seat[] = [host];
   for (let index = 1; index <= (count === 12 ? count - 1 : count); index++) {

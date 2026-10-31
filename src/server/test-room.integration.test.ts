@@ -16,7 +16,7 @@ const cleanup: (() => Promise<void>)[] = [];
 afterEach(async () => { for (const fn of cleanup.splice(0).reverse()) await fn(); vi.restoreAllMocks(); });
 const path = (room: any, operation = '') => `/api/rooms/${room.roomId}${operation ? `/${operation}` : ''}`;
 const token = (url: string, key = 'invite') => new URLSearchParams(new URL(url).hash.slice(1)).get(key)!;
-const noSecrets = (value: unknown) => expect(JSON.stringify(value)).not.toMatch(/"(?:credentials|credentialHash|requestHash|botAdmissions|testRoomKey|createRoomKey|inviteHash|secret|seed)"\s*:/);
+const noSecrets = (value: unknown) => expect(JSON.stringify(value)).not.toMatch(/"(?:credentials|credentialHash|requestHash|botAdmissions|testRoomCode|roomCode|inviteHash|secret|seed)"\s*:/);
 
 async function fixture(overrides: Partial<AppConfig> = {}) {
   const dataDir = await mkdtemp(join(tmpdir(), 'boardgame-test-room-'));
@@ -25,7 +25,7 @@ async function fixture(overrides: Partial<AppConfig> = {}) {
     await rm(dataDir, { recursive: true, force: true });
   });
   const config: AppConfig = { dataDir, publicOrigin: 'http://localhost:5173', host: '127.0.0.1', port: 0,
-    production: false, createRoomKey: NORMAL_KEY, testRoomKey: TEST_KEY,
+    production: false, roomCode: NORMAL_KEY, testRoomCode: TEST_KEY,
     lifecycleSweepMs: 60000, botSweepMs: 100, ...overrides };
   let app = await createApplication(config), running = await app.listen();
   const sockets: Socket[] = [];
@@ -40,7 +40,7 @@ async function fixture(overrides: Partial<AppConfig> = {}) {
     return { status: response.status, body: await response.json() as any };
   };
   const create = async (gameId?: string, testRoom = true) => {
-    const result = await request('/api/rooms', { gameId, displayName: '房主', createKey: testRoom ? TEST_KEY : NORMAL_KEY });
+    const result = await request('/api/rooms', { gameId, displayName: '房主', ...(testRoom ? {roomCode:TEST_KEY} : {}) });
     expect(result.status).toBe(201); return result.body;
   };
   const add = (host: any, requestID = randomUUID()) => request(path(host, 'bots'), { matchID: host.matchID, requestID }, host);
@@ -96,16 +96,16 @@ async function finishCipher(f: Fixture, host: any) {
 }
 
 describe('Private test-room admission and virtual-player framework', () => {
-  it('requires distinct configured keys and never accepts a client-supplied test flag', async () => {
-    for (const testRoomKey of ['short', NORMAL_KEY]) await expect(fixture({ testRoomKey })).rejects.toThrow();
+  it('requires distinct special codes, allows public creation and never accepts a client-supplied test flag', async () => {
+    for (const testRoomCode of ['short', NORMAL_KEY]) await expect(fixture({ testRoomCode })).rejects.toThrow();
     const f = await fixture();
     const test = await f.create('space-station'), normal = await f.create('space-station', false);
     expect(test.testRoom).toBe(true); expect(normal.testRoom).toBe(false);
-    const forged = await f.request('/api/rooms', { createKey: NORMAL_KEY, displayName: '普通房', testRoom: true });
+    const forged = await f.request('/api/rooms', { displayName: '普通房', testRoom: true });
     expect(forged.status).toBe(201); expect(forged.body.testRoom).toBe(false);
-    expect((await f.request('/api/rooms', { createKey: 'wrong-key', displayName: '拒絕' })).status).toBe(403);
-    const disabled = await fixture({ testRoomKey: '' });
-    expect((await disabled.request('/api/rooms', { createKey: TEST_KEY, displayName: '停用測試' })).status).toBe(403);
+    expect((await f.request('/api/rooms', { roomCode: 'wrong-key', displayName: '拒絕' })).status).toBe(400);
+    const disabled = await fixture({ testRoomCode: '' });
+    expect((await disabled.request('/api/rooms', { roomCode: TEST_KEY, displayName: '停用測試' })).status).toBe(400);
   });
 
   it('allows real invitees but reserves bot admission for the host, with retry and capacity checks', async () => {

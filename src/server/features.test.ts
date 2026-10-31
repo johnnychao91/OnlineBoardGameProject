@@ -19,7 +19,7 @@ async function fixture() {
   });
   const config: AppConfig = {
     dataDir, publicOrigin: 'http://localhost:5173', host: '127.0.0.1',
-    port: 0, production: false, createRoomKey: '',
+    port: 0, production: false, roomCode: '',
   };
   let app = await createApplication(config);
   let running: Awaited<ReturnType<typeof app.listen>> | undefined = await app.listen();

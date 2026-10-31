@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import { createApplication } from './app';
+import { roomCodesFromEnvironment } from './advertising';
 
 async function main() {
   const production = process.env.NODE_ENV === 'production';
@@ -9,9 +10,7 @@ async function main() {
     dataDir: process.env.DATA_DIR || './data',
     publicOrigin: process.env.PUBLIC_ORIGIN || 'http://localhost:5173',
     host: process.env.HOST || '127.0.0.1', port, production,
-    createRoomKey: process.env.CREATE_ROOM_KEY || '',
-    testRoomKey: process.env.TEST_ROOM_KEY || '',
-    adFreeRoomKey: process.env.ADFREE_ROOM_KEY || '',
+    ...roomCodesFromEnvironment(process.env),
     adsense: { client: process.env.ADSENSE_CLIENT || '', slot: process.env.ADSENSE_SLOT || '' },
     privacyContact: process.env.PRIVACY_CONTACT || '',
     clientDir: production ? './dist/client' : undefined,

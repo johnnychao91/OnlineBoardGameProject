@@ -24,8 +24,8 @@ interface Group { roomId: string; matchID: string; host: Seat; other: Seat; obse
 const origin = 'http://localhost:5173';
 async function fixture() {
   const dataDir = await directory();
-  const config = { dataDir, publicOrigin: origin, host: '127.0.0.1', port: 0, production: false, createRoomKey: '',
-    testRoomKey: 'feedback-private-test-key', lifecycleSweepMs: 60000 };
+  const config = { dataDir, publicOrigin: origin, host: '127.0.0.1', port: 0, production: false, roomCode: '',
+    testRoomCode: 'feedback-private-test-key', lifecycleSweepMs: 60000 };
   let app = await createApplication(config), running = await app.listen();
   cleanups.push(async () => { await running.close(); });
   async function request(path: string, body: unknown, member?: Member, extra: Record<string, string> = {}) {
@@ -39,7 +39,7 @@ async function fixture() {
   }
   async function group(testRoom = false): Promise<Group> {
     const created = await request('/api/rooms', { gameId: 'turing-test', displayName: '評分房主',
-      ...(testRoom ? { createKey: config.testRoomKey } : {}) });
+      ...(testRoom ? { roomCode: config.testRoomCode } : {}) });
     expect(created.status).toBe(201);
     const host = created.body, roomId = host.roomId;
     const inviteToken = new URLSearchParams(new URL(host.inviteUrl).hash.slice(1)).get('invite');

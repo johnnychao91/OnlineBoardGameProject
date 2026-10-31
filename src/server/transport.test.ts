@@ -120,7 +120,7 @@ beforeAll(async () => {
   directory = await mkdtemp(join(tmpdir(), 'boardgame-transport-'));
   app = await createApplication({
     dataDir: directory, publicOrigin: origin, host: '127.0.0.1', port: 0,
-    production: false, createRoomKey: '',
+    production: false, roomCode: '',
   });
   running = await app.listen();
   baseURL = `http://127.0.0.1:${running.port}`;

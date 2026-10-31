@@ -21,7 +21,7 @@
 | 已知的 Apache 續期 hook | `space-station-reload-apache`／`space-station-apache` | `boardgame-reload-apache`／`boardgame-apache` |
 | 遊戲 Apache 新寫入的日誌 | `/var/log/apache2/space-station-*.log` | `/var/log/apache2/boardgame-*.log` |
 
-`PUBLIC_ORIGIN`、開房密碼與實際憑證不重新建立；env 內的 `DATA_DIR` 改成 `/var/lib/boardgame`。Node 24 仍位於 `/opt/node24`，監聽位址仍為 `127.0.0.1:3001`。其他遊戲之後可以共用平台服務，不需要各自再設一份 `space-station` 服務。
+`PUBLIC_ORIGIN`、私有房間暗語設定與實際憑證不重新建立；env 內的 `DATA_DIR` 改成 `/var/lib/boardgame`。Node 24 仍位於 `/opt/node24`，監聽位址仍為 `127.0.0.1:3001`。其他遊戲之後可以共用平台服務，不需要各自再設一份 `space-station` 服務。
 
 所指定 Apache vhost 的檔名保留，腳本只修改其中已知的舊 ACME 及日誌路徑；其他站台設定、`ServerName`、憑證名稱及監聽埠保留。如果原本使用 ACME webroot，會一併備份並修改引用該舊目錄的 Certbot renewal 設定；原本採 standalone 的部署仍使用 standalone。已知 hook 改檔名但保留其內容與憑證範圍判斷。自訂其他名稱的維護腳本或外部排程請自行檢查是否引用舊服務或路徑。
 

@@ -19,7 +19,7 @@ async function fixture() {
     await rm(dataDir, { recursive: true, force: true });
   });
   const config = { dataDir, publicOrigin: 'http://localhost:5173', host: '127.0.0.1', port: 0,
-    production: false, createRoomKey: '', lifecycleSweepMs: 60000 };
+    production: false, roomCode: '', lifecycleSweepMs: 60000 };
   let app = await createApplication(config), running = await app.listen();
   cleanups.push(() => running.close());
   const request = async (url: string, body?: unknown, member?: any) => {

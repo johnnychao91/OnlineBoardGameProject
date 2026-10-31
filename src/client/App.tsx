@@ -7,8 +7,8 @@ import {
   rememberName, resetAdmission, roomHostPlayerID, savedInvite, saveSeat, type Admission, type AuthSession, type RoomInfo,
 } from './api';
 import { clientGames } from './game-registry';
-import { CreationPassword } from './CreationPassword';
-import { rememberedCreateKey, rememberCreateKey } from './creation-password';
+import { RoomCode } from './RoomCode';
+import { rememberedRoomCode, rememberRoomCode } from './room-code';
 import { rememberGameOptions } from './game-preferences';
 import { RemovePlayer } from './RemovePlayer';
 import { ObservationPanel } from './ObservationPanel';
@@ -33,15 +33,15 @@ captureReplayShare();
 
 function Home({ onEnter }: { onEnter: (seat: AuthSession) => void }) {
   const [name, setName] = useState(rememberedName);
-  const [createKey, setCreateKey] = useState(rememberedCreateKey);
-  const [rememberKey, setRememberKey] = useState(() => !!rememberedCreateKey());
+  const [roomCode, setRoomCode] = useState(rememberedRoomCode);
+  const [rememberKey, setRememberKey] = useState(() => !!rememberedRoomCode());
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   async function create(event: FormEvent) {
     event.preventDefault(); setBusy(true); setError('');
     try {
-      const result = await api<Admission>('/api/rooms', { method: 'POST', body: JSON.stringify({ displayName: name.trim(), ...(createKey ? { createKey } : {}) }) });
-      rememberCreateKey(rememberKey ? createKey : '');
+      const result = await api<Admission>('/api/rooms', { method: 'POST', body: JSON.stringify({ displayName: name.trim(), ...(roomCode ? { roomCode } : {}) }) });
+      rememberRoomCode(rememberKey ? roomCode : '');
       rememberName(name.trim()); onEnter(saveSeat(result));
     } catch (e) { setError((e as Error).message); } finally { setBusy(false); }
   }
@@ -55,7 +55,7 @@ function Home({ onEnter }: { onEnter: (seat: AuthSession) => void }) {
       <p className="small muted">不用先選遊戲。房主可在等待室選擇或切換，大家繼續留在同一桌。</p>
       <form onSubmit={create}><label htmlFor="host-name">你的暱稱</label><input id="host-name" autoComplete="nickname" maxLength={20} placeholder="朋友怎麼叫你？" required value={name} onChange={e => setName(e.target.value)} />
         <div className="room-flexibility"><Icon type="check" /><span>最多 {ROOM_CAPACITY} 個參與席位，觀戰不占席；開局人數依選擇的遊戲決定。</span></div>
-        <CreationPassword saved={!!rememberedCreateKey()} value={createKey} onChange={setCreateKey} remember={rememberKey} onRemember={value => { setRememberKey(value); if (!value) rememberCreateKey(''); }} onForget={() => { rememberCreateKey(''); setCreateKey(''); setRememberKey(false); }} />
+        <RoomCode saved={!!rememberedRoomCode()} value={roomCode} onChange={setRoomCode} remember={rememberKey} onRemember={value => { setRememberKey(value); if (!value) rememberRoomCode(''); }} onForget={() => { rememberRoomCode(''); setRoomCode(''); setRememberKey(false); }} />
         <ErrorMessage>{error}</ErrorMessage><Submit busy={busy} disabled={!name.trim()}>建立私人房間</Submit>
       </form>
       <Note>用同一連結邀請參與或觀戰。每人都有獨立憑證，分享不會交出你的座位權限。</Note><p className="muted small">已經收到邀請？直接開啟朋友傳來的連結。</p>

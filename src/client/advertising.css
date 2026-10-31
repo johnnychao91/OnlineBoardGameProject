@@ -1,8 +1,4 @@
-/* The 150px buffer is outside the game and its controls, not an overlay. */
+/* Keep the existing page width. Ads follow the content, outside game controls. */
 .site-advertising{box-sizing:border-box;display:block;width:300px;min-height:270px;margin:150px auto 24px;padding:0;border:0;text-align:center;color:#aabeb5}
 .advertising-label{display:block;font:12px/20px system-ui,sans-serif;letter-spacing:.15em}
 .site-advertising>.adsbygoogle{display:block;width:300px;height:250px}
-@media(min-width:1600px){
-  body:has(.site-advertising){padding-right:470px}
-  .site-advertising{position:fixed;right:20px;top:max(80px,calc(50dvh - 135px));margin:0}
-}

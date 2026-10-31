@@ -34,7 +34,7 @@ async function fixture() {
     if (dirname(resolve(dataDir)) !== resolve(tmpdir()) || !basename(dataDir).startsWith('boardgame-turing-test-')) throw new Error('Unexpected test directory');
     await rm(dataDir, { recursive: true, force: true });
   });
-  const config = { dataDir, publicOrigin: origin, host: '127.0.0.1', port: 0, production: false, createRoomKey: '', testRoomKey: 'turing-test-room-only-key', lifecycleSweepMs: 60000 };
+  const config = { dataDir, publicOrigin: origin, host: '127.0.0.1', port: 0, production: false, roomCode: '', testRoomCode: 'turing-test-room-only-key', lifecycleSweepMs: 60000 };
   let app = await createApplication(config), running = await app.listen();
   const sockets: Socket[] = [], views = new Map<Socket, Snapshot>(), wireLogs = new Map<Socket, unknown[]>();
   const broadcasts = new Map<Socket, number>(), socketErrors = new Map<Socket, unknown[]>();
@@ -115,7 +115,7 @@ async function fixture() {
 }
 type Fixture = Awaited<ReturnType<typeof fixture>>;
 async function group(f: Fixture, count = 4, testRoom = false): Promise<Group> {
-  const created = await f.request('/api/rooms', { gameId: 'turing-test', displayName: '房主', ...(testRoom ? { createKey: 'turing-test-room-only-key' } : {}) });
+  const created = await f.request('/api/rooms', { gameId: 'turing-test', displayName: '房主', ...(testRoom ? { roomCode: 'turing-test-room-only-key' } : {}) });
   expect(created.status).toBe(201);
   const host = created.body as Room, seats: Seat[] = [host];
   for (let i = 1; i < count; i += 1) {

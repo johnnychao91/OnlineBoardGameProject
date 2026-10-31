@@ -58,7 +58,7 @@ async function fixture(overrides: Partial<AppConfig> = {}) {
   });
   const config: AppConfig = {
     dataDir, publicOrigin: origin, host: '127.0.0.1', port: 0,
-    production: false, createRoomKey: '', ...overrides,
+    production: false, roomCode: '', ...overrides,
   };
   let app = await createApplication(config);
   let running: Awaited<ReturnType<typeof app.listen>> | undefined = await app.listen();

@@ -15,7 +15,7 @@ async function fixture(overrides: Partial<AppConfig> = {}) {
     if (dirname(resolve(dataDir)) !== resolve(tmpdir()) || !basename(dataDir).startsWith('boardgame-api-test-')) throw new Error('Unexpected test directory');
     await rm(dataDir, { recursive: true, force: true });
   });
-  const config: AppConfig = { dataDir, publicOrigin: 'http://localhost:5173', host: '127.0.0.1', port: 0, production: false, createRoomKey: '', ...overrides };
+  const config: AppConfig = { dataDir, publicOrigin: 'http://localhost:5173', host: '127.0.0.1', port: 0, production: false, roomCode: '', ...overrides };
   const app = await createApplication(config);
   const running = await app.listen();
   cleanups.push(() => running.close());
@@ -35,7 +35,7 @@ const inviteToken = (seat: any) => new URLSearchParams(new URL(seat.inviteUrl).h
 
 describe('Private room admission API', () => {
   it('allows locally generated PNG previews under production CSP without external scripts', async () => {
-    const f = await fixture({ production: true, publicOrigin: 'https://station.example', createRoomKey: 'test-only-production-key' });
+    const f = await fixture({ production: true, publicOrigin: 'https://station.example', roomCode: 'test-only-production-key' });
     const response = await f.request('/api/health');
     expect(response.status).toBe(200);
     const csp = response.headers.get('content-security-policy')!;
@@ -126,13 +126,15 @@ describe('Private room admission API', () => {
     await expect(createApplication({ ...f.config, clientDir: f.config.dataDir })).rejects.toThrow('DATA_DIR');
     await expect(createApplication({ ...f.config, clientDir: f.config.dataDir, dataDir: join(f.config.dataDir, '..secrets') })).rejects.toThrow('DATA_DIR');
   });
-  it('rejects foreign browser origins and enforces a configured create key', async () => {
+  it('rejects foreign origins while allowing ordinary rooms without a configured special code', async () => {
     const f = await fixture();
     expect((await f.request('/api/rooms', {}, { Origin: 'https://untrusted.example' })).status).toBe(403);
-    f.config.createRoomKey = 'a-private-create-key';
+    f.config.roomCode = 'a-private-create-key';
     const input = { gameId: 'space-station', displayName: '站長' };
-    expect((await f.request('/api/rooms', input)).status).toBe(403);
-    expect((await f.request('/api/rooms', { ...input, createKey: f.config.createRoomKey })).status).toBe(201);
+    const ordinary=await f.request('/api/rooms', input);
+    expect(ordinary.status).toBe(201);expect(ordinary.body.testRoom).toBe(false);
+    const special=await f.request('/api/rooms', { ...input, roomCode: f.config.roomCode });
+    expect(special.status).toBe(201);expect(f.app.rooms.rooms.get(special.body.roomId)?.adsMode).toBe('adfree');
   });
   it('restores room invitations and seat credentials after server restart', async () => {
     const f = await fixture(); const host = await f.create();

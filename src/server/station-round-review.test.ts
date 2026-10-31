@@ -38,7 +38,7 @@ async function fixture(lifecycleSweepMs = 60000) {
     await rm(dataDir, { recursive: true, force: true });
   });
   const config = { dataDir, publicOrigin: origin, host: '127.0.0.1', port: 0, production: false,
-    createRoomKey: '', lifecycleSweepMs };
+    roomCode: '', lifecycleSweepMs };
   let app = await createApplication(config);
   let running: Awaited<ReturnType<typeof app.listen>> | undefined = await app.listen();
   const sockets: Socket[] = [];

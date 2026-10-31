@@ -8,7 +8,7 @@ import { createPreviewPage } from './link-preview';
 
 const publicOrigin = 'https://boardgame.example.com';
 const iconPath = '/assets/site-icon-test-fingerprint.png';
-const createKey = 'test-only-preview-room-key';
+const roomCode = 'test-only-preview-room-key';
 const gameRulesPaths = GAME_IDS.map(id => `/rules/${id}`);
 const cleanups: (() => Promise<void>)[] = [];
 afterEach(async () => { for (const cleanup of cleanups.splice(0).reverse()) await cleanup(); });
@@ -28,7 +28,7 @@ async function fixture() {
   await writeFile(join(clientDir, iconPath.slice(1)), icon);
   const app = await createApplication({
     dataDir: join(root, 'data'), clientDir, publicOrigin,
-    host: '127.0.0.1', port: 0, production: true, createRoomKey: createKey,
+    host: '127.0.0.1', port: 0, production: true, roomCode: roomCode,
   });
   const running = await app.listen();
   cleanups.push(() => running.close());
@@ -134,7 +134,7 @@ describe('Public link previews', () => {
     const f = await fixture();
     const created = await f.request('/api/rooms', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ gameId: 'space-station', displayName: '不可曝光的房主', createKey }),
+      body: JSON.stringify({ gameId: 'space-station', displayName: '不可曝光的房主', roomCode }),
     });
     expect(created.status).toBe(201);
     const host = await created.json();
@@ -146,7 +146,7 @@ describe('Public link previews', () => {
       expect(response.status).toBe(200);
       const html = await response.text();
       expect(metadata(html, 'og:title')).toEqual(['捷寶桌遊室']);
-      for (const privateValue of ['不可曝光的房主', invite, host.credentials, createKey]) expect(html).not.toContain(privateValue);
+      for (const privateValue of ['不可曝光的房主', invite, host.credentials, roomCode]) expect(html).not.toContain(privateValue);
       expect(html).not.toMatch(/inviteHash|credentialHash|spectators|hostPlayerID/);
     }
     expect(await f.app.db.fetch(host.matchID, { metadata: true, state: true })).toEqual(before);
