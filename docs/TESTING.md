@@ -10,6 +10,8 @@
 
 ## 測試分工
 
+廣告資格由 `server/advertising.test.ts` 驗證分類、舊房間、缺少設定與密碼衝突；`server/advertising.integration.test.ts` 遍歷全部遊戲，核對一般、免廣告與測試房，再以真實 HTTP 驗證玩家／觀戰一致、重啟、回等待室及換遊戲。`client/advertising.test.ts` 驗證授權前不輸出 SDK、手動載入去重、阻擋與逾時、房間上下文及已載入廣告後完整導覽。實際瀏覽器須檢查一般／免廣告／測試房、首頁、規則與隱私權頁，桌機間距及手機捲動；QA 攔截或本機替代 SDK，不使用真實帳戶產生廣告曝光。公開檢查器拒絕實際 publisher ID，環境範本不放入帳戶或密碼。
+
 | 範圍 | 主要檔案 | 必須保留的差異 |
 | --- | --- | --- |
 | 各遊戲規則 | `src/games/{station,cipher,fog,moon,turing}/game.test.ts`、`station/view-model.test.ts` | 各人數、角色、模式、勝敗、非法／重複／過期操作、不同觀看身分及舊版存檔 |
@@ -38,6 +40,10 @@
 - 保留失敗定位清楚的案例。不要為省一次準備就把不同持久化邊界合成一個大流程，也不要把真實 HTTP／Socket.IO 測試全部換成 mock。
 
 ## 精簡與補測的覆蓋對應
+
+音效游標只測現行 `GameSoundTracker`；已移除未被介面使用的 `StationSoundTracker` 與六項舊案例。原有掛載／重掛載、換房、換視角、不同行動者、重複／過期紀錄、漏幀多事件及斷線／停用／缺少快照的邊界，集中由 `sound-cues.test.ts` 驗證，太空維修站事件另經目前 registry 的 soundAdapter 接入。`station-sounds.test.ts` 保留音訊輸出、音量、靜音與資源清理。
+
+共用 `SpectatorRoster` 不依遊戲或階段分支，因此 `host-identity.test.ts` 的六種授權渲染矩陣只執行一次，從 198 次減至 6 次；每款遊戲的伺服器移出授權仍由 `role-switch.test.ts` 保留。前端 registry 契約移除 SSR 不含 `MAKE_MOVE` 的斷言：SSR 不會序列化事件 handler，該字串不能證明唯讀。登錄、投影渲染、章節與公開音效契約繼續測試；實際唯讀操作仍需伺服器及瀏覽器驗證。
 
 | 原本重複工作 | 保留的驗證 |
 | --- | --- |

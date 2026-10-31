@@ -1,3 +1,5 @@
+import { Advertising, ContextAdvertising } from './Advertising';
+import { createAdSafeNavigationHandler } from './adsense';
 import { ROOM_CAPACITY, isGameID } from '../games/catalog';
 import { useContext, useEffect, useRef, useState, type FormEvent } from 'react';
 import {
@@ -265,7 +267,7 @@ function Room({ seat, onSwitch }: { seat: AuthSession; onSwitch: (seat: AuthSess
     {pendingToken(seat.roomId) && <button className="button primary full" onClick={() => navigate(`/join/${seat.roomId}`)}>重新使用邀請加入</button>}
     <button className="button secondary full" onClick={() => navigate('/')}>回到首頁</button>
   </section></main></div>;
-  return <div data-art-game={info.gameSelected !== false ? info.gameName : undefined} className={`room-page ${info.status === 'lobby' ? 'room-lobby' : isPlayer(seat) ? 'room-playing room-game' : 'room-observer room-game'}${stationActive ? ' station-active-room' : ''}`}>
+  return <><div data-art-game={info.gameSelected !== false ? info.gameName : undefined} className={`room-page ${info.status === 'lobby' ? 'room-lobby' : isPlayer(seat) ? 'room-playing room-game' : 'room-observer room-game'}${stationActive ? ' station-active-room' : ''}`}>
     <Header room={seat.roomId} gameID={info.status !== 'lobby' ? info.gameName : undefined} rulesGame={info.gameSelected !== false ? info.gameName : undefined} />
     {error && <div className="room-error"><ErrorMessage>{error}</ErrorMessage><p className="small muted">連線恢復後會自動重試。請保留這個頁面。</p></div>}
     {!loaded ? !error && <main className="narrow"><p className="loading" role="status">正在確認你的房間身分…</p></main>
@@ -291,13 +293,13 @@ function Room({ seat, onSwitch }: { seat: AuthSession; onSwitch: (seat: AuthSess
             : <main className="narrow"><ErrorMessage>此遊戲尚未提供玩家介面。</ErrorMessage></main>
           : <ObservationPanel key={info.matchID} seat={session} info={info} />}
       </RoomContext.Provider>}
-  </div>;
+  </div>{loaded && <Advertising key={info.roomId} settings={info.advertising} />}</>;
 }
 export function App() {
   const [path, setPath] = useState(location.pathname);
   const [seatRevision, setSeatRevision] = useState(0);
   useEffect(() => {
-    const update = () => { captureInvite(); captureReplayShare(); setPath(location.pathname); setSeatRevision(n => n + 1); };
+    const update = createAdSafeNavigationHandler(() => { captureInvite(); captureReplayShare(); setPath(location.pathname); setSeatRevision(n => n + 1); });
     const identityChanged = (event: StorageEvent) => {
       if (event.storageArea === localStorage && isIdentityStorageKey(event.key)) setSeatRevision(n => n + 1);
     };
@@ -307,7 +309,7 @@ export function App() {
   }, []);
   function enter(seat: AuthSession) { setSeatRevision(n => n + 1); navigate(`/room/${seat.roomId}`); }
   const rulesMatch = path.match(/^\/rules(?:\/([a-z0-9-]+))?\/?$/);
-  if (rulesMatch && (!rulesMatch[1] || isGameID(rulesMatch[1]))) return <RulesPage gameID={rulesMatch[1] as RulesGameID | undefined} />;
+  if (rulesMatch && (!rulesMatch[1] || isGameID(rulesMatch[1]))) return <><RulesPage gameID={rulesMatch[1] as RulesGameID | undefined} /><ContextAdvertising /></>;
   const match = path.match(/^\/(join|room|replay)\/([A-Za-z0-9_-]+)\/?$/);
   if (!match) return <Home onEnter={enter} />;
   const roomId = match[2];

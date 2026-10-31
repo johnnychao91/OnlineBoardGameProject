@@ -20,6 +20,7 @@ export interface RoomRecord {
   roomId: string;
   /** Set only when creating a room with the private test-room key; immutable. */
   testRoom?: boolean;
+  adsMode?: 'standard' | 'adfree';
   currentMatchID?: string;
   hostPlayerID?: string | null;
   /** The host can stay in the room as an observer instead of occupying a seat. */
@@ -73,6 +74,7 @@ export class RoomStore {
       if (!Array.isArray(records)) throw new Error('房間索引格式錯誤');
       for (const room of records) {
         if (!validRoomID(room.roomId) || typeof room.inviteHash !== 'string'
+          || (room.adsMode !== undefined && !['standard', 'adfree'].includes(room.adsMode))
           || (room.testRoom !== undefined && typeof room.testRoom !== 'boolean')
           || (room.gameSelected !== undefined && typeof room.gameSelected !== 'boolean')
           || (room.currentMatchID !== undefined && !validRoomID(room.currentMatchID))

@@ -1,60 +1,11 @@
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
-import type { StationState } from '../games/station/game';
 import { GameSoundTracker, type GameSoundInput } from './sound-cues';
 import './station-sounds.css';
 
 const MUTE_KEY = 'friends-table.station-sound-muted';
 const VOLUME_KEY = 'friends-table.station-sound-volume';
 const DEFAULT_VOLUME = 50;
-type SoundState = Pick<StationState, 'status' | 'round' | 'activePlayer' | 'log'>;
-export interface StationSoundInput {
-  G?: SoundState;
-  matchID: string;
-  playerID?: string;
-  enabled?: boolean;
-  connected?: boolean;
-}
 export interface StationSoundEvents { reveals: number; ownTurn: boolean }
-const silent = (): StationSoundEvents => ({ reveals: 0, ownTurn: false });
-const revealKey = (G: SoundState, index: number) => {
-  const entry = G.log[index];
-  return entry ? JSON.stringify([entry.round, entry.actorID, entry.targetID, entry.slot, entry.kind]) : '';
-};
-const turnKey = (G: SoundState) => `${G.round}:${G.log.length}:${G.activePlayer}`;
-
-/** A public-state cursor: snapshots, reconnects and stale deliveries never replay history. */
-export class StationSoundTracker {
-  private previous: { matchID: string; playerID?: string; round: number; length: number; last: string; ownTurn: boolean } | null = null;
-  private announcedTurns = new Set<string>();
-
-  update({ G, matchID, playerID, enabled = true, connected = true }: StationSoundInput): StationSoundEvents {
-    if (!G || !enabled || !connected) {
-      this.previous = null;
-      this.announcedTurns.clear();
-      return silent();
-    }
-    const ownTurn = !!playerID && G.status === 'playing' && G.activePlayer === playerID;
-    const next = { matchID, playerID, round: G.round, length: G.log.length, last: revealKey(G, G.log.length - 1), ownTurn };
-    const previous = this.previous;
-    if (!previous || previous.matchID !== matchID || previous.playerID !== playerID) {
-      this.previous = next;
-      this.announcedTurns.clear();
-      if (ownTurn) this.announcedTurns.add(turnKey(G));
-      return silent();
-    }
-    // Keep the high-water mark when a response predates a newer socket / poll delivery.
-    if (G.round < previous.round || G.log.length < previous.length) return silent();
-    if (previous.length && revealKey(G, previous.length - 1) !== previous.last) return silent();
-    const events = {
-      reveals: G.log.length - previous.length,
-      ownTurn: ownTurn && (!previous.ownTurn || G.log.length > previous.length || G.round > previous.round)
-        && !this.announcedTurns.has(turnKey(G)),
-    };
-    if (ownTurn) this.announcedTurns.add(turnKey(G));
-    this.previous = next;
-    return events;
-  }
-}
 
 type AudioConstructor = new () => AudioContext;
 function audioConstructor(): AudioConstructor | undefined {
@@ -212,10 +163,6 @@ export interface StationSoundControls {
   label: string;
   toggle: () => void;
   setVolume: (volume: number) => void;
-}
-
-export function useStationSounds(input: StationSoundInput): StationSoundControls {
-  return useSoundOutput(input, StationSoundTracker);
 }
 
 export function useGameSounds(input: GameSoundInput): StationSoundControls {

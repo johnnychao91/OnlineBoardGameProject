@@ -1,4 +1,5 @@
 import { useContext, type ReactNode } from 'react';
+import { requiresFreshDocument, roomContextPath } from './adsense';
 import { GameHeaderContext } from './game-header-context';
 import './game-header.css';
 import siteIcon from './assets/site-icon.png';
@@ -6,6 +7,7 @@ import './brand.css';
 import { gameCatalog, isGameID } from '../games/catalog';
 
 export function navigate(path: string) {
+  if (requiresFreshDocument()) { window.location.assign(path); return; }
   history.pushState(null, '', path);
   window.dispatchEvent(new PopStateEvent('popstate'));
   window.scrollTo({ top: 0 });
@@ -30,7 +32,7 @@ export function Header({ room, rulesGame, gameID }: { room?: string; rulesGame?:
   const gameName = activeGame && isGameID(activeGame) ? gameCatalog[activeGame].name : undefined;
   const rulesTarget = activeGame ?? rulesGame;
   const rulesPath = rulesTarget && isGameID(rulesTarget) ? `/rules/${rulesTarget}` : '/rules';
-  return <header className={`site-header${gameName ? ' has-game-title' : ''}`}><div className="header-brand-group"><button className="brand" onClick={() => navigate('/')} aria-label="回捷寶桌遊室首頁"><span className="brand-symbol"><img src={siteIcon} alt="" /></span><span>捷寶桌遊室<small>BOARDGAME</small></span></button>{gameName && <h1 className="header-game-name">{gameName}</h1>}</div><div className="header-links"><div className="header-sound-slot" ref={chrome?.setSoundTarget} /><a className="header-rules-link" href={rulesPath} target={room ? '_blank' : undefined} rel={room ? 'noopener noreferrer' : undefined}>詳細規則</a>{room ? <span className="room-tag">私人房間</span> : <span className="beta-tag">試玩版</span>}</div></header>;
+  return <header className={`site-header${gameName ? ' has-game-title' : ''}`}><div className="header-brand-group"><button className="brand" onClick={() => navigate('/')} aria-label="回捷寶桌遊室首頁"><span className="brand-symbol"><img src={siteIcon} alt="" /></span><span>捷寶桌遊室<small>BOARDGAME</small></span></button>{gameName && <h1 className="header-game-name">{gameName}</h1>}</div><div className="header-links"><div className="header-sound-slot" ref={chrome?.setSoundTarget} /><a className="header-rules-link" href={roomContextPath(rulesPath, room)} target={room ? '_blank' : undefined} rel={room ? 'noopener noreferrer' : undefined}>詳細規則</a><a className="header-rules-link" href={roomContextPath('/privacy', room)} target={room ? '_blank' : undefined} rel={room ? 'noopener noreferrer' : undefined}>隱私權</a>{room ? <span className="room-tag">私人房間</span> : <span className="beta-tag">試玩版</span>}</div></header>;
 }
 
 export function ErrorMessage({ children }: { children: ReactNode }) { return children ? <p className="error-message" role="alert">{children}</p> : null; }

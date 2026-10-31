@@ -11,6 +11,9 @@ async function main() {
     host: process.env.HOST || '127.0.0.1', port, production,
     createRoomKey: process.env.CREATE_ROOM_KEY || '',
     testRoomKey: process.env.TEST_ROOM_KEY || '',
+    adFreeRoomKey: process.env.ADFREE_ROOM_KEY || '',
+    adsense: { client: process.env.ADSENSE_CLIENT || '', slot: process.env.ADSENSE_SLOT || '' },
+    privacyContact: process.env.PRIVACY_CONTACT || '',
     clientDir: production ? './dist/client' : undefined,
   });
   const running = await app.listen();

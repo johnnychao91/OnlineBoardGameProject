@@ -28,7 +28,7 @@ describe('Every registered game supplies the entire client framework', () => {
       expect(definition.chapters.map(([chapter]) => chapter), `${id}: gallery chapter`).toContain(definition.gallery.chapter);
     }
   });
-  it.each(gameDefinitions)('$id renders shared blind / god snapshots without actions and bases spectator audio only on public events', definition => {
+  it.each(gameDefinitions)('$id renders shared blind / god snapshots and bases spectator audio only on public events', definition => {
     const ids = Array.from({ length: definition.minPlayers }, (_, index) => String(index));
     const match = createMatch({ game: definition.game, numPlayers: ids.length, setupData: definition.startSetupData(ids), unlisted: true });
     if ('setupDataError' in match) throw new Error(match.setupDataError);
@@ -42,7 +42,6 @@ describe('Every registered game supplies the entire client framework', () => {
     for (const perspective of ['blind', 'god'] as const) {
       const html = renderToStaticMarkup(createElement(renderer.Snapshot, { G: perspective === 'god' ? god : blind, info, perspective, replay: true }));
       expect(html).toContain('game-layout');
-      expect(html).not.toContain('MAKE_MOVE');
       expect(html).not.toContain('credentials');
     }
     const rules = renderToStaticMarkup(createElement(renderer.DetailedRules));

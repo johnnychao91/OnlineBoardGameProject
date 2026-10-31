@@ -1,3 +1,4 @@
+import { roomContextPath } from './adsense';
 import { useEffect, type ReactNode } from 'react';
 import { gameCatalog, ROOM_CAPACITY, type GameID } from '../games/catalog';
 import { clientGames } from './game-registry';
@@ -35,12 +36,12 @@ export function RulesPage({ gameID }: { gameID?: RulesGameID }) {
       {game && <span className="rules-game-meta">{game.detail}</span>}
     </div>
     <nav className="rules-game-nav" aria-label="選擇遊戲規則">
-      <a href="/rules" aria-current={!gameID ? 'page' : undefined}>規則總覽</a>
-      {Object.entries(games).map(([id, entry]) => <a key={id} href={`/rules/${id}`} aria-current={gameID === id ? 'page' : undefined}>{entry.name}</a>)}
+      <a href={roomContextPath('/rules')} aria-current={!gameID ? 'page' : undefined}>規則總覽</a>
+      {Object.entries(games).map(([id, entry]) => <a key={id} href={roomContextPath(`/rules/${id}`)} aria-current={gameID === id ? 'page' : undefined}>{entry.name}</a>)}
     </nav>
     {!game && <div className="rules-game-cards">{Object.entries(games).map(([id, entry]) => <article className="panel rules-game-card" data-art-game={id} key={id}>
-      <Icon type={id === 'space-station' ? 'orbit' : 'signal'} size={30} /><h2><a href={`/rules/${id}`}>{entry.name}</a></h2><p className="rules-game-meta">{entry.detail}</p><p>{entry.intro}</p>
-      <div className="rules-game-card-links"><a href={`/rules/${id}`}>閱讀詳細規則 →</a><a href={`/rules/${id}#${encodeURIComponent(clientGames[id].gallery.chapter)}`}>{clientGames[id].gallery.label} →</a></div>
+      <Icon type={id === 'space-station' ? 'orbit' : 'signal'} size={30} /><h2><a href={roomContextPath(`/rules/${id}`)}>{entry.name}</a></h2><p className="rules-game-meta">{entry.detail}</p><p>{entry.intro}</p>
+      <div className="rules-game-card-links"><a href={roomContextPath(`/rules/${id}`)}>閱讀詳細規則 →</a><a href={roomContextPath(`/rules/${id}`) + `#${encodeURIComponent(clientGames[id].gallery.chapter)}`}>{clientGames[id].gallery.label} →</a></div>
     </article>)}</div>}
     <div className={`rules-reading-layout${game ? '' : ' rules-overview'}`}>
       {game && <nav className="rules-toc" aria-label="本頁章節"><strong>快速前往</strong>

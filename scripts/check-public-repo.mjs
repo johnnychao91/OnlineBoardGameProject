@@ -23,6 +23,10 @@ const metadataHostFiles = new Set([
 
 export function allowedHost(input, file) {
   const host = input.toLowerCase().replace(/^\*\./, '').replace(/\.$/, '');
+  const scanner = ['scripts/check-public-repo.mjs', 'scripts/check-public-repo.test.mjs'].includes(file);
+  if ((scanner || file === 'src/client/adsense.ts') && host === 'pagead2.googlesyndication.com') return true;
+  if ((scanner || file === 'src/server/app.ts') && ['googlesyndication.com', 'doubleclick.net', 'google.com', 'googleadservices.com', 'googleusercontent.com', 'gstatic.com'].includes(host)) return true;
+  if ((scanner || file === 'privacy.html' || file === 'docs/ADVERTISING.md') && ['policies.google.com', 'myadcenter.google.com', 'optout.aboutads.info', 'support.google.com'].includes(host)) return true;
   // Rules provenance only; this is never an allowed deployment target.
   if (['docs/BAKER_STREET.md', 'scripts/check-public-repo.mjs', 'scripts/check-public-repo.test.mjs'].includes(file)
     && ['www.gen42.com', 'www.met.police.uk'].includes(host)) return true;
@@ -75,6 +79,10 @@ export function inspectFile(file, bytes) {
   if (privatePath(file)) problems.add('private/runtime file must not be tracked');
   if (bytes.includes(0) || !isUtf8(bytes)) return { problems: [...problems], binary: true };
   const content = bytes.toString('utf8');
+  for (const match of content.matchAll(/\bca-pub-(\d{16})\b/g)) {
+    const fixture = /\.test\.(?:ts|mjs)$/.test(file) && ['1234567890123456', '1111111111111111'].includes(match[1]);
+    if (!fixture) problems.add('private advertising identifier must remain in deployment settings');
+  }
   for (const [label, pattern] of secretRules) {
     if (pattern.test(content)) problems.add(label);
   }

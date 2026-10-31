@@ -10,6 +10,19 @@ const inspect = (file, text) => inspectFile(file, Buffer.from(text));
 // Construct deliberately forbidden fixtures so the fixture itself has no live URL.
 const privateHost = ['private-fixture', 'unregistered'].join('.');
 
+test('keeps advertising hosts scoped and publisher identifiers out of public source', () => {
+  const sdk = 'pagead2.googlesyndication.com';
+  assert.equal(allowedHost(sdk, 'src/client/adsense.ts'), true);
+  assert.equal(allowedHost(sdk, 'deploy/apache.conf.example'), false);
+  assert.equal(allowedHost('policies.google.com', 'privacy.html'), true);
+  assert.equal(allowedHost('policies.google.com', 'README.md'), false);
+  const value = ['ca-pub-', '9876543210987654'].join('');
+  const result = inspect('src/client/accidental.ts', value);
+  assert.ok(result.problems.includes('private advertising identifier must remain in deployment settings'));
+  assert.equal(JSON.stringify(result).includes(value), false);
+  assert.deepEqual(inspect('src/client/advertising.test.ts', ['ca-pub-', '1234567890123456'].join('')).problems, []);
+});
+
 test('permits reserved examples, loopback and narrowly scoped public sources', () => {
   for (const host of ['game.example.com', 'example.org', 'example.net', 'station.example', 'example.test', 'test.invalid', 'localhost', '127.0.0.1', '[::1]']) {
     assert.equal(allowedHost(host, 'README.md'), true);

@@ -1,3 +1,4 @@
+import { creationKind, roomAdvertising, validAdSettings, validateAdFreeKey, type AdSettings } from './advertising';
 import { mkdir, readFile } from 'node:fs/promises';
 import { createHmac } from 'node:crypto';
 import { resolve, join, relative, isAbsolute, sep } from 'node:path';
@@ -29,6 +30,9 @@ export interface AppConfig {
   production: boolean;
   createRoomKey: string;
   testRoomKey?: string;
+  adFreeRoomKey?: string;
+  adsense?: AdSettings;
+  privacyContact?: string;
   clientDir?: string;
   presenceLeaseMs?: number;
   lifecycleSweepMs?: number;
@@ -86,6 +90,7 @@ async function jsonBody(ctx: Context, maxBytes = 4096): Promise<Record<string, a
 }
 
 export async function createApplication(config: AppConfig) {
+  validateAdFreeKey(config);
   const origin = new URL(config.publicOrigin).origin;
   if (config.publicOrigin !== origin) throw new Error('PUBLIC_ORIGIN 必須是完整 origin，不能含路徑或尾斜線');
   if (config.production && (!origin.startsWith('https://') || config.createRoomKey.length < 16)) throw new Error('正式環境需 HTTPS PUBLIC_ORIGIN 與至少 16 字元 CREATE_ROOM_KEY');
@@ -127,6 +132,7 @@ export async function createApplication(config: AppConfig) {
   const publicRoom = (room: RoomRecord, metadata: any, state: any, matchID = currentMatchID(room), historical = false) => ({
     roomId: room.roomId, matchID, gameName: matchGameID(room, matchID),
     testRoom: room.testRoom === true,
+    advertising: roomAdvertising(room, config.adsense, historical),
     gameSelected: historical || room.gameSelected !== false, roomCapacity: ROOM_CAPACITY,
     gameOptions: historical ? state.G.options : room.gameOptions,
     hostPlayerID: historical ? null : hostPlayerID(room),
@@ -353,7 +359,9 @@ export async function createApplication(config: AppConfig) {
     ctx.set('X-Content-Type-Options', 'nosniff');
     ctx.set('X-Frame-Options', 'DENY');
     ctx.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
-    if (config.production) ctx.set('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'");
+    if (config.production) ctx.set('Content-Security-Policy', validAdSettings(config.adsense)
+      ? "default-src 'self'; script-src 'self' https://*.googlesyndication.com https://*.doubleclick.net https://*.google.com https://*.googleadservices.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.googlesyndication.com https://*.doubleclick.net https://*.google.com https://*.googleusercontent.com https://*.gstatic.com https://*.googleadservices.com; connect-src 'self' https://*.googlesyndication.com https://*.doubleclick.net https://*.google.com https://*.googleadservices.com; frame-src https://*.googlesyndication.com https://*.doubleclick.net https://*.google.com; base-uri 'none'; frame-ancestors 'none'; form-action 'self'"
+      : "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'");
     if (ctx.path.startsWith('/api')) {
       ctx.set('Cache-Control', 'no-store');
       ctx.set('X-Boardgame-Time', String(Date.now()));
@@ -406,8 +414,9 @@ export async function createApplication(config: AppConfig) {
     if (ctx.method === 'POST' && ctx.path === '/api/rooms') {
       if (!limiter.allow(`create:${ctx.ip}`, 12, 600000)) fail(429, '建立房間太頻繁，請稍後重試');
       const body = await jsonBody(ctx);
-      const testRoom = !!config.testRoomKey && safeEqual(body.createKey, config.testRoomKey);
-      if (!testRoom && config.createRoomKey && !safeEqual(body.createKey, config.createRoomKey)) fail(403, '建立房間密鑰不正確');
+      const kind = creationKind(body.createKey, config);
+      const testRoom = kind === 'test';
+      if (!kind) fail(403, '建立房間密鑰不正確');
       const definition = getGameDefinition(body.gameId === undefined ? gameDefinitions[0].id : body.gameId);
       if (!definition) fail(400, '遊戲不正確');
       if (body.numPlayers !== undefined) fail(400, '不需預選人數，開局時依參與者人數決定');
@@ -422,7 +431,7 @@ export async function createApplication(config: AppConfig) {
       if ('setupDataError' in match) fail(400, '無法使用這組遊戲設定');
       match.metadata.players['0'].name = name;
       match.metadata.players['0'].credentials = credentials;
-      const room: RoomRecord = { roomId, testRoom, currentMatchID: roomId, hostPlayerID: '0', gameId: definition.id, gameOptions, gameSelected: body.gameId !== undefined, numPlayers: ROOM_CAPACITY, inviteHash: hashToken(invite), inviteExpiresAt: Date.now() + INVITE_TTL, createdAt: Date.now() };
+      const room: RoomRecord = { roomId, testRoom, adsMode: kind === 'adfree' ? 'adfree' : 'standard', currentMatchID: roomId, hostPlayerID: '0', gameId: definition.id, gameOptions, gameSelected: body.gameId !== undefined, numPlayers: ROOM_CAPACITY, inviteHash: hashToken(invite), inviteExpiresAt: Date.now() + INVITE_TTL, createdAt: Date.now() };
       await db.createMatch(roomId, match);
       await rooms.save(room);
       presence.touch(roomId, 'player:0', 'admission');
@@ -938,6 +947,19 @@ export async function createApplication(config: AppConfig) {
   });
   if (config.clientDir) {
     const directory = resolve(config.clientDir);
+    let privacyPage = '';
+    try { privacyPage = await readFile(join(directory, 'privacy.html'), 'utf8'); } catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error; }
+    if (privacyPage && config.privacyContact) {
+      const url = new URL(config.privacyContact.includes('@') && !config.privacyContact.includes(':') ? 'mailto:' + config.privacyContact : config.privacyContact);
+      if (!['mailto:', 'https:'].includes(url.protocol)) throw new Error('PRIVACY_CONTACT must be an email or HTTPS URL.');
+      const escape = (text: string) => text.replace(/[&<>"']/g, char => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' })[char]!);
+      privacyPage = privacyPage.replace(/<!-- PRIVACY_CONTACT -->[\s\S]*?<!-- \/PRIVACY_CONTACT -->/, '<a rel="noopener noreferrer" href="' + escape(url.href) + '">' + escape(config.privacyContact) + '</a>');
+    }
+    server.app.use(async (ctx, next) => {
+      if (privacyPage && ['GET', 'HEAD'].includes(ctx.method) && ['/privacy', '/privacy/', '/privacy.html'].includes(ctx.path)) {
+        ctx.type = 'html'; ctx.set('Cache-Control', 'no-cache'); ctx.body = privacyPage;
+      } else await next();
+    });
     const previewPage = createPreviewPage(await readFile(join(directory, 'index.html'), 'utf8'), origin);
     server.app.use(async (ctx, next) => {
       const rulesMatch = ctx.path.match(/^\/rules(?:\/([a-z0-9-]+))?\/?$/);
