@@ -217,5 +217,5 @@ export function FogLog({ G, nameOf }: { G: FogState; nameOf: FogNameOf }) {
 }
 
 export function FogRuleSummary() {
-  return <div className="small"><p>5～10 位巡夜者，隊長輪流組隊。全員密投表決，過半贊成才出征；同票否決，同一燈塔連續五次否決由黑霧使徒獲勝。</p><p>出征者秘密選擇守護或侵蝕。守夜騎士只能守護；黑霧使徒可擇一，預示模式中效忠黑霧的雙鐘騎士必須侵蝕。</p><p>一般 1 次侵蝕就失守；7～10 人的第 4 座需 2 次。三座失守由黑霧使徒獲勝；三座點亮後，還需躲過深海之刃對逐星神諭者的最後指認。</p><p>每次表決、任務結果皆保留到全員確認。雙鐘騎士模式與角色配置由房主開局前設定。</p><a href="/rules/black-fog" target="_blank" rel="noopener noreferrer">閱讀完整規則 →</a></div>;
+  return <div className="small"><p>5～10 位巡夜者，隊長輪流組隊。全員密投表決，過半贊成才出征；同票否決，同一燈塔連續五次否決由黑霧使徒獲勝。</p><p>出征者秘密選擇守護或侵蝕。守夜騎士只能守護；黑霧使徒可擇一，預示模式中效忠黑霧的雙鐘騎士必須侵蝕。</p><p>一般 1 次侵蝕就失守；7～10 人的第 4 座需 2 次。三座失守由黑霧使徒獲勝；三座點亮後，還需躲過深海之刃對逐星神諭者的最後指認。</p><p>每次表決、任務結果皆保留到全員確認。雙鐘騎士模式與角色配置由房主開局前設定。</p><a data-google-vignette="false" href="/rules/black-fog" target="_blank" rel="noopener noreferrer">閱讀完整規則 →</a></div>;
 }

@@ -950,7 +950,7 @@ export async function createApplication(config: AppConfig) {
       const url = new URL(config.privacyContact.includes('@') && !config.privacyContact.includes(':') ? 'mailto:' + config.privacyContact : config.privacyContact);
       if (!['mailto:', 'https:'].includes(url.protocol)) throw new Error('PRIVACY_CONTACT must be an email or HTTPS URL.');
       const escape = (text: string) => text.replace(/[&<>"']/g, char => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' })[char]!);
-      privacyPage = privacyPage.replace(/<!-- PRIVACY_CONTACT -->[\s\S]*?<!-- \/PRIVACY_CONTACT -->/, '<a rel="noopener noreferrer" href="' + escape(url.href) + '">' + escape(config.privacyContact) + '</a>');
+      privacyPage = privacyPage.replace(/<!-- PRIVACY_CONTACT -->[\s\S]*?<!-- \/PRIVACY_CONTACT -->/, '<a data-google-vignette="false" rel="noopener noreferrer" href="' + escape(url.href) + '">' + escape(config.privacyContact) + '</a>');
     }
     server.app.use(async (ctx, next) => {
       if (privacyPage && ['GET', 'HEAD'].includes(ctx.method) && ['/privacy', '/privacy/', '/privacy.html'].includes(ctx.path)) {

@@ -14,7 +14,7 @@ export function BakerRuleSummary() {
   return <div className="small"><p>4～12 人。福爾摩斯公開身分並透過推演圖板提供線索；執行者從自己的牌中秘密選定一張作案手段與一張現場物證。</p>
     <p>共三輪調查，每位福爾摩斯以外的玩家有一次正式破案機會。指出同一位其他玩家面前的正確兩張牌即可破案；錯誤會交出警徽，但仍可參與討論。</p>
     <p>有華生時，執行者被識破後仍可指認華生，猜中便逆轉勝利。福爾摩斯只用圖板提示，不能以語音、文字或動作補充。</p>
-    <a href="/rules/baker-street" target="_blank" rel="noopener noreferrer">閱讀完整規則與案件圖鑑 →</a></div>;
+    <a data-google-vignette="false" href="/rules/baker-street" target="_blank" rel="noopener noreferrer">閱讀完整規則與案件圖鑑 →</a></div>;
 }
 
 export function BakerCardFace({ card, selected = false, onSelect, onInspect, disabled = false, compact = false }: {

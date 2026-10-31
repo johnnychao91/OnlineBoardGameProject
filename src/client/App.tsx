@@ -1,4 +1,6 @@
 import { Advertising, ContextAdvertising } from './Advertising';
+import { CompletedGameReturn } from './CompletedGameReturn';
+import { completedGameReturn } from './game-return';
 import { createAdSafeNavigationHandler } from './adsense';
 import { ROOM_CAPACITY, isGameID } from '../games/catalog';
 import { useContext, useEffect, useRef, useState, type FormEvent } from 'react';
@@ -174,7 +176,7 @@ function Lobby({ onUpdate }: { onUpdate: (info: RoomInfo) => void }) {
     {selected && <Statistics gameID={info.gameName} />}
   </section><aside className="lobby-info-column">{host ? <ShareInvite active /> : <Note>邀請由房主管理。遊戲開始後，仍可邀請其他朋友來觀戰。</Note>}
     <RoomGamePicker seat={seat} info={info} disabled={busy} onBusy={value => { gameLocked.current = value; setGameBusy(value); }} onUpdate={onUpdate} />
-    {Rules && presentation && <div className="panel mission-brief"><div className="section-label">任務簡報</div><h2>{presentation.lobbyTitle || '遊戲簡介'}</h2><p>{presentation.lobbyDescription}</p><button className="text-button" onClick={() => setRules(!rules)}>{rules ? '收起玩法' : '展開玩法說明'} ↓</button>{rules && <Rules />}<a className="full-rules-link" href={`/rules/${info.gameName}`} target="_blank" rel="noopener noreferrer">閱讀完整詳細規則 ↗</a></div>}
+    {Rules && presentation && <div className="panel mission-brief"><div className="section-label">任務簡報</div><h2>{presentation.lobbyTitle || '遊戲簡介'}</h2><p>{presentation.lobbyDescription}</p><button className="text-button" onClick={() => setRules(!rules)}>{rules ? '收起玩法' : '展開玩法說明'} ↓</button>{rules && <Rules />}<a data-google-vignette="false" className="full-rules-link" href={`/rules/${info.gameName}`} target="_blank" rel="noopener noreferrer">閱讀完整詳細規則 ↗</a></div>}
     {!selected && <div className="panel mission-brief"><div className="section-label">同一桌，隨時換玩法</div><h2>朋友先到，遊戲慢慢選。</h2><p>房主可在等待室切換遊戲，成員與邀請連結都會保留。開始後先完成或提前結束本局，再回到這裡換下一款。</p></div>}
   </aside></main>;
 }
@@ -186,10 +188,15 @@ function Room({ seat, onSwitch }: { seat: AuthSession; onSwitch: (seat: AuthSess
   const [loaded, setLoaded] = useState(false);
   const [invalidSeat, setInvalidSeat] = useState(false);
   const [managementContainer, setManagementContainer] = useState<HTMLDivElement | null>(null);
+  const lastRoomInfo = useRef<RoomInfo | null>(null);
+  const [returnAd, setReturnAd] = useState<string | null>(null);
   const acceptedRevision = useRef(0);
   const rememberedOptionsRevision = useRef('');
   const sessionID = useRef(crypto.randomUUID());
   function acceptInfo(next: RoomInfo) {
+    const completed = completedGameReturn(lastRoomInfo.current, next);
+    lastRoomInfo.current = next;
+    if (completed) setReturnAd(completed);
     acceptedRevision.current += 1;
     setInfo(next);
     const preferenceRevision = JSON.stringify([next.gameName, next.gameOptions, next.hostPlayerID, next.hostObserverID]);
@@ -287,7 +294,8 @@ function Room({ seat, onSwitch }: { seat: AuthSession; onSwitch: (seat: AuthSess
         </div>
         <SpectatorRoster info={info} seat={session} onUpdate={acceptInfo} />
         </div>
-        {info.status === 'lobby' ? <><RoomHistory seat={session} info={info} /><Lobby key={info.gameSelected === false ? 'unselected' : info.gameName} onUpdate={acceptInfo} /></>
+        {returnAd ? <CompletedGameReturn key={returnAd} info={info} matchID={returnAd} onContinue={() => setReturnAd(null)} />
+          : info.status === 'lobby' ? <><RoomHistory seat={session} info={info} /><Lobby key={info.gameSelected === false ? 'unselected' : info.gameName} onUpdate={acceptInfo} /></>
           : isPlayer(seat) ? PlayerClient
             ? <PlayerClient key={info.matchID} matchID={info.matchID} playerID={seat.playerID} credentials={seat.credentials} />
             : <main className="narrow"><ErrorMessage>此遊戲尚未提供玩家介面。</ErrorMessage></main>

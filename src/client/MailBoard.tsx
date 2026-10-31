@@ -236,5 +236,5 @@ export function MailLog({ G, nameOf }: { G: MailState; nameOf: MailNameOf }) {
 export function MailRuleSummary() {
   return <div className="small"><p>密函投遞（3～4 人）與全城夜遞（5～8 人）：輪流抽一張、打一張，保留密函並運用人物能力。只剩一人或牌堆用完時結算本輪，累積信任郵戳爭取勝利。</p>
     <p>黑函局長（2～6 人）：局長對抗其他信使。信使共享生命，依座位輪流投遞；雙人時信使每次連續行動兩回合。將對方生命降至零即可獲勝，局長也能蒐集六枚封印獲勝。</p>
-    <p>手牌、查驗與對決情報只限獲准查看的人。黑函局長玩法只能討論公開資訊，不能暗示私下看過的牌，或指揮別人的選擇。</p><a href="/rules/midnight-post" target="_blank" rel="noopener noreferrer">閱讀完整規則與人物圖鑑 →</a></div>;
+    <p>手牌、查驗與對決情報只限獲准查看的人。黑函局長玩法只能討論公開資訊，不能暗示私下看過的牌，或指揮別人的選擇。</p><a data-google-vignette="false" href="/rules/midnight-post" target="_blank" rel="noopener noreferrer">閱讀完整規則與人物圖鑑 →</a></div>;
 }

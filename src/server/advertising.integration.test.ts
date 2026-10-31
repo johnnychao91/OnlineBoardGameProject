@@ -81,4 +81,16 @@ describe('Authenticated room-wide advertising',()=>{
     }
     expect((await f.request('/privacy.css')).status).toBe(200);expect(f.app.rooms.rooms.size).toBe(0);
   });
+  it('serves return-link navigation without leaking query contents or changing the room',async()=>{
+    const f=await fixture(true);
+    const created=await f.request('/api/rooms',{displayName:'Host'});
+    const host=created.body;
+    expect(created.status).toBe(201);
+    const returned=await f.request(`/room/${host.roomId}?returned=do-not-reflect`);
+    expect(returned.status).toBe(200);expect(returned.body).toContain('id="root"');
+    expect(returned.body).not.toContain('do-not-reflect');expect(returned.body).not.toContain(host.credentials);
+    const current=await f.request(`/api/rooms/${host.roomId}`,undefined,host);
+    expect(current.body.matchID).toBe(host.matchID);expect(current.body.status).toBe('lobby');
+    expect((await f.request(`/api/rooms/${host.roomId}`)).status).toBe(401);
+  });
 });

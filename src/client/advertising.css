@@ -2,3 +2,4 @@
 .site-advertising{box-sizing:border-box;display:block;width:300px;min-height:270px;margin:150px auto 24px;padding:0;border:0;text-align:center;color:#aabeb5}
 .advertising-label{display:block;font:12px/20px system-ui,sans-serif;letter-spacing:.15em}
 .site-advertising>.adsbygoogle{display:block;width:300px;height:250px}
+.completed-return-link{text-decoration:none}

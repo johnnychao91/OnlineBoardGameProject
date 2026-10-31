@@ -36,23 +36,23 @@ export function RulesPage({ gameID }: { gameID?: RulesGameID }) {
       {game && <span className="rules-game-meta">{game.detail}</span>}
     </div>
     <nav className="rules-game-nav" aria-label="選擇遊戲規則">
-      <a href={roomContextPath('/rules')} aria-current={!gameID ? 'page' : undefined}>規則總覽</a>
-      {Object.entries(games).map(([id, entry]) => <a key={id} href={roomContextPath(`/rules/${id}`)} aria-current={gameID === id ? 'page' : undefined}>{entry.name}</a>)}
+      <a data-google-vignette="false" href={roomContextPath('/rules')} aria-current={!gameID ? 'page' : undefined}>規則總覽</a>
+      {Object.entries(games).map(([id, entry]) => <a data-google-vignette="false" key={id} href={roomContextPath(`/rules/${id}`)} aria-current={gameID === id ? 'page' : undefined}>{entry.name}</a>)}
     </nav>
     {!game && <div className="rules-game-cards">{Object.entries(games).map(([id, entry]) => <article className="panel rules-game-card" data-art-game={id} key={id}>
-      <Icon type={id === 'space-station' ? 'orbit' : 'signal'} size={30} /><h2><a href={roomContextPath(`/rules/${id}`)}>{entry.name}</a></h2><p className="rules-game-meta">{entry.detail}</p><p>{entry.intro}</p>
-      <div className="rules-game-card-links"><a href={roomContextPath(`/rules/${id}`)}>閱讀詳細規則 →</a><a href={roomContextPath(`/rules/${id}`) + `#${encodeURIComponent(clientGames[id].gallery.chapter)}`}>{clientGames[id].gallery.label} →</a></div>
+      <Icon type={id === 'space-station' ? 'orbit' : 'signal'} size={30} /><h2><a data-google-vignette="false" href={roomContextPath(`/rules/${id}`)}>{entry.name}</a></h2><p className="rules-game-meta">{entry.detail}</p><p>{entry.intro}</p>
+      <div className="rules-game-card-links"><a data-google-vignette="false" href={roomContextPath(`/rules/${id}`)}>閱讀詳細規則 →</a><a data-google-vignette="false" href={roomContextPath(`/rules/${id}`) + `#${encodeURIComponent(clientGames[id].gallery.chapter)}`}>{clientGames[id].gallery.label} →</a></div>
     </article>)}</div>}
     <div className={`rules-reading-layout${game ? '' : ' rules-overview'}`}>
       {game && <nav className="rules-toc" aria-label="本頁章節"><strong>快速前往</strong>
-        {chapters.map(([id, title]) => <a href={`#${id}`} key={id}>{title}</a>)}<a href="#room">房間、觀戰與復盤</a>
+        {chapters.map(([id, title]) => <a data-google-vignette="false" href={`#${id}`} key={id}>{title}</a>)}<a data-google-vignette="false" href="#room">房間、觀戰與復盤</a>
       </nav>}
       <article className="rules-article">
         {DetailedRules && <DetailedRules />}
         <PlatformRules />
       </article>
     </div>
-    <p className="rules-return"><a href="/">回到捷寶桌遊室 →</a>{game && <span>從房間開啟規則時，關閉此分頁即可回到原本的牌桌。</span>}</p>
+    <p className="rules-return"><a data-google-vignette="false" href="/">回到捷寶桌遊室 →</a>{game && <span>從房間開啟規則時，關閉此分頁即可回到原本的牌桌。</span>}</p>
   </main></div>;
 }
 
