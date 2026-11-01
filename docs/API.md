@@ -16,7 +16,7 @@ API 與網頁同源，正式環境使用 HTTPS；開發由 Vite 代理。POST �
 
 ## 端點
 
-`POST /api/rooms` 不需要開房密碼；可省略 `roomCode` 或傳空字串建立一般房。`roomCode` 符合伺服器私有 `ROOM_CODE` 時建立免廣告正式房，符合 `TEST_ROOM_CODE` 時建立 `testRoom:true` 的免廣告測試房。兩種暗語可各自留空停用，非空時至少 16 字元且不同。錯誤或非字串暗語回傳 400；不接受客戶端指定測試／廣告模式，也不回傳暗語。`RoomInfo.testRoom` 和 `players[].isBot` 是公開標記。舊 `createKey` 僅為相容別名；同時提供時以 `roomCode` 為準。
+`POST /api/rooms` 不需要開房密碼；可省略 `roomCode` 或傳空字串建立一般房。`roomCode` 符合伺服器私有 `ROOM_CODE` 時建立免廣告正式房，符合 `TEST_ROOM_CODE` 時建立 `testRoom:true` 的免廣告測試房；符合 `ROOM_VIP_CODE` 時建立原開房者免廣告、其他成員保留一般版位、全房無穿插入口的 VIP 正式房。三種暗語可各自留空停用且不得相同；`ROOM_CODE`、`TEST_ROOM_CODE` 非空時至少 16 字元，VIP 暗語可使用較短的暫時值。錯誤或非字串暗語回傳 400；不接受客戶端指定測試／廣告模式，也不回傳暗語。`RoomInfo.testRoom` 和 `players[].isBot` 是公開標記。舊 `createKey` 僅為相容別名；同時提供時以 `roomCode` 為準。
 
 新增虛擬玩家的 `requestID` 必須為 UUID v4、`matchID` 必須等於目前等待對局。相同房主憑證的同一請求重試不會重複新增，已移除者不會因舊請求復活。每次新增一席，選遊戲後以該遊戲人數上限檢查，未選時以框架容量檢查；房主可用原移出端點釋出席位。虛擬玩家憑證只留伺服器，HTTP 與 Socket 登入都拒絕虛擬席位，即使持有該憑證亦然。開局、換遊戲與中止仍由真人房主決定。
 
@@ -276,3 +276,5 @@ Socket 每連線 180 包／分、單包 16 KiB。每房最多 128 份觀戰身�
 `aspect` 為 `topic`（題目主題）、`low`（1 的敘述）、`high`（10 的敘述）；`vote` 為 `up`／`down`／`null`，`null` 撤票。不帶 `vote` 時只讀取，回傳 `{scope, ratings:{topic:{up,down,vote},low:{up,down,vote},high:{up,down,vote}}}`。每個面向各自計票、改票及撤票，同一對局／席位／題目內容的重複操作不增加票數。
 
 不提供 `feedbackVersion` 保留舊整題評分協定。持久化 v2 保存原本 `votes` 為舊總評，三面向放在獨立 `ratings`；讀取舊 v1 不重寫，首次新投票才升級。新題文以完整快照重新累積，舊總評不會自動變成任何新面向的票。正式內建題、自訂題與測試房分開保存，不計入遊戲成績；觀戰、公開回放及過期題目不能投票。
+
+VIP 房的 `RoomInfo.advertising` 因成員身分不同：原開房者為 `{enabled:false}`，其他成員為 `{enabled:true,client,slot,vignette:false}`。VIP 所屬憑證雜湊只存伺服器，不回傳。前端不能直接指定 VIP 身分、免廣告受益人或房間廣告模式。

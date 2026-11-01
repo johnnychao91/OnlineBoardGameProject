@@ -32,7 +32,7 @@ describe('Completed-game vignette navigation',()=>{
     expect(completedGameReturn({...playing,status:'lobby'},lobby)).toBeNull();
   });
   it('requires an authenticated advertising descriptor and excludes testing and adfree rooms',()=>{
-    for(const advertising of [undefined,{enabled:false},{...playing.advertising!,slot:'bad'}])
+    for(const advertising of [undefined,{enabled:false},{...playing.advertising!,slot:'bad'},{...playing.advertising!,vignette:false}])
       expect(completedGameReturn(playing,{...lobby,advertising})).toBeNull();
     expect(completedGameReturn(playing,{...lobby,testRoom:true})).toBeNull();
     expect(completedGameReturn({...playing,testRoom:true},lobby)).toBeNull();

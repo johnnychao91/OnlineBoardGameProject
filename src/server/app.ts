@@ -30,6 +30,7 @@ export interface AppConfig {
   production: boolean;
   roomCode?: string;
   testRoomCode?: string;
+  roomVipCode?: string;
   adsense?: AdSettings;
   privacyContact?: string;
   clientDir?: string;
@@ -125,10 +126,10 @@ export async function createApplication(config: AppConfig) {
     if (!metadata || !state) fail(410, '房間資料無法載入，請重新建立房間');
     return { metadata, state };
   };
-  const publicRoom = (room: RoomRecord, metadata: any, state: any, matchID = currentMatchID(room), historical = false) => ({
+  const publicRoom = (ctx: Context, room: RoomRecord, metadata: any, state: any, matchID = currentMatchID(room), historical = false) => ({
     roomId: room.roomId, matchID, gameName: matchGameID(room, matchID),
     testRoom: room.testRoom === true,
-    advertising: roomAdvertising(room, config.adsense, historical),
+    advertising: roomAdvertising(room, config.adsense, historical, ctx.state.advertisingCredentialHash),
     gameSelected: historical || room.gameSelected !== false, roomCapacity: ROOM_CAPACITY,
     gameOptions: historical ? state.G.options : room.gameOptions,
     hostPlayerID: historical ? null : hostPlayerID(room),
@@ -153,6 +154,7 @@ export async function createApplication(config: AppConfig) {
     const playerID = ctx.get('X-Player-ID');
     const credential = ctx.get('Authorization').replace(/^Bearer /, '');
     if (!isPlayerSeatID(playerID) || metadata.players[playerID]?.data?.isBot || !safeEqual(credential, metadata.players[playerID]?.credentials)) fail(401, '此瀏覽器沒有有效的座位憑證');
+    ctx.state.advertisingCredentialHash = hashToken(credential);
     return playerID;
   };
   const authenticateViewer = (ctx: Context, room: RoomRecord, metadata: any) => {
@@ -161,6 +163,7 @@ export async function createApplication(config: AppConfig) {
     const credential = ctx.get('Authorization').replace(/^Bearer /, '');
     if (ctx.get('X-Player-ID') || !validRoomID(observerID) || !validCredential(credential)
       || !safeEqual(hashToken(credential), room.spectators?.[observerID]?.credentialHash)) fail(401, '觀戰憑證不正確');
+    ctx.state.advertisingCredentialHash = hashToken(credential);
     return { access: 'spectator' as const, id: observerID };
   };
   const isHost = (room: RoomRecord, viewer: { access: 'player' | 'spectator'; id: string }) =>
@@ -403,7 +406,7 @@ export async function createApplication(config: AppConfig) {
       if (!roomMatchIDs(room).includes(matchID)) fail(403, '回放分享已失效');
       const { metadata, state } = await snapshot(room, matchID);
       if (!getGameDefinition(matchGameID(room, matchID))!.getOutcome(state.G)) fail(409, '對局尚未結束');
-      ctx.body = { room: publicRoom(room, metadata, state, matchID, true), perspective: share.perspective, frameIndex: share.frameIndex,
+      ctx.body = { room: publicRoom(ctx, room, metadata, state, matchID, true), perspective: share.perspective, frameIndex: share.frameIndex,
         ...await replayPayload(room, share.perspective, matchID) };
       return;
     }
@@ -428,12 +431,14 @@ export async function createApplication(config: AppConfig) {
       if ('setupDataError' in match) fail(400, '無法使用這組遊戲設定');
       match.metadata.players['0'].name = name;
       match.metadata.players['0'].credentials = credentials;
-      const room: RoomRecord = { roomId, testRoom, adsMode: kind === 'adfree' ? 'adfree' : 'standard', currentMatchID: roomId, hostPlayerID: '0', gameId: definition.id, gameOptions, gameSelected: body.gameId !== undefined, numPlayers: ROOM_CAPACITY, inviteHash: hashToken(invite), inviteExpiresAt: Date.now() + INVITE_TTL, createdAt: Date.now() };
+      const room: RoomRecord = { roomId, testRoom, adsMode: kind === 'adfree' ? 'adfree' : kind === 'vip' ? 'vip' : 'standard',
+        ...(kind === 'vip' ? { vipCreatorCredentialHash: hashToken(credentials) } : {}), currentMatchID: roomId, hostPlayerID: '0', gameId: definition.id, gameOptions, gameSelected: body.gameId !== undefined, numPlayers: ROOM_CAPACITY, inviteHash: hashToken(invite), inviteExpiresAt: Date.now() + INVITE_TTL, createdAt: Date.now() };
       await db.createMatch(roomId, match);
       await rooms.save(room);
       presence.touch(roomId, 'player:0', 'admission');
       ctx.status = 201;
-      ctx.body = { ...publicRoom(room, match.metadata, match.initialState), access: 'player', playerID: '0', credentials,
+      ctx.state.advertisingCredentialHash = hashToken(credentials);
+      ctx.body = { ...publicRoom(ctx, room, match.metadata, match.initialState), access: 'player', playerID: '0', credentials,
         inviteUrl: `${origin}/join/${roomId}#invite=${invite}`, expiresAt: room.inviteExpiresAt };
       return;
     }
@@ -448,7 +453,7 @@ export async function createApplication(config: AppConfig) {
         authenticateViewer(ctx, current, metadata);
         const latest = await reconcileRoom(current);
         const result = await snapshot(latest);
-        ctx.body = publicRoom(latest, result.metadata, result.state);
+        ctx.body = publicRoom(ctx, latest, result.metadata, result.state);
       });
       return;
     }
@@ -463,7 +468,7 @@ export async function createApplication(config: AppConfig) {
       const perspective = perspectiveOf(ctx.query.perspective);
       if (operation === 'replay') {
         if (!finished) fail(409, '完整復盤於對局結束後開放');
-        ctx.body = { room: publicRoom(room, selected.metadata, state, matchID, true), ...await replayPayload(room, perspective, matchID) };
+        ctx.body = { room: publicRoom(ctx, room, selected.metadata, state, matchID, true), ...await replayPayload(room, perspective, matchID) };
       } else {
         if (viewer.access !== 'spectator' && !finished) fail(403, '玩家不能取得觀戰視角');
         ctx.body = { G: definition.observerView(state.G, perspective), stateID: state._stateID, perspective };
@@ -506,7 +511,7 @@ export async function createApplication(config: AppConfig) {
         const changed = TURING_APPROVAL_KEYS.some(key => policies![key] !== undefined && policies![key] !== (state.G.options[key] ?? 'all'));
         const updated = changed ? await runTuringAction(current, state, 'serverSetApprovalPolicies', [state.G.epoch, policies!]) : state;
         const next = await saveTuringOptions(current, updated);
-        ctx.body = publicRoom(next, metadata, updated);
+        ctx.body = publicRoom(ctx, next, metadata, updated);
       } else if (operation === 'turing-host-action') {
         const viewer = authenticateHost(ctx, current, metadata, '只有目前房主可以執行房主決定');
         if (Object.keys(body).some(key => !['matchID', 'epoch', 'action'].includes(key))
@@ -557,6 +562,7 @@ export async function createApplication(config: AppConfig) {
         if (body.requestID !== undefined && (typeof body.requestID !== 'string' || !/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(body.requestID))) fail(400, '加入請求識別碼不正確');
         const watching = operation === 'watch';
         const credentials = body.requestID ? admissionCredential(watching ? `${current.roomId}:observer` : current.roomId, body.inviteToken, body.requestID) : randomToken();
+        ctx.state.advertisingCredentialHash = hashToken(credentials);
         if (!watching && body.requestID && await db.isAdmissionRevoked(matchID, credentials)) {
           fail(403, '這次入座已被房主移出，請重新開啟有效邀請加入', 'ADMISSION_REMOVED');
         }
@@ -566,13 +572,13 @@ export async function createApplication(config: AppConfig) {
         const previous = !watching && body.requestID && Object.values(metadata.players).find((player) => safeEqual(player.credentials, credentials));
         if (previous) {
           presence.touch(current.roomId, `player:${previous.id}`, 'admission');
-          ctx.body = { ...publicRoom(current, metadata, state), access: 'player', playerID: String(previous.id), credentials };
+          ctx.body = { ...publicRoom(ctx, current, metadata, state), access: 'player', playerID: String(previous.id), credentials };
           return;
         }
         const previousObserver = watching && body.requestID && Object.entries(current.spectators || {}).find(([, observer]) => safeEqual(observer.credentialHash, hashToken(credentials)));
         if (previousObserver) {
           presence.touch(current.roomId, `spectator:${previousObserver[0]}`, 'admission');
-          ctx.body = { ...publicRoom(current, metadata, state), access: 'spectator', observerID: previousObserver[0], credentials };
+          ctx.body = { ...publicRoom(ctx, current, metadata, state), access: 'spectator', observerID: previousObserver[0], credentials };
           return;
         }
         if (current.inviteExpiresAt <= Date.now() || !safeEqual(hashToken(body.inviteToken), current.inviteHash)) fail(403, '邀請已失效，請向房主索取新連結');
@@ -584,7 +590,7 @@ export async function createApplication(config: AppConfig) {
           const updated = { ...current, spectators };
           await rooms.save(updated);
           presence.touch(current.roomId, `spectator:${observerID}`, 'admission');
-          ctx.body = { ...publicRoom(updated, metadata, state), access: 'spectator', observerID, credentials };
+          ctx.body = { ...publicRoom(ctx, updated, metadata, state), access: 'spectator', observerID, credentials };
           return;
         }
         if (!definition.isJoinable(state.G)) fail(409, '遊戲已開始，不能加入新玩家');
@@ -604,7 +610,7 @@ export async function createApplication(config: AppConfig) {
           ? { ...current, hostPlayerID: String(seat.id), hostObserverID: null } : current;
         if (updated !== current) await rooms.save(updated);
         presence.touch(current.roomId, `player:${seat.id}`, 'admission');
-        ctx.body = { ...publicRoom(updated, metadata, state), access: 'player', playerID: String(seat.id), credentials: seat.credentials };
+        ctx.body = { ...publicRoom(ctx, updated, metadata, state), access: 'player', playerID: String(seat.id), credentials: seat.credentials };
       } else if (operation === 'switch-role') {
         if (body.access !== 'player' && body.access !== 'spectator') fail(400, '請選擇參加遊戲或觀戰');
         if (typeof body.requestID !== 'string' || !UUID_V4.test(body.requestID)) fail(400, '切換請求識別碼不正確');
@@ -632,8 +638,9 @@ export async function createApplication(config: AppConfig) {
           && entry.targetAccess === body.access && safeEqual(entry.sourceCredentialHash, sourceHash)
           && safeEqual(entry.targetCredentialHash, hashToken(nextCredentials)) && targetIsCurrent(entry));
         if (receipt) {
+          ctx.state.advertisingCredentialHash = hashToken(nextCredentials);
           presence.touch(current.roomId, `${receipt.targetAccess}:${receipt.targetID}`, 'admission');
-          ctx.body = { ...publicRoom(current, metadata, state), access: receipt.targetAccess,
+          ctx.body = { ...publicRoom(ctx, current, metadata, state), access: receipt.targetAccess,
             ...(receipt.targetAccess === 'player' ? { playerID: receipt.targetID } : { observerID: receipt.targetID }),
             credentials: nextCredentials };
           return;
@@ -680,6 +687,8 @@ export async function createApplication(config: AppConfig) {
         const nextHost = retainedHost(hostAfterSwitch, Object.values(match.metadata.players), spectators);
         const next: RoomRecord = { ...current, currentMatchID: nextID, ...nextHost,
           departedPlayerIDs: [], spectators,
+          ...(current.adsMode === 'vip' && safeEqual(current.vipCreatorCredentialHash, sourceHash)
+            ? { vipCreatorCredentialHash: hashToken(nextCredentials) } : {}),
           revokedObserverAdmissions: viewer.access === 'spectator'
             ? [...new Set([...(current.revokedObserverAdmissions || []), sourceHash])] : current.revokedObserverAdmissions,
           roleSwitchReceipts: [
@@ -705,7 +714,8 @@ export async function createApplication(config: AppConfig) {
         presence.remove(current.roomId, `${viewer.access}:${viewer.id}`);
         presence.touch(current.roomId, `${body.access}:${targetID}`, 'admission');
         transport.closeMatch(matchID);
-        ctx.body = { ...publicRoom(next, match.metadata, match.initialState), access: body.access,
+        ctx.state.advertisingCredentialHash = hashToken(nextCredentials);
+        ctx.body = { ...publicRoom(ctx, next, match.metadata, match.initialState), access: body.access,
           ...(body.access === 'player' ? { playerID: targetID } : { observerID: targetID }), credentials: nextCredentials };
       } else if (operation === 'game' || operation === 'options') {
         authenticateHost(ctx, current, metadata, '只有房主可以切換遊戲或修改規則');
@@ -716,7 +726,7 @@ export async function createApplication(config: AppConfig) {
         // Same-game selection is idempotent, including old clients. Browser
         // preferences may initialize a new game, never overwrite room settings.
         if (operation === 'game' && current.gameSelected !== false && selected.id === current.gameId) {
-          ctx.body = publicRoom(current, metadata, state);
+          ctx.body = publicRoom(ctx, current, metadata, state);
           return;
         }
         const remembered = { ...current.gameOptionsByGame,
@@ -739,7 +749,7 @@ export async function createApplication(config: AppConfig) {
         }
         if (current.gameSelected !== false && selected.id === current.gameId
           && (operation === 'game' || JSON.stringify(options) === JSON.stringify(current.gameOptions))) {
-          ctx.body = publicRoom(current, metadata, state);
+          ctx.body = publicRoom(ctx, current, metadata, state);
           return;
         }
         const nextID = randomToken(12);
@@ -761,7 +771,7 @@ export async function createApplication(config: AppConfig) {
         await db.createNextMatch(matchID, nextID, match);
         await rooms.save(next);
         transport.closeMatch(matchID);
-        ctx.body = publicRoom(next, match.metadata, match.initialState);
+        ctx.body = publicRoom(ctx, next, match.metadata, match.initialState);
       } else if (operation === 'bots') {
         authenticateHost(ctx, current, metadata, '只有房主可以新增虛擬玩家');
         if (!current.testRoom) fail(403, '只有測試房間可以新增虛擬玩家');
@@ -771,7 +781,7 @@ export async function createApplication(config: AppConfig) {
         const requestHash = hashToken(JSON.stringify([ctx.get('Authorization'), body.requestID.toLowerCase()]));
         const previous = await db.findBotAdmission(matchID, requestHash);
         if (previous === 'removed') fail(409, '這位虛擬玩家已被移出，請重新新增');
-        if (previous === 'present') { ctx.body = publicRoom(current, metadata, state); return; }
+        if (previous === 'present') { ctx.body = publicRoom(ctx, current, metadata, state); return; }
         if (!limiter.allow(`bots:${current.roomId}`, 60, 60000)) fail(429, '新增虛擬玩家太頻繁');
         const capacity = current.gameSelected === false ? ROOM_CAPACITY : definition.maxPlayers;
         if (Object.values(metadata.players).filter(player => player.credentials).length >= capacity) fail(409, '目前遊戲的參與席位已滿');
@@ -780,7 +790,7 @@ export async function createApplication(config: AppConfig) {
         state._stateID++;
         await db.addBot(matchID, String(seatID), randomToken(), requestHash, state);
         const updated = await snapshot(current);
-        ctx.body = publicRoom(current, updated.metadata, updated.state);
+        ctx.body = publicRoom(ctx, current, updated.metadata, updated.state);
       } else if (operation === 'ready') {
         const playerID = authenticate(ctx, metadata);
         if (current.gameSelected === false) fail(409, '請先由房主選擇遊戲');
@@ -790,7 +800,7 @@ export async function createApplication(config: AppConfig) {
         state.G.players[playerID].ready = body.ready;
         state._stateID += 1;
         await db.setState(matchID, state);
-        ctx.body = publicRoom(current, metadata, state);
+        ctx.body = publicRoom(ctx, current, metadata, state);
       } else if (operation === 'remove') {
         authenticateHost(ctx, current, metadata, '只有房主可以移出房間成員');
         if (Object.hasOwn(body, 'observerID')) {
@@ -808,7 +818,7 @@ export async function createApplication(config: AppConfig) {
           // never reused, so a delayed retry cannot remove a new admission.
           await rooms.save(updated);
           presence.remove(current.roomId, `spectator:${body.observerID}`);
-          ctx.body = publicRoom(updated, metadata, state);
+          ctx.body = publicRoom(ctx, updated, metadata, state);
           return;
         }
         if (!definition.isJoinable(state.G)) fail(409, '遊戲開始後不能移出玩家');
@@ -827,7 +837,7 @@ export async function createApplication(config: AppConfig) {
         presence.remove(current.roomId, `player:${body.playerID}`);
         transport.removePlayer(matchID, body.playerID, target.credentials);
         const updated = await snapshot(current);
-        ctx.body = publicRoom(current, updated.metadata, updated.state);
+        ctx.body = publicRoom(ctx, current, updated.metadata, updated.state);
       } else if (operation === 'start') {
         authenticateHost(ctx, current, metadata, '只有房主可以開始');
         if (current.gameSelected === false) fail(409, '請先由房主選擇遊戲');
@@ -853,7 +863,7 @@ export async function createApplication(config: AppConfig) {
         // Preserve increasing versions if an older lobby tab still has a socket.
         match.initialState._stateID = state._stateID + 1;
         await db.startMatch(matchID, match);
-        ctx.body = publicRoom(current, match.metadata, match.initialState);
+        ctx.body = publicRoom(ctx, current, match.metadata, match.initialState);
       } else if (operation === 'heartbeat') {
         const viewer = authenticateViewer(ctx, current, metadata);
         if (typeof body.sessionID !== 'string' || !/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(body.sessionID)) fail(400, '連線識別碼不正確');
@@ -869,7 +879,7 @@ export async function createApplication(config: AppConfig) {
         const next = await returnToLobby(current, finished ? 'completed' : 'host-ended');
         if (currentMatchID(next) === matchID) fail(409, '請先查看本局最後一張模組，稍後將自動返回等待室');
         const nextState = await snapshot(next);
-        ctx.body = publicRoom(next, nextState.metadata, nextState.state);
+        ctx.body = publicRoom(ctx, next, nextState.metadata, nextState.state);
       } else if (operation === 'leave') {
         const viewer = authenticateViewer(ctx, current, metadata);
         let updated = current;

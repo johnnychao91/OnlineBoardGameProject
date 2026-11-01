@@ -374,13 +374,13 @@ sudo certbot renew --dry-run
 
 ## 7. 設定選填的房間暗語
 
-開房不需要密碼。未填暗語建立一般房，`ROOM_CODE` 建立免廣告正式房，`TEST_ROOM_CODE` 建立免廣告測試房；朋友透過邀請加入不需要暗語。在 Pi 私有設定編輯：
+開房不需要密碼。未填暗語建立一般房，`ROOM_CODE` 建立免廣告正式房，`TEST_ROOM_CODE` 建立免廣告測試房；選填 `ROOM_VIP_CODE` 則建立開房者免廣告、其餘成員保留一般版位、全房不提供穿插入口的 VIP 房。朋友透過邀請加入不需要暗語。在 Pi 私有設定編輯：
 
 ```bash
 sudo nano /etc/boardgame.env
 ```
 
-設定 `ROOM_CODE=` 與 `TEST_ROOM_CODE=` 後面的值，兩者非空時至少 16 字元且不能相同；留空停用對應特殊房。從舊版升級時，先更新程式，再將 `CREATE_ROOM_KEY` 改名為 `ROOM_CODE`，`TEST_ROOM_KEY` 改名為 `TEST_ROOM_CODE`，移除 `ADFREE_ROOM_KEY`。AdSense、聯絡方式及其他設定維持原值；不要把這個檔案放進 Git。
+設定 `ROOM_CODE=` 與 `TEST_ROOM_CODE=` 後面的值，兩者非空時至少 16 字元且不能相同；留空停用對應特殊房。從舊版升級時，先更新程式，再將 `CREATE_ROOM_KEY` 改名為 `ROOM_CODE`，`TEST_ROOM_KEY` 改名為 `TEST_ROOM_CODE`，移除 `ADFREE_ROOM_KEY`。AdSense、聯絡方式及其他設定維持原值；不要把這個檔案放進 Git。暫時 VIP 暗語只填在 `ROOM_VIP_CODE=`，不能與其他暗語重複；留空並重啟只停用新的 VIP 房。
 
 按 `Ctrl+O`、Enter 儲存，再按 `Ctrl+X` 離開。等對局結束後，讓遊戲服務讀取新設定：
 

@@ -32,7 +32,7 @@ export interface RoomInfo {
   gameName: string;
   /** Test status stays with the room and excludes its matches from statistics. */
   testRoom?: boolean;
-  advertising?: { enabled: boolean; client?: string; slot?: string };
+  advertising?: { enabled: boolean; client?: string; slot?: string; vignette?: boolean };
   /** Absent in older saved sessions, which already had a selected game. */
   gameSelected?: boolean;
   gameOptions?: Record<string, unknown>;

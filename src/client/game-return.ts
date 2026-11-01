@@ -6,6 +6,7 @@ export function completedGameReturn(previous: RoomInfo | null, next: RoomInfo): 
   if (!previous || previous.roomId !== next.roomId || previous.status === 'lobby'
     || next.status !== 'lobby' || previous.matchID === next.matchID
     || previous.testRoom || next.testRoom || next.advertising?.enabled !== true
+    || next.advertising.vignette === false
     || !validAdUnit(next.advertising.client, next.advertising.slot)) return null;
   return next.history?.some(entry => entry.matchID === previous.matchID && entry.ending === 'completed')
     ? previous.matchID : null;
