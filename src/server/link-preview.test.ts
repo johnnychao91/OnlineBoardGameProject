@@ -8,6 +8,9 @@ import { createPreviewPage } from './link-preview';
 
 const publicOrigin = 'https://boardgame.example.com';
 const iconPath = '/assets/site-icon-test-fingerprint.png';
+const coverPath = '/social/boardgame-cover-v1.jpg';
+const title = '捷寶桌遊室｜揪朋友，隨時開一桌';
+const description = '免下載、免註冊的多人線上桌遊。開房分享連結，就能和朋友一起推理、合作、冒險，還能即時觀戰與賽後復盤。';
 const roomCode = 'test-only-preview-room-key';
 const gameRulesPaths = GAME_IDS.map(id => `/rules/${id}`);
 const cleanups: (() => Promise<void>)[] = [];
@@ -21,11 +24,14 @@ async function fixture() {
   });
   const clientDir = join(root, 'client');
   await mkdir(join(clientDir, 'assets'), { recursive: true });
+  await mkdir(join(clientDir, 'social'));
   const original = await readFile(resolve('index.html'), 'utf8');
   const template = original.replace('/src/client/assets/site-icon.png', iconPath);
   const icon = await readFile(resolve('src/client/assets/site-icon.png'));
   await writeFile(join(clientDir, 'index.html'), template);
   await writeFile(join(clientDir, iconPath.slice(1)), icon);
+  const cover = await readFile(resolve('public' + coverPath));
+  await writeFile(join(clientDir, coverPath.slice(1)), cover);
   const app = await createApplication({
     dataDir: join(root, 'data'), clientDir, publicOrigin,
     host: '127.0.0.1', port: 0, production: true, roomCode: roomCode,
@@ -33,12 +39,24 @@ async function fixture() {
   const running = await app.listen();
   cleanups.push(() => running.close());
   const request = (path: string, options?: RequestInit) => fetch(`http://127.0.0.1:${running.port}${path}`, options);
-  return { app, request, icon };
+  return { app, request, icon, cover };
 }
 
 function metadata(html: string, name: string) {
   return [...html.matchAll(/<meta\s+(?:property|name)="([^"]+)"\s+content="([^"]*)"\s*\/?\s*>/g)]
     .filter(match => match[1] === name).map(match => match[2]);
+}
+
+function jpegDimensions(bytes: Buffer) {
+  expect(bytes.subarray(0,2)).toEqual(Buffer.from([0xff,0xd8]));
+  for(let offset=2;offset+8<bytes.length;){
+    if(bytes[offset]!==0xff)throw new Error('Invalid JPEG segment');
+    const marker=bytes[offset+1], length=bytes.readUInt16BE(offset+2);
+    if([0xc0,0xc1,0xc2].includes(marker))return {width:bytes.readUInt16BE(offset+7),height:bytes.readUInt16BE(offset+5)};
+    if(length<2)throw new Error('Invalid JPEG segment length');
+    offset+=length+2;
+  }
+  throw new Error('Missing JPEG dimensions');
 }
 
 describe('Public link previews', () => {
@@ -50,26 +68,35 @@ describe('Public link previews', () => {
       expect(response.headers.get('content-type')).toContain('text/html');
       expect(response.headers.get('cache-control')).toBe('no-cache');
       const html = await response.text();
-      expect(html).toContain('<title>捷寶桌遊室</title>');
-      expect(metadata(html, 'og:title')).toEqual(['捷寶桌遊室']);
+      expect(html).toContain(`<title>${title}</title>`);
+      expect(metadata(html, 'og:title')).toEqual([title]);
       expect(metadata(html, 'og:site_name')).toEqual(['捷寶桌遊室']);
       expect(metadata(html, 'og:type')).toEqual(['website']);
       expect(metadata(html, 'og:locale')).toEqual(['zh_TW']);
-      expect(metadata(html, 'og:image')).toEqual([publicOrigin + iconPath]);
-      expect(metadata(html, 'og:image:type')).toEqual(['image/png']);
-      expect(metadata(html, 'og:image:width')).toEqual(['1024']);
-      expect(metadata(html, 'og:image:height')).toEqual(['1024']);
-      expect(metadata(html, 'og:image:alt')).toEqual(['捷寶桌遊室 JB 圖示']);
+      for(const key of ['description','og:description','twitter:description'])expect(metadata(html,key)).toEqual([description]);
+      expect(metadata(html, 'og:image')).toEqual([publicOrigin + coverPath]);
+      expect(metadata(html, 'og:image:secure_url')).toEqual([publicOrigin + coverPath]);
+      expect(metadata(html, 'og:image:type')).toEqual(['image/jpeg']);
+      expect(metadata(html, 'og:image:width')).toEqual(['1200']);
+      expect(metadata(html, 'og:image:height')).toEqual(['630']);
+      expect(metadata(html, 'og:image:alt')).toEqual(['暖燈下的卡牌、骰子與冒險地圖，搭配捷寶桌遊室與朋友到齊，隨時開一桌標題']);
       expect(metadata(html, 'og:url')).toEqual([publicOrigin + (path === '/index.html' ? '/' : path)]);
-      expect(metadata(html, 'twitter:title')).toEqual(['捷寶桌遊室']);
-      expect(metadata(html, 'twitter:image')).toEqual([publicOrigin + iconPath]);
-      expect(metadata(html, 'twitter:card')).toEqual(['summary']);
+      expect(metadata(html, 'twitter:title')).toEqual([title]);
+      expect(metadata(html, 'twitter:image')).toEqual([publicOrigin + coverPath]);
+      expect(metadata(html, 'twitter:card')).toEqual(['summary_large_image']);
       expect(html.indexOf('property="og:title"')).toBeLessThan(html.indexOf('</head>'));
     }
-    const image = await f.request(iconPath, { headers: { 'User-Agent': 'Twitterbot/1.0' } });
+    const image = await f.request(coverPath, { headers: { 'User-Agent': 'Twitterbot/1.0' } });
     expect(image.status).toBe(200);
-    expect(image.headers.get('content-type')).toContain('image/png');
-    expect(Buffer.from(await image.arrayBuffer())).toEqual(f.icon);
+    expect(image.headers.get('content-type')).toContain('image/jpeg');
+    expect(Buffer.from(await image.arrayBuffer())).toEqual(f.cover);
+    expect(jpegDimensions(f.cover)).toEqual({width:1200,height:630});
+    expect(f.cover.length).toBeLessThan(512*1024);
+    const imageHead=await f.request(coverPath,{method:'HEAD'});
+    expect(imageHead.status).toBe(200);expect(imageHead.headers.get('content-type')).toContain('image/jpeg');
+    expect(Number(imageHead.headers.get('content-length'))).toBe(f.cover.length);expect(await imageHead.text()).toBe('');
+    const icon = await f.request(iconPath);
+    expect(icon.status).toBe(200);expect(Buffer.from(await icon.arrayBuffer())).toEqual(f.icon);
     expect(f.app.rooms.rooms.size).toBe(0);
   });
 
@@ -84,7 +111,7 @@ describe('Public link previews', () => {
     expect(response.status).toBe(200);
     const html = await response.text();
     expect(metadata(html, 'og:url')).toEqual([`${publicOrigin}/join/unknown-room`]);
-    expect(metadata(html, 'og:image')).toEqual([publicOrigin + iconPath]);
+    expect(metadata(html, 'og:image')).toEqual([publicOrigin + coverPath]);
     expect(html).not.toMatch(/attacker\.example|forwarded\.example|do-not-reflect|unsafe|invite=/);
     expect(response.headers.get('referrer-policy')).toBe('no-referrer');
     expect(response.headers.get('content-security-policy')).toContain("script-src 'self'");
@@ -112,9 +139,9 @@ describe('Public link previews', () => {
       expect(response.headers.get('content-type')).toContain('text/html');
       expect(response.headers.get('cache-control')).toBe('no-cache');
       const html = await response.text();
-      expect(html).toContain('<title>捷寶桌遊室</title>');
+      expect(html).toContain(`<title>${title}</title>`);
       expect(metadata(html, 'og:url')).toEqual([publicOrigin + path]);
-      expect(metadata(html, 'og:image')).toEqual([publicOrigin + iconPath]);
+      expect(metadata(html, 'og:image')).toEqual([publicOrigin + coverPath]);
       expect(html).not.toMatch(/private-room|private-invite|private-credential|attacker\.example|forwarded\.example/);
       const head = await f.request(path, { method: 'HEAD' });
       expect(head.status).toBe(200);
@@ -145,7 +172,7 @@ describe('Public link previews', () => {
       const response = await f.request(`${path}#invite=${invite}`);
       expect(response.status).toBe(200);
       const html = await response.text();
-      expect(metadata(html, 'og:title')).toEqual(['捷寶桌遊室']);
+      expect(metadata(html, 'og:title')).toEqual([title]);
       for (const privateValue of ['不可曝光的房主', invite, host.credentials, roomCode]) expect(html).not.toContain(privateValue);
       expect(html).not.toMatch(/inviteHash|credentialHash|spectators|hostPlayerID/);
     }
@@ -159,14 +186,21 @@ describe('Public link previews', () => {
     })).status).toBe(403);
   });
 
-  it('can render the source page and requires the same-origin favicon contract', async () => {
+  it('requires a dedicated local sharing cover while preserving the favicon contract', async () => {
     const original = await readFile(resolve('index.html'), 'utf8');
     const html = createPreviewPage(original, publicOrigin)('/join/example?discard=this#invite=private');
-    expect(metadata(html, 'og:image')).toEqual([`${publicOrigin}/src/client/assets/site-icon.png`]);
+    expect(metadata(html, 'og:image')).toEqual([publicOrigin + coverPath]);
     expect(metadata(html, 'og:url')).toEqual([`${publicOrigin}/join/example`]);
     expect(html).not.toMatch(/discard=this|invite=private/);
     expect(() => createPreviewPage('<head></head>', publicOrigin)).toThrow('local favicon');
     expect(() => createPreviewPage('<head><link rel="icon" href="//other.example/icon.png"></head>', publicOrigin)).toThrow('local favicon');
     expect(() => createPreviewPage('<head><link rel="icon" href="https://other.example/icon.png"></head>', publicOrigin)).toThrow('local favicon');
+    expect(()=>createPreviewPage(original.replace(/<link rel="image_src"[^>]*>/,''),publicOrigin)).toThrow('local sharing cover');
+    for(const unsafe of ['//other.example/cover.jpg','https://other.example/cover.jpg','/social/../private.jpg',
+      '/social/cover.jpg?credentials=private','/social/cover.jpg#invite=private','/src/client/assets/site-icon.png'])
+      expect(()=>createPreviewPage(original.replace(coverPath,unsafe),publicOrigin)).toThrow('local sharing cover');
+    const local=createPreviewPage(original,'http://localhost:5173')('/');
+    expect(metadata(local,'og:image')).toEqual(['http://localhost:5173'+coverPath]);
+    expect(metadata(local,'og:image:secure_url')).toEqual([]);
   });
 });

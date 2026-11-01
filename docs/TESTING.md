@@ -45,6 +45,8 @@ VIP 另遍歷全部遊戲的開房者／玩家／觀戰回應，確認廣告碼�
 
 ## 精簡與補測的覆蓋對應
 
+分享預覽測試同時確認獨立 JPEG 封面可公開 GET／HEAD、實際尺寸為 1200 × 630、大小低於 512 KB，與 favicon 分開且仍正常供應。所有頁面與遊戲規則的標題、HTML／Open Graph／Twitter 描述及圖片網址保持一致，Twitter 使用大型圖片卡。缺少封面、外部／協定相對網址、路徑跳脫、帶私密查詢或 fragment 的圖片設定須拒絕；HTTPS 與本機 HTTP 的 secure_url 分別驗證。這些測試不代表社群平台已清除舊卡片快取。
+
 音效游標只測現行 `GameSoundTracker`；已移除未被介面使用的 `StationSoundTracker` 與六項舊案例。原有掛載／重掛載、換房、換視角、不同行動者、重複／過期紀錄、漏幀多事件及斷線／停用／缺少快照的邊界，集中由 `sound-cues.test.ts` 驗證，太空維修站事件另經目前 registry 的 soundAdapter 接入。`station-sounds.test.ts` 保留音訊輸出、音量、靜音與資源清理。
 
 共用 `SpectatorRoster` 不依遊戲或階段分支，因此 `host-identity.test.ts` 的六種授權渲染矩陣只執行一次，從 198 次減至 6 次；每款遊戲的伺服器移出授權仍由 `role-switch.test.ts` 保留。前端 registry 契約移除 SSR 不含 `MAKE_MOVE` 的斷言：SSR 不會序列化事件 handler，該字串不能證明唯讀。登錄、投影渲染、章節與公開音效契約繼續測試；實際唯讀操作仍需伺服器及瀏覽器驗證。
