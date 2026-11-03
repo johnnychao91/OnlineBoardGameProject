@@ -16,7 +16,7 @@ afterEach(() => vi.unstubAllGlobals());
 
 describe('Public-page background preference', () => {
   it('persists every catalog background and safely defaults for missing, invalid or inaccessible storage', () => {
-    expect(rememberedBackground()).toBe('silver-moon');
+    expect(rememberedBackground()).toBe('jiebao-studio');
     for (const id of BACKGROUND_IDS) {
       expect(rememberBackground(id)).toBe(true);
       expect(rememberedBackground()).toBe(id);
@@ -26,11 +26,11 @@ describe('Public-page background preference', () => {
       expect(rememberBackground(invalid)).toBe(false);
       expect(rememberedBackground()).toBe(GAME_IDS.at(-1));
       values.set(BACKGROUND_KEY, invalid);
-      expect(rememberedBackground()).toBe('silver-moon');
+      expect(rememberedBackground()).toBe('jiebao-studio');
       rememberBackground(GAME_IDS.at(-1)!);
     }
     vi.stubGlobal('localStorage', { getItem() { throw new Error('blocked'); }, setItem() { throw new Error('full'); } });
-    expect(rememberedBackground()).toBe('silver-moon');
+    expect(rememberedBackground()).toBe('jiebao-studio');
     expect(rememberBackground('silver-moon')).toBe(true);
   });
 

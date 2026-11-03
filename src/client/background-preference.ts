@@ -5,7 +5,7 @@ export const BACKGROUND_KEY = 'friends-table.background.v1';
 export type BackgroundID = 'jiebao-studio' | GameID;
 export const BACKGROUND_IDS: BackgroundID[] = ['jiebao-studio', ...GAME_IDS];
 const isBackgroundID = (value: string): value is BackgroundID => value === 'jiebao-studio' || isGameID(value);
-const DEFAULT_BACKGROUND: BackgroundID = 'silver-moon';
+const DEFAULT_BACKGROUND: BackgroundID = 'jiebao-studio';
 
 export function rememberedBackground(): BackgroundID {
   try {
@@ -20,7 +20,7 @@ export function rememberBackground(value: string): value is BackgroundID {
   return true;
 }
 
-/** Only public landing pages opt in; room and detailed-rule art stays game-specific. */
+/** Public pages and unselected waiting rooms opt in; selected games keep their own art. */
 export function useBackgroundPreference() {
   const [background, setBackground] = useState(rememberedBackground);
   useEffect(() => {
