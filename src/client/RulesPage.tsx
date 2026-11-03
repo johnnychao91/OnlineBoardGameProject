@@ -2,7 +2,8 @@ import { roomContextPath } from './adsense';
 import { useEffect, type ReactNode } from 'react';
 import { gameCatalog, ROOM_CAPACITY, type GameID } from '../games/catalog';
 import { clientGames } from './game-registry';
-import { Header, Icon } from './ui';
+import { GameIcon, Header } from './ui';
+import { useBackgroundPreference } from './background-preference';
 import './rules-page.css';
 
 export type RulesGameID = GameID;
@@ -13,6 +14,7 @@ function Chapter({ id, title, children }: { id: string; title: string; children:
 }
 
 export function RulesPage({ gameID }: { gameID?: RulesGameID }) {
+  const { background, selectBackground } = useBackgroundPreference();
   useEffect(() => {
     // A fresh page's fragment can be resolved before React mounts its chapters.
     function jumpToChapter() {
@@ -29,7 +31,7 @@ export function RulesPage({ gameID }: { gameID?: RulesGameID }) {
   const game = gameID ? games[gameID] : undefined;
   const chapters = gameID ? clientGames[gameID].chapters : [];
   const DetailedRules = gameID ? clientGames[gameID].DetailedRules : undefined;
-  return <div className="rules-page" data-art-game={gameID}><Header /><main className="rules-main">
+  return <div className="rules-page" data-art-game={gameID ?? background}><Header background={gameID ? undefined : { gameID: background, onChange: selectBackground }} /><main className="rules-main">
     <div className="rules-intro"><div className="eyebrow">HOW TO PLAY</div>
       <h1>{game ? `${game.name}・詳細規則` : '今晚怎麼玩？'}</h1>
       <p>{game?.intro ?? '先認識任務，再邀朋友同桌。這裡說明目前線上版本的完整流程與操作。'}</p>
@@ -40,7 +42,7 @@ export function RulesPage({ gameID }: { gameID?: RulesGameID }) {
       {Object.entries(games).map(([id, entry]) => <a data-google-vignette="false" key={id} href={roomContextPath(`/rules/${id}`)} aria-current={gameID === id ? 'page' : undefined}>{entry.name}</a>)}
     </nav>
     {!game && <div className="rules-game-cards">{Object.entries(games).map(([id, entry]) => <article className="panel rules-game-card" data-art-game={id} key={id}>
-      <Icon type={id === 'space-station' ? 'orbit' : 'signal'} size={30} /><h2><a data-google-vignette="false" href={roomContextPath(`/rules/${id}`)}>{entry.name}</a></h2><p className="rules-game-meta">{entry.detail}</p><p>{entry.intro}</p>
+      <GameIcon gameID={id as GameID} /><h2><a data-google-vignette="false" href={roomContextPath(`/rules/${id}`)}>{entry.name}</a></h2><p className="rules-game-meta">{entry.detail}</p><p>{entry.intro}</p>
       <div className="rules-game-card-links"><a data-google-vignette="false" href={roomContextPath(`/rules/${id}`)}>閱讀詳細規則 →</a><a data-google-vignette="false" href={roomContextPath(`/rules/${id}`) + `#${encodeURIComponent(clientGames[id].gallery.chapter)}`}>{clientGames[id].gallery.label} →</a></div>
     </article>)}</div>}
     <div className={`rules-reading-layout${game ? '' : ' rules-overview'}`}>

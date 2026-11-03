@@ -29,11 +29,13 @@ import { initials } from './StationBoard';
 import { Statistics } from './Statistics';
 import { RulesPage, type RulesGameID } from './RulesPage';
 import { ErrorMessage, Header, Icon, navigate, Note, Submit } from './ui';
+import { useBackgroundPreference } from './background-preference';
 
 captureInvite();
 captureReplayShare();
 
 function Home({ onEnter }: { onEnter: (seat: AuthSession) => void }) {
+  const { background, selectBackground } = useBackgroundPreference();
   const [name, setName] = useState(rememberedName);
   const [roomCode, setRoomCode] = useState(rememberedRoomCode);
   const [rememberKey, setRememberKey] = useState(() => !!rememberedRoomCode());
@@ -47,7 +49,7 @@ function Home({ onEnter }: { onEnter: (seat: AuthSession) => void }) {
       rememberName(name.trim()); onEnter(saveSeat(result));
     } catch (e) { setError((e as Error).message); } finally { setBusy(false); }
   }
-  return <div className="home-page page-home"><Header /><main className="home-layout">
+  return <div className="home-page page-home" data-art-game={background}><Header background={{ gameID: background, onChange: selectBackground }} /><main className="home-layout">
     <section className="intro"><div className="eyebrow"><span className="status-dot" /> YOUR NEXT GAME STARTS HERE</div>
       <h1>朋友到齊，<br />今晚開哪一桌？</h1><p className="intro-copy">先開房、邀朋友，再一起選遊戲。<br />有人上場、有人觀戰，每個人都有位置。</p>
       <div className="station-illustration" aria-hidden="true"><div className="orbit-ring one" /><div className="orbit-ring two" /><span className="planet" /><div className="station-object"><div className="solar-panel" /><div className="station-body"><Icon type="orbit" size={44} /><span>FRIENDS AT THE TABLE</span></div><div className="solar-panel" /></div><span className="orbital-label">ONE ROOM / MANY GAMES</span></div>
