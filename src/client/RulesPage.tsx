@@ -4,6 +4,7 @@ import { gameCatalog, ROOM_CAPACITY, type GameID } from '../games/catalog';
 import { clientGames } from './game-registry';
 import { GameIcon, Header } from './ui';
 import { useBackgroundPreference } from './background-preference';
+import { GameMetadata } from './GameMetadata';
 import './rules-page.css';
 
 export type RulesGameID = GameID;
@@ -35,14 +36,14 @@ export function RulesPage({ gameID }: { gameID?: RulesGameID }) {
     <div className="rules-intro"><div className="eyebrow">HOW TO PLAY</div>
       <h1>{game ? `${game.name}・詳細規則` : '今晚怎麼玩？'}</h1>
       <p>{game?.intro ?? '先認識任務，再邀朋友同桌。這裡說明目前線上版本的完整流程與操作。'}</p>
-      {game && <span className="rules-game-meta">{game.detail}</span>}
+      {gameID && <GameMetadata gameID={gameID} />}
     </div>
     <nav className="rules-game-nav" aria-label="選擇遊戲規則">
       <a data-google-vignette="false" href={roomContextPath('/rules')} aria-current={!gameID ? 'page' : undefined}>規則總覽</a>
       {Object.entries(games).map(([id, entry]) => <a data-google-vignette="false" key={id} href={roomContextPath(`/rules/${id}`)} aria-current={gameID === id ? 'page' : undefined}>{entry.name}</a>)}
     </nav>
     {!game && <div className="rules-game-cards">{Object.entries(games).map(([id, entry]) => <article className="panel rules-game-card" data-art-game={id} key={id}>
-      <GameIcon gameID={id as GameID} /><h2><a data-google-vignette="false" href={roomContextPath(`/rules/${id}`)}>{entry.name}</a></h2><p className="rules-game-meta">{entry.detail}</p><p>{entry.intro}</p>
+      <GameIcon gameID={id as GameID} /><h2><a data-google-vignette="false" href={roomContextPath(`/rules/${id}`)}>{entry.name}</a></h2><GameMetadata gameID={id as GameID} /><p>{entry.intro}</p>
       <div className="rules-game-card-links"><a data-google-vignette="false" href={roomContextPath(`/rules/${id}`)}>閱讀詳細規則 →</a><a data-google-vignette="false" href={roomContextPath(`/rules/${id}`) + `#${encodeURIComponent(clientGames[id].gallery.chapter)}`}>{clientGames[id].gallery.label} →</a></div>
     </article>)}</div>}
     <div className={`rules-reading-layout${game ? '' : ' rules-overview'}`}>

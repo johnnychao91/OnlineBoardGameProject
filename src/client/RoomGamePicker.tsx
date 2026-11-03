@@ -4,6 +4,8 @@ import { ErrorMessage } from './ui';
 import './room-game-picker.css';
 import { clientGames } from './game-registry';
 import { rememberedGameOptions } from './game-preferences';
+import { gameOptionLabel, isGameID } from '../games/catalog';
+import { GameMetadata } from './GameMetadata';
 
 export function RoomGamePicker({ seat, info, disabled, onBusy, onUpdate }: {
   seat: AuthSession; info: RoomInfo; disabled: boolean;
@@ -51,9 +53,10 @@ export function RoomGamePicker({ seat, info, disabled, onBusy, onUpdate }: {
     {host ? <select id="room-game" aria-label="選擇房間遊戲" value={selected ? info.gameName : ''}
       disabled={disabled || busy || optionsBusy || !games.length} onChange={event => void choose(event.target.value)}>
       <option value="" disabled>請選擇遊戲</option>
-      {games.map(game => <option key={game.id} value={game.id}>{game.name} · {game.minPlayers}～{game.maxPlayers} 人</option>)}
+      {games.map(game => <option key={game.id} value={game.id}>{isGameID(game.id) ? gameOptionLabel(game.id) : `${game.name} · ${game.minPlayers}～${game.maxPlayers} 人`}</option>)}
     </select> : <strong className="room-game-name">{game?.name || (selected ? '正在讀取遊戲…' : '等待房主選擇遊戲')}</strong>}
-    {game && <p className="small muted">{game.description} · {game.minPlayers}～{game.maxPlayers} 人</p>}
+    {game && isGameID(game.id) && <GameMetadata gameID={game.id} />}
+    {game && <p className="small muted">{game.description}</p>}
     <p className="small muted">{host ? '選擇後即時套用；切換會清除全員準備，成員與邀請連結保留。' : '房主可在開局前切換遊戲；切換後請重新準備。'}</p>
     {host && Options && <p className="small muted">已套用的設定會保留在本房間；同一瀏覽器下次開房選擇這款遊戲時，也會沿用。</p>}
     <ErrorMessage>{error}</ErrorMessage>

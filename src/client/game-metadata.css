@@ -1,0 +1,9 @@
+.game-metadata{display:flex;align-items:center;flex-wrap:wrap;gap:8px 12px;margin:10px 0 16px;min-width:0}
+.game-player-count{color:var(--mint);font-size:12px;white-space:nowrap}
+.game-tags{display:flex;align-items:center;flex-wrap:wrap;gap:6px;list-style:none;margin:0;padding:0;min-width:0}
+.game-tags .game-tag{display:inline-flex;align-items:center;margin:0;padding:3px 9px;border:1px solid #637268;border-radius:99px;background:#132125aa;color:#d6e0ce;font-size:11px;line-height:1.6}
+.game-tags .game-tag[data-category=cooperative]{background:#1b3531;color:#c0ead5;border-color:#6b9e8b}
+.game-tags .game-tag[data-category=faction]{background:#302c43;color:#e1d3f0;border-color:#9582ad}
+.game-tags .game-tag[data-category=individual]{background:#3c3222;color:#f4dba9;border-color:#ad925d}
+.room-game-picker>.game-metadata{margin:12px 0}
+@media(max-width:540px){.game-metadata{gap:8px}.game-tags{gap:5px}.game-tags .game-tag{padding:3px 8px}}
