@@ -40,12 +40,22 @@
 :root:root [data-baker-era="wartime"] { --art-scene: url('./assets/baker/scene-wartime.webp'); }
 :root:root [data-baker-era="modern"] { --art-scene: url('./assets/baker/scene-modern.webp'); }
 
+:root:root body { isolation: isolate; }
 :root:root :is(.home-page, .join-page, .room-page, .shared-replay-page, .rules-page) {
+  background: transparent;
+}
+/* Extend behind the entire document, including ads outside the page wrapper.
+   A fixed layer also works on mobile without background-attachment support. */
+:root:root :is(.home-page, .join-page, .room-page, .shared-replay-page, .rules-page)::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
   background-color: #101719;
   background-image: linear-gradient(180deg, #0c141b80, #0c141bd9), var(--art-scene);
   background-position: center;
   background-size: cover;
-  background-attachment: fixed;
 }
 :root:root :is(.home-page, .join-page, .room-lobby, .rules-page) { min-height: 100dvh; }
 :root:root .site-header {
@@ -289,6 +299,5 @@
 }
 
 @media (max-width: 700px) {
-  :root:root :is(.home-page, .join-page, .room-page, .shared-replay-page, .rules-page) { background-attachment: scroll; }
   :root:root .rules-intro { padding: 18px; }
 }

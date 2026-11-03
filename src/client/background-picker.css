@@ -1,5 +1,5 @@
 .background-picker{display:flex;align-items:center;gap:8px;font-size:12px;white-space:nowrap}
 .background-picker select{width:145px;min-height:38px;padding:7px 28px 7px 10px;font-size:12px}
-.site-header:has(.background-picker){height:auto;min-height:104px;gap:16px;flex-wrap:wrap;padding-top:16px;padding-bottom:16px}
+:is(.home-page,.rules-page) .site-header:has(.background-picker){height:auto;min-height:104px;gap:16px;flex-wrap:wrap;padding-top:16px;padding-bottom:16px}
 .site-header:has(.background-picker) .header-links{flex-wrap:wrap;justify-content:flex-end}
 @media(max-width:540px){.site-header:has(.background-picker){padding:14px 18px}.site-header:has(.background-picker) .header-links{display:flex;gap:12px;width:100%;justify-content:flex-end}.background-picker{margin-left:auto}.background-picker select{width:140px}.site-header:has(.background-picker) .header-rules-link{font-size:12px;padding:6px 0}}
