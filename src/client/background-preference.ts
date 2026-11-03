@@ -1,18 +1,21 @@
 import { useEffect, useState } from 'react';
-import { isGameID, type GameID } from '../games/catalog';
+import { GAME_IDS, isGameID, type GameID } from '../games/catalog';
 
 export const BACKGROUND_KEY = 'friends-table.background.v1';
-const DEFAULT_BACKGROUND: GameID = 'space-station';
+export type BackgroundID = 'jiebao-studio' | GameID;
+export const BACKGROUND_IDS: BackgroundID[] = ['jiebao-studio', ...GAME_IDS];
+const isBackgroundID = (value: string): value is BackgroundID => value === 'jiebao-studio' || isGameID(value);
+const DEFAULT_BACKGROUND: BackgroundID = 'silver-moon';
 
-export function rememberedBackground(): GameID {
+export function rememberedBackground(): BackgroundID {
   try {
     const value = localStorage.getItem(BACKGROUND_KEY);
-    return value && isGameID(value) ? value : DEFAULT_BACKGROUND;
+    return value && isBackgroundID(value) ? value : DEFAULT_BACKGROUND;
   } catch { return DEFAULT_BACKGROUND; }
 }
 
-export function rememberBackground(value: string): value is GameID {
-  if (!isGameID(value)) return false;
+export function rememberBackground(value: string): value is BackgroundID {
+  if (!isBackgroundID(value)) return false;
   try { localStorage.setItem(BACKGROUND_KEY, value); } catch { /* Optional preference; keep the current page usable. */ }
   return true;
 }

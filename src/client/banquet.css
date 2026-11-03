@@ -7,18 +7,17 @@
 
 /* The banquet uses illuminated parchment reading surfaces in both visual modes.
    Scope these overrides past the shared dark artwork palette. */
-:root:root :is(.banquet-layout, .banquet-options, .banquet-rulebook) {
+:root:root :is(.banquet-layout, .banquet-options) {
   color: #574653; --muted: #78675f; --line: #d8c7b5; --surface: #fbf6ec; --surface-2: #f1e7dc;
 }
 :root:root .banquet-layout .panel,
-:root:root .banquet-options.panel,
-:root:root .banquet-rulebook .panel {
+:root:root .banquet-options.panel {
   background: #fbf6ec; border-color: #cbb799; border-radius: 14px;
   box-shadow: 0 4px 16px #21142726; color: #574653;
 }
 :root:root .banquet-layout .banquet-heading h1 { color: #422c49; text-shadow: none; }
-:root:root :is(.banquet-layout, .banquet-options, .banquet-rulebook) :is(h2, h3) { color: #503653; text-shadow: none; }
-:root:root .banquet-layout .panel :is(p, li, label, summary), :root:root .banquet-options :is(p, label, summary), :root:root .banquet-rulebook :is(p, li, td, th) { color: #675653; }
+:root:root :is(.banquet-layout, .banquet-options) :is(h2, h3) { color: #503653; text-shadow: none; }
+:root:root .banquet-layout .panel :is(p, li, label, summary), :root:root .banquet-options :is(p, label, summary) { color: #675653; }
 :root:root .banquet-layout .panel :is(small, .small, .muted), :root:root .banquet-options :is(small, .small, .muted) { color: #7a665e; }
 :root:root .banquet-layout .banquet-memory-entry p { color: #66535e; }
 :root:root .banquet-layout .banquet-memory-entry strong { color: #593a62; }
@@ -44,10 +43,22 @@
 :root:root .banquet-options .banquet-warning { color: #815624; background: #f6e7c8; }
 :root:root .banquet-layout .panel .error-message,
 :root:root .banquet-options .error-message { color: #9a343e; }
-:root:root .banquet-rulebook .rules-role-card { background: #f8f0e4; border-color: #cdb8bc; color: #675653; }
-:root:root .banquet-rulebook .rules-role-portrait { background: #ede2d7; }
-:root:root .banquet-rulebook .rules-role-copy .rules-role-faction { color: #896331; }
-:root:root .banquet-rulebook .banquet-rulebook-intro { color: #7c5663; }
+:root:root .banquet-rulebook { color: #e2d6cc; --muted: #c0b1b7; --line: #796572; }
+:root:root .banquet-rulebook .panel {
+  background: repeating-linear-gradient(164deg, #b5aa7e05 0 1px, transparent 1px 5px), linear-gradient(120deg, #2b2430fa, #191d24fa);
+  border-color: #796572; color: #e2d6cc;
+}
+:root:root .banquet-rulebook :is(h2, h3) { color: #f0dfc1; }
+:root:root .banquet-rulebook :is(p, li, td, th) { color: #e2d6cc; }
+:root:root .banquet-rulebook a { color: #dfc3ed; }
+:root:root .banquet-rulebook .rules-table-wrap :is(th, td) { border-color: #796572; }
+:root:root .banquet-rulebook .rules-table-wrap thead { background: #403348; }
+:root:root .banquet-rulebook .rules-table-wrap thead th { color: #f5e5c9; }
+:root:root .banquet-rulebook .rules-table-wrap tbody th { color: #e4c48f; }
+:root:root .banquet-rulebook .rules-role-card { background: #29232c; border-color: #796572; color: #e2d6cc; }
+:root:root .banquet-rulebook .rules-role-portrait { background: #1c1b23; }
+:root:root .banquet-rulebook .rules-role-copy .rules-role-faction { color: #e4c48f; }
+:root:root .banquet-rulebook .banquet-rulebook-intro { color: #d8b9c4; }
 
 @media (min-width: 1100px) and (min-height: 700px) {
   :is(.room-game, .replay-panel, .shared-replay) .banquet-layout {

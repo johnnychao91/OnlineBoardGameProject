@@ -2,6 +2,7 @@ import { useContext, useState } from 'react';
 import { api, saveInvite } from './api';
 import { RoomContext } from './room-context';
 import { ErrorMessage, Icon } from './ui';
+import './share-invite.css';
 
 export function ShareInvite({ active }: { active: boolean }) {
   const { seat, inviteUrl, setInviteUrl } = useContext(RoomContext)!;
@@ -26,5 +27,5 @@ export function ShareInvite({ active }: { active: boolean }) {
       saveInvite(seat.roomId, result.inviteUrl); setInviteUrl(result.inviteUrl); setMessage('新邀請已建立，之前的連結已失效。');
     } catch (e) { setError((e as Error).message); } finally { setBusy(false); }
   }
-  return <section className="invite-card"><div className="invite-heading"><span className="icon-tile"><Icon type="link" /></span><div><h3>把這一桌，分享給朋友</h3><p>參與或觀戰，都用同一個邀請連結。</p></div></div>{inviteUrl && active && <div className="button-row"><button className="button primary" onClick={share}><Icon type="link" />分享邀請</button><button className="button secondary" onClick={copy}><Icon type="copy" />複製連結</button></div>}{manual && active && <input aria-label="手動複製邀請連結" readOnly className="manual-invite" value={inviteUrl} onFocus={e => e.currentTarget.select()} />}<p className="small muted">邀請於建立後 24 小時失效。只傳給這一桌的朋友。</p>{active && <details className="invite-controls"><summary>{inviteUrl ? '連結外流了？管理邀請' : '重新產生邀請'}</summary><p className="small muted">產生新連結會立即撤銷舊連結；已入座的朋友不受影響。</p><button className="text-button" disabled={busy} onClick={rotate}>{busy ? '正在更新…' : '撤銷舊連結並產生新邀請'}</button></details>}<p className="feedback small" role="status">{message}</p><ErrorMessage>{error}</ErrorMessage></section>;
+  return <section className="invite-card"><div className="invite-heading"><span className="icon-tile"><Icon type="link" /></span><div><h3>把這一桌，分享給朋友</h3><p>參與或觀戰，都用同一個邀請連結。</p></div></div>{inviteUrl && active && <div className="button-row"><button className="button primary invite-share-button" onClick={share}><Icon type="link" />分享邀請</button><button className="button secondary invite-copy-button" onClick={copy}><Icon type="copy" />複製連結</button></div>}{manual && active && <input aria-label="手動複製邀請連結" readOnly className="manual-invite" value={inviteUrl} onFocus={e => e.currentTarget.select()} />}<p className="small muted">邀請於建立後 24 小時失效。只傳給這一桌的朋友。</p>{active && <details className="invite-controls"><summary>{inviteUrl ? '連結外流了？管理邀請' : '重新產生邀請'}</summary><p className="small muted">產生新連結會立即撤銷舊連結；已入座的朋友不受影響。</p><button className="text-button" disabled={busy} onClick={rotate}>{busy ? '正在更新…' : '撤銷舊連結並產生新邀請'}</button></details>}<p className="feedback small" role="status">{message}</p><ErrorMessage>{error}</ErrorMessage></section>;
 }

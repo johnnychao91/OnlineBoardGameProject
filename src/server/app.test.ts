@@ -34,6 +34,18 @@ const seatHeaders = (seat: any) => ({ Authorization: `Bearer ${seat.credentials}
 const inviteToken = (seat: any) => new URLSearchParams(new URL(seat.inviteUrl).hash.slice(1)).get('invite');
 
 describe('Private room admission API', () => {
+  it('publishes only the configured public contact, with safe email / HTTPS links and no private settings', async () => {
+    for (const contact of [undefined, 'contact@example.invalid', 'https://contact.example.invalid/help']) {
+      const f = await fixture({ privacyContact: contact, roomCode: 'private-room-test-value', testRoomCode: 'private-testing-value', roomVipCode: 'private-vip-value' });
+      const response = await f.request('/api/site-info');
+      expect(response.status).toBe(200);
+      expect(response.body).toEqual({ contact: contact ? { label: contact, href: contact.includes('@') ? `mailto:${contact}` : contact } : null });
+      expect(response.headers.get('cache-control')).toBe('no-cache');
+    }
+    for (const privacyContact of ['javascript:alert(1)', 'data:text/html,unsafe', 'http://example.invalid']) {
+      await expect(fixture({ privacyContact })).rejects.toThrow('PRIVACY_CONTACT');
+    }
+  });
   it('allows locally generated PNG previews under production CSP without external scripts', async () => {
     const f = await fixture({ production: true, publicOrigin: 'https://station.example', roomCode: 'test-only-production-key' });
     const response = await f.request('/api/health');

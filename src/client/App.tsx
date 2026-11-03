@@ -64,7 +64,7 @@ function Home({ onEnter }: { onEnter: (seat: AuthSession) => void }) {
       </form>
       <Note>用同一連結邀請參與或觀戰。每人都有獨立憑證，分享不會交出你的座位權限。</Note><p className="muted small">已經收到邀請？直接開啟朋友傳來的連結。</p>
     </section>
-  </main><div className="home-statistics"><Statistics /></div><footer>相聚不必在同一張桌子。<span>PRIVATE ROOMS · SHARED MOMENTS</span></footer></div>;
+  </main><div className="home-statistics"><Statistics /></div></div>;
 }
 
 function Join({ roomId, onEnter }: { roomId: string; onEnter: (seat: AuthSession) => void }) {
@@ -184,6 +184,7 @@ function Lobby({ onUpdate }: { onUpdate: (info: RoomInfo) => void }) {
 }
 
 function Room({ seat, onSwitch }: { seat: AuthSession; onSwitch: (seat: AuthSession) => void }) {
+  const { background } = useBackgroundPreference();
   const [info, setInfo] = useState<RoomInfo>(seat);
   const [inviteUrl, setInviteUrl] = useState(() => savedInvite(seat.roomId) || '');
   const [error, setError] = useState('');
@@ -276,7 +277,7 @@ function Room({ seat, onSwitch }: { seat: AuthSession; onSwitch: (seat: AuthSess
     {pendingToken(seat.roomId) && <button className="button primary full" onClick={() => navigate(`/join/${seat.roomId}`)}>重新使用邀請加入</button>}
     <button className="button secondary full" onClick={() => navigate('/')}>回到首頁</button>
   </section></main></div>;
-  return <><div data-art-game={info.gameSelected !== false ? info.gameName : undefined} className={`room-page ${info.status === 'lobby' ? 'room-lobby' : isPlayer(seat) ? 'room-playing room-game' : 'room-observer room-game'}${stationActive ? ' station-active-room' : ''}`}>
+  return <><div data-art-game={info.gameSelected !== false ? info.gameName : background} className={`room-page ${info.status === 'lobby' ? 'room-lobby' : isPlayer(seat) ? 'room-playing room-game' : 'room-observer room-game'}${stationActive ? ' station-active-room' : ''}`}>
     <Header room={seat.roomId} gameID={info.status !== 'lobby' ? info.gameName : undefined} rulesGame={info.gameSelected !== false ? info.gameName : undefined} />
     {error && <div className="room-error"><ErrorMessage>{error}</ErrorMessage><p className="small muted">連線恢復後會自動重試。請保留這個頁面。</p></div>}
     {!loaded ? !error && <main className="narrow"><p className="loading" role="status">正在確認你的房間身分…</p></main>

@@ -7,6 +7,7 @@ import { completedGameReturn, completedReturnPath } from './game-return';
 import { CompletedGameReturn } from './CompletedGameReturn';
 import { Header } from './ui';
 import { RulesPage } from './RulesPage';
+import { SiteFooter } from './SiteFooter';
 
 const playing={roomId:'abcdefghijklmnop',matchID:'completed-match',gameName:'space-station',status:'playing',
   advertising:{enabled:true,client:'ca-pub-1234567890123456',slot:'1234567890'}} as RoomInfo;
@@ -46,7 +47,7 @@ describe('Completed-game vignette navigation',()=>{
     expect(html).not.toMatch(/data-google-vignette="false"|<script|target=|disabled|credentials|invite|ca-pub-/);
   });
   it('excludes unrelated header, rules and catalogue links from click-triggered vignettes',()=>{
-    const pages=[renderToStaticMarkup(createElement(Header,{room:playing.roomId})),
+    const pages=[renderToStaticMarkup(createElement(SiteFooter)), renderToStaticMarkup(createElement(Header,{room:playing.roomId})),
       renderToStaticMarkup(createElement(RulesPage)),
       ...GAME_IDS.map(gameID=>renderToStaticMarkup(createElement(RulesPage,{gameID})))];
     for(const html of pages){

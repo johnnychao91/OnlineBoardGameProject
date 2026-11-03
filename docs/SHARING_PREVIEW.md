@@ -14,6 +14,16 @@
 
 更換美術時新增版本檔名並同步修改 `image_src`；舊貼文是否重新擷取以及是否顯示描述，仍由各社群平台決定，部署成功不代表既有分享卡片立即更新。
 
+## 首頁無字版本
+
+`src/client/assets/art/home-table-v1.jpg` 是首頁介紹區及可選背景「捷寶桌遊室」的獨立插圖，使用內建 imagegen 編輯原分享封面，移除文字及分隔裝飾線，保留桌遊室構圖；輸出縮放為 1200 × 630 JPEG，約 245 KB。首頁依圖片比例呈現，不修改有字社群封面、分享 metadata 或各遊戲背景。
+
+編輯提示：
+
+```text
+Use case: precise-object-edit. Edit target: the provided original boardgame-cover-v1.jpg, a 1200 by 630 warm fantasy board game room illustration. Primary request: produce the identical image WITHOUT ANY OVERLAID TEXT. Remove both the large Chinese title 捷寶桌遊室 and the smaller Chinese slogan 朋友到齊，隨時開一桌, and remove the thin gold decorative divider / flourish between those two lines. Seamlessly reconstruct only the room background previously hidden by that lettering and line. Preserve the same composition, camera, full landscape framing, blue nighttime castle through the left window, warm lanterns, shelves, wood table, maps, cards, dice, game pieces, coins, chair, emerald and amber palette and all existing objects and lighting. Do not add new foreground objects to fill the removed text. Keep everything outside the text and divider area unchanged as closely as possible. No typography, no characters, no logo, no watermark, no graphic ornaments in the erased region. Opaque background. Output the full edited landscape artwork.
+```
+
 ## 美術來源與提示
 
 以內建 imagegen 工具生成原創插畫；交付 JPEG 保留原始構圖，僅縮放至分享尺寸並壓縮。沒有使用截圖或 JB 圖示作為輸入。

@@ -91,6 +91,12 @@ async function jsonBody(ctx: Context, maxBytes = 4096): Promise<Record<string, a
 
 export async function createApplication(config: AppConfig) {
   validateRoomCodes(config);
+  let publicContact: { label: string; href: string } | null = null;
+  if (config.privacyContact) {
+    const url = new URL(config.privacyContact.includes('@') && !config.privacyContact.includes(':') ? 'mailto:' + config.privacyContact : config.privacyContact);
+    if (!['mailto:', 'https:'].includes(url.protocol)) throw new Error('PRIVACY_CONTACT must be an email or HTTPS URL.');
+    publicContact = { label: config.privacyContact, href: url.href };
+  }
   const origin = new URL(config.publicOrigin).origin;
   if (config.publicOrigin !== origin) throw new Error('PUBLIC_ORIGIN 必須是完整 origin，不能含路徑或尾斜線');
   if (config.production && !origin.startsWith('https://')) throw new Error('正式環境需 HTTPS PUBLIC_ORIGIN');
@@ -387,6 +393,7 @@ export async function createApplication(config: AppConfig) {
     const polling = ctx.method === 'GET' && /^\/api\/rooms\/[A-Za-z0-9_-]+(?:\/view)?$/.test(ctx.path);
     if (!limiter.allow(`${polling ? 'poll' : 'api'}:${ctx.ip}`, polling ? 1200 : 240, 60000)) fail(429, '操作太頻繁，請稍後重試');
     if (ctx.method === 'GET' && ctx.path === '/api/health') { ctx.body = { status: 'ok' }; return; }
+    if (ctx.method === 'GET' && ctx.path === '/api/site-info') { ctx.set('Cache-Control', 'no-cache'); ctx.body = { contact: publicContact }; return; }
     if (ctx.method === 'GET' && ctx.path === '/api/games') { ctx.body = { games: publicGameDefinitions() }; return; }
     if (ctx.method === 'GET' && ctx.path === '/api/stats') {
       if (!limiter.allow(`stats:${ctx.ip}`, 30, 60000)) fail(429, '查詢太頻繁');
@@ -956,11 +963,9 @@ export async function createApplication(config: AppConfig) {
     const directory = resolve(config.clientDir);
     let privacyPage = '';
     try { privacyPage = await readFile(join(directory, 'privacy.html'), 'utf8'); } catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error; }
-    if (privacyPage && config.privacyContact) {
-      const url = new URL(config.privacyContact.includes('@') && !config.privacyContact.includes(':') ? 'mailto:' + config.privacyContact : config.privacyContact);
-      if (!['mailto:', 'https:'].includes(url.protocol)) throw new Error('PRIVACY_CONTACT must be an email or HTTPS URL.');
+    if (privacyPage && publicContact) {
       const escape = (text: string) => text.replace(/[&<>"']/g, char => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' })[char]!);
-      privacyPage = privacyPage.replace(/<!-- PRIVACY_CONTACT -->[\s\S]*?<!-- \/PRIVACY_CONTACT -->/, '<a data-google-vignette="false" rel="noopener noreferrer" href="' + escape(url.href) + '">' + escape(config.privacyContact) + '</a>');
+      privacyPage = privacyPage.replace(/<!-- PRIVACY_CONTACT -->[\s\S]*?<!-- \/PRIVACY_CONTACT -->/, '<a data-google-vignette="false" rel="noopener noreferrer" href="' + escape(publicContact.href) + '">' + escape(publicContact.label) + '</a>');
     }
     server.app.use(async (ctx, next) => {
       if (privacyPage && ['GET', 'HEAD'].includes(ctx.method) && ['/privacy', '/privacy/', '/privacy.html'].includes(ctx.path)) {

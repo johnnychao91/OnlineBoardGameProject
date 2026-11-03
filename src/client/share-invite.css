@@ -1,0 +1,8 @@
+@media(min-width:701px){
+  .invite-card .invite-share-button{display:none}
+  :root:root .invite-card .button.invite-copy-button{
+    background:#c4d7a7;color:#17231c;border-color:#dfdfae;
+    box-shadow:inset 0 -3px 0 #52674433,1px 3px 0 #070f13;
+  }
+  :root:root .invite-card .button.invite-copy-button:not(:disabled):hover{background:#98f4dd}
+}
