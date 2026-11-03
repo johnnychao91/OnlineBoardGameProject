@@ -87,7 +87,8 @@ export function CompetitionStandings({ competitions, gameID }: { competitions: N
   if (!competitions.length) return null;
   const labels = clientGames[gameID]?.competitionLabels ?? { title: '個人競賽紀錄', description: '依玩法與人數記錄已完成的競賽。', roundsLabel: '平均輪數', roundUnit: '輪', modes: {} as Record<string, string> };
   return <section className="challenge-statistics">
-    <h4>{labels.title}</h4><p className="small muted">{labels.description}</p>
+    {gameID !== 'curtain-heist' && <><h4>{labels.title}</h4><p className="small muted">{labels.description}</p></>}
+    {gameID === 'curtain-heist' ? <HeistCompetitionGroups competitions={competitions} modes={labels.modes} /> : <>
     <div className="table-scroll"><table><caption className="visually-hidden">{labels.title}</caption>
       <thead><tr><th>玩法</th><th>玩家</th><th>完成局數</th><th>{labels.roundsLabel}</th></tr></thead>
       <tbody>{competitions.map(row => <tr key={`${row.mode}-${row.numPlayers}`}>
@@ -99,7 +100,54 @@ export function CompetitionStandings({ competitions, gameID }: { competitions: N
       {!!row.highScores?.length && <CompetitionScoreTable title={`單局最高收益排行 · ${labels.modes[row.mode] ?? row.mode} · ${row.numPlayers} 人`} scores={row.highScores} />}
       {!!row.roundHighScores?.length && <CompetitionScoreTable title={`單幕最高收益排行 · ${labels.modes[row.mode] ?? row.mode} · ${row.numPlayers} 人`} scores={row.roundHighScores} byRound />}
     </div>)}
+    </>}
   </section>;
+}
+
+function HeistCompetitionGroups({ competitions, modes }: {
+  competitions: NonNullable<GameStatistics['competitions']>; modes: Record<string, string>;
+}) {
+  const grouped = new Map<string, typeof competitions>();
+  for (const row of competitions) {
+    const rows = grouped.get(row.mode) ?? [];
+    rows.push(row); grouped.set(row.mode, rows);
+  }
+  const modeOrder = (mode: string) => mode === 'five-acts' ? 0 : mode === 'five-acts-hazard-3' ? 1 : 2;
+  const groups = [...grouped].sort(([a], [b]) => modeOrder(a) - modeOrder(b) || a.localeCompare(b));
+  return <div className="heist-competition-groups">{groups.map(([mode, rows]) =>
+    <details className="competition-mode-group" key={mode} data-mode={mode}>
+      <summary><span className="competition-group-title">{modes[mode] ?? mode}</span>
+        <span className="competition-group-meta">{rows.reduce((sum, row) => sum + row.runs, 0)} 局 · {rows.length} 種人數</span>
+        <span className="competition-mode-preview">{[...rows].sort((a, b) => a.numPlayers - b.numPlayers).map(row =>
+          <span className="competition-preview-row" key={row.numPlayers}><span className="competition-preview-players">{row.numPlayers} 人</span><CompetitionLeaders row={row} /></span>)}</span>
+      </summary>
+      <div className="competition-mode-content">{[...rows].sort((a, b) => a.numPlayers - b.numPlayers).map(row =>
+        <details className="competition-player-group" key={row.numPlayers} data-players={row.numPlayers}>
+          <summary><span className="competition-group-title">{row.numPlayers} 人</span>
+            <span className="competition-group-meta">{row.runs} 局 · 平均 {row.averageRounds} 幕</span>
+            <CompetitionLeaders row={row} />
+          </summary>
+          <div className="competition-player-content">
+            {!!row.highScores?.length && <CompetitionScoreTable title="單局最高收益排行" scores={row.highScores} />}
+            {!!row.roundHighScores?.length && <CompetitionScoreTable title="單幕最高收益排行" scores={row.roundHighScores} byRound />}
+            {!row.highScores?.length && !row.roundHighScores?.length && <p className="small muted">此組尚無可顯示的收益排行。</p>}
+          </div>
+        </details>)}
+      </div>
+    </details>)}</div>;
+}
+
+function CompetitionLeaders({ row }: { row: NonNullable<GameStatistics['competitions']>[number] }) {
+  const firsts = (scores: { name: string; total: number; round?: number }[] | undefined) =>
+    scores?.slice(0, 3).filter(score => score.total === scores[0]?.total) ?? [];
+  const total = firsts(row.highScores), round = firsts(row.roundHighScores);
+  return <span className="competition-leader-preview">
+    {total.length > 0 && <span><span className="competition-preview-label">單局第一名</span>{total.map((score, index) =>
+      <span className="competition-preview-winner" key={index}>{score.name} <strong>{score.total} 點</strong></span>)}</span>}
+    {round.length > 0 && <span><span className="competition-preview-label">單幕第一名</span>{round.map((score, index) =>
+      <span className="competition-preview-winner" key={index}>{score.name} · 第 {score.round} 幕 <strong>{score.total} 點</strong></span>)}</span>}
+    {!total.length && !round.length && <span className="competition-preview-label">尚無收益排行</span>}
+  </span>;
 }
 
 function CompetitionScoreTable({ title, scores, byRound = false }: { title: string; scores: { name: string; total: number; round?: number }[]; byRound?: boolean }) {

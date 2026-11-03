@@ -40,7 +40,13 @@ describe('Challenge score presentation', () => {
     } }));
     expect(html).toContain(name);
     expect(html).not.toMatch(/陣營|勝率|勝利次數|faction-standings|投遞|信使/);
-    if (completed) { expect(html).toContain(title); expect(html).toContain(modeName); }
+    if (completed) {
+      if (gameId === 'curtain-heist') {
+        expect(html).not.toContain(title);
+        expect(html).not.toContain('每位幻術師各自累積分紅');
+      } else expect(html).toContain(title);
+      expect(html).toContain(modeName);
+    }
     }
   });
   it('keeps endless runs out of ranked losses and supports older statistics without a ranked count', () => {
@@ -95,11 +101,47 @@ describe('Challenge score presentation', () => {
 it('shows heist earnings with player names, tied ranks and escaped nickname text',()=>{
   const html=renderToStaticMarkup(createElement(CompetitionStandings,{gameID:'curtain-heist',competitions:[{mode:'five-acts',numPlayers:3,runs:1,totalRounds:5,averageRounds:5,highScores:[{name:'<script>test</script>',total:50},{name:'Johnny',total:50},{name:'Sophie',total:20},{name:'Fourth',total:10}]}]}));
   expect(html).toContain('最高收益排行');expect(html).toContain('Johnny');expect(html).toContain('50');expect(html).toContain('&lt;script&gt;');expect(html).not.toContain('<script>');expect(html).toContain('<td>3</td><td>Sophie');expect(html).not.toContain('Fourth');expect(html).toContain('前 3 筆');
+  const preview = html.match(/<summary>([\s\S]*?)<\/summary>/)![1];
+  expect(preview).toContain('單局第一名'); expect(preview).toContain('&lt;script&gt;test&lt;/script&gt;'); expect(preview).toContain('Johnny');
+  expect(preview).not.toContain('Sophie'); expect(preview).not.toContain('Fourth');
 });
 
 it('renders a separate single-act leaderboard with the player and act number',()=>{
   const html=renderToStaticMarkup(createElement(CompetitionStandings,{gameID:'curtain-heist',competitions:[{mode:'five-acts-hazard-3',numPlayers:3,runs:1,totalRounds:5,averageRounds:5,roundHighScores:[{name:'Johnny',total:42,round:4},{name:'Second',total:30,round:2},{name:'Third',total:20,round:1},{name:'Fourth',total:10,round:3}]}]}));
   expect(html).toContain('單幕最高收益排行');expect(html).toContain('Johnny');expect(html).toContain('第 4 幕');expect(html).toContain('42 點');expect(html).not.toContain('單局最高收益排行');expect(html).not.toContain('Fourth');expect(html).toContain('Third');
+  const preview = html.match(/<summary>([\s\S]*?)<\/summary>/)![1];
+  expect(preview).toContain('單幕第一名'); expect(preview).toContain('Johnny'); expect(preview).toContain('第 4 幕');
+  expect(preview).not.toContain('Second'); expect(preview).not.toContain('Third');
+});
+
+it('collapses heist records by hazard rule and player count without mixing earnings or mutating the records', () => {
+  const competitions = [
+    { mode: 'five-acts-hazard-3', numPlayers: 4, runs: 2, totalRounds: 10, averageRounds: 5,
+      highScores: [{ name: 'Third-rule-four', total: 82 }], roundHighScores: [{ name: 'Round-four', total: 45, round: 5 }, { name: 'Round-four', total: 45, round: 2 }, { name: 'Later-round', total: 31, round: 3 }] },
+    { mode: 'five-acts', numPlayers: 6, runs: 1, totalRounds: 5, averageRounds: 5 },
+    { mode: 'five-acts-hazard-3', numPlayers: 3, runs: 1, totalRounds: 5, averageRounds: 5,
+      highScores: [{ name: 'Third-rule-three', total: 62 }] },
+    { mode: 'five-acts', numPlayers: 3, runs: 3, totalRounds: 15, averageRounds: 5,
+      highScores: [{ name: 'Second-rule-three', total: 51 }] },
+  ];
+  const before = structuredClone(competitions);
+  const html = renderToStaticMarkup(createElement(CompetitionStandings, { gameID: 'curtain-heist', competitions }));
+  const secondStart = html.indexOf('data-mode="five-acts"'), thirdStart = html.indexOf('data-mode="five-acts-hazard-3"');
+  expect(secondStart).toBeGreaterThan(-1); expect(thirdStart).toBeGreaterThan(secondStart);
+  const second = html.slice(secondStart, thirdStart), third = html.slice(thirdStart);
+  expect(second).toContain('4 局 · 2 種人數'); expect(third).toContain('3 局 · 2 種人數');
+  expect(second.indexOf('data-players="3"')).toBeLessThan(second.indexOf('data-players="6"'));
+  expect(third.indexOf('data-players="3"')).toBeLessThan(third.indexOf('data-players="4"'));
+  expect(second).toContain('Second-rule-three'); expect(second).not.toContain('Third-rule');
+  expect(third).toContain('Third-rule-three'); expect(third).toContain('Third-rule-four'); expect(third).not.toContain('Second-rule-three');
+  expect(third).toContain('Round-four'); expect(third).toContain('第 5 幕');
+  const thirdPreview = third.match(/<summary>([\s\S]*?)<\/summary>/)![1];
+  expect(thirdPreview).toContain('第 5 幕'); expect(thirdPreview).toContain('第 2 幕'); expect(thirdPreview).not.toContain('Later-round');
+  expect(second).toContain('3 局 · 平均 5 幕'); expect(second).toContain('此組尚無可顯示的收益排行');
+  const disclosures = html.match(/<details\b[^>]*>/g) ?? [];
+  expect(disclosures).toHaveLength(6);
+  for (const disclosure of disclosures) expect(disclosure).not.toMatch(/\bopen(?:=|\s|>)/);
+  expect(competitions).toEqual(before);
 });
 
 describe('Lobby selected-game statistics', () => {

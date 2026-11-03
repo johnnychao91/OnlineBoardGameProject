@@ -1,6 +1,31 @@
 .challenge-statistics { margin-block: 20px; padding-top: 16px; border-top: 1px solid var(--border); }
 .challenge-statistics h4 { margin: 0 0 8px; }
 .challenge-statistics th, .challenge-statistics td { white-space: nowrap; }
+.heist-competition-groups{display:grid;gap:10px;margin-top:16px}
+.competition-mode-group,.competition-player-group{min-width:0;border:1px solid var(--line);border-radius:10px;background:#142124b3}
+.competition-mode-group>summary,.competition-player-group>summary{display:flex;align-items:center;flex-wrap:wrap;gap:8px;min-height:46px;padding:12px 14px;list-style:none;cursor:pointer}
+.competition-mode-group>summary::-webkit-details-marker,.competition-player-group>summary::-webkit-details-marker{display:none}
+.competition-mode-group>summary::before,.competition-player-group>summary::before{content:'›';flex:0 0 12px;font-size:20px;line-height:1;color:var(--mint)}
+.competition-mode-group[open]>summary::before,.competition-player-group[open]>summary::before{transform:rotate(90deg)}
+.competition-mode-group[open]>summary,.competition-player-group[open]>summary{border-bottom:1px solid var(--line)}
+.competition-group-title{flex:1;min-width:70px;font-size:13px;font-weight:650;color:#eee9d9}
+.competition-group-meta{margin-left:auto;color:var(--muted);font-size:12px;white-space:nowrap}
+.competition-mode-content{display:grid;gap:10px;padding:12px}
+.competition-player-group{background:#0e1a1e99}
+.competition-player-content{padding:14px;min-width:0}
+.competition-player-content>.competition-high-scores+.competition-high-scores{border-top:1px solid var(--line);padding-top:16px;margin-top:20px}
+.competition-player-content>p:last-child{margin-bottom:0}
+.competition-mode-preview{display:grid;gap:12px;flex-basis:100%;margin:6px 0 0 20px;min-width:0}
+.competition-preview-row{display:grid;grid-template-columns:36px minmax(0,1fr);gap:8px;align-items:start}
+.competition-preview-players{font-size:12px;color:var(--mint)}
+.competition-leader-preview{display:grid;gap:6px;flex-basis:100%;min-width:0;font-size:12px;line-height:1.7}
+.competition-player-group>summary>.competition-leader-preview{margin:6px 0 0 20px}
+.competition-leader-preview>span{display:flex;flex-wrap:wrap;align-items:baseline;gap:3px 10px;min-width:0}
+.competition-preview-label{color:var(--muted);font-size:11px;flex-shrink:0}
+.competition-preview-winner{color:#eee9d9;overflow-wrap:anywhere}
+.competition-preview-winner strong{color:var(--amber);white-space:nowrap}
+.competition-mode-group[open]>summary>.competition-mode-preview,.competition-player-group[open]>summary>.competition-leader-preview{display:none}
+@media(max-width:540px){.competition-mode-group>summary,.competition-player-group>summary{padding:12px 10px}.competition-group-meta{font-size:11px}.competition-mode-content{padding:8px}.competition-player-content{padding:10px}.competition-mode-group>summary .competition-group-title{flex-basis:calc(100% - 24px)}.competition-mode-group>summary .competition-group-meta{margin-left:20px}}
 .faction-duel {
   --duel-good: #7ce3c5;
   --duel-evil: #ff7987;
