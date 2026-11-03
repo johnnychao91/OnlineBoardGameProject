@@ -86,7 +86,7 @@ function FactionStandings({ game, factions }: { game: GameStatistics; factions: 
 export function CompetitionStandings({ competitions, gameID }: { competitions: NonNullable<GameStatistics['competitions']>; gameID: string }) {
   if (!competitions.length) return null;
   const labels = clientGames[gameID]?.competitionLabels ?? { title: '個人競賽紀錄', description: '依玩法與人數記錄已完成的競賽。', roundsLabel: '平均輪數', roundUnit: '輪', modes: {} as Record<string, string> };
-  return <section className="challenge-statistics">
+  return <section className={`challenge-statistics${gameID === 'curtain-heist' ? ' heist-competition-statistics' : ''}`}>
     {gameID !== 'curtain-heist' && <><h4>{labels.title}</h4><p className="small muted">{labels.description}</p></>}
     {gameID === 'curtain-heist' ? <HeistCompetitionGroups competitions={competitions} modes={labels.modes} /> : <>
     <div className="table-scroll"><table><caption className="visually-hidden">{labels.title}</caption>
@@ -128,8 +128,10 @@ function HeistCompetitionGroups({ competitions, modes }: {
             <CompetitionLeaders row={row} />
           </summary>
           <div className="competition-player-content">
+            <div className="competition-scoreboards">
             {!!row.highScores?.length && <CompetitionScoreTable title="單局最高收益排行" scores={row.highScores} />}
             {!!row.roundHighScores?.length && <CompetitionScoreTable title="單幕最高收益排行" scores={row.roundHighScores} byRound />}
+            </div>
             {!row.highScores?.length && !row.roundHighScores?.length && <p className="small muted">此組尚無可顯示的收益排行。</p>}
           </div>
         </details>)}
@@ -142,10 +144,10 @@ function CompetitionLeaders({ row }: { row: NonNullable<GameStatistics['competit
     scores?.slice(0, 3).filter(score => score.total === scores[0]?.total) ?? [];
   const total = firsts(row.highScores), round = firsts(row.roundHighScores);
   return <span className="competition-leader-preview">
-    {total.length > 0 && <span><span className="competition-preview-label">單局第一名</span>{total.map((score, index) =>
-      <span className="competition-preview-winner" key={index}>{score.name} <strong>{score.total} 點</strong></span>)}</span>}
-    {round.length > 0 && <span><span className="competition-preview-label">單幕第一名</span>{round.map((score, index) =>
-      <span className="competition-preview-winner" key={index}>{score.name} · 第 {score.round} 幕 <strong>{score.total} 點</strong></span>)}</span>}
+    {total.length > 0 && <span><span className="competition-preview-label">單局第一名</span><span className="competition-preview-winners">{total.map((score, index) =>
+      <span className="competition-preview-winner" key={index}>{score.name} <strong>{score.total} 點</strong></span>)}</span></span>}
+    {round.length > 0 && <span><span className="competition-preview-label">單幕第一名</span><span className="competition-preview-winners">{round.map((score, index) =>
+      <span className="competition-preview-winner" key={index}>{score.name} · 第 {score.round} 幕 <strong>{score.total} 點</strong></span>)}</span></span>}
     {!total.length && !round.length && <span className="competition-preview-label">尚無收益排行</span>}
   </span>;
 }
@@ -156,9 +158,12 @@ function CompetitionScoreTable({ title, scores, byRound = false }: { title: stri
     <p className="small muted">{byRound ? '單幕' : '五幕合計'}收益前 3 筆，包含安全入庫贓物與珍藏價值；暱稱採該局紀錄，同名不合併。</p>
     <div className="table-scroll"><table><caption className="visually-hidden">{byRound ? '單幕' : '單局'}最高收益排行</caption>
       <thead><tr><th>名次</th><th>玩家</th>{byRound && <th>幕次</th>}<th>收益</th></tr></thead>
-      <tbody>{leaders.map((score, index) => <tr key={index}>
-        <td>{leaders.findIndex(entry => entry.total === score.total) + 1}</td><td>{score.name}</td>{byRound && <td>第 {score.round} 幕</td>}<td><strong>{score.total} 點</strong></td>
-      </tr>)}</tbody>
+      <tbody>{leaders.map((score, index) => {
+        const rank = leaders.findIndex(entry => entry.total === score.total) + 1;
+        return <tr key={index} data-rank={rank}>
+          <td><span className="competition-rank">{rank}</span></td><td>{score.name}</td>{byRound && <td>第 {score.round} 幕</td>}<td><strong>{score.total} 點</strong></td>
+        </tr>;
+      })}</tbody>
     </table></div>
   </section>;
 }

@@ -100,7 +100,7 @@ describe('Challenge score presentation', () => {
 
 it('shows heist earnings with player names, tied ranks and escaped nickname text',()=>{
   const html=renderToStaticMarkup(createElement(CompetitionStandings,{gameID:'curtain-heist',competitions:[{mode:'five-acts',numPlayers:3,runs:1,totalRounds:5,averageRounds:5,highScores:[{name:'<script>test</script>',total:50},{name:'Johnny',total:50},{name:'Sophie',total:20},{name:'Fourth',total:10}]}]}));
-  expect(html).toContain('最高收益排行');expect(html).toContain('Johnny');expect(html).toContain('50');expect(html).toContain('&lt;script&gt;');expect(html).not.toContain('<script>');expect(html).toContain('<td>3</td><td>Sophie');expect(html).not.toContain('Fourth');expect(html).toContain('前 3 筆');
+  expect(html).toContain('最高收益排行');expect(html).toContain('Johnny');expect(html).toContain('50');expect(html).toContain('&lt;script&gt;');expect(html).not.toContain('<script>');expect((html.match(/<tr\b[^>]*>[\s\S]*?<\/tr>/g) ?? []).find(row => row.includes('<td>Sophie</td>'))).toContain('data-rank="3"');expect(html).not.toContain('Fourth');expect(html).toContain('前 3 筆');
   const preview = html.match(/<summary>([\s\S]*?)<\/summary>/)![1];
   expect(preview).toContain('單局第一名'); expect(preview).toContain('&lt;script&gt;test&lt;/script&gt;'); expect(preview).toContain('Johnny');
   expect(preview).not.toContain('Sophie'); expect(preview).not.toContain('Fourth');

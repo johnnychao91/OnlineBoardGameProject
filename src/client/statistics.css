@@ -1,31 +1,53 @@
 .challenge-statistics { margin-block: 20px; padding-top: 16px; border-top: 1px solid var(--border); }
 .challenge-statistics h4 { margin: 0 0 8px; }
 .challenge-statistics th, .challenge-statistics td { white-space: nowrap; }
-.heist-competition-groups{display:grid;gap:10px;margin-top:16px}
-.competition-mode-group,.competition-player-group{min-width:0;border:1px solid var(--line);border-radius:10px;background:#142124b3}
-.competition-mode-group>summary,.competition-player-group>summary{display:flex;align-items:center;flex-wrap:wrap;gap:8px;min-height:46px;padding:12px 14px;list-style:none;cursor:pointer}
+/* Heist summaries stay compact; the earnings receive their own visual space. */
+.heist-competition-statistics{margin-top:14px;padding-top:0;border-top:0}
+.heist-competition-groups{display:grid;gap:18px;margin-top:0}
+.competition-mode-group{--competition-accent:#d7b574;container:heist-group / inline-size;min-width:0;border:1px solid #8a785557;border-radius:14px;background:linear-gradient(145deg,#1e2b2ceb,#111d24ed);box-shadow:inset 0 3px 0 var(--competition-accent),0 6px 20px #030b1033;transition:border-color .16s,box-shadow .16s}
+.competition-mode-group[data-mode="five-acts-hazard-3"]{--competition-accent:#d3937f}
+.competition-mode-group:hover{border-color:#c4ad7a99;box-shadow:inset 0 3px 0 var(--competition-accent),0 8px 24px #030b1055}
+.competition-player-group{min-width:0;border:1px solid #65766b80;border-radius:12px;background:#0e1c21a6;overflow:hidden}
+.competition-mode-group>summary,.competition-player-group>summary{display:flex;align-items:center;flex-wrap:wrap;gap:10px;min-height:50px;padding:18px 20px;list-style:none;cursor:pointer}
 .competition-mode-group>summary::-webkit-details-marker,.competition-player-group>summary::-webkit-details-marker{display:none}
-.competition-mode-group>summary::before,.competition-player-group>summary::before{content:'›';flex:0 0 12px;font-size:20px;line-height:1;color:var(--mint)}
+.competition-mode-group>summary::before,.competition-player-group>summary::before{content:'›';flex:0 0 12px;font-size:22px;line-height:1;color:var(--competition-accent,var(--mint))}
 .competition-mode-group[open]>summary::before,.competition-player-group[open]>summary::before{transform:rotate(90deg)}
-.competition-mode-group[open]>summary,.competition-player-group[open]>summary{border-bottom:1px solid var(--line)}
-.competition-group-title{flex:1;min-width:70px;font-size:13px;font-weight:650;color:#eee9d9}
-.competition-group-meta{margin-left:auto;color:var(--muted);font-size:12px;white-space:nowrap}
-.competition-mode-content{display:grid;gap:10px;padding:12px}
-.competition-player-group{background:#0e1a1e99}
-.competition-player-content{padding:14px;min-width:0}
-.competition-player-content>.competition-high-scores+.competition-high-scores{border-top:1px solid var(--line);padding-top:16px;margin-top:20px}
+.competition-mode-group[open]>summary,.competition-player-group[open]>summary{border-bottom:1px solid #71827166;background:#25353755}
+.competition-group-title{flex:1;min-width:70px;font-size:14px;font-weight:700;color:#f0e7d5;letter-spacing:.02em}
+.competition-group-meta{margin-left:auto;padding:4px 9px;border:1px solid #78856855;border-radius:6px;background:#0b171b77;color:#c2cbb9;font-size:11px;white-space:nowrap;font-variant-numeric:tabular-nums}
+.competition-mode-content{display:grid;gap:14px;padding:16px}
+.competition-player-content{container:heist-scores / inline-size;padding:18px;min-width:0}
 .competition-player-content>p:last-child{margin-bottom:0}
-.competition-mode-preview{display:grid;gap:12px;flex-basis:100%;margin:6px 0 0 20px;min-width:0}
-.competition-preview-row{display:grid;grid-template-columns:36px minmax(0,1fr);gap:8px;align-items:start}
-.competition-preview-players{font-size:12px;color:var(--mint)}
-.competition-leader-preview{display:grid;gap:6px;flex-basis:100%;min-width:0;font-size:12px;line-height:1.7}
-.competition-player-group>summary>.competition-leader-preview{margin:6px 0 0 20px}
-.competition-leader-preview>span{display:flex;flex-wrap:wrap;align-items:baseline;gap:3px 10px;min-width:0}
-.competition-preview-label{color:var(--muted);font-size:11px;flex-shrink:0}
-.competition-preview-winner{color:#eee9d9;overflow-wrap:anywhere}
-.competition-preview-winner strong{color:var(--amber);white-space:nowrap}
+.competition-scoreboards{display:grid;grid-template-columns:minmax(0,1fr);gap:18px}
+.competition-mode-preview{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:14px;flex-basis:100%;margin-top:8px;min-width:0}
+.competition-preview-row{display:flex;flex-direction:column;gap:12px;min-width:0;padding:14px;border:1px solid #78846c55;border-radius:10px;background:linear-gradient(135deg,#31403955,#101c244d)}
+.competition-preview-players{display:inline-flex;align-items:center;justify-content:center;align-self:flex-start;min-width:44px;min-height:28px;padding:3px 10px;border:1px solid #82a28b66;border-radius:7px;background:#2c4b3e66;font-size:12px;font-weight:650;color:#cae5bd}
+.competition-leader-preview{display:grid;gap:14px;flex-basis:100%;min-width:0;font-size:12px;line-height:1.8}
+.competition-player-group>summary>.competition-leader-preview{grid-template-columns:repeat(2,minmax(0,1fr));margin:4px 0 0 22px}
+.competition-leader-preview>span{display:flex;flex-direction:column;gap:5px;min-width:0}
+.competition-preview-label{color:#b5c2b9;font-size:11px;letter-spacing:.03em}
+.competition-preview-winners{display:flex;align-items:baseline;flex-wrap:wrap;gap:8px 12px;min-width:0}
+.competition-preview-winner{display:inline-flex;align-items:baseline;flex-wrap:wrap;gap:5px;max-width:100%;color:#f0e8d9;overflow-wrap:anywhere}
+.competition-preview-winner strong{padding:1px 7px;border:1px solid #c1a05f66;border-radius:5px;background:#a0793033;color:#f4d18b;font-size:12px;white-space:nowrap;font-variant-numeric:tabular-nums}
 .competition-mode-group[open]>summary>.competition-mode-preview,.competition-player-group[open]>summary>.competition-leader-preview{display:none}
-@media(max-width:540px){.competition-mode-group>summary,.competition-player-group>summary{padding:12px 10px}.competition-group-meta{font-size:11px}.competition-mode-content{padding:8px}.competition-player-content{padding:10px}.competition-mode-group>summary .competition-group-title{flex-basis:calc(100% - 24px)}.competition-mode-group>summary .competition-group-meta{margin-left:20px}}
+.heist-competition-statistics .competition-high-scores{min-width:0;padding:16px;border:1px solid #7b80655c;border-radius:11px;background:linear-gradient(145deg,#24333199,#0f1c2380);box-shadow:inset 0 1px 0 #d6c28a12}
+.heist-competition-statistics .competition-high-scores h4{font-size:14px;line-height:1.6;color:#eddbb1;padding-left:10px;border-left:3px solid var(--competition-accent)}
+.heist-competition-statistics .competition-high-scores>p{font-size:11px;line-height:1.9;margin:10px 0 16px;color:#b5c2b9}
+.heist-competition-statistics .competition-high-scores .table-scroll{margin-top:0}
+.heist-competition-statistics .competition-high-scores table{width:100%;font-size:12px;font-variant-numeric:tabular-nums}
+.heist-competition-statistics .competition-high-scores th{font-size:11px;color:#b9c8c1;border-bottom-color:#8c8f6d88;padding:10px 8px}
+.heist-competition-statistics .competition-high-scores td{padding:12px 8px;border-bottom-color:#6b7a6b55}
+.heist-competition-statistics .competition-high-scores td:first-child{width:48px}
+.heist-competition-statistics .competition-high-scores td:last-child{color:#f2d39a}
+.heist-competition-statistics .competition-high-scores tr[data-rank="1"]{background:linear-gradient(90deg,#ac8a4230,#ac8a420a)}
+.competition-rank{display:inline-flex;align-items:center;justify-content:center;min-width:27px;height:27px;border:1px solid #a79a7155;border-radius:50%;background:#273837;color:#cad5cc;font-size:12px;font-weight:700}
+tr[data-rank="1"] .competition-rank{background:linear-gradient(135deg,#f1d998,#ba9450);color:#30230d;border-color:#ecd29a;box-shadow:0 0 12px #e3bd5720}
+tr[data-rank="2"] .competition-rank{background:#425451;color:#e2ece7;border-color:#849a91}
+tr[data-rank="3"] .competition-rank{background:#4b3c30;color:#e4c6a0;border-color:#987d61}
+@container heist-scores (min-width:680px){.competition-scoreboards{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@container heist-group (max-width:520px){.competition-player-group>summary>.competition-leader-preview{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:540px){.competition-mode-group>summary,.competition-player-group>summary{padding:16px 12px}.competition-group-meta{font-size:11px}.competition-mode-content{padding:10px}.competition-player-content{padding:10px}.competition-mode-group>summary .competition-group-title{flex-basis:calc(100% - 24px)}.competition-mode-group>summary .competition-group-meta{margin-left:22px}.heist-competition-statistics .competition-high-scores{padding:12px}.heist-competition-statistics .competition-high-scores td{padding:10px 6px}}
+@media(prefers-reduced-motion:reduce){.heist-competition-statistics *{transition:none}}
 .faction-duel {
   --duel-good: #7ce3c5;
   --duel-evil: #ff7987;
