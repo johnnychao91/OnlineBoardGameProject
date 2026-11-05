@@ -24,6 +24,11 @@ const metadataHostFiles = new Set([
 export function allowedHost(input, file) {
   const host = input.toLowerCase().replace(/^\*\./, '').replace(/\.$/, '');
   const scanner = ['scripts/check-public-repo.mjs', 'scripts/check-public-repo.test.mjs'].includes(file);
+  if ((scanner || file === 'src/client/analytics.ts' || file === 'src/server/app.ts' || file === 'src/server/app.test.ts')
+    && ['googletagmanager.com', 'www.googletagmanager.com', 'google-analytics.com'].includes(host)) return true;
+  if ((scanner || file === 'docs/ANALYTICS.md') && ['developers.google.com', 'support.google.com'].includes(host)) return true;
+  if ((scanner || file === 'privacy.html') && host === 'tools.google.com') return true;
+  if (file === 'src/server/app.test.ts' && host === 'googlesyndication.com') return true;
   if ((scanner || file === 'src/client/adsense.ts') && host === 'pagead2.googlesyndication.com') return true;
   if ((scanner || file === 'src/server/app.ts') && ['googlesyndication.com', 'doubleclick.net', 'google.com', 'googleadservices.com', 'googleusercontent.com', 'gstatic.com'].includes(host)) return true;
   if ((scanner || file === 'privacy.html' || file === 'docs/ADVERTISING.md') && ['policies.google.com', 'myadcenter.google.com', 'optout.aboutads.info', 'support.google.com'].includes(host)) return true;
@@ -79,6 +84,10 @@ export function inspectFile(file, bytes) {
   if (privatePath(file)) problems.add('private/runtime file must not be tracked');
   if (bytes.includes(0) || !isUtf8(bytes)) return { problems: [...problems], binary: true };
   const content = bytes.toString('utf8');
+  for (const match of content.matchAll(/\bG-([A-Z0-9]{4,20})\b/g)) {
+    const fixture = /\.test\.(?:ts|mjs)$/.test(file) && match[1] === 'TEST123456';
+    if (!fixture) problems.add('private analytics identifier must remain in deployment settings');
+  }
   for (const match of content.matchAll(/\bca-pub-(\d{16})\b/g)) {
     const fixture = /\.test\.(?:ts|mjs)$/.test(file) && ['1234567890123456', '1111111111111111'].includes(match[1]);
     if (!fixture) problems.add('private advertising identifier must remain in deployment settings');

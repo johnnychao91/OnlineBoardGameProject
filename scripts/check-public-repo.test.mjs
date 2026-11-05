@@ -10,6 +10,17 @@ const inspect = (file, text) => inspectFile(file, Buffer.from(text));
 // Construct deliberately forbidden fixtures so the fixture itself has no live URL.
 const privateHost = ['private-fixture', 'unregistered'].join('.');
 
+test('allows Analytics service hosts only in the loader and CSP, never private deployment targets', () => {
+  assert.equal(allowedHost('www.googletagmanager.com', 'src/client/analytics.ts'), true);
+  assert.equal(allowedHost('google-analytics.com', 'src/server/app.ts'), true);
+  assert.equal(allowedHost('www.googletagmanager.com', 'deploy/apache.conf.example'), false);
+  assert.equal(allowedHost('google-analytics.com', 'README.md'), false);
+  const measurement = ['G-', 'ABC1234567'].join('');
+  assert.ok(inspect('src/client/accidental.ts', measurement).problems.includes('private analytics identifier must remain in deployment settings'));
+  assert.ok(inspect('.env.example', 'GA_MEASUREMENT_ID=' + measurement).problems.includes('private analytics identifier must remain in deployment settings'));
+  assert.deepEqual(inspect('src/client/analytics.test.ts', ['G-', 'TEST123456'].join('')).problems, []);
+});
+
 test('keeps advertising hosts scoped and publisher identifiers out of public source', () => {
   const sdk = 'pagead2.googlesyndication.com';
   assert.equal(allowedHost(sdk, 'src/client/adsense.ts'), true);

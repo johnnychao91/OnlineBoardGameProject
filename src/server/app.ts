@@ -33,6 +33,7 @@ export interface AppConfig {
   roomVipCode?: string;
   adsense?: AdSettings;
   privacyContact?: string;
+  analyticsMeasurementId?: string;
   clientDir?: string;
   presenceLeaseMs?: number;
   lifecycleSweepMs?: number;
@@ -91,6 +92,8 @@ async function jsonBody(ctx: Context, maxBytes = 4096): Promise<Record<string, a
 
 export async function createApplication(config: AppConfig) {
   validateRoomCodes(config);
+  const analyticsMeasurementId = config.analyticsMeasurementId?.trim() || null;
+  if (analyticsMeasurementId && !/^G-[A-Z0-9]{4,20}$/.test(analyticsMeasurementId)) throw new Error('GA_MEASUREMENT_ID must be a GA4 measurement ID.');
   let publicContact: { label: string; href: string } | null = null;
   if (config.privacyContact) {
     const url = new URL(config.privacyContact.includes('@') && !config.privacyContact.includes(':') ? 'mailto:' + config.privacyContact : config.privacyContact);
@@ -364,9 +367,16 @@ export async function createApplication(config: AppConfig) {
     ctx.set('X-Content-Type-Options', 'nosniff');
     ctx.set('X-Frame-Options', 'DENY');
     ctx.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
-    if (config.production) ctx.set('Content-Security-Policy', validAdSettings(config.adsense)
+    if (config.production) {
+      let policy = validAdSettings(config.adsense)
       ? "default-src 'self'; script-src 'self' https://*.googlesyndication.com https://*.doubleclick.net https://*.google.com https://*.googleadservices.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.googlesyndication.com https://*.doubleclick.net https://*.google.com https://*.googleusercontent.com https://*.gstatic.com https://*.googleadservices.com; connect-src 'self' https://*.googlesyndication.com https://*.doubleclick.net https://*.google.com https://*.googleadservices.com; frame-src https://*.googlesyndication.com https://*.doubleclick.net https://*.google.com; base-uri 'none'; frame-ancestors 'none'; form-action 'self'"
-      : "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'");
+      : "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'";
+      if (analyticsMeasurementId) policy = policy
+        .replace("script-src 'self'", "script-src 'self' https://www.googletagmanager.com")
+        .replace("img-src 'self' data: blob:", "img-src 'self' data: blob: https://www.googletagmanager.com https://*.google-analytics.com")
+        .replace("connect-src 'self'", "connect-src 'self' https://www.googletagmanager.com https://*.google-analytics.com https://*.google.com");
+      ctx.set('Content-Security-Policy', policy);
+    }
     if (ctx.path.startsWith('/api')) {
       ctx.set('Cache-Control', 'no-store');
       ctx.set('X-Boardgame-Time', String(Date.now()));
@@ -394,6 +404,7 @@ export async function createApplication(config: AppConfig) {
     if (!limiter.allow(`${polling ? 'poll' : 'api'}:${ctx.ip}`, polling ? 1200 : 240, 60000)) fail(429, '操作太頻繁，請稍後重試');
     if (ctx.method === 'GET' && ctx.path === '/api/health') { ctx.body = { status: 'ok' }; return; }
     if (ctx.method === 'GET' && ctx.path === '/api/site-info') { ctx.set('Cache-Control', 'no-cache'); ctx.body = { contact: publicContact }; return; }
+    if (ctx.method === 'GET' && ctx.path === '/api/analytics') { ctx.body = { measurementId: analyticsMeasurementId }; return; }
     if (ctx.method === 'GET' && ctx.path === '/api/games') { ctx.body = { games: publicGameDefinitions() }; return; }
     if (ctx.method === 'GET' && ctx.path === '/api/stats') {
       if (!limiter.allow(`stats:${ctx.ip}`, 30, 60000)) fail(429, '查詢太頻繁');

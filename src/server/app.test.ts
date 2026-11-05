@@ -34,6 +34,28 @@ const seatHeaders = (seat: any) => ({ Authorization: `Bearer ${seat.credentials}
 const inviteToken = (seat: any) => new URLSearchParams(new URL(seat.inviteUrl).hash.slice(1)).get('invite');
 
 describe('Private room admission API', () => {
+  it('publishes only an optional validated measurement ID and permits Analytics independently of advertising', async () => {
+    for (const enabled of [false, true]) for (const ads of [false, true]) {
+      const f = await fixture({ production: true, publicOrigin: 'https://boardgame.example.com',
+        analyticsMeasurementId: enabled ? ' G-TEST123456 ' : '',
+        adsense: ads ? { client: 'ca-pub-1234567890123456', slot: '12345' } : undefined,
+        roomCode: 'private-room-code-test', testRoomCode: 'private-testing-code', roomVipCode: 'private-vip-code',
+      });
+      const response = await f.request('/api/analytics');
+      expect(response.status).toBe(200);
+      expect(response.body).toEqual({ measurementId: enabled ? 'G-TEST123456' : null });
+      expect(response.headers.get('cache-control')).toBe('no-store');
+      const csp = response.headers.get('content-security-policy')!;
+      expect(csp.includes('googletagmanager.com')).toBe(enabled);
+      expect(csp.includes('google-analytics.com')).toBe(enabled);
+      expect(csp.includes('googlesyndication.com')).toBe(ads);
+      expect(csp).not.toContain("script-src 'self' 'unsafe-inline'");
+      expect(csp).toContain("frame-ancestors 'none'");
+    }
+    for (const analyticsMeasurementId of ['bad-id', ['G-', 'TEST<script>'].join(''), 'G-TEST123456;other']) {
+      await expect(fixture({ analyticsMeasurementId })).rejects.toThrow('GA_MEASUREMENT_ID');
+    }
+  });
   it('publishes only the configured public contact, with safe email / HTTPS links and no private settings', async () => {
     for (const contact of [undefined, 'contact@example.invalid', 'https://contact.example.invalid/help']) {
       const f = await fixture({ privacyContact: contact, roomCode: 'private-room-test-value', testRoomCode: 'private-testing-value', roomVipCode: 'private-vip-value' });

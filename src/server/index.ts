@@ -13,6 +13,7 @@ async function main() {
     ...roomCodesFromEnvironment(process.env),
     adsense: { client: process.env.ADSENSE_CLIENT || '', slot: process.env.ADSENSE_SLOT || '' },
     privacyContact: process.env.PRIVACY_CONTACT || '',
+    analyticsMeasurementId: process.env.GA_MEASUREMENT_ID || '',
     clientDir: production ? './dist/client' : undefined,
   });
   const running = await app.listen();

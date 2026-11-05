@@ -382,6 +382,8 @@ sudo nano /etc/boardgame.env
 
 設定 `ROOM_CODE=` 與 `TEST_ROOM_CODE=` 後面的值，兩者非空時至少 16 字元且不能相同；留空停用對應特殊房。從舊版升級時，先更新程式，再將 `CREATE_ROOM_KEY` 改名為 `ROOM_CODE`，`TEST_ROOM_KEY` 改名為 `TEST_ROOM_CODE`，移除 `ADFREE_ROOM_KEY`。AdSense、聯絡方式及其他設定維持原值；不要把這個檔案放進 Git。暫時 VIP 暗語只填在 `ROOM_VIP_CODE=`，不能與其他暗語重複；留空並重啟只停用新的 VIP 房。
 
+同一私人檔案可選填 `GA_MEASUREMENT_ID=`，使用主站既有的 GA4 衡量 ID。啟用前先關閉該資料串流的加強型評估，避免與本站手動事件重複或包含完整房間網址。詳細步驟與報表區分方法見 [Analytics](ANALYTICS.md)。實際值不放 Git，之後的正常更新仍沿用此檔。
+
 按 `Ctrl+O`、Enter 儲存，再按 `Ctrl+X` 離開。等對局結束後，讓遊戲服務讀取新設定：
 
 ```bash
