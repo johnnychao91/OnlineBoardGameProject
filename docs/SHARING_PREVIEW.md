@@ -1,12 +1,12 @@
 # 分享連結封面
 
-瀏覽器分頁使用 `public/endless-bar-icon.svg` 的星光酒杯圖案。Open Graph／Twitter 使用 `public/social/endless-bar-cover-v1.jpg`，由雲間酒肆插畫裁成 1200 × 630 JPEG。分享預覽整合測試會驗證封面尺寸與 HTTP GET／HEAD。
+瀏覽器分頁使用 `public/endless-bar-icon.svg` 的星光酒杯圖案。Open Graph／Twitter 使用有字封面 `public/social/endless-bar-cover-v2.jpg`。分享預覽整合測試會驗證 1200 × 630 JPEG 的尺寸與 HTTP GET／HEAD。
 
 ## 文案與輸出
 
 - 標題：未央酒肆 Endless Bar
 - 描述：免下載、免註冊的多人線上桌遊。開房分享連結，就能和朋友一起推理、合作、冒險，還能即時觀戰與賽後復盤。
-- 圖片替代文字：未央酒肆的雲海夜景，燈籠照亮桌上的牌、骰子和酒杯
+- 圖片替代文字為「雲海酒館夜景上的金色標題『未央酒肆 Endless Bar』，前景有牌、骰子與酒杯」。
 
 `index.html` 的 `image_src` 指向獨立封面。伺服器使用私有 `PUBLIC_ORIGIN` 產生圖片與頁面絕對網址，不將實際部署網址寫入原始碼。網站、邀請、房間、回放與全部已登錄遊戲的規則頁共用相同封面，不讀取房內玩家或遊戲狀態。Twitter 使用 `summary_large_image`，Open Graph 明確提供圖片格式、尺寸、替代文字與 HTTPS 圖片網址。
 
@@ -15,6 +15,18 @@
 更換美術時新增版本檔名並同步修改 `image_src`；舊貼文是否重新擷取以及是否顯示描述，仍由各社群平台決定，部署成功不代表既有分享卡片立即更新。
 
 ## 未央酒肆插畫
+
+有字分享封面使用內建 imagegen 編輯無字封面 `public/social/endless-bar-cover-v1.jpg`，參考 `public/social/boardgame-cover-v1.jpg` 的金色字體、分隔線與置中排版。
+
+```text
+Use case: precise-object-edit. Asset: a 1200 × 630 social sharing cover. The first image, endless-bar-cover-v1.jpg, is the edit target. The second image, boardgame-cover-v1.jpg, is a typography and layout reference only. Keep the first image's entire landscape crop, original lavender cloud tavern, moon, gold arc, lanterns, furniture and tabletop art, with their original positions and colors. Add a single large, centered Traditional Chinese title 「未央酒肆」 in warm ivory-gold Song/Ming serif lettering across the upper-middle open sky, matching the elegance and visual weight of the old cover. Beneath it place a thin gold ornamental divider and the smaller centered serif subtitle “Endless Bar”. The title is four exact characters, 未 央 酒 肆, without spaces or quotation marks in the artwork. Make it clearly legible at social thumbnail size. Keep all typography well inside the safe margins, and clear of the moon, tabletop, and gold arc. No other text, no logos, no panels, no border, no watermark. Preserve the wide 40:21 framing.
+```
+
+最後用同一工具微調字組的水平位置。
+
+```text
+Use case: precise-object-edit. Image 1 is the only edit target, the finished Endless Bar cover. Make a tiny typography alignment correction ONLY. Move the complete existing title/ornament/subtitle group horizontally LEFT by approximately 41 pixels on the attached 1731px canvas (2.4% of total width); align the midpoint of the Chinese title bounding box, the ornament's diamond center, and the midpoint of the English subtitle to the vertical centerline of the entire image, x=50%. Use equal left and right space from the image borders for each line; the window opening is not the alignment reference. Keep the group's existing vertical position, typography, scale, color, exact spelling '未央酒肆' and 'Endless Bar', and spacing. Make the same landscape canvas with the same aspect ratio, and preserve the background, composition, crop, cloud, moon, objects and lighting outside the typography. No guide line, no additional text.
+```
 
 首頁插圖與預設背景使用 `src/client/assets/art/endless-bar-tavern.webp`。原圖使用內建 imagegen 生成，以 Tolanir 的粉彩水彩地平線配色和未央酒肆的雲間酒館為美術參考。
 
