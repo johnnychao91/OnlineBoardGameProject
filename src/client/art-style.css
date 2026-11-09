@@ -331,6 +331,7 @@
   background: var(--theme-panel);
   border-color: var(--theme-border);
 }
+:root:root .role-switcher { background-color: var(--theme-surface); }
 :root:root .room-history-replay {
   background: linear-gradient(#0c141bcc, #0c141bd9), var(--art-scene) center / cover;
 }
