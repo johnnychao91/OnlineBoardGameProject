@@ -1,8 +1,10 @@
 import { GAME_IDS, ROOM_CAPACITY } from '../games/catalog';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { randomUUID } from 'node:crypto';
+import { once } from 'node:events';
+import { createConnection } from 'node:net';
 import { basename, dirname, join, resolve } from 'node:path';
 import { createApplication, type AppConfig } from './app';
 
@@ -32,6 +34,56 @@ async function fixture(overrides: Partial<AppConfig> = {}) {
 }
 const seatHeaders = (seat: any) => ({ Authorization: `Bearer ${seat.credentials}`, 'X-Player-ID': seat.playerID });
 const inviteToken = (seat: any) => new URLSearchParams(new URL(seat.inviteUrl).hash.slice(1)).get('invite');
+
+it('shuts down with a stalled HTTP upload and an unresponsive WebSocket, while preserving accepted room writes', async () => {
+  const f = await fixture();
+  const client = () => createConnection(f.running.port, '127.0.0.1');
+  const upload = client();
+  const websocket = client();
+  const deadline = AbortSignal.timeout(8000);
+  const disconnected = Promise.all([
+    once(upload, 'close', { signal: deadline }),
+    once(websocket, 'close', { signal: deadline }),
+  ]);
+  // Observe immediately in case setup fails before awaiting this promise.
+  void disconnected.catch(() => {});
+  let markAccepted!: (roomId: string) => void;
+  let releaseWrite!: () => void;
+  const accepted = new Promise<string>(resolve => { markAccepted = resolve; });
+  const writeGate = new Promise<void>(resolve => { releaseWrite = resolve; });
+  const save = f.app.rooms.save.bind(f.app.rooms);
+  const spy = vi.spyOn(f.app.rooms, 'save').mockImplementation(async room => {
+    markAccepted(room.roomId);
+    await writeGate;
+    return save(room);
+  });
+  try {
+    const uploadReady = once(upload, 'data', { signal: deadline });
+    upload.write('POST /api/rooms HTTP/1.1\r\nHost: localhost\r\nExpect: 100-continue\r\nContent-Type: application/json\r\nContent-Length: 100\r\n\r\n{');
+    expect(String((await uploadReady)[0])).toContain('100 Continue');
+    const upgraded = once(websocket, 'data', { signal: deadline });
+    websocket.write('GET /socket.io/?EIO=4&transport=websocket HTTP/1.1\r\nHost: localhost\r\nConnection: Upgrade\r\nUpgrade: websocket\r\nSec-WebSocket-Version: 13\r\nSec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n\r\n');
+    expect(String((await upgraded)[0])).toContain('101 Switching Protocols');
+    // Read the close frame without sending a WebSocket close response.
+    websocket.resume();
+    const creating = f.create().catch(() => {});
+    const roomId = await accepted;
+    let closed = false;
+    const closing = f.running.close().then(() => { closed = true; });
+    await disconnected;
+    expect(closed).toBe(false);
+    releaseWrite();
+    await closing;
+    await creating;
+    const restored = await createApplication(f.config);
+    expect(restored.rooms.rooms.has(roomId)).toBe(true);
+  } finally {
+    releaseWrite();
+    upload.destroy();
+    websocket.destroy();
+    spy.mockRestore();
+  }
+});
 
 describe('Private room admission API', () => {
   it('publishes only an optional validated measurement ID and permits Analytics independently of advertising', async () => {

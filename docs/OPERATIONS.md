@@ -65,7 +65,7 @@ bash deploy/backup.sh --apache-config "$boardgame_apache_config"
 
 請記下 `Backup verified` 後的完整備份路徑。時間戳記使用 UTC，與臺灣時間相差 8 小時。`SHA256SUMS` 用於偵測備份損壞；它不是來源簽章，只還原你自己管理、可信任的備份。
 
-任何步驟報錯都先停止後續更新。若停止服務逾時、`Result` 不是 `success`，查看 `sudo journalctl -u boardgame -n 100 --no-pager`，不要把那次資料宣稱為乾淨的一致性備份。備份中途磁碟滿或壓縮失敗時，留下的目錄也不能當成成功備份；須有完整檔案且雜湊驗證通過。腳本無法保證在停電、磁碟故障或被強制終止時恢復服務；中斷後請檢查：
+任何步驟報錯都先停止後續更新。備份腳本會印出失敗階段。若停服狀態檢查未通過，也會列出 `MainPID`、`ActiveState` 與 `Result`。若日誌顯示 `stop-sigterm` 逾時或 `Result=timeout`，先用 `sudo journalctl -u boardgame -n 100 --no-pager` 確認舊版已恢復。從較舊版本更新時，仍由舊版負責第一次停服。請等玩家離開、關閉遊戲分頁後，再於流量較少時重試。逾時或中途失敗的備份不應拿來還原。須有完整檔案且雜湊驗證通過。腳本無法保證在停電、磁碟故障或被強制終止時恢復服務。中斷後請檢查：
 
 ```bash
 sudo systemctl status boardgame --no-pager

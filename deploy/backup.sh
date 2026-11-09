@@ -62,9 +62,13 @@ boardgame_backup=$(mktemp -d "/var/backups/boardgame/$(date -u +%Y%m%dT%H%M%SZ)-
 boardgame_stopped=0
 boardgame_complete=0
 boardgame_keep_stopped=$5
+boardgame_step='recording backup metadata'
 boardgame_finish() {
   boardgame_result=$?
   trap - EXIT
+  if [ "$boardgame_complete" != 1 ]; then
+    printf 'Backup failed while %s (exit %s).\n' "$boardgame_step" "$boardgame_result" >&2
+  fi
   if [ "$boardgame_stopped" = 1 ] && [ "$boardgame_prior_state" = active ] &&
      { [ "$boardgame_complete" != 1 ] || [ "$boardgame_keep_stopped" != 1 ]; }; then
     if ! systemctl start boardgame; then
@@ -100,15 +104,25 @@ for boardgame_hook in \
     boardgame_config_files+=("${boardgame_hook#/}")
   fi
 done
+boardgame_step='archiving configuration'
 tar -czf "$boardgame_backup/config.tar.gz" -C / "${boardgame_config_files[@]}"
 
 # Mark this before stop so even a failed/partial stop attempts recovery.
+boardgame_step='stopping the service'
 boardgame_stopped=1
 systemctl stop boardgame
-test "$(systemctl show boardgame --property=MainPID --value)" = 0
-test "$(systemctl show boardgame --property=ActiveState --value)" = inactive
-test "$(systemctl show boardgame --property=Result --value)" = success
+boardgame_step='verifying a clean service stop'
+boardgame_main_pid=$(systemctl show boardgame --property=MainPID --value)
+boardgame_active_state=$(systemctl show boardgame --property=ActiveState --value)
+boardgame_stop_result=$(systemctl show boardgame --property=Result --value)
+if [ "$boardgame_main_pid" != 0 ] || [ "$boardgame_active_state" != inactive ] || [ "$boardgame_stop_result" != success ]; then
+  printf 'Service did not stop cleanly: MainPID=%s ActiveState=%s Result=%s\n' \
+    "$boardgame_main_pid" "$boardgame_active_state" "$boardgame_stop_result" >&2
+  exit 1
+fi
+boardgame_step='archiving game data'
 tar -czf "$boardgame_backup/data.tar.gz" -C /var/lib boardgame
+boardgame_step='verifying backup checksums'
 (
   cd "$boardgame_backup"
   sha256sum data.tar.gz config.tar.gz source-commit.txt runtime.txt apache-config-path.txt > SHA256SUMS

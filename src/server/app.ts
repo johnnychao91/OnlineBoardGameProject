@@ -2,7 +2,8 @@ import { creationKind, roomAdvertising, validAdSettings, validateRoomCodes, type
 import { mkdir, readFile } from 'node:fs/promises';
 import { createHmac } from 'node:crypto';
 import { resolve, join, relative, isAbsolute, sep } from 'node:path';
-import type { AddressInfo } from 'node:net';
+import type { Server as HttpServer } from 'node:http';
+import type { AddressInfo, Socket } from 'node:net';
 import type { Context } from 'koa';
 import serve from 'koa-static';
 import { Server } from 'boardgame.io/server';
@@ -361,7 +362,20 @@ export async function createApplication(config: AppConfig) {
     transport.getRoomQueue(roomId).add(async () => { await reconcileRoom(getRoom(roomId)); })
   )).then(() => undefined).finally(() => { sweepInFlight = undefined; });
   let statisticsInFlight: ReturnType<typeof collectStatistics> | undefined;
+  let stopping = false;
+  const requestsInFlight = new Set<Promise<unknown>>();
 
+  server.app.use(async (ctx, next) => {
+    if (stopping) {
+      ctx.set('Connection', 'close');
+      ctx.set('Cache-Control', 'no-store');
+      ctx.status = 503;
+      return;
+    }
+    const request = next();
+    requestsInFlight.add(request);
+    try { await request; } finally { requestsInFlight.delete(request); }
+  });
   server.app.use(async (ctx, next) => {
     ctx.set('Referrer-Policy', 'no-referrer');
     ctx.set('X-Content-Type-Options', 'nosniff');
@@ -999,7 +1013,12 @@ export async function createApplication(config: AppConfig) {
     db, rooms, server, config,
     async listen() {
       // v0.50.2's run() cannot bind host; listen explicitly and avoid default Lobby APIs.
-      const httpServer = server.app.listen(config.port, config.host);
+      const httpServer: HttpServer = server.app.listen(config.port, config.host);
+      const connections = new Set<Socket>();
+      httpServer.on('connection', socket => {
+        connections.add(socket);
+        socket.once('close', () => connections.delete(socket));
+      });
       await new Promise<void>((ok, reject) => { httpServer.once('listening', ok); httpServer.once('error', reject); });
       const port = (httpServer.address() as AddressInfo).port;
       const timer = setInterval(() => {
@@ -1014,17 +1033,30 @@ export async function createApplication(config: AppConfig) {
         void advanceBots().catch(() => { console.error('Test room bot reconciliation failed'); });
       }, config.botSweepMs ?? 2000);
       botTimer.unref();
-      return { port, async close() {
+      let closing: Promise<void> | undefined;
+      async function shutdown() {
+        stopping = true;
         clearInterval(timer);
         clearInterval(clockTimer);
         clearInterval(botTimer);
-        if (sweepInFlight) await sweepInFlight;
-        if (clockInFlight) await clockInFlight;
-        if (botsInFlight) await botsInFlight;
-        await new Promise<void>((done) => (server.app as any)._io.close(() => done()));
-        if (httpServer.listening) await new Promise<void>((done) => httpServer.close(() => done()));
+        const httpClosed = new Promise<void>(done => httpServer.close(() => done()));
+        const connectionsClosed = Promise.all([...connections].map(socket =>
+          new Promise<void>(done => socket.once('close', done)),
+        ));
+        // HTTP close alone leaves stalled requests and upgraded WebSockets waiting
+        // on the peer. Give them time to close, then release the underlying sockets.
+        const disconnect = setTimeout(() => {
+          for (const socket of connections) socket.destroy();
+        }, 2000);
+        const io: { close(): Promise<void> } = (server.app as any)._io;
+        const [ioClosed] = await Promise.allSettled([io.close(), httpClosed, connectionsClosed]);
+        clearTimeout(disconnect);
+        // Closing a client socket does not cancel an already accepted disk write.
+        await Promise.allSettled([sweepInFlight, clockInFlight, botsInFlight, ...requestsInFlight]);
         await transport.drain();
-      } };
+        if (ioClosed.status === 'rejected') throw ioClosed.reason;
+      }
+      return { port, close: () => closing ??= shutdown() };
     },
   };
 }

@@ -18,8 +18,16 @@ async function main() {
   });
   const running = await app.listen();
   console.log(`Boardgame API：http://${app.config.host}:${running.port}`);
-  const stop = async () => { await running.close(); process.exit(0); };
-  process.once('SIGINT', stop);
-  process.once('SIGTERM', stop);
+  let stopping = false;
+  const stop = () => {
+    if (stopping) return;
+    stopping = true;
+    void running.close().then(() => process.exit(0), () => {
+      console.error('Boardgame could not shut down cleanly.');
+      process.exit(1);
+    });
+  };
+  process.on('SIGINT', stop);
+  process.on('SIGTERM', stop);
 }
 main().catch((error) => { console.error((error as Error).message); process.exitCode = 1; });
