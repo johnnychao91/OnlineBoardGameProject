@@ -88,18 +88,20 @@ async function fixture() {
     const index = group.seats.findIndex(seat => seat.playerID === id), socket = group.clients[index];
     expect(socket.connected, `Connected before move: ${context}`).toBe(true);
     emitMove(group, id, type, args, before._stateID);
-    // The engine broadcasts before persisting. A sync on this socket is queued
-    // behind the move and acknowledges completion of both state and metadata writes.
-    const committed = await sync(socket, group, group.seats[index], `Move completion: ${context}`);
-    expect(committed.state._stateID, `Committed move: ${context}`).toBe(before._stateID + 1);
-    const after = await state(group.matchID);
-    expect(after._stateID, `Persisted move: ${context}`).toBe(before._stateID + 1);
+    const expectedVersion = before._stateID + 1;
     await vi.waitFor(() => group.clients.forEach((client, clientIndex) => {
-      // Keep update delivery separate from sync so the barrier cannot mask a lost broadcast.
-      expect(broadcasts.get(client), `Broadcast to ${group.seats[clientIndex].playerID}: ${context}`).toBe(after._stateID);
-      expect(views.get(client)?._stateID).toBe(after._stateID);
+      expect(broadcasts.get(client), `Broadcast to ${group.seats[clientIndex].playerID}: ${context}`).toBe(expectedVersion);
+      expect(views.get(client)?._stateID).toBe(expectedVersion);
     }), ioWait);
-    return after;
+    // The engine broadcasts before persisting. Check storage separately without
+    // sending a sync that would rewrite connection metadata after every move.
+    return vi.waitFor(async () => {
+      const after = await state(group.matchID);
+      expect(after._stateID).toBe(expectedVersion);
+      return after;
+    }, ioWait).catch(error => {
+      throw new Error(`Persisted move: ${context}`, { cause: error });
+    });
   };
   const rejectMove = async (group: Group, id: string, type: string, args: unknown[]) => {
     const index = group.seats.findIndex(seat => seat.playerID === id), seat = group.seats[index];
@@ -107,7 +109,7 @@ async function fixture() {
     emitMove(group, id, type, args, before._stateID);
     // An authorized sync is serialized behind the preceding move in this room.
     // It is a deterministic barrier, not a timing-based guess that no write occurred.
-    await sync(socket, group, seat);
+    await sync(socket, group, seat, `Rejected move barrier: ${type} by ${id}; rules v${before.G.rulesVersion}, round ${before.G.round}, ${before.G.status}, epoch ${before.G.epoch}`);
     expect(await state(group.matchID)).toEqual(before);
   };
   return { request, connect, sync, state, move, emitMove, rejectMove, views, wireLogs, get app() { return app; },
@@ -246,11 +248,12 @@ describe('Turing custom questions, private answers and replay integration', () =
     expect(result.value!._stateID).toBe(before._stateID + 1);
     expect(result.value!.G).toMatchObject({ epoch: before.G.epoch + 1, tableOrder: [cardID, ...order.slice(0, 9)] });
     for (const socket of g.clients) expect(f.views.get(socket)?._stateID).toBe(result.value!._stateID);
-    await expect(f.move(g, g.seats[8].playerID, 'placeCard', [cardID, 9, before.G.epoch]))
-      .rejects.toThrow('Committed move: placeCard by 8;');
+    await f.rejectMove(g, g.seats[8].playerID, 'placeCard', [cardID, 9, before.G.epoch]);
     expect(await f.state(g.matchID)).toEqual(result.value);
   }, 30000);
 
+  // Full matches include up to seven rounds of durable writes and two server
+  // restarts. Keep the per-operation I/O limit separate from the case budget.
   it.each([
     { count: 2, version: 2, sortingMode: 'examiner' }, { count: 3, version: 2, sortingMode: 'examiner' },
     { count: 2, version: 3, sortingMode: 'examiner' }, { count: 3, version: 3, sortingMode: 'examiner' },
@@ -360,7 +363,7 @@ describe('Turing custom questions, private answers and replay integration', () =
     }
     const restored = (await f.request(path(g.host), undefined, g.host)).body;
     expect(restored.history).toEqual(lobby.history);
-  }, 30000);
+  }, 60000);
 
   it('refuses ten-player examiner starts without changing the room, then starts the same members after switching to group calibration', async () => {
     const f = await fixture(), g = await group(f, 10);
