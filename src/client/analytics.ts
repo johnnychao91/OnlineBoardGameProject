@@ -6,14 +6,14 @@ let started: Promise<void> | undefined;
 /** Only public page categories enter Analytics, never room IDs or URL tokens. */
 export function analyticsPage(pathname: string) {
   const path = pathname.replace(/\/$/, '') || '/';
-  if (path === '/' || path === '/index.html') return { path: '/', title: '捷寶桌遊室' };
-  if (['/privacy', '/privacy.html'].includes(path)) return { path: '/privacy', title: '隱私權政策｜捷寶桌遊室' };
-  if (path === '/rules') return { path, title: '遊戲規則｜捷寶桌遊室' };
+  if (path === '/' || path === '/index.html') return { path: '/', title: '未央酒肆 Endless Bar' };
+  if (['/privacy', '/privacy.html'].includes(path)) return { path: '/privacy', title: '隱私權政策｜未央酒肆 Endless Bar' };
+  if (path === '/rules') return { path, title: '遊戲規則｜未央酒肆 Endless Bar' };
   const rules = /^\/rules\/([a-z0-9-]+)$/.exec(path);
-  if (rules && isGameID(rules[1])) return { path, title: `${gameCatalog[rules[1]].name}規則｜捷寶桌遊室` };
+  if (rules && isGameID(rules[1])) return { path, title: `${gameCatalog[rules[1]].name}規則｜未央酒肆 Endless Bar` };
   const room = /^\/(room|join|replay)\/[A-Za-z0-9_-]+$/.exec(path);
-  if (room) return { path: '/' + room[1], title: `${{ room: '遊戲房間', join: '加入房間', replay: '公開復盤' }[room[1]]}｜捷寶桌遊室` };
-  return { path: '/other', title: '其他頁面｜捷寶桌遊室' };
+  if (room) return { path: '/' + room[1], title: `${{ room: '遊戲房間', join: '加入房間', replay: '公開復盤' }[room[1]]}｜未央酒肆 Endless Bar` };
+  return { path: '/other', title: '其他頁面｜未央酒肆 Endless Bar' };
 }
 
 /** Runtime settings are optional. Failed configuration / blocked tags never block play. */

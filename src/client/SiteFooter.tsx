@@ -23,7 +23,7 @@ export function SiteFooter() {
   const room = /^\/room\/([A-Za-z0-9_-]{16})\/?$/.exec(route.split('?')[0])?.[1];
   const privacyPath = roomContextPath('/privacy', room);
   return <footer className="site-footer" aria-label="網站資訊">
-    <div>Version {version} © {new Date().getFullYear()} JieBao | JohnnyChao</div>
+    <div>Version {version} © {new Date().getFullYear()} TOLANIR | JohnnyChao</div>
     <div>Contact us：<a data-google-vignette="false" href={contact?.href ?? privacyPath + '#contact'} rel="noopener noreferrer">{contact?.label ?? '聯絡方式'}</a></div>
     <a data-google-vignette="false" className="site-footer-privacy" href={privacyPath}>Privacy Policy</a>
   </footer>;

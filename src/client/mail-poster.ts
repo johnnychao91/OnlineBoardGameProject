@@ -98,7 +98,7 @@ export async function createMailPoster(options: PosterOptions): Promise<Blob> {
   write(ctx, model.outcome, 92, 1090, 33, '#f1dba5', 750);
   fit(ctx, model.champions.length ? `獲勝者：${model.champions.join('、')}` : '每一封留下的信，都藏著下一個選擇。', 93, 1137, 890, 24, '#d4dcc5');
   write(ctx, '公開戰報只收錄已知事件，不包含信袋與私人查驗。', 93, 1180, 19, '#aabcaa');
-  write(ctx, '捷寶桌遊室', 66, 1284, 25, '#eee3c8', 650);
+  write(ctx, '未央酒肆', 66, 1284, 25, '#eee3c8', 650);
   ctx.save(); ctx.textAlign = 'right'; write(ctx, '午夜郵局 / PUBLIC DELIVERY REPORT', 1013, 1280, 15, '#9cac9d'); ctx.restore();
   return new Promise<Blob>((resolve, reject) => canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('投遞戰報產生失敗，請重試。')), 'image/png'));
 }

@@ -83,6 +83,6 @@ export async function createFogPoster(options: FogPosterOptions): Promise<Blob> 
   for (let q = 1; q <= 5; q++) { const result = model.lighthouses.find(item => item.quest === q); const x = 107 + (q - 1) * 177; box(ctx, x, 1010, 151, 68, result ? result.succeeded ? '#254039' : '#453039' : '#202b32', '#657164'); text(ctx, `${q} · ${result ? result.succeeded ? '點亮' : '失守' : '待命'}`, x + 18, 1053, 25, result ? result.succeeded ? green : red : muted, 650); }
   text(ctx, model.outcome === 'knights' ? '守夜騎士獲勝 · 城門仍有光' : model.outcome === 'apostles' ? '黑霧使徒獲勝 · 黑霧已入城' : '巡夜尚未結束 · 每一步都值得推敲', 98, 1145, 31, model.outcome === 'apostles' ? red : gold, 700, 860);
   ctx.strokeStyle = '#64705e'; ctx.beginPath(); ctx.moveTo(74, 1235); ctx.lineTo(1006, 1235); ctx.stroke();
-  text(ctx, '捷寶桌遊室', 74, 1290, 25, ink, 650); ctx.save(); ctx.textAlign = 'right'; text(ctx, '公開事件戰報 / BLACK FOG', 1006, 1288, 17, muted); ctx.restore();
+  text(ctx, '未央酒肆', 74, 1290, 25, ink, 650); ctx.save(); ctx.textAlign = 'right'; text(ctx, '公開事件戰報 / BLACK FOG', 1006, 1288, 17, muted); ctx.restore();
   return new Promise((resolve, reject) => canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('巡夜戰報產生失敗，請重試。')), 'image/png'));
 }

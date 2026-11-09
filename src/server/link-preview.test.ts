@@ -7,9 +7,9 @@ import { createApplication } from './app';
 import { createPreviewPage } from './link-preview';
 
 const publicOrigin = 'https://boardgame.example.com';
-const iconPath = '/assets/site-icon-test-fingerprint.png';
-const coverPath = '/social/boardgame-cover-v1.jpg';
-const title = '捷寶桌遊室｜揪朋友，隨時開一桌';
+const iconPath = '/endless-bar-icon.svg';
+const coverPath = '/social/endless-bar-cover-v1.jpg';
+const title = '未央酒肆 Endless Bar';
 const description = '免下載、免註冊的多人線上桌遊。開房分享連結，就能和朋友一起推理、合作、冒險，還能即時觀戰與賽後復盤。';
 const roomCode = 'test-only-preview-room-key';
 const gameRulesPaths = GAME_IDS.map(id => `/rules/${id}`);
@@ -23,11 +23,9 @@ async function fixture() {
     await rm(root, { recursive: true, force: true });
   });
   const clientDir = join(root, 'client');
-  await mkdir(join(clientDir, 'assets'), { recursive: true });
-  await mkdir(join(clientDir, 'social'));
-  const original = await readFile(resolve('index.html'), 'utf8');
-  const template = original.replace('/src/client/assets/site-icon.png', iconPath);
-  const icon = await readFile(resolve('src/client/assets/site-icon.png'));
+  await mkdir(join(clientDir, 'social'), { recursive: true });
+  const template = await readFile(resolve('index.html'), 'utf8');
+  const icon = await readFile(resolve('public' + iconPath));
   await writeFile(join(clientDir, 'index.html'), template);
   await writeFile(join(clientDir, iconPath.slice(1)), icon);
   const cover = await readFile(resolve('public' + coverPath));
@@ -70,7 +68,8 @@ describe('Public link previews', () => {
       const html = await response.text();
       expect(html).toContain(`<title>${title}</title>`);
       expect(metadata(html, 'og:title')).toEqual([title]);
-      expect(metadata(html, 'og:site_name')).toEqual(['捷寶桌遊室']);
+      expect(metadata(html, 'og:site_name')).toEqual([title]);
+      expect(html).toContain('rel="icon" type="image/svg+xml" href="' + iconPath + '"');
       expect(metadata(html, 'og:type')).toEqual(['website']);
       expect(metadata(html, 'og:locale')).toEqual(['zh_TW']);
       for(const key of ['description','og:description','twitter:description'])expect(metadata(html,key)).toEqual([description]);
@@ -79,7 +78,7 @@ describe('Public link previews', () => {
       expect(metadata(html, 'og:image:type')).toEqual(['image/jpeg']);
       expect(metadata(html, 'og:image:width')).toEqual(['1200']);
       expect(metadata(html, 'og:image:height')).toEqual(['630']);
-      expect(metadata(html, 'og:image:alt')).toEqual(['暖燈下的卡牌、骰子與冒險地圖，搭配捷寶桌遊室與朋友到齊，隨時開一桌標題']);
+      expect(metadata(html, 'og:image:alt')).toEqual(['未央酒肆的雲海夜景，燈籠照亮桌上的牌、骰子和酒杯']);
       expect(metadata(html, 'og:url')).toEqual([publicOrigin + (path === '/index.html' ? '/' : path)]);
       expect(metadata(html, 'twitter:title')).toEqual([title]);
       expect(metadata(html, 'twitter:image')).toEqual([publicOrigin + coverPath]);
@@ -96,7 +95,7 @@ describe('Public link previews', () => {
     expect(imageHead.status).toBe(200);expect(imageHead.headers.get('content-type')).toContain('image/jpeg');
     expect(Number(imageHead.headers.get('content-length'))).toBe(f.cover.length);expect(await imageHead.text()).toBe('');
     const icon = await f.request(iconPath);
-    expect(icon.status).toBe(200);expect(Buffer.from(await icon.arrayBuffer())).toEqual(f.icon);
+    expect(icon.status).toBe(200);expect(icon.headers.get('content-type')).toContain('image/svg+xml');expect(Buffer.from(await icon.arrayBuffer())).toEqual(f.icon);
     expect(f.app.rooms.rooms.size).toBe(0);
   });
 

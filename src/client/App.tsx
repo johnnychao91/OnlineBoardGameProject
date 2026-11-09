@@ -50,8 +50,8 @@ function Home({ onEnter }: { onEnter: (seat: AuthSession) => void }) {
     } catch (e) { setError((e as Error).message); } finally { setBusy(false); }
   }
   return <div className="home-page page-home" data-art-game={background}><Header background={{ gameID: background, onChange: selectBackground }} /><main className="home-layout">
-    <section className="intro"><div className="eyebrow"><span className="status-dot" /> YOUR NEXT GAME STARTS HERE</div>
-      <h1>朋友到齊，<br />今晚開哪一桌？</h1><p className="intro-copy">先開房、邀朋友，再一起選遊戲。<br />有人上場、有人觀戰，每個人都有位置。</p>
+    <section className="intro"><div className="eyebrow"><span className="status-dot" /> ENDLESS BAR</div>
+      <h1>夜未央，酒肆不眠。</h1><p className="intro-copy">邀三五知己，相聚雲間；或對弈爭鋒，或同心共謀，盡享方寸之樂。</p>
       <div className="station-illustration" aria-hidden="true"><div className="orbit-ring one" /><div className="orbit-ring two" /><span className="planet" /><div className="station-object"><div className="solar-panel" /><div className="station-body"><Icon type="orbit" size={44} /><span>FRIENDS AT THE TABLE</span></div><div className="solar-panel" /></div><span className="orbital-label">ONE ROOM / MANY GAMES</span></div>
       <div className="feature-row"><span><Icon type="link" /> 一鍵邀請</span><span><Icon type="signal" /> 房內換遊戲</span></div>
     </section>

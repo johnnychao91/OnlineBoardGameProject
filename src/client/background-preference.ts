@@ -2,10 +2,10 @@ import { useEffect, useState } from 'react';
 import { GAME_IDS, isGameID, type GameID } from '../games/catalog';
 
 export const BACKGROUND_KEY = 'friends-table.background.v1';
-export type BackgroundID = 'jiebao-studio' | GameID;
-export const BACKGROUND_IDS: BackgroundID[] = ['jiebao-studio', ...GAME_IDS];
-const isBackgroundID = (value: string): value is BackgroundID => value === 'jiebao-studio' || isGameID(value);
-const DEFAULT_BACKGROUND: BackgroundID = 'jiebao-studio';
+export type BackgroundID = 'endless-bar' | 'jiebao-studio' | GameID;
+const DEFAULT_BACKGROUND = 'endless-bar';
+export const BACKGROUND_IDS: readonly BackgroundID[] = [DEFAULT_BACKGROUND, 'jiebao-studio', ...GAME_IDS];
+const isBackgroundID = (value: string): value is BackgroundID => value === DEFAULT_BACKGROUND || value === 'jiebao-studio' || isGameID(value);
 
 export function rememberedBackground(): BackgroundID {
   try {

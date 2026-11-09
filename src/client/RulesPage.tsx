@@ -55,7 +55,7 @@ export function RulesPage({ gameID }: { gameID?: RulesGameID }) {
         <PlatformRules />
       </article>
     </div>
-    <p className="rules-return"><a data-google-vignette="false" href="/">回到捷寶桌遊室 →</a>{game && <span>從房間開啟規則時，關閉此分頁即可回到原本的牌桌。</span>}</p>
+    <p className="rules-return"><a data-google-vignette="false" href="/">回到未央酒肆 →</a>{game && <span>從房間開啟規則時，關閉此分頁即可回到原本的牌桌。</span>}</p>
   </main></div>;
 }
 

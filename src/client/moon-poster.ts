@@ -76,7 +76,7 @@ export async function createMoonPoster(options: MoonPosterOptions): Promise<Blob
   const result = model.outcome === 'town' ? '好人獲勝 · 列車駛向晨光' : model.outcome === 'wolves' ? '狼人獲勝 · 滿月掌握列車' : model.outcome === 'draw' ? '平局 · 雙方全數離場' : '旅程仍在繼續 · 留下這一刻';
   text(ctx, result, 70, 1158, 36, model.outcome === 'wolves' ? '#ff9ca3' : '#e7c98f', 700, 950);
   ctx.strokeStyle = '#786f5e'; ctx.beginPath(); ctx.moveTo(70, 1227); ctx.lineTo(1010, 1227); ctx.stroke();
-  text(ctx, '捷寶桌遊室', 70, 1290, 26, '#eee8d9', 650);
+  text(ctx, '未央酒肆', 70, 1290, 26, '#eee8d9', 650);
   ctx.save(); ctx.textAlign = 'right'; text(ctx, '公開事件戰報 / SILVER MOON', 1010, 1288, 18, '#aeb8c7'); ctx.restore();
   return new Promise((resolve, reject) => canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('列車戰報產生失敗，請重試。')), 'image/png'));
 }

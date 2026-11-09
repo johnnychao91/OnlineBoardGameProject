@@ -98,7 +98,7 @@ export async function createBakerPoster(options: PosterOptions): Promise<Blob> {
     fit(ctx, `執行者：${model.solution.murderer}`, 92, 1264, 900, 22, '#d8dec7');
     fit(ctx, `${model.solution.means} ＋ ${model.solution.clue}`, 92, 1306, 900, 24, '#e1cea2', 650);
   } else write(ctx, '秘密身分與未公開案情不會出現在公開戰報。', 92, 1284, 21, '#c4cfb9');
-  write(ctx, '捷寶桌遊室', 65, 1392, 23, '#ede0bd', 650);
+  write(ctx, '未央酒肆', 65, 1392, 23, '#ede0bd', 650);
   ctx.save(); ctx.textAlign = 'right'; write(ctx, '貝克街迷霧 / PUBLIC CASE REPORT', 1014, 1389, 14, '#9bac9a'); ctx.restore();
   return new Promise<Blob>((resolve, reject) => canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('案件戰報產生失敗，請重試。')), 'image/png'));
 }

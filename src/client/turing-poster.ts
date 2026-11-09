@@ -68,6 +68,6 @@ export async function createTuringPoster(options: PosterOptions): Promise<Blob> 
   text('揭曉順序', 65, 1070, 23, '#a8c0bb');
   const sequenceStep = Math.min(117, 952 / Math.max(1, model.sequence.length));
   model.sequence.forEach((entry, i) => { box(64 + i * sequenceStep, 1092, Math.min(99, sequenceStep - 12), 64, entry.error ? '#593743' : '#24453e'); text(String(entry.number), 84 + i * sequenceStep, 1136, 32, entry.error ? '#ffb2bb' : '#c0f4de'); });
-  text(model.result, 64, 1220, 32); text('捷寶桌遊室', 64, 1300, 23); text(`復盤 ${model.step} / ${model.totalSteps}`, 770, 1300, 20, '#a8c0bb');
+  text(model.result, 64, 1220, 32); text('未央酒肆', 64, 1300, 23); text(`復盤 ${model.step} / ${model.totalSteps}`, 770, 1300, 20, '#a8c0bb');
   return new Promise((resolve, reject) => canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('戰報產生失敗，請重試。')), 'image/png'));
 }

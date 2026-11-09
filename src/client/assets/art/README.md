@@ -3,7 +3,7 @@
 所有插畫使用內建 `image_gen` 工具生成並經人工檢視。兩張場景原始 PNG 為 1536 × 1024，保留不透明背景；環境不代表任何玩家身分、設備位置、訊號數字或對局狀態。設備與身分插畫只裝飾已授權顯示的內容，文字、數字與操作仍由程式繪製。
 
 - `ink-space-station.png`：太空維修站場景，用於美術模式的頁面背景與主題卡片。
-- `home-table-v1.jpg`：首頁介紹區及「捷寶桌遊室」背景使用的 1200 × 630 無字桌遊室插圖，由分享封面去字製作；原本的有字社群封面保留。[來源與編輯提示](../../../../docs/SHARING_PREVIEW.md#首頁無字版本)。
+- `home-table-v1.jpg`：「捷寶桌遊室」背景使用的 1200 × 630 無字桌遊室插圖，由分享封面去字製作；原本的有字社群封面保留。[來源與編輯提示](../../../../docs/SHARING_PREVIEW.md#首頁無字版本)。
 - `ink-cipher-room.png`：諜報通訊室場景，用於美術模式的頁面背景與主題卡片。
 - `ink-stable-equipment.png`、`ink-repair-module.png`、`ink-reactor-crisis.png`：透明設備插畫，用於授權牌面、私人組成與公開檢修紀錄。[完整設備提示](DEVICE-PROMPTS.md)。
 - `ink-engineer.png`、`ink-saboteur.png`：透明角色插畫，僅出現在已知身分欄。

@@ -1,12 +1,12 @@
 # 分享連結封面
 
-網站小圖示與社群封面分開：favicon 沿用既有品牌圖，Open Graph／Twitter 使用 `public/social/boardgame-cover-v1.jpg`。封面為 1200 × 630 JPEG，235 KB 左右，維持低於 512 KB；圖片實際尺寸與 HTTP GET／HEAD 由分享預覽整合測試驗證。
+瀏覽器分頁使用 `public/endless-bar-icon.svg` 的星光酒杯圖案。Open Graph／Twitter 使用 `public/social/endless-bar-cover-v1.jpg`，由雲間酒肆插畫裁成 1200 × 630 JPEG。分享預覽整合測試會驗證封面尺寸與 HTTP GET／HEAD。
 
 ## 文案與輸出
 
-- 標題：捷寶桌遊室｜揪朋友，隨時開一桌
+- 標題：未央酒肆 Endless Bar
 - 描述：免下載、免註冊的多人線上桌遊。開房分享連結，就能和朋友一起推理、合作、冒險，還能即時觀戰與賽後復盤。
-- 圖片替代文字：暖燈下的卡牌、骰子與冒險地圖，搭配捷寶桌遊室與朋友到齊，隨時開一桌標題
+- 圖片替代文字：未央酒肆的雲海夜景，燈籠照亮桌上的牌、骰子和酒杯
 
 `index.html` 的 `image_src` 指向獨立封面。伺服器使用私有 `PUBLIC_ORIGIN` 產生圖片與頁面絕對網址，不將實際部署網址寫入原始碼。網站、邀請、房間、回放與全部已登錄遊戲的規則頁共用相同封面，不讀取房內玩家或遊戲狀態。Twitter 使用 `summary_large_image`，Open Graph 明確提供圖片格式、尺寸、替代文字與 HTTPS 圖片網址。
 
@@ -14,9 +14,17 @@
 
 更換美術時新增版本檔名並同步修改 `image_src`；舊貼文是否重新擷取以及是否顯示描述，仍由各社群平台決定，部署成功不代表既有分享卡片立即更新。
 
-## 首頁無字版本
+## 未央酒肆插畫
 
-`src/client/assets/art/home-table-v1.jpg` 是首頁介紹區及可選背景「捷寶桌遊室」的獨立插圖，使用內建 imagegen 編輯原分享封面，移除文字及分隔裝飾線，保留桌遊室構圖；輸出縮放為 1200 × 630 JPEG，約 245 KB。首頁依圖片比例呈現，不修改有字社群封面、分享 metadata 或各遊戲背景。
+首頁插圖與預設背景使用 `src/client/assets/art/endless-bar-tavern.webp`。原圖使用內建 imagegen 生成，以 Tolanir 的粉彩水彩地平線配色和未央酒肆的雲間酒館為美術參考。
+
+```text
+Use case: stylized-concept. Asset type: ultra-wide website background for 未央酒肆 / Endless Bar, a fantasy board-game tavern in the clouds. Create a new original 16:9 landscape painting, a nocturnal counterpart to Tolanir's pastel watercolor horizon: grainy watercolor paper, sweeping lilac mist, indigo sky, lavender waves of clouds and a delicate thin champagne-gold celestial arc. View from inside an elegant intimate fantasy tavern above the clouds. Wide open arched window with dark violet layered cloud sea and a distant moon on the upper right, warm small hanging lanterns, shelves of bottles, wooden table in lower foreground with dice, cards, and two small goblets. Welcoming, literary and dreamlike. Strong edge framing, calmer lower-contrast central area for white web UI text, rich dark indigo/lavender values and sparing gold lights. Artwork only, no people, text, logos, watermark, or UI.
+```
+
+## 捷寶桌遊室無字版本
+
+`src/client/assets/art/home-table-v1.jpg` 是可選背景「捷寶桌遊室」的獨立插圖。先前使用內建 imagegen 從原分享封面移除文字和分隔線，保留桌遊室構圖，再輸出為 1200 × 630 JPEG。
 
 編輯提示：
 

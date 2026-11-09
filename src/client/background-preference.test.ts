@@ -16,7 +16,7 @@ afterEach(() => vi.unstubAllGlobals());
 
 describe('Public-page background preference', () => {
   it('persists every catalog background and safely defaults for missing, invalid or inaccessible storage', () => {
-    expect(rememberedBackground()).toBe('jiebao-studio');
+    expect(rememberedBackground()).toBe('endless-bar');
     for (const id of BACKGROUND_IDS) {
       expect(rememberBackground(id)).toBe(true);
       expect(rememberedBackground()).toBe(id);
@@ -26,11 +26,11 @@ describe('Public-page background preference', () => {
       expect(rememberBackground(invalid)).toBe(false);
       expect(rememberedBackground()).toBe(GAME_IDS.at(-1));
       values.set(BACKGROUND_KEY, invalid);
-      expect(rememberedBackground()).toBe('jiebao-studio');
+      expect(rememberedBackground()).toBe('endless-bar');
       rememberBackground(GAME_IDS.at(-1)!);
     }
     vi.stubGlobal('localStorage', { getItem() { throw new Error('blocked'); }, setItem() { throw new Error('full'); } });
-    expect(rememberedBackground()).toBe('jiebao-studio');
+    expect(rememberedBackground()).toBe('endless-bar');
     expect(rememberBackground('silver-moon')).toBe(true);
   });
 
@@ -39,7 +39,7 @@ describe('Public-page background preference', () => {
     const header = renderToStaticMarkup(createElement(Header, { background: { gameID: rememberedBackground(), onChange: () => {} } }));
     expect(header).toContain('aria-label="選擇遊戲背景"');
     expect(header).toContain('value="midnight-post" selected=""');
-    expect([...header.matchAll(/<option value="([^"]+)"/g)].map(match => match[1])).toEqual(['jiebao-studio', ...GAME_IDS]);
+    expect([...header.matchAll(/<option value="([^"]+)"/g)].map(match => match[1])).toEqual(['endless-bar', 'jiebao-studio', ...GAME_IDS]);
     expect(header).toContain('value="jiebao-studio">捷寶桌遊室</option>');
     expect(header).not.toContain('試玩版');
     const overview = renderToStaticMarkup(createElement(RulesPage));

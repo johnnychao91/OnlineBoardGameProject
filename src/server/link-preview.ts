@@ -1,7 +1,7 @@
-const SITE_NAME = '捷寶桌遊室';
-const TITLE = '捷寶桌遊室｜揪朋友，隨時開一桌';
+const SITE_NAME = '未央酒肆 Endless Bar';
+const TITLE = '未央酒肆 Endless Bar';
 const DESCRIPTION = '免下載、免註冊的多人線上桌遊。開房分享連結，就能和朋友一起推理、合作、冒險，還能即時觀戰與賽後復盤。';
-const IMAGE_ALT = '暖燈下的卡牌、骰子與冒險地圖，搭配捷寶桌遊室與朋友到齊，隨時開一桌標題';
+const IMAGE_ALT = '未央酒肆的雲海夜景，燈籠照亮桌上的牌、骰子和酒杯';
 const escapeAttribute = (value: string) => value.replace(/[&<>"']/g, character => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
 })[character]!);
