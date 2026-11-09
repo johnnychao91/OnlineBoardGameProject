@@ -45,6 +45,52 @@
 :root:root [data-baker-era="wartime"] { --art-scene: url('./assets/baker/scene-wartime.webp'); }
 :root:root [data-baker-era="modern"] { --art-scene: url('./assets/baker/scene-modern.webp'); }
 
+/* Use the page's scene, rather than the artwork on individual rule cards, to
+   tint the common interface and the footer that sits beside the page. */
+#root {
+  --theme-hue: 168;
+  --theme-dark: hsl(var(--theme-hue) 24% 8%);
+  --theme-panel: hsl(var(--theme-hue) 23% 12%);
+  --theme-surface: hsl(var(--theme-hue) 22% 16%);
+  --theme-raised: hsl(var(--theme-hue) 23% 21%);
+  --theme-border: hsl(var(--theme-hue) 14% 44%);
+  --theme-text: hsl(var(--theme-hue) 19% 86%);
+  --theme-title: hsl(var(--theme-hue) 35% 87%);
+  --theme-accent: hsl(var(--theme-hue) 39% 73%);
+  --theme-action: hsl(var(--theme-hue) 35% 26%);
+  --theme-action-hover: hsl(var(--theme-hue) 37% 31%);
+  --theme-overlay: hsl(var(--theme-hue) 29% 9% / 52%);
+  --theme-overlay-deep: hsl(var(--theme-hue) 29% 8% / 88%);
+  --line: var(--theme-border);
+  --border: var(--theme-border);
+  --muted: hsl(var(--theme-hue) 15% 72%);
+  --text: var(--theme-text);
+  color: var(--theme-text);
+}
+
+#root:has(> [data-art-game="endless-bar"]) { --theme-hue: 263; }
+#root:has(> [data-art-game="jiebao-studio"]) { --theme-hue: 43; }
+#root:has(> [data-art-game="encrypted-call"]) { --theme-hue: 201; }
+#root:has(> [data-art-game="black-fog"]) { --theme-hue: 215; }
+#root:has(> [data-art-game="silver-moon"]) { --theme-hue: 344; }
+#root:has(> [data-art-game="turing-test"]) { --theme-hue: 153; }
+#root:has(> [data-art-game="midnight-post"]) { --theme-hue: 34; }
+#root:has(> [data-art-game="baker-street"]) { --theme-hue: 73; }
+#root:has(> [data-art-game="hundred-ghosts"]) { --theme-hue: 284; }
+#root:has(> [data-art-game="curtain-heist"]) { --theme-hue: 359; }
+#root:has(> [data-art-game="firewall-breach"]) { --theme-hue: 182; }
+#root:has(> [data-art-game="star-workshop"]) { --theme-hue: 230; }
+
+#root :is(.home-page, .rules-page, .room-lobby) { --mint: var(--theme-accent); }
+#root > .site-footer { color: var(--theme-text); }
+#root > .site-footer .site-footer-privacy { color: var(--theme-accent); }
+
+:root:root .invite-card {
+  background: linear-gradient(135deg, var(--theme-raised), var(--theme-panel));
+  border-color: var(--theme-border);
+}
+:root:root .invite-heading p { color: var(--muted); }
+
 :root:root body { isolation: isolate; }
 :root:root :is(.home-page, .join-page, .room-page, .shared-replay-page, .rules-page) {
   background: transparent;
@@ -57,58 +103,62 @@
   inset: 0;
   z-index: -1;
   pointer-events: none;
-  background-color: #101719;
-  background-image: linear-gradient(180deg, #0c141b80, #0c141bd9), var(--art-scene);
+  background-color: var(--theme-dark);
+  background-image: linear-gradient(180deg, var(--theme-overlay), var(--theme-overlay-deep)), var(--art-scene);
   background-position: center;
   background-size: cover;
 }
 :root:root :is(.home-page, .join-page, .room-lobby, .rules-page) { min-height: 100dvh; }
 :root:root .site-header {
-  background: #0d151be8;
-  border-bottom-color: #8d91714d;
+  background: var(--theme-dark);
+  border-bottom-color: var(--theme-border);
 }
+:root:root .header-rules-link { color: var(--theme-accent); }
 :root:root :is(h1, h2) {
   font-family: Georgia, 'Noto Serif TC', 'PMingLiU', serif;
-  color: #f0e7ce;
+  color: var(--theme-title);
 }
-:root:root .intro-copy { color: #d6d9c9; }
+:root:root :is(.intro-copy, .create-panel form > label, .feature-row, .room-flexibility) { color: var(--theme-text); }
+:root:root .note > svg { color: var(--theme-accent); }
 :root:root .intro h1 { text-shadow: 2px 3px 0 #080e13, 0 0 28px #000; }
 
 /* Flat, opaque reading surfaces keep the illustration behind public text. */
 :root:root :is(.panel, .note, .action-dock, .spectator-roster-panel) {
-  background-color: #182323;
-  background-image: repeating-linear-gradient(164deg, #b5aa7e05 0 1px, transparent 1px 5px), linear-gradient(120deg, #222e2bf5, #131d22fa);
-  border-color: #747862;
+  background-color: var(--theme-panel);
+  background-image: repeating-linear-gradient(164deg, #ffffff06 0 1px, transparent 1px 5px), linear-gradient(120deg, var(--theme-surface), var(--theme-panel));
+  border-color: var(--theme-border);
   border-radius: 9px 13px 8px 12px;
   box-shadow: inset 0 0 0 3px #0a111533, 0 4px 14px #0004;
 }
 :root:root :is(input:not([type="range"]):not([type="checkbox"]), select) {
-  background-color: #101c20;
-  color: #eee9d9;
-  border-color: #717c68;
+  background-color: var(--theme-dark);
+  color: var(--theme-text);
+  border-color: var(--theme-border);
 }
-:root:root input::placeholder { color: #a4b1a5; }
+:root:root input::placeholder { color: var(--muted); }
 :root:root .button.primary {
-  background: #c4d7a7;
-  color: #17231c;
-  border-color: #dfdfae;
-  box-shadow: inset 0 -3px 0 #52674433, 1px 3px 0 #070f13;
+  background: var(--theme-action);
+  color: var(--theme-title);
+  border-color: var(--theme-border);
+  box-shadow: inset 0 -3px 0 #0003, 1px 3px 0 #070f13;
+}
+:root:root .button.primary:not(:disabled):hover {
+  background: var(--theme-action-hover);
 }
 :root:root .button.primary:disabled {
-  background: #3e4b3c;
-  color: #bbc5af;
-  border-color: #68745d;
+  background: var(--theme-raised);
+  color: var(--muted);
   box-shadow: none;
 }
 :root:root .button.secondary {
-  background: #1b2929;
-  border-color: #697960;
-  color: #e5e8d7;
+  background: var(--theme-surface);
+  border-color: var(--theme-border);
+  color: var(--theme-text);
 }
 :root:root :is(.room-tag, .beta-tag, .round-badge) {
-  background: #172327;
-  border-color: #75806a;
-  color: #d0d9bd;
+  background: var(--theme-raised);
+  border-color: var(--theme-border);
+  color: var(--theme-accent);
 }
 
 /* Illustration windows are decorative, with no hidden or randomly assigned
@@ -117,7 +167,7 @@
   height: auto;
   aspect-ratio: 40 / 21;
   background: var(--art-endless-bar) center / cover;
-  border: 1px solid #989476;
+  border: 1px solid var(--theme-border);
   border-radius: 11px 22px 12px 24px;
   box-shadow: inset 0 0 0 4px #111a21, 0 12px 40px #0005;
   overflow: hidden;
@@ -130,14 +180,14 @@
   height: 104px;
   margin-bottom: 16px;
   background: linear-gradient(0deg, #0d171d66, transparent), var(--art-scene) center 46% / cover;
-  border: 1px solid #7c826a;
+  border: 1px solid var(--theme-border);
   border-radius: 5px 10px 5px 10px;
   pointer-events: none;
 }
 :root:root .rules-game-card::before { height: 148px; }
 :root:root .rules-intro {
-  background: linear-gradient(90deg, #121d23fa 15%, #121d23d9 60%, #121d234d), var(--art-scene) center / cover;
-  border-left: 3px solid #9da57d;
+  background: linear-gradient(90deg, var(--theme-panel) 15%, var(--theme-overlay-deep) 60%, var(--theme-overlay)), var(--art-scene) center / cover;
+  border-left: 3px solid var(--theme-border);
   padding: 24px;
   border-radius: 0 13px 13px 0;
 }
@@ -278,8 +328,8 @@
   color: #dedfca;
 }
 :root:root :is(.confirm-dialog, .station-room-menu-content, .replay-sharing-disclosure .replay-sharing) {
-  background: #162329;
-  border-color: #939d7b;
+  background: var(--theme-panel);
+  border-color: var(--theme-border);
 }
 :root:root .room-history-replay {
   background: linear-gradient(#0c141bcc, #0c141bd9), var(--art-scene) center / cover;
