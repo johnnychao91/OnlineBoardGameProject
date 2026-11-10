@@ -12,6 +12,8 @@ import { clientGames } from './game-registry';
 import { RoomCode } from './RoomCode';
 import { rememberedRoomCode, rememberRoomCode } from './room-code';
 import { rememberGameOptions } from './game-preferences';
+import { echoBrowserToken } from './echo-identity';
+import { EchoOptions } from './EchoOptions';
 import { RemovePlayer } from './RemovePlayer';
 import { ObservationPanel } from './ObservationPanel';
 import { captureReplayShare, SharedReplay } from './ReplayViewer';
@@ -166,7 +168,9 @@ function Lobby({ onUpdate }: { onUpdate: (info: RoomInfo) => void }) {
       <TestRoomBots seat={seat} info={info} disabled={locked} onAdd={() => void addBot()} />
     </section>
     <ErrorMessage>{error}</ErrorMessage>{configurationError && <p className="small amber" role="status">{configurationError}</p>}<div className="action-dock">
-      {isPlayer(seat) ? <button className={`button full ${own?.ready ? 'secondary' : 'primary'}`} disabled={locked || !selected} onClick={() => action('ready', { ready: !own?.ready })}>
+      {isPlayer(seat) ? <button className={`button full ${own?.ready ? 'secondary' : 'primary'}`} disabled={locked || !selected} onClick={() => action('ready', {
+        ready: !own?.ready, ...(info.gameName === 'cup-echo' && !own?.ready ? { echoBrowserToken: echoBrowserToken() } : {}),
+      })}>
         {!selected ? '請先由房主選擇遊戲' : own?.ready ? '已準備好 · 點此取消' : '我準備好了'}<Icon type="check" />
       </button> : <Note>{host ? '你是觀戰房主，無需準備，也不計入開局人數。選好遊戲且參與玩家全員準備後，即可開始。'
         : '你已在觀戰席，無需準備，也不計入開局人數。房主開始後，這裡會自動切換到對局。'}</Note>}
@@ -291,6 +295,7 @@ function Room({ seat, onSwitch }: { seat: AuthSession; onSwitch: (seat: AuthSess
           </> : <details className="station-room-menu"><summary>房間管理</summary><div className="station-room-menu-content">
             <RoleSwitcher seat={session} info={info} onChange={onSwitch} />
             <div className="room-game-management" ref={setManagementContainer} />
+            {host && info.gameName === 'cup-echo' && info.status !== 'finished' && <EchoOptions seat={session} info={info} disabled={false} onBusy={() => {}} onUpdate={acceptInfo} />}
             <RoomActions seat={session} info={info} onUpdate={acceptInfo} />
             {host && info.status !== 'lobby' && <details className="post-start-invite"><summary>邀請朋友觀戰</summary><ShareInvite active /></details>}
           </div></details>}

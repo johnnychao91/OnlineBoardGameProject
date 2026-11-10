@@ -53,7 +53,7 @@ async function start(f: Fixture, host: any, seats: any[]) {
 describe('Game framework registration and shared room lifecycle', () => {
   it('registers every catalog game exactly once with its player limits', () => {
     expect(GAME_IDS).toEqual(['space-station', 'encrypted-call', 'black-fog', 'silver-moon', 'turing-test',
-      'midnight-post', 'baker-street', 'hundred-ghosts', 'curtain-heist', 'firewall-breach', 'star-workshop']);
+      'midnight-post', 'baker-street', 'hundred-ghosts', 'curtain-heist', 'firewall-breach', 'star-workshop', 'cup-echo']);
     expect(gameDefinitions.map(game => game.id)).toEqual(GAME_IDS);
     for (const game of gameDefinitions) {
       expect(game).toMatchObject({ name: gameCatalog[game.id].name, minPlayers: gameCatalog[game.id].minPlayers, maxPlayers: gameCatalog[game.id].maxPlayers });
@@ -73,7 +73,7 @@ describe('Game framework registration and shared room lifecycle', () => {
     const god = await f.request(path(host, 'view?perspective=god'), undefined, observerHost);
     expect(blind.status).toBe(200); expect(god.status).toBe(200);
     expect(Object.keys(blind.body.G.private ?? {})).toHaveLength(0);
-    expect(Object.keys(god.body.G.private)).toHaveLength(gameCatalog[gameID].minPlayers);
+    expect(Object.keys(god.body.G.private)).toHaveLength(gameID === 'cup-echo' ? 0 : gameCatalog[gameID].minPlayers);
     expect(blind.body.G.secret).toBeUndefined();
     // Station's god view intentionally includes current equipment positions;
     // other games keep future draws and resolving effects server-only.

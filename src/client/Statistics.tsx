@@ -17,6 +17,7 @@ export interface GameStatistics {
   reasons: Record<string, number>;
   challenges?: { mode: string; numPlayers: number; startingLives: number; runs: number; bestCompletedRounds: number; averageCompletedRounds: number }[];
   competitions?: { mode: string; numPlayers: number; runs: number; totalRounds: number; averageRounds: number; highScores?: { name: string; total: number }[]; roundHighScores?: { name: string; total: number; round: number }[] }[];
+  echo?: { groups: { numPlayers: number; completed: number; matched: number; averageRounds: number | null }[]; leaders: { name: string; matches: number }[] };
 }
 export interface StatisticsData { completedGames: number; totalPlayerParticipations: number; byGame: GameStatistics[]; }
 
@@ -176,6 +177,7 @@ export function GameStatisticsCard({ game }: { game: GameStatistics }) {
   const hasRanked = !definition?.individualCompetition && ((game.rankedCompleted ?? game.completed) > 0 || !hasCompetitions);
   return <article className="game-statistics" key={game.gameId}>
     <div className="section-heading"><h3>{game.name}</h3><span>{game.completed} 局{(game.draws ?? 0) > 0 && ` · ${game.draws} 平局`}</span></div>
+    {game.gameId === 'cup-echo' ? <EchoStatistics echo={game.echo} /> : <>
     {hasChallenges && <p className="small muted">五關模式：{game.rankedCompleted ?? game.completed} 局</p>}
     {hasCompetitions && hasRanked && <p className="small muted">{game.gameId === 'midnight-post' ? '黑函局長陣營對抗' : '陣營對抗'}：{game.rankedCompleted ?? 0} 局</p>}
     {hasRanked && <FactionStandings game={game} factions={factions} />}
@@ -187,8 +189,26 @@ export function GameStatisticsCard({ game }: { game: GameStatistics }) {
         <tbody>{[...game.byPlayerCount].sort((a, b) => a.numPlayers - b.numPlayers).map(row => <tr key={row.numPlayers}><td>{row.numPlayers} 人</td><td>{row.completed}</td><td>{row.draws ?? 0}</td>{factions.map(faction => <td key={faction}>{row.wins[faction] || 0}</td>)}</tr>)}</tbody>
       </table></div>
       <ul className="reason-stats">{Object.entries(game.reasons).map(([reason, count]) => <li key={reason}><span>{definition?.reasonLabels[reason] || reason}</span><strong>{count} 局</strong></li>)}</ul>
-    </details>}
+    </details>}</>}
   </article>;
+}
+
+function EchoStatistics({ echo }: { echo?: GameStatistics['echo'] }) {
+  const { groups = [], leaders = [] } = echo ?? {};
+  return <div className="echo-statistics">
+    <h4>相遇紀錄</h4>
+    {groups.length ? <div className="table-scroll"><table aria-label="依人數查看相遇紀錄">
+      <thead><tr><th>人數</th><th>完成局數</th><th>相遇率</th><th>成功局平均輪數</th></tr></thead>
+      <tbody>{groups.map(group => <tr key={group.numPlayers}><td>{group.numPlayers} 人</td><td>{group.completed} 局</td>
+        <td>{(100 * group.matched / group.completed).toFixed(1)}%</td><td>{group.averageRounds === null ? '—' : group.averageRounds + ' 輪'}</td></tr>)}</tbody>
+    </table></div> : <p className="small muted">尚無正式對局。</p>}
+    <h4>相遇次數排行榜</h4>
+    {leaders.length ? <div className="table-scroll"><table aria-label="相遇次數排行榜">
+      <thead><tr><th>名次</th><th>暱稱</th><th>相遇次數</th></tr></thead>
+      <tbody>{leaders.map((leader, index) => <tr key={index}><td>{leaders.findIndex(entry => entry.matches === leader.matches) + 1}</td>
+        <td>{leader.name}</td><td><strong>{leader.matches} 次</strong></td></tr>)}</tbody>
+    </table></div> : <p className="small muted">還沒有玩家上榜。</p>}
+  </div>;
 }
 
 export function Statistics({ gameID }: { gameID?: string } = {}) {

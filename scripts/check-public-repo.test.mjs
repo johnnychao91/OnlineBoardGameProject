@@ -56,6 +56,8 @@ test('permits reserved examples, loopback and narrowly scoped public sources', (
     assert.equal(allowedHost(host, 'README.md'), false);
   }
   assert.equal(allowedHost('www.w3.org', 'src/client/assets/post/roles/seal-1.svg'), true);
+  for (const icon of ['bell', 'cup', 'seal']) assert.equal(allowedHost('www.w3.org', `src/client/assets/echo/${icon}.svg`), true);
+  assert.equal(allowedHost('www.w3.org', 'src/client/assets/echo/unexpected.svg'), false);
   assert.equal(allowedHost('www.w3.org', 'deploy/apache.conf.example'), false);
   assert.equal(allowedHost('www.w3.org', 'src/client/assets/post/roles/unexpected.svg'), false);
   assert.equal(allowedHost('registry.npmjs.org', 'package-lock.json'), true);

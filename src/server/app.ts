@@ -15,6 +15,9 @@ import { normalizeTuringPolicies, TURING_APPROVAL_KEYS, type TuringPolicies } fr
 import { gameDefinitions, getGameDefinition, publicGameDefinitions, type GameDefinition } from '../games/registry';
 import { isPlayerSeatID } from '../games/catalog';
 import { GuardedTransport } from './transport';
+import type { EchoRankMetadata } from './echo-ranking';
+import { updateLiveEchoOptions, type EchoState } from '../games/echo/game';
+import { normalizeEchoOptions } from '../games/echo/rules';
 import { RoomStore, currentMatchID, hostPlayerID, hostObserverID, roomMatchIDs, matchGameID, ROOM_CAPACITY, type RoomRecord, type RoomHistory, type RoleSwitchReceipt } from './rooms';
 import { RoomPresence } from './presence';
 import { FileStorage } from './storage';
@@ -224,6 +227,12 @@ export async function createApplication(config: AppConfig) {
     await rooms.save(next);
     return next;
   };
+  const saveEchoOptions = async (room: RoomRecord, G: EchoState) => {
+    const options = { ...G.options };
+    const next = { ...room, gameOptions: options, gameOptionsByGame: { ...room.gameOptionsByGame, 'cup-echo': options } };
+    await rooms.save(next);
+    return next;
+  };
   const perspectiveOf = (value: unknown) => {
     if (value === undefined || value === 'blind') return 'blind' as const;
     if (value === 'god') return 'god' as const;
@@ -289,6 +298,8 @@ export async function createApplication(config: AppConfig) {
       // saved. Reconnection and process restart keep live policies and memory aligned.
       if (JSON.stringify(room.gameOptions) !== JSON.stringify(state.G.options)) room = await saveTuringOptions(room, state);
     }
+    if (room.gameId === 'cup-echo' && !definition.isJoinable(state.G)
+      && JSON.stringify(room.gameOptions) !== JSON.stringify(state.G.options)) room = await saveEchoOptions(room, state.G);
     if (definition.getOutcome(state.G)) return returnToLobby(room, 'completed');
     if (!definition.isJoinable(state.G) && !presence.hasAnyone(room.roomId)) return returnToLobby(room, 'empty');
     return room;
@@ -752,6 +763,23 @@ export async function createApplication(config: AppConfig) {
       } else if (operation === 'game' || operation === 'options') {
         authenticateHost(ctx, current, metadata, '只有房主可以切換遊戲或修改規則');
         if (body.matchID !== matchID) fail(409, '對局已更新，請重新確認房間狀態');
+        if (operation === 'options' && current.gameId === 'cup-echo' && !definition.isJoinable(state.G)) {
+          const G = state.G as EchoState;
+          const now = Date.now();
+          if (G.status === 'finished' || (G.deadline !== null && now >= G.deadline)) fail(409, '回合已結束，請確認目前進度');
+          let options: ReturnType<typeof normalizeEchoOptions>;
+          try { options = normalizeEchoOptions(body.options); } catch (error) { fail(400, (error as Error).message); }
+          if (options.roundLimit !== G.options.roundLimit) fail(400, '輪數上限只能在開局前調整');
+          if (JSON.stringify(options) === JSON.stringify(G.options)) { ctx.body = publicRoom(ctx, current, metadata, state); return; }
+          updateLiveEchoOptions(G, options, now);
+          state._stateID++;
+          state._undo = []; state._redo = []; state.deltalog = [];
+          await db.setState(matchID, state);
+          transport.publishState(definition.game, matchID, state);
+          const updated = await saveEchoOptions(current, G);
+          ctx.body = publicRoom(ctx, updated, metadata, state);
+          return;
+        }
         if (!definition.isJoinable(state.G)) fail(409, '對局進行中不能切換遊戲，請先返回等待室');
         const selected = operation === 'options' ? definition : getGameDefinition(body.gameId);
         if (!selected) fail(400, '遊戲不正確');
@@ -828,6 +856,14 @@ export async function createApplication(config: AppConfig) {
         if (current.gameSelected === false) fail(409, '請先由房主選擇遊戲');
         if (!definition.isJoinable(state.G)) fail(409, '遊戲已開始');
         if (typeof body.ready !== 'boolean') fail(400, '準備狀態不正確');
+        if (current.gameId === 'cup-echo' && body.ready && typeof body.echoBrowserToken === 'string' && /^[a-f0-9]{64}$/.test(body.echoBrowserToken)) {
+          const ranking = metadata as EchoRankMetadata;
+          const member = hashToken(metadata.players[Number(playerID)].credentials!);
+          if (!ranking.echoBrowserHashes?.[member]) {
+            ranking.echoBrowserHashes = { ...ranking.echoBrowserHashes, [member]: hashToken(`cup-echo:${body.echoBrowserToken}`) };
+            await db.setMetadata(matchID, ranking);
+          }
+        }
         state.G.players[playerID] ??= { ready: false, acknowledged: false, cardCount: 0 };
         state.G.players[playerID].ready = body.ready;
         state._stateID += 1;
@@ -891,6 +927,14 @@ export async function createApplication(config: AppConfig) {
           setupData: definition.startSetupData(participants.map((player) => String(player.id)), current.gameOptions), unlisted: true });
         if ('setupDataError' in match) fail(400, '無法開始這個遊戲');
         match.metadata.players = Object.fromEntries(participants.map((p) => [String(p.id), p]));
+        if (current.gameId === 'cup-echo') {
+          const browserHashes = (metadata as EchoRankMetadata).echoBrowserHashes ?? {};
+          (match.metadata as EchoRankMetadata).echoRankedSeats = Object.fromEntries(participants.flatMap(player => {
+            const member = hashToken(player.credentials!);
+            return !player.data?.isBot && player.name && browserHashes[member]
+              ? [[String(player.id), { browserHash: browserHashes[member], name: player.name }]] : [];
+          }));
+        }
         match.metadata.createdAt = metadata.createdAt;
         // Preserve increasing versions if an older lobby tab still has a socket.
         match.initialState._stateID = state._stateID + 1;

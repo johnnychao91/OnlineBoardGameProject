@@ -3,9 +3,16 @@ import type { HeistState } from '../games/heist/game';
 import { gameDefinitions } from '../games/registry';
 import type { FileStorage } from './storage';
 import { matchGameID, roomMatchIDs, type RoomStore } from './rooms';
+import type { EchoState } from '../games/echo/game';
+import type { EchoRankMetadata } from './echo-ranking';
+
+interface EchoGroup { numPlayers: number; completed: number; matched: number; successfulRounds: number }
+interface EchoLeader { name: string; matches: number; lastPlayed: number }
 
 /** Derive each completed match once, so reconnects and restarts cannot double-count wins. */
 export async function collectStatistics(db: FileStorage, rooms: RoomStore) {
+  const echoGroups = new Map<number, EchoGroup>();
+  const echoLeaders = new Map<string, EchoLeader>();
   const byGame = gameDefinitions.map((definition) => ({
     gameId: definition.id, name: definition.name, completed: 0, rankedCompleted: 0, draws: 0,
     wins: {} as Record<string, number>, reasons: {} as Record<string, number>,
@@ -21,7 +28,7 @@ export async function collectStatistics(db: FileStorage, rooms: RoomStore) {
       const gameId = matchGameID(room, matchID);
       const definition = gameDefinitions.find((game) => game.id === gameId);
       if (!definition) continue;
-      const { state, metadata } = await db.fetch(matchID, { state: true, ...(gameId === 'curtain-heist' ? { metadata: true } : {}) });
+      const { state, metadata } = await db.fetch(matchID, { state: true, ...(gameId === 'curtain-heist' || gameId === 'cup-echo' ? { metadata: true } : {}) });
       if (!state) continue;
       const outcome = definition.getOutcome(state.G);
       if (!outcome) continue;
@@ -29,6 +36,26 @@ export async function collectStatistics(db: FileStorage, rooms: RoomStore) {
       const numPlayers = state.ctx.numPlayers;
       summary.completed += 1;
       totalPlayerParticipations += numPlayers;
+      if (gameId === 'cup-echo') {
+        const group = echoGroups.get(numPlayers) ?? { numPlayers, completed: 0, matched: 0, successfulRounds: 0 };
+        group.completed++;
+        echoGroups.set(numPlayers, group);
+        if (outcome.winner === 'guests') {
+          group.matched++;
+          group.successfulRounds += (state.G as EchoState).round;
+          const playedAt = room.history?.find(entry => entry.matchID === matchID)?.endedAt ?? metadata?.updatedAt ?? 0;
+          const seats = Object.values((metadata as EchoRankMetadata | undefined)?.echoRankedSeats ?? {});
+          const credited = new Set<string>();
+          for (const { browserHash, name } of seats) {
+            if (credited.has(browserHash)) continue;
+            credited.add(browserHash);
+            const leader = echoLeaders.get(browserHash);
+            echoLeaders.set(browserHash, { name: leader && leader.lastPlayed > playedAt ? leader.name : name,
+              matches: (leader?.matches ?? 0) + 1, lastPlayed: Math.max(leader?.lastPlayed ?? 0, playedAt) });
+          }
+        }
+        continue;
+      }
       // Record challenge progress separately, including voluntary settlement,
       // without treating it as a ranked win or loss.
       if (outcome.challenge) {
@@ -90,5 +117,13 @@ export async function collectStatistics(db: FileStorage, rooms: RoomStore) {
     game.competitions.sort((a, b) => a.mode.localeCompare(b.mode) || a.numPlayers - b.numPlayers);
     game.challenges.sort((a, b) => a.mode.localeCompare(b.mode) || a.numPlayers - b.numPlayers || a.startingLives - b.startingLives);
   });
-  return { completedGames: byGame.reduce((sum, game) => sum + game.completed, 0), totalPlayerParticipations, byGame };
+  const echo = {
+    groups: [...echoGroups.values()].sort((a, b) => a.numPlayers - b.numPlayers).map(({ successfulRounds, ...group }) => ({
+      ...group, averageRounds: group.matched ? Math.round(successfulRounds / group.matched * 100) / 100 : null,
+    })),
+    leaders: [...echoLeaders.values()].sort((a, b) => b.matches - a.matches || a.name.localeCompare(b.name, 'zh-Hant'))
+      .slice(0, 20).map(({ name, matches }) => ({ name, matches })),
+  };
+  return { completedGames: byGame.reduce((sum, game) => sum + game.completed, 0), totalPlayerParticipations,
+    byGame: byGame.map(game => game.gameId === 'cup-echo' ? { ...game, echo } : game) };
 }

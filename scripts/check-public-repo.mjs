@@ -52,6 +52,7 @@ export function allowedHost(input, file) {
   if (['src/games/firewall/content.ts', 'docs/FIREWALL_BREACH.md', 'scripts/check-public-repo.mjs', 'scripts/check-public-repo.test.mjs'].includes(file)
     && host === 'blog.amigo-spiele.de') return true;
   if ((file === 'public/endless-bar-icon.svg' || /^src\/client\/assets\/post\/roles\/seal-[1-6]\.svg$/.test(file)
+    || /^src\/client\/assets\/echo\/(bell|cup|seal)\.svg$/.test(file)
     || ['scripts/check-public-repo.mjs', 'scripts/check-public-repo.test.mjs'].includes(file)) && host === 'www.w3.org') return true;
   if (['localhost', '127.0.0.1', '[::1]', '::1'].includes(host)) return true;
   if (/(?:^|\.)example\.(?:com|org|net)$/.test(host)) return true;

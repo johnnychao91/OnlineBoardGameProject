@@ -21,7 +21,8 @@ describe('Every registered game supplies the entire client framework', () => {
     expect(Object.keys(clientGames).sort()).toEqual([...GAME_IDS].sort());
     for (const id of GAME_IDS) {
       const definition = clientGames[id];
-      for (const key of ['PlayerClient', 'Snapshot', 'DetailedRules', 'createPoster', 'soundAdapter'] as const) expect(typeof definition[key], `${id}: ${key}`).toBe('function');
+      for (const key of ['PlayerClient', 'Snapshot', 'DetailedRules', 'soundAdapter'] as const) expect(typeof definition[key], `${id}: ${key}`).toBe('function');
+      expect(typeof definition.createPoster, `${id}: createPoster`).toBe(id === 'cup-echo' ? 'undefined' : 'function');
       expect(definition.chapters.length).toBeGreaterThan(0);
       expect(new Set(definition.chapters.map(([id]) => id)).size).toBe(definition.chapters.length);
       expect(definition.gallery.label.trim().length, `${id}: gallery label`).toBeGreaterThan(0);

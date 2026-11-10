@@ -14,7 +14,7 @@ export function navigate(path: string) {
   window.scrollTo({ top: 0 });
 }
 
-export type IconType = 'orbit' | 'link' | 'arrow' | 'shield' | 'check' | 'copy' | 'signal' | 'lighthouse' | 'train' | 'robot' | 'mail' | 'search' | 'mask' | 'curtain' | 'network' | 'anvil';
+export type IconType = 'orbit' | 'link' | 'arrow' | 'shield' | 'check' | 'copy' | 'signal' | 'lighthouse' | 'train' | 'robot' | 'mail' | 'search' | 'mask' | 'curtain' | 'network' | 'anvil' | 'cup';
 export function Icon({ type, size = 20 }: { type: IconType; size?: number }) {
   const paths = {
     orbit: <><circle cx="12" cy="12" r="4" /><ellipse cx="12" cy="12" rx="11" ry="5" transform="rotate(-40 12 12)" /></>,
@@ -33,6 +33,7 @@ export function Icon({ type, size = 20 }: { type: IconType; size?: number }) {
     curtain: <><path d="M2 4h20M3 4v17h6l-3-8c4-2 5-5 5-9m10 0v17h-6l3-8c-4-2-5-5-5-9M3 13h3m12 0h3M9 21h6" /></>,
     network: <><rect x="9" y="9" width="6" height="6" rx="1" /><path d="M12 3v6m0 6v6M3 12h6m6 0h6M5 5l4 4m6 6 4 4m0-14-4 4m-6 6-4 4" /><circle cx="12" cy="2" r="1" /><circle cx="2" cy="12" r="1" /><circle cx="22" cy="12" r="1" /><circle cx="12" cy="22" r="1" /></>,
     anvil: <><path d="M3 10h18l-4 5h-3v3h4v3H6v-3h4v-3H7zM4 10V7h7v3m6-8 1 3 3 1-3 1-1 3-1-3-3-1 3-1z" /></>,
+    cup: <><ellipse cx="11" cy="7" rx="7" ry="2.5" /><path d="M4 7l2 8c1 4 9 4 10 0l2-8m-1 3h2a2.5 2.5 0 0 1 0 5h-3M2 20c4 2 15 2 19 0" /></>,
   };
   return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{paths[type]}</svg>;
 }
@@ -40,7 +41,7 @@ export function Icon({ type, size = 20 }: { type: IconType; size?: number }) {
 const gameIcons = {
   'space-station': 'orbit', 'encrypted-call': 'signal', 'black-fog': 'lighthouse', 'silver-moon': 'train',
   'turing-test': 'robot', 'midnight-post': 'mail', 'baker-street': 'search', 'hundred-ghosts': 'mask',
-  'curtain-heist': 'curtain', 'firewall-breach': 'network', 'star-workshop': 'anvil',
+  'curtain-heist': 'curtain', 'firewall-breach': 'network', 'star-workshop': 'anvil', 'cup-echo': 'cup',
 } satisfies Record<GameID, IconType>;
 
 export function GameIcon({ gameID, size = 30 }: { gameID: GameID; size?: number }) {

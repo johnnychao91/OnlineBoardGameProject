@@ -20,6 +20,8 @@ import { FirewallGame, firewallObserverView, type FirewallState } from './firewa
 import { normalizeFirewallOptions, validateFirewallOptions } from './firewall/rules';
 import { StarGame, starObserverView, type StarState } from './star/game';
 import { normalizeStarOptions, validateStarOptions } from './star/rules';
+import { advanceEchoClock, EchoGame, echoObserverView, echoWinner, type EchoState } from './echo/game';
+import { normalizeEchoOptions, validateEchoOptions } from './echo/rules';
 
 export type ObserverPerspective = 'blind' | 'god';
 export interface GameOutcome {
@@ -225,6 +227,18 @@ registeredGames.push({
       competition: { mode: state.options.scenario, rounds: 1 },
       roles: Object.fromEntries(Object.keys(state.players).map(id => [id, 'guests'])) };
   },
+});
+
+registeredGames.push({
+  id: 'cup-echo', ...gameCatalog['cup-echo'], game: EchoGame,
+  isJoinable: state => state.status === 'lobby',
+  normalizeOptions: options => ({ ...normalizeEchoOptions(options) }),
+  validateLobbyOptions: options => validateEchoOptions(options),
+  validateOptions: (options, count) => validateEchoOptions(options, count),
+  startSetupData: (participantIDs, options) => ({ startImmediately: true, participantIDs, options: normalizeEchoOptions(options) }),
+  observerView: echoObserverView, advanceClock: advanceEchoClock, hideMoveMetadata: true, completedDisplayMs: () => 8000,
+  getOutcome: (state: EchoState) => state.result ? { winner: echoWinner(state.result), reason: state.result,
+    roles: Object.fromEntries(Object.keys(state.players).map(id => [id, 'guests'])) } : null,
 });
 
 // API game lists and statistics follow the catalog, independent of registration order.

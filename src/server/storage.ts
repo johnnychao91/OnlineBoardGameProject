@@ -5,6 +5,7 @@ import { Async } from 'boardgame.io/internal';
 import type { LogEntry, Server, State, StorageAPI } from 'boardgame.io';
 import { hashToken, safeEqual, validRoomID } from './security';
 import { atomicReplace } from './atomic-file';
+import { echoObserverView } from '../games/echo/game';
 
 /** 伺服器私有回放資料；對外提供前仍須另做觀看權限與遊戲資訊過濾。 */
 export interface ReplayFrame {
@@ -34,8 +35,8 @@ function validateStateID(state: State): void {
   if (!Number.isSafeInteger(state._stateID) || state._stateID < 0) throw new Error('對局狀態版本不正確');
 }
 
-function replayFrame(state: State): ReplayFrame {
-  return { stateID: state._stateID, at: Date.now(), G: state.G };
+function replayFrame(state: State, gameName: string): ReplayFrame {
+  return { stateID: state._stateID, at: Date.now(), G: gameName === 'cup-echo' ? echoObserverView(state.G) : state.G };
 }
 
 function newRecord(matchID: string, options: StorageAPI.CreateMatchOpts): StoredMatch {
@@ -44,7 +45,7 @@ function newRecord(matchID: string, options: StorageAPI.CreateMatchOpts): Stored
     schemaVersion: 1, matchID,
     initialState: options.initialState, state: options.initialState,
     metadata: options.metadata, log: [], replayComplete: true,
-    replayFrames: options.initialState.G?.status === 'lobby' ? [] : [replayFrame(options.initialState)],
+    replayFrames: options.initialState.G?.status === 'lobby' ? [] : [replayFrame(options.initialState, options.metadata.gameName)],
   });
 }
 
@@ -263,9 +264,13 @@ export class FileStorage extends Async {
         && (record.state.G?.status !== 'lobby' || incoming.state.G?.status !== 'lobby')) {
         record.replayComplete = false;
       }
-      if (incoming.state.G?.status !== 'lobby') record.replayFrames.push(replayFrame(incoming.state));
+      const echo = record.metadata.gameName === 'cup-echo';
+      // Draft-only actions leave the public epoch unchanged. Keep only the
+      // current private draft, with no typing history or drafts in replays.
+      const draftOnly = echo && incoming.state.G.epoch === record.state.G.epoch;
+      if (incoming.state.G?.status !== 'lobby' && !draftOnly) record.replayFrames.push(replayFrame(incoming.state, record.metadata.gameName));
       record.state = incoming.state;
-      record.log.push(...incoming.deltalog);
+      if (!echo) record.log.push(...incoming.deltalog);
       await this.writeMatch(matchID, record);
     });
   }

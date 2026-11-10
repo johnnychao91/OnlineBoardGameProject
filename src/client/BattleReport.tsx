@@ -14,7 +14,7 @@ export function BattleReport({ G, info, frameIndex = 0, totalFrames = 1, perspec
   useEffect(() => () => { if (currentUrl.current) URL.revokeObjectURL(currentUrl.current); }, []);
   useEffect(() => { generation.current += 1; setPreview(null); setError(''); setMessage(''); if (currentUrl.current) { URL.revokeObjectURL(currentUrl.current); currentUrl.current = null; } }, [info.roomId, info.matchID, frameIndex, perspective, totalFrames]);
   if (!render) return null;
-  async function makeReport() {
+  const makeReport = async () => {
     beforeCreate?.();
     setBusy(true); setError(''); setMessage('');
     const requestGeneration = generation.current;
@@ -25,7 +25,7 @@ export function BattleReport({ G, info, frameIndex = 0, totalFrames = 1, perspec
       const url = URL.createObjectURL(blob); currentUrl.current = url; setPreview({ url, blob });
     } catch { setError('戰報圖暫時無法產生，請稍後再試。'); }
     finally { setBusy(false); }
-  }
+  };
   function download() {
     if (!preview) return;
     const anchor = document.createElement('a'); anchor.href = preview.url; anchor.download = `boardgame-step-${frameIndex + 1}.png`; anchor.click();

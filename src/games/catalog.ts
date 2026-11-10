@@ -21,6 +21,8 @@ export const gameCatalog = {
   'firewall-breach': { name: '潛入防火牆', description: '鋪設通往資料核心的連線，在秘密陣營與工具攻防中爭取資料點數。', minPlayers: 2, maxPlayers: 12,
     categories: ['faction', 'individual'], tags: ['秘密身分', '連線鋪路', '工具攻防'], intro: '資料堡壘深處藏著真正的機密核心。你可以延伸連線、修復工具或干擾他人；藍域與綠域各有利益，企業追蹤程式則希望所有連線都失敗。橋接、權限門與跳躍節點讓每一條路都值得懷疑，三輪之後，以資料點數決定最終贏家。' },
   'star-workshop': { name: '星匠工坊', description: '收集星材、打造作品，累積工藝折扣並爭取守護者的委託與聲望。', minPlayers: 2, maxPlayers: 4, categories: ['individual'], tags: ['引擎構築', '資源與聲望'], intro: '夜空是一座尚未完工的工坊。從透鏡、刻針與小熔爐起步，運用累積工藝減少未來作品的成本；保留心儀藍圖、調度星材，將聲望推向十五分，並在同一輪結束時決出最出色的星匠。' },
+  'cup-echo': { name: '杯中回聲', description: '把想法封進杯中，循著彼此的詞，等到全桌不約而同。', minPlayers: 2, maxPlayers: 4,
+    categories: ['cooperative'], tags: ['詞語聯想', '同時揭曉'], intro: '雨夜的未央酒肆裡，客人把各自想到的詞封進杯中。揭曉後從桌上的詞找交集，直到全員同詞，或一致確認意思相同。' },
 } as const;
 export type GameID = keyof typeof gameCatalog;
 export const GAME_IDS = Object.keys(gameCatalog) as GameID[];

@@ -16,6 +16,7 @@ import { BanquetGame, banquetPlayerView } from './banquet/game';
 import { HeistGame, heistPlayerView } from './heist/game';
 import { FirewallGame, firewallPlayerView } from './firewall/game';
 import { StarGame, starPlayerView } from './star/game';
+import { EchoGame } from './echo/game';
 
 let now = 1_800_000_000_000;
 beforeEach(() => { now = 1_800_000_000_000; vi.spyOn(Date, 'now').mockImplementation(() => now); });
@@ -67,6 +68,7 @@ describe('Test-room bot adapters', () => {
   });
 
   const scenarios = [
+    ...[2, 3, 4].map(count => ({ game: EchoGame, count, options: undefined })),
     ...[2, 3, 4].map(count => ({ game: StarGame, count, options: undefined })),
     ...Array.from({ length: 11 }, (_, i) => ({ game: FirewallGame, count: i + 2, options: undefined })),
     ...[3, 4, 5, 6, 7, 8].map(count => ({ game: HeistGame, count, options: undefined })),
@@ -128,6 +130,7 @@ describe('Test-room bot adapters', () => {
         : game.name === 'curtain-heist' ? ['acknowledge', 'decide']
         : game.name === 'firewall-breach' ? ['acknowledge', 'placePath', 'playAction', 'discard']
         : game.name === 'star-workshop' ? ['acknowledge', 'takeTokens', 'buyCard', 'reserveCard']
+        : game.name === 'cup-echo' ? ['sealWord']
         : ['acknowledge', 'wolfVote', 'inspect', 'witch', 'finishSpeech', 'exileVote'];
       if (game.name === 'silver-moon' && count === 12) expected.push('guard', 'standForSheriff', 'sheriffVote', 'chooseOrder');
       for (const name of expected) expect(moves.has(name), `${game.name} did not exercise ${name}`).toBe(true);

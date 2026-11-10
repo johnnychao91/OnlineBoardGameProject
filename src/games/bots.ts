@@ -12,6 +12,7 @@ import { legalBanquetActions, banquetPlayerView, type BanquetState } from './ban
 import { legalHeistActions, heistPlayerView, type HeistState } from './heist/game';
 import { legalFirewallActions, firewallPlayerView, type FirewallState } from './firewall/game';
 import { legalStarActions, starPlayerView, type StarState } from './star/game';
+import { echoCanAgree, echoPlayerView, type EchoState } from './echo/game';
 
 export interface BotAction { move: string; args: unknown[] }
 type Random = () => number;
@@ -183,6 +184,16 @@ function turingAction(G: TuringState, id: string, random: Random): BotAction | n
 }
 
 const adapters = {
+  'cup-echo': (G: EchoState, id: string, random: Random) => {
+    const view = echoPlayerView({ G, playerID: id });
+    if (view.status === 'writing' && !view.players[id].sealed) {
+      return action('sealWord', pick(view.clues.length ? view.clues : ['雨夜', '燈火', '星空', '月光'], random), view.phaseEpoch);
+    }
+    if (view.status === 'review' && !view.players[id].reviewed) {
+      return action('reviewWords', echoCanAgree(view) && random() < .25, view.phaseEpoch);
+    }
+    return null;
+  },
   'star-workshop': (G: StarState, id: string, random: Random) => {
     const actions = legalStarActions(starPlayerView({ G, playerID: id }), id);
     if (!actions.length) return null;
