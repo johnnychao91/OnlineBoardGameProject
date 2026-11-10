@@ -8,7 +8,7 @@
     ],
     "sourceSha256": "750e37ff80880ffe21cf2af94a24e0164bc230dc045f43f8e5d7ae6409af7f3a",
     "foregroundPercent": 34.2,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/apron",
@@ -19,7 +19,7 @@
     ],
     "sourceSha256": "30fe974107fdbc4722b99208954125147e6741a68d8b9c9eecc0222b831d5122",
     "foregroundPercent": 41.73,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/ash",
@@ -30,7 +30,7 @@
     ],
     "sourceSha256": "8d20c3ff0c74af9224f60a51f3817fcaf9b689f29abebc44c06294d761ab2605",
     "foregroundPercent": 30.11,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/axe",
@@ -41,7 +41,7 @@
     ],
     "sourceSha256": "d9b180723764729d5c04a4afd15353605135747c895ad3c1cc394062af8fd03d",
     "foregroundPercent": 16.82,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/bandage",
@@ -52,7 +52,7 @@
     ],
     "sourceSha256": "9971fbf3780ed9210e94ce73fd08f4c3bf3d17e39a25ddae6af46b6ede6046c5",
     "foregroundPercent": 32.4,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/banknote",
@@ -63,7 +63,7 @@
     ],
     "sourceSha256": "a31962700f1fee24c07c6071be76750bc0a39404257723005ae6493c8ae3b1dc",
     "foregroundPercent": 40.19,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/basin",
@@ -74,7 +74,7 @@
     ],
     "sourceSha256": "3abf0f02577a0fc049e7fda478719068579170b3d97005afd2d987a4069693ac",
     "foregroundPercent": 30.75,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/basket",
@@ -85,7 +85,7 @@
     ],
     "sourceSha256": "5bcd9c0c53c0ce44e302eebd87c0680936c4ef6dd1fccb915b1d71d01362c14c",
     "foregroundPercent": 38.64,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/bathtub",
@@ -96,7 +96,7 @@
     ],
     "sourceSha256": "bed2e0b357bc35cec084f3d6f4570515b4925b00c7db7bf93b589ace7b704e84",
     "foregroundPercent": 30.16,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/battery",
@@ -107,7 +107,7 @@
     ],
     "sourceSha256": "a333a875608a48395f858efe3f6efbd49ab0027d0eb5907bb53e21a7e71e0a3f",
     "foregroundPercent": 25.19,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/bayonet",
@@ -118,7 +118,7 @@
     ],
     "sourceSha256": "56acd2a1f47ee757ee9c2ca4c15413dd4d25073c202ee8701517b3631aefe594",
     "foregroundPercent": 10.19,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/belt",
@@ -129,7 +129,7 @@
     ],
     "sourceSha256": "57ce4f246c21454325ef830e56dfb1d4b4df0847440b780e188495d82f0157bd",
     "foregroundPercent": 32.82,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/binoculars",
@@ -140,7 +140,7 @@
     ],
     "sourceSha256": "c5879e91d85a30264d95f3aeaf2051ecc1d6253070896810603c784e1fdbab39",
     "foregroundPercent": 35.95,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/blanket",
@@ -151,7 +151,7 @@
     ],
     "sourceSha256": "c3bc4d86ea510ace8f6a79d825d7293f59c1438240b20a68c0d533b3971d8b30",
     "foregroundPercent": 38.96,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/bloodstain",
@@ -162,7 +162,7 @@
     ],
     "sourceSha256": "286ecd4b5db1e63b5ad6eba032a1e7b33285cb02d3f563cfa9a3505e1efa6f4b",
     "foregroundPercent": 26.66,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/bone",
@@ -173,7 +173,7 @@
     ],
     "sourceSha256": "4f2b7c4514e52d69beee14ff371852349afa7fa6c15a122f493ea5b6c4b5522d",
     "foregroundPercent": 12.1,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/book",
@@ -184,7 +184,7 @@
     ],
     "sourceSha256": "8de4ca7353caef8d2f665c34d9d2bbd0b226787477ad82c01d81b115741f83e3",
     "foregroundPercent": 37.93,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/bottle",
@@ -195,7 +195,7 @@
     ],
     "sourceSha256": "bcf7390a2c99e9c35e68698e4d95bbd2a9edc73d77f675a91c7e7817d336e178",
     "foregroundPercent": 28.48,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/box",
@@ -206,7 +206,7 @@
     ],
     "sourceSha256": "83346dc3736b47abe02c644706b1c74745ae239c7c4de7834dfa3a8507165652",
     "foregroundPercent": 41.27,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/bread",
@@ -217,7 +217,7 @@
     ],
     "sourceSha256": "bad79aa64217702fc9b36eff3d3188909090283268d8a51f1002f33437d1559a",
     "foregroundPercent": 29.34,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/brick",
@@ -228,7 +228,7 @@
     ],
     "sourceSha256": "f37bbcfa6af3216de07d94628a017279abca0a5dcbc012f9e774076616a94c86",
     "foregroundPercent": 32.49,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/brooch",
@@ -239,7 +239,7 @@
     ],
     "sourceSha256": "8f8c8607eb0d15352f8c20b3a2b600c00d1b0af0a8cbbcc6230c62819894cf10",
     "foregroundPercent": 28.23,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/bucket",
@@ -250,7 +250,7 @@
     ],
     "sourceSha256": "5c60d66f4f8afdca4eb43e3393ddd9d5e5d0b31530c6d27a494a6fd3e79c3393",
     "foregroundPercent": 35.83,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/button",
@@ -261,7 +261,7 @@
     ],
     "sourceSha256": "a52af3a07a575f89a5ce7cf5342692fbb737e72b4664b024a187fa8c26c2849e",
     "foregroundPercent": 37.78,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/cable",
@@ -272,7 +272,7 @@
     ],
     "sourceSha256": "b6a98e560b5993a73bcde8471677bbf801d63b57187a38991847fdb39f0a41f4",
     "foregroundPercent": 29.77,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/camera",
@@ -283,7 +283,7 @@
     ],
     "sourceSha256": "93e6061d2cfaf48b9aa4e16b56629f1b7536158a07d06f9e5a351c374fe431cd",
     "foregroundPercent": 42.36,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/camera-victorian",
@@ -294,7 +294,7 @@
     ],
     "sourceSha256": "29b6588e540a81b86efc12e6f302146ce20f15d1966a00305d22ba7ccade07ff",
     "foregroundPercent": 46.67,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/camera-wartime",
@@ -305,7 +305,7 @@
     ],
     "sourceSha256": "6cacf12ffdac7ca61145d1ef7173c383141c675cc977d3a9d6be76496df0f829",
     "foregroundPercent": 43.17,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/candle",
@@ -316,7 +316,7 @@
     ],
     "sourceSha256": "74281cbd8e684b563e2493eb86e1bb6ae3f78764d5299540b820edf21ded16b8",
     "foregroundPercent": 16.81,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/candlestick",
@@ -327,7 +327,7 @@
     ],
     "sourceSha256": "783b40c672e0aaa5e68e7f7619663b890bb8b35bac848de966533affd9b1b505",
     "foregroundPercent": 14.05,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/cane",
@@ -338,7 +338,7 @@
     ],
     "sourceSha256": "c6015b254676ebddea4ff502be5aecf5866b9ae05cb31bff4e79280d116abccc",
     "foregroundPercent": 5.08,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/canteen",
@@ -349,7 +349,7 @@
     ],
     "sourceSha256": "c4c8c2485bd4c256e2953c1a85d943ac609282b2939fef048afe71926af242a8",
     "foregroundPercent": 40.67,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/car",
@@ -360,7 +360,7 @@
     ],
     "sourceSha256": "dfc41cd8b467e5f1839dbaf31a32811ff7ec22b1a01c3066a1ba9b3ba6e40e9b",
     "foregroundPercent": 29.48,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/carriage",
@@ -371,7 +371,7 @@
     ],
     "sourceSha256": "d0fee9073b701cd6d925c93d5f66ea0ed39dc578fc30e1eb47480a7a2c6e8fd7",
     "foregroundPercent": 45.4,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/cctv",
@@ -382,7 +382,7 @@
     ],
     "sourceSha256": "7144f3372a09b919edae5f5f1fb930215b52f66aa9649ee65807110bc1708934",
     "foregroundPercent": 29.14,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/chain",
@@ -393,7 +393,7 @@
     ],
     "sourceSha256": "4ac942ecbaf08501542243f09bce40433831f186e21f6f9158dbb2c73bf772b4",
     "foregroundPercent": 33.06,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/chair",
@@ -404,7 +404,7 @@
     ],
     "sourceSha256": "cb713fa4f035bdfc2acc2cc348cbff49b5997e25ab199e9e7dcc44143cca0367",
     "foregroundPercent": 20.15,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/chalk",
@@ -415,7 +415,7 @@
     ],
     "sourceSha256": "9ef76de7c62fbb43ddfa0ec20d3fbf0f4a9e52b0cadd71892ede076d3bb63c57",
     "foregroundPercent": 20.42,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/chisel",
@@ -426,7 +426,7 @@
     ],
     "sourceSha256": "5aa6334929dd1aac10caa5b25d4cb8cf27aa8514d68f04eacf12ab8b514d1938",
     "foregroundPercent": 13.15,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/cigar",
@@ -437,7 +437,7 @@
     ],
     "sourceSha256": "2e23099a4924b4381fda4d536466b055f6f23e2cd4c7384db276e4afeea5ad19",
     "foregroundPercent": 19.07,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/clock",
@@ -448,7 +448,7 @@
     ],
     "sourceSha256": "868a73d17b2bc08935f4da091726e9c93be960cf4934a0c20bbc9a8f589f45ba",
     "foregroundPercent": 40.93,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/coal",
@@ -459,7 +459,7 @@
     ],
     "sourceSha256": "f8d3fab75ece70dda163000e68d044850addfc529e30cda1d7f7852b809d5997",
     "foregroundPercent": 36.75,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/coat",
@@ -470,7 +470,7 @@
     ],
     "sourceSha256": "229cb8328a2708099b653280555200d1d97b7bbad2fc8071a542666faeb1f3f1",
     "foregroundPercent": 34.67,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/coin",
@@ -481,7 +481,7 @@
     ],
     "sourceSha256": "b11e86fbb522be0ec036fb00ada69d6ca19028ba3e2b44c356f9199ba2b34f02",
     "foregroundPercent": 27.49,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/comb",
@@ -492,7 +492,7 @@
     ],
     "sourceSha256": "661fbfef3d2a40895ec1a36b202f4e1ae1c4f012d4e6420d8d2f2f3d73b029f3",
     "foregroundPercent": 23.31,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/compass",
@@ -503,7 +503,7 @@
     ],
     "sourceSha256": "393d7d9cd23a3714665fada487268f35bb4769f4f3ba3d3a63e54cac08ebdb7d",
     "foregroundPercent": 34.94,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/cork",
@@ -514,7 +514,7 @@
     ],
     "sourceSha256": "30353c13014919cb275389449b8f1ddd27c972059ffa9ed31a091de7e27a9e25",
     "foregroundPercent": 30.83,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/crate",
@@ -525,7 +525,7 @@
     ],
     "sourceSha256": "e04c37d7e380b01c75ec49202707581dfa6b99ded8cf9bde8c3748f35e80b39e",
     "foregroundPercent": 43.99,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/cup",
@@ -536,7 +536,7 @@
     ],
     "sourceSha256": "4478132aac46075e92df3326d6b6228b1ec90f7376f877b5e47394162157967e",
     "foregroundPercent": 35.8,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/dog-tag",
@@ -547,7 +547,7 @@
     ],
     "sourceSha256": "164ca465c234ab4679c1ceefd41fc459f716844496c4c8db050dba3501af0dd4",
     "foregroundPercent": 19.16,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/door",
@@ -558,7 +558,7 @@
     ],
     "sourceSha256": "514be503985e69be106c5c8509fb882d94aabb4adffb36969ce9e497617f44b5",
     "foregroundPercent": 43.81,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/drone",
@@ -569,7 +569,7 @@
     ],
     "sourceSha256": "8cc11dbee19cc07dcaca3e79c7aae4078b5a3cdb3067d9b31cf27680ca6110d5",
     "foregroundPercent": 15.44,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/envelope",
@@ -580,7 +580,7 @@
     ],
     "sourceSha256": "03379fd643db07b0914c8afab848f5a4f57671736763c6aa7b96392b5e75ffb2",
     "foregroundPercent": 36.19,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/fabric",
@@ -591,7 +591,7 @@
     ],
     "sourceSha256": "ab63a5f588fc3782606c0b168b47cc7b464f8a9ddd69e435e2ddf5b0a9a13f9b",
     "foregroundPercent": 37.94,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/feather",
@@ -602,7 +602,7 @@
     ],
     "sourceSha256": "9ccb0a57cec2827a8ccf34546a68c3f49b9ff49fb031c7c42cb1ead2020151bb",
     "foregroundPercent": 32.21,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/film",
@@ -613,7 +613,7 @@
     ],
     "sourceSha256": "2bb865e6be4f5a3fb15c33914ac8c8e6993832e751f5079c0b4e3ec94da91af3",
     "foregroundPercent": 25.11,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/fingerprint",
@@ -624,7 +624,7 @@
     ],
     "sourceSha256": "4edc305b6a46977b55f253a0dced3457a0c8342e8f0f5bdf13176103671a1f85",
     "foregroundPercent": 30.71,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/fire",
@@ -635,7 +635,7 @@
     ],
     "sourceSha256": "3a77d558ee8e2706459a3f42150ff1803c042529de5341681d4702ffebaf74f2",
     "foregroundPercent": 53.44,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/fire-extinguisher",
@@ -646,7 +646,7 @@
     ],
     "sourceSha256": "f5cca6c4a3478906f1893057c05e859927b956573af85ac6b66356e76a91bb7d",
     "foregroundPercent": 22.86,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/fishhook",
@@ -657,7 +657,7 @@
     ],
     "sourceSha256": "6d1b6368a7201079e3c3b988ed2f6c8853cffb44b00d81be201c2582bed0ba3b",
     "foregroundPercent": 6.08,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/flintlock",
@@ -668,7 +668,7 @@
     ],
     "sourceSha256": "aba293bb64b9c5064d6cd53e50badd34288eef6e67c62bd10dbfaf4cb5d5f673",
     "foregroundPercent": 14.86,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/flower",
@@ -679,7 +679,7 @@
     ],
     "sourceSha256": "2d0a641cbd199b279dcdc6aa203db7f161f2f720d84eadc99d727d0f274fe053",
     "foregroundPercent": 20.32,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/footprint",
@@ -690,7 +690,7 @@
     ],
     "sourceSha256": "6062f349fa2d3da106e0651fddffa47927abc70242fc7d94a91731ce61854de3",
     "foregroundPercent": 15.41,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/fork",
@@ -701,7 +701,7 @@
     ],
     "sourceSha256": "13657d2c03c920fb8cb793790233873c23b22d2f02938b4ad509a7423910b18e",
     "foregroundPercent": 9.23,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/fruit",
@@ -712,7 +712,7 @@
     ],
     "sourceSha256": "b5c4953a4e4d3b41e5f6c88cbd8e6675ee74174497eff9028a60b33dbf796b6e",
     "foregroundPercent": 33.46,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/funnel",
@@ -723,7 +723,7 @@
     ],
     "sourceSha256": "58e25507b1deb7fc994480704d5748c29f8eee17e07f3bfc2471d6f787e2698b",
     "foregroundPercent": 28.14,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/gas-mask",
@@ -734,7 +734,7 @@
     ],
     "sourceSha256": "bcf302097117af79215586fae938e302adaa37ca81c883d840c772505577bb8f",
     "foregroundPercent": 37.85,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/gear",
@@ -745,7 +745,7 @@
     ],
     "sourceSha256": "47e04944a139eb7bf905badac7c9e82ab766f82d62d1bb0c414f118c2a29ce4f",
     "foregroundPercent": 44.69,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/glass",
@@ -756,7 +756,7 @@
     ],
     "sourceSha256": "176f94a1b015bd33a93844a044ebbed5bb05626b68984fa0d1e1f77b52811e67",
     "foregroundPercent": 34.5,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/glove",
@@ -767,7 +767,7 @@
     ],
     "sourceSha256": "01cc4fbd7767f6f195328a99c1d30cf27324244cba73511e76372d32fd50bfc4",
     "foregroundPercent": 36.48,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/goggles",
@@ -777,8 +777,8 @@
       512
     ],
     "sourceSha256": "aef8d8e3596753182cd42b853b41a53434a133b924e28061bfd2cc89ec3c61aa",
-    "foregroundPercent": 35.0,
-    "differentPixels": 0
+    "foregroundPercent": 35,
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/grenade",
@@ -789,7 +789,7 @@
     ],
     "sourceSha256": "9470e13413eca75b96e6af7c56e72328f39f22ab77a81432864763d946fe0fb4",
     "foregroundPercent": 30.54,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/hair",
@@ -800,7 +800,7 @@
     ],
     "sourceSha256": "c03cb8ceb4bdeb145698aa77d874347564ad737eba8a13a3ed0a62092ad4df12",
     "foregroundPercent": 17.44,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/hammer",
@@ -811,7 +811,7 @@
     ],
     "sourceSha256": "5d3488d841c29f92383c22b61f462effe79926a14a1f73da9a1d3b0040d002a3",
     "foregroundPercent": 16.19,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/handkerchief",
@@ -822,7 +822,7 @@
     ],
     "sourceSha256": "d5e2235af1b887d22b4da885cef7555aa14c29394c7ac6d75ad7672004a6716e",
     "foregroundPercent": 31.14,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/hat",
@@ -833,7 +833,7 @@
     ],
     "sourceSha256": "c54f80fa7fea5ea4a7c733fb528acaa2b412188e113081134ce9675b9e7844fb",
     "foregroundPercent": 40.01,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/headphones",
@@ -844,7 +844,7 @@
     ],
     "sourceSha256": "4158b73712f116111f89c641c78a56ccf8ce04468666656f8492a0fa3308003a",
     "foregroundPercent": 28.85,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/helmet",
@@ -855,7 +855,7 @@
     ],
     "sourceSha256": "7d5bf76019d5743b53c440a25ef7a6e21db3563884a2fa54733ea156d893caab",
     "foregroundPercent": 29.76,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/inkwell",
@@ -866,7 +866,7 @@
     ],
     "sourceSha256": "57b513162d43ec7564ae0f2644712a5733dd76bbe7aea4722078c53950753329",
     "foregroundPercent": 37.8,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/key",
@@ -877,7 +877,7 @@
     ],
     "sourceSha256": "adfdd071fb6e72ba5885efb397bd0854371860868d5cb48b9eccc195607b95c8",
     "foregroundPercent": 19.78,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/keyboard",
@@ -888,7 +888,7 @@
     ],
     "sourceSha256": "582a682f30df3a8b679607f791face7dcf8526b296dbbade4168b97c8d91a779",
     "foregroundPercent": 28.03,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/knife",
@@ -899,7 +899,7 @@
     ],
     "sourceSha256": "bb4670047f730f63d849b9eedd923a608d48a33e549142c5c5034f4d4d86cd80",
     "foregroundPercent": 12.19,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/ladder",
@@ -910,7 +910,7 @@
     ],
     "sourceSha256": "448f5931cc4b458bc1606eea0b60f6ee3449dc6be456fac3cdad2981358716ff",
     "foregroundPercent": 15.27,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/lantern",
@@ -921,7 +921,7 @@
     ],
     "sourceSha256": "16b9c7fd6c6d2b709ed6004ed0943217a3015aa663e66250352ce630bd956f63",
     "foregroundPercent": 30.99,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/laptop",
@@ -932,7 +932,7 @@
     ],
     "sourceSha256": "d508ad2e8910962f84bb6df18554214053ca8c27ceb46a605b1a13447b419a1e",
     "foregroundPercent": 37.57,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/leaf",
@@ -943,7 +943,7 @@
     ],
     "sourceSha256": "4354fe00fb4669283c32e9cffec535f64c876ec093db25e5f82873dd1aeb889b",
     "foregroundPercent": 38.67,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/ledger",
@@ -954,7 +954,7 @@
     ],
     "sourceSha256": "5058f270e3f5aadf5a7cc51f2fd0fb755bf94ad60b0d5377feb647adec1bb151",
     "foregroundPercent": 41.62,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/letter",
@@ -965,7 +965,7 @@
     ],
     "sourceSha256": "7a2a08cb46a48f8f9de6edcc14aa0b4a6d7b0223af820d5c48a8f05872f553ba",
     "foregroundPercent": 31.47,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/lighter",
@@ -976,7 +976,7 @@
     ],
     "sourceSha256": "1f0ee4457b624208ff3f1daf14a7ed258ddf70a726bfcbe8f3a1f7bbf04fa6dc",
     "foregroundPercent": 31.4,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/lockpick",
@@ -987,7 +987,7 @@
     ],
     "sourceSha256": "ae3b0aed8b6c7fa47fede7cf2ad928e25a84809ec59d6375e84cd339b3a1ba0f",
     "foregroundPercent": 20.97,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/machinery",
@@ -998,7 +998,7 @@
     ],
     "sourceSha256": "9e1c38a08e163047cd642cfaad7fb93dd2ababd5e20a9c65896f8a313c42b8b7",
     "foregroundPercent": 47.77,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/map",
@@ -1009,7 +1009,7 @@
     ],
     "sourceSha256": "23fa7490e1c174a49775af451fee80871ffab89a2c95ba2cd237b12bf27d0d52",
     "foregroundPercent": 46.52,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/mask",
@@ -1020,7 +1020,7 @@
     ],
     "sourceSha256": "f12ef94c2e1031454ff5a8e5fdb1a8f08db0cd9886f42b8d3b83eccc8fc5cbbd",
     "foregroundPercent": 27.46,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/matches",
@@ -1031,7 +1031,7 @@
     ],
     "sourceSha256": "018501757b13aa699694ce5d2fb9510515481345b4dd55454ba5d52da804b1a4",
     "foregroundPercent": 28.21,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/meat",
@@ -1042,7 +1042,7 @@
     ],
     "sourceSha256": "ffbe5d1d31214827a4b057fea594a80468961e44eeff36a7c96e4f8a69b56ede",
     "foregroundPercent": 42.38,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/medal",
@@ -1053,7 +1053,7 @@
     ],
     "sourceSha256": "836faadf187ce545a9c747199ad027dfedb2099733f19d4bbceca3c25d342669",
     "foregroundPercent": 24.53,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/medicine-bottle",
@@ -1064,7 +1064,7 @@
     ],
     "sourceSha256": "20e34155b906564393c76b864d4f736fc1d7f6da8253a2242e405cb0a87985d2",
     "foregroundPercent": 27.29,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/mirror",
@@ -1075,7 +1075,7 @@
     ],
     "sourceSha256": "36ff960816b8d3a259df55e01ad7accfd09d80795c400ef8b3f12dbbba5364cd",
     "foregroundPercent": 23.31,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/necklace",
@@ -1086,7 +1086,7 @@
     ],
     "sourceSha256": "40df1766d3e8f27bf7642321c7636cc46b8389535163be7879ce397dda81e95b",
     "foregroundPercent": 10.34,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/needle",
@@ -1097,7 +1097,7 @@
     ],
     "sourceSha256": "49688a83cbee925642d1f2f39e118f7d7a0c2e680cdde71976c8eec108c0db5f",
     "foregroundPercent": 36.7,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/net",
@@ -1108,7 +1108,7 @@
     ],
     "sourceSha256": "3dcc8924c272dae8f3b6265c360f34b55a29901692d142aa408b6d9bd0f7887e",
     "foregroundPercent": 33.51,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/newspaper",
@@ -1119,7 +1119,7 @@
     ],
     "sourceSha256": "60357117732a39e9c0d35afe5081a9a3228dd6ecf7b1aa78357f76c61caca804",
     "foregroundPercent": 37.09,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/notebook",
@@ -1130,7 +1130,7 @@
     ],
     "sourceSha256": "5fa1cd5677cf121f3fe2be231d1364174911f7acec1a142badf1f6b0ff66e804",
     "foregroundPercent": 42.09,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/oilcan",
@@ -1141,7 +1141,7 @@
     ],
     "sourceSha256": "8b37e123bde2e7f5735b2f6dbcabefc2b52e38f84e66b15667fcaa73cb2def8e",
     "foregroundPercent": 17.49,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/padlock",
@@ -1152,7 +1152,7 @@
     ],
     "sourceSha256": "d308b3a838eb380a104b21ce1c2f885890dd8b0cf046048bab085cbaa62c093d",
     "foregroundPercent": 32.97,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/parachute",
@@ -1163,7 +1163,7 @@
     ],
     "sourceSha256": "a03e14353f099198d2035e75e9b2a2f8a6139324b39daa54fa6ad8ab42e0f8a4",
     "foregroundPercent": 47.16,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/pencil",
@@ -1174,7 +1174,7 @@
     ],
     "sourceSha256": "0b3221108e73c1e558bb4a0217e13a6794a841de74927018f23e60c1a1301f36",
     "foregroundPercent": 20.99,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/phone",
@@ -1185,7 +1185,7 @@
     ],
     "sourceSha256": "666b6b9eeed6fe259efe424361c52ccfb6857677b3a6ad6883576c885e3076a0",
     "foregroundPercent": 29.07,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/photo",
@@ -1196,7 +1196,7 @@
     ],
     "sourceSha256": "0f2ef8ed177d25d46de90a1a0b71441e11521f0814b7c9726f0b54fbffc08336",
     "foregroundPercent": 37.63,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/pickaxe",
@@ -1207,7 +1207,7 @@
     ],
     "sourceSha256": "e29ffe25519680586afcfbc3172bb73e0033586cbb6ecb805d8650560502182b",
     "foregroundPercent": 13.46,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/pillow",
@@ -1218,7 +1218,7 @@
     ],
     "sourceSha256": "a69eff2521ea39b3db1c5b8d172a59c295acdc9d4442bb36178a007b74c92421",
     "foregroundPercent": 31.98,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/pipe",
@@ -1229,7 +1229,7 @@
     ],
     "sourceSha256": "1d81a2f876f417939a6519663446e1f99b35663c201ce68d6a1aa1379262205e",
     "foregroundPercent": 21.48,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/pistol",
@@ -1240,7 +1240,7 @@
     ],
     "sourceSha256": "ac7abfd950f8fd2ddce53e182f8de9bee53ecdd7ee115a4aaecb9bbb07902b4d",
     "foregroundPercent": 14.59,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/plasticbag",
@@ -1251,7 +1251,7 @@
     ],
     "sourceSha256": "b1af77307be3726e3f53bb0516a723ace7b212fc52cc10240181ebcc5f6cc1f2",
     "foregroundPercent": 42.54,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/plate",
@@ -1262,7 +1262,7 @@
     ],
     "sourceSha256": "0ccea927ab7cab6e033dfcd7f1f2594511f25347229385d08a9a2fd8f956e566",
     "foregroundPercent": 44.71,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/playing-card",
@@ -1273,7 +1273,7 @@
     ],
     "sourceSha256": "70acebf990ce9f6da23a2eb41f7beee4c237dc2d50a771c0a1e0969752d1cdc2",
     "foregroundPercent": 44.94,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/plug",
@@ -1284,7 +1284,7 @@
     ],
     "sourceSha256": "8cf7aeb610bb51dbc2470c141edb1863e7c7f9c10b429d39dad95a86e5efbb73",
     "foregroundPercent": 24.81,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/pocket-watch",
@@ -1295,7 +1295,7 @@
     ],
     "sourceSha256": "3aa03571e44fcecc3e6c13d8ae78d65c4bf00801f8d1d4faceee9933e23fc4c0",
     "foregroundPercent": 38.82,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/poker",
@@ -1306,7 +1306,7 @@
     ],
     "sourceSha256": "8405583c7c18860ad085002d18ba300e3d6ce90475d615b450202a1916759cb0",
     "foregroundPercent": 4.28,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/poster",
@@ -1317,7 +1317,7 @@
     ],
     "sourceSha256": "f08b3c405668ac960d192737cb29d4705aaa9de5363bfab10e5ff8c00b807f68",
     "foregroundPercent": 52.76,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/powder",
@@ -1328,7 +1328,7 @@
     ],
     "sourceSha256": "d2ecc0e6a3336dcb83269c9d516ef0fd2114e62c0931aa419e428eebd544ddad",
     "foregroundPercent": 25.36,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/purse",
@@ -1339,7 +1339,7 @@
     ],
     "sourceSha256": "5341aa237675d78e655eb5d9fe9b410890d684e7d32ff0d633b0efeab4099471",
     "foregroundPercent": 37.5,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/quill",
@@ -1350,7 +1350,7 @@
     ],
     "sourceSha256": "bc6c201651460e3c80a89a3f7b6aac34914f089e6673eb27f35e6bb4a4ed6fdd",
     "foregroundPercent": 16.88,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/radio",
@@ -1361,7 +1361,7 @@
     ],
     "sourceSha256": "487213638d6dac7204486054a649771ff819f51a591f9b4c9ac6dae6c1ef55f3",
     "foregroundPercent": 44.37,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/razor",
@@ -1372,7 +1372,7 @@
     ],
     "sourceSha256": "a0f085ca814ceab60fd027919c297385853fa9553b742cee26410f84a82df191",
     "foregroundPercent": 16.47,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/remote",
@@ -1383,7 +1383,7 @@
     ],
     "sourceSha256": "cae7f1456811368176e9dd724a0490a8d7bf74da6f347541a04ae2aeb3f13091",
     "foregroundPercent": 24.41,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/ribbon",
@@ -1394,7 +1394,7 @@
     ],
     "sourceSha256": "18f5de4e4f701e4cb83e20c6962beee1e1e1f78b39213d9981143f70760b53c1",
     "foregroundPercent": 30.24,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/rifle",
@@ -1405,7 +1405,7 @@
     ],
     "sourceSha256": "3471706694505a99dfdf0a904130740cb7f9ac8f9025dfab29ce3f7c6d3b58e6",
     "foregroundPercent": 7.35,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/ring",
@@ -1416,7 +1416,7 @@
     ],
     "sourceSha256": "622c4c42a021538bea6f0929763c2f9b44fba13faeb8cf9d17b9313d6af2da8c",
     "foregroundPercent": 20.97,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/rope",
@@ -1427,7 +1427,7 @@
     ],
     "sourceSha256": "f2d295d1e547092402bb4d652b86c3c4e36d415fe7729f9f2a96d8c440c4fe80",
     "foregroundPercent": 36.86,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/sand",
@@ -1438,7 +1438,7 @@
     ],
     "sourceSha256": "3a9de70987b98d1e7be0ae1932c64906f6888dbd661d512071617dedc1377482",
     "foregroundPercent": 28.37,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/satchel",
@@ -1449,7 +1449,7 @@
     ],
     "sourceSha256": "159ef7e29b129a8e6d47bdd61515d80005c9881314c7581d78956d87bf2ad54d",
     "foregroundPercent": 55.38,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/saw",
@@ -1460,7 +1460,7 @@
     ],
     "sourceSha256": "3050faf7e562e5fc99c9be105fb7c4dfd56a13b53e882c64450c9848bda79683",
     "foregroundPercent": 19.58,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/scarf",
@@ -1471,7 +1471,7 @@
     ],
     "sourceSha256": "b1203b68bfdc2ae9727bac3f4a5780442bd68d914cc93e3e9f55117788c8d7b4",
     "foregroundPercent": 52.08,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/scissors",
@@ -1482,7 +1482,7 @@
     ],
     "sourceSha256": "5b84fafcf5d6c3e7ba88a1a1755b44270425b04ed6b784ae6ea0d4cb993489a6",
     "foregroundPercent": 15.4,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/scooter",
@@ -1493,7 +1493,7 @@
     ],
     "sourceSha256": "1fa3fabfcef0eb2d523dd5f9832154071aacd7d770c976bab8517c576a6df89f",
     "foregroundPercent": 23.3,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/seal",
@@ -1504,7 +1504,7 @@
     ],
     "sourceSha256": "daf78ca30e908369f5f7da9a7801e4381c9ebd6f976bcd27ac3e4826954a09da",
     "foregroundPercent": 26.49,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/seed",
@@ -1515,7 +1515,7 @@
     ],
     "sourceSha256": "201d712423fd557b0a5e815a3002489f245e506303edfda74f1d81c001298b83",
     "foregroundPercent": 32.83,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/shell",
@@ -1526,7 +1526,7 @@
     ],
     "sourceSha256": "f073d0802f85ee21c7841c5b042783e6a14d0e421431788c82636b70c346b8d3",
     "foregroundPercent": 22.74,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/shirt",
@@ -1537,7 +1537,7 @@
     ],
     "sourceSha256": "0ad4c4a2c285fcb754c8709064c7dbeea55a28195cb71d1873e32e39fa6d5ee3",
     "foregroundPercent": 48.89,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/shoe",
@@ -1548,7 +1548,7 @@
     ],
     "sourceSha256": "003eb2df383984ba9437dac27a06d609b956ba5b706edc61b24ff6cd1b306816",
     "foregroundPercent": 34.3,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/shovel",
@@ -1559,7 +1559,7 @@
     ],
     "sourceSha256": "3987d68f7a7f1ca9a002f8344e3b147814c53f147518995b1eb5c5af28d0d848",
     "foregroundPercent": 14.32,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/sickle",
@@ -1570,7 +1570,7 @@
     ],
     "sourceSha256": "85b7b77a5a6ec57358e448624242d5f3ffa90d7192ad6a25355c0f1878abb8d4",
     "foregroundPercent": 13.42,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/sim-card",
@@ -1581,7 +1581,7 @@
     ],
     "sourceSha256": "5f3670f307e91c6e68fcd203ffb426ac487b7494fcbadadc56bfffda5df72cc4",
     "foregroundPercent": 11.75,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/snuffbox",
@@ -1592,7 +1592,7 @@
     ],
     "sourceSha256": "c99f9df3493bd7269bc80cb2948d7acc5623fb590ba6117e21b685e5240c7b6d",
     "foregroundPercent": 33.19,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/soil",
@@ -1603,7 +1603,7 @@
     ],
     "sourceSha256": "6d706e61e3255caf45e2095a63899a1c23ca0a24a8c53ef8194f4a5327ee84eb",
     "foregroundPercent": 34.21,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/spectacles",
@@ -1614,7 +1614,7 @@
     ],
     "sourceSha256": "a682ac28542c591d79abd7f33d833fca22936c949517c4629d19f2b91e9b0f3c",
     "foregroundPercent": 14.93,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/spoon",
@@ -1625,7 +1625,7 @@
     ],
     "sourceSha256": "45d6b3c70136b910b5d623375e1fcc5ddc5304cfd49316af5f0b43b482a02e7d",
     "foregroundPercent": 11.15,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/spray-can",
@@ -1636,7 +1636,7 @@
     ],
     "sourceSha256": "c9b09f8aa7312a029b17e8559f3eb54491dc6f6097544bb520620c43a971c307",
     "foregroundPercent": 25.56,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/spring",
@@ -1647,7 +1647,7 @@
     ],
     "sourceSha256": "d84bdbddf2f33e5b2afbd2645d51cb394040845c04e0f2b5df8643328e321f41",
     "foregroundPercent": 25.4,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/stairs",
@@ -1658,7 +1658,7 @@
     ],
     "sourceSha256": "74e9a889916b6148a0f52737345bd0628c50b8be50052fe37f3102a8f1020c1d",
     "foregroundPercent": 59.68,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/statue",
@@ -1669,7 +1669,7 @@
     ],
     "sourceSha256": "98c5ab83db5bcb15d42f1533eec37f2ee6f8293d481bccff8512572f357d8332",
     "foregroundPercent": 28.01,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/stethoscope",
@@ -1680,7 +1680,7 @@
     ],
     "sourceSha256": "02680883dc5900a267e181668a5858972b7362996876d02e99672901f336af68",
     "foregroundPercent": 15.59,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/stone",
@@ -1691,7 +1691,7 @@
     ],
     "sourceSha256": "583410252885eea84478935e9cf2cbb55bbf1e8786123cf3bf0b394fda49bf70",
     "foregroundPercent": 33.71,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/suitcase",
@@ -1702,7 +1702,7 @@
     ],
     "sourceSha256": "2d3a512d73b65d692644864c37121d93aa2f676f06bcb984101608a87ac9cc79",
     "foregroundPercent": 44.98,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/sword",
@@ -1713,7 +1713,7 @@
     ],
     "sourceSha256": "a6978eaf95aab46cacd2e0fe6adfb0d6ccc58b0085c7676b39c807b895aab8a4",
     "foregroundPercent": 8.92,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/syringe",
@@ -1724,7 +1724,7 @@
     ],
     "sourceSha256": "7557534ded8bdaa58e9bf19532ed82e7e45b7e1ddda15a436e2ee6b9c214b55f",
     "foregroundPercent": 8.89,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/telephone",
@@ -1735,7 +1735,7 @@
     ],
     "sourceSha256": "8fd494824be5600906e533652c70b0090f15de0f5b8417f97263964172425694",
     "foregroundPercent": 39.62,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/thermometer",
@@ -1746,7 +1746,7 @@
     ],
     "sourceSha256": "b3b994b574c37743517432f923b6386e974af76087eaf06a6cc8c9b5189e70f1",
     "foregroundPercent": 7.15,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/thread",
@@ -1757,7 +1757,7 @@
     ],
     "sourceSha256": "145c31ff545844dc19e8ac6c1e149759130e1fdba350c70c0fd8578353d6cc52",
     "foregroundPercent": 26.77,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/ticket",
@@ -1768,7 +1768,7 @@
     ],
     "sourceSha256": "44f4176052d970985b00630a9f4d90a30d6c9b3d31b99a0ea96d500e3a43dfc0",
     "foregroundPercent": 26.89,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/tinderbox",
@@ -1779,7 +1779,7 @@
     ],
     "sourceSha256": "1054af1c49cd5318b3d64b926d123466840c1de83baeb2b6d82d1346abb57dec",
     "foregroundPercent": 44.25,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/tobacco",
@@ -1790,7 +1790,7 @@
     ],
     "sourceSha256": "63c5fa2dfa328a67d891800de62628c3c465591225c7551a7ea77d51ba4edcb0",
     "foregroundPercent": 36.13,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/tongs",
@@ -1801,7 +1801,7 @@
     ],
     "sourceSha256": "3db1c7e6bf932096231f79b7ca9907fa100301cea351f1e16b1d5b35d4b19c09",
     "foregroundPercent": 7.59,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/torch",
@@ -1812,7 +1812,7 @@
     ],
     "sourceSha256": "1c867c1679fa77f0705a3e012fdfafb0944400c82bef3b266a55b17ec3b4e112",
     "foregroundPercent": 22.01,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/train",
@@ -1823,7 +1823,7 @@
     ],
     "sourceSha256": "9a950bc5a137912e77b1373b86629906244b83925e4295e19b2b237d6adceed5",
     "foregroundPercent": 42.38,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/umbrella",
@@ -1834,7 +1834,7 @@
     ],
     "sourceSha256": "4e2d9a4cc0e1f6d8be2ee839580a08ce12ef257ecb0f35cb2bd8ba1ccf123f61",
     "foregroundPercent": 11.06,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/usb",
@@ -1845,7 +1845,7 @@
     ],
     "sourceSha256": "a7ea04e88a59c5efabcd880547f6ea7842c212ece0bb954cfaccf14ef6904564",
     "foregroundPercent": 18.06,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/vase",
@@ -1856,7 +1856,7 @@
     ],
     "sourceSha256": "4e269831443a4206df9592c2d6027560d7bb23e77c7df8fe3a17a5654f2488ae",
     "foregroundPercent": 25.34,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/wartime-truck",
@@ -1867,7 +1867,7 @@
     ],
     "sourceSha256": "8c946932d99bb67ba8c02b9a2e4a726ab7112c37251204624510f712cb6d9d3c",
     "foregroundPercent": 40.71,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/water",
@@ -1878,7 +1878,7 @@
     ],
     "sourceSha256": "5eaefc9d321454a1df5600c198aceb287d09f9d90f7610e996f09d981bed818b",
     "foregroundPercent": 83.93,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/waterpipe",
@@ -1889,7 +1889,7 @@
     ],
     "sourceSha256": "5dbdad27032024af5f766d19784dd46fe8145e480614f6cb37b3196a086b6b9f",
     "foregroundPercent": 24.15,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/weight",
@@ -1900,7 +1900,7 @@
     ],
     "sourceSha256": "6f111605eb1a2c8c6923c1ccefe005846457367f5ce8cc0fee59302c8c77d775",
     "foregroundPercent": 27.71,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/wheel",
@@ -1911,7 +1911,7 @@
     ],
     "sourceSha256": "b21ee5edfc4c25a31ebf723da2256d7e70d0d631a72d8b5027f3a4c5acc816bb",
     "foregroundPercent": 30.92,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/whistle",
@@ -1922,7 +1922,7 @@
     ],
     "sourceSha256": "b8e9938d12cc765f214e5263e453156f33cdda5144ceec2217a5fb054c61fb6f",
     "foregroundPercent": 19.24,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/window",
@@ -1933,7 +1933,7 @@
     ],
     "sourceSha256": "47750725512c912b92aa028a4ca98aa6a418e6028d0527d70b8637672bf9933e",
     "foregroundPercent": 35.31,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/wire",
@@ -1944,7 +1944,7 @@
     ],
     "sourceSha256": "2c58b714d9fd1293ea3c7b7df9c0a0cf275e197e1a2bde5dc7229576cda09664",
     "foregroundPercent": 31.59,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/objects/wrench",
@@ -1955,7 +1955,7 @@
     ],
     "sourceSha256": "b2dcfcfd5b309bb33d0028c34fb7ceb2474514edb6cfca395992b58686154a35",
     "foregroundPercent": 16.81,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/roles/accomplice",
@@ -1966,7 +1966,7 @@
     ],
     "sourceSha256": "7a0fc4e3ae2996d53af36adb2cc4fd64b288e0567846b636442839a7a08d2498",
     "foregroundPercent": 51.35,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/roles/gregson",
@@ -1977,7 +1977,7 @@
     ],
     "sourceSha256": "9519233142b96f330c269ab93a7d76668904eb47ca41587c8165a4b7ac1b79e1",
     "foregroundPercent": 58.75,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/roles/holmes",
@@ -1988,7 +1988,7 @@
     ],
     "sourceSha256": "7586e661c34afc7a3d85789a81096d199a2dcf147f6944f611aba307e2ca7907",
     "foregroundPercent": 57.06,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/roles/hopkins",
@@ -1999,7 +1999,7 @@
     ],
     "sourceSha256": "dea52bb4a639cf7d8df3046057ec8311404e5dbd6a09be0dc141477c643bacd7",
     "foregroundPercent": 60.35,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/roles/investigator",
@@ -2010,7 +2010,7 @@
     ],
     "sourceSha256": "30127fd4617cabac1a0e8df4c7732388a67208bbf0ee3d473dd7500c876a18b9",
     "foregroundPercent": 51.76,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/roles/irene",
@@ -2021,7 +2021,7 @@
     ],
     "sourceSha256": "68ea8de18b8c616c1e091cc41fccd93de934ec00537c8ea6e5ac511b996e881c",
     "foregroundPercent": 58.71,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/roles/lestrade",
@@ -2032,7 +2032,7 @@
     ],
     "sourceSha256": "76ae833085b9a1fca0f3d482b7e70472bc56a97eeace4f09b7a8c5ae886cb21d",
     "foregroundPercent": 56.84,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/roles/mary",
@@ -2043,7 +2043,7 @@
     ],
     "sourceSha256": "71e394d0fc8b6764bcebc5b8bc9b44ab9148bc85a9ab51c899fa1fdca3d28c2c",
     "foregroundPercent": 54.34,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/roles/moriarty",
@@ -2054,7 +2054,7 @@
     ],
     "sourceSha256": "53d51013021e4ea87b0d77cdd52ac91a91058c9106cb0f19b43b1394f9ff175a",
     "foregroundPercent": 58.72,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/roles/murderer",
@@ -2065,7 +2065,7 @@
     ],
     "sourceSha256": "a461fd10f9d4f53362c1291db829ae80c78cc9e6054bfe9654711da1c7d3f001",
     "foregroundPercent": 67.26,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/roles/mycroft",
@@ -2076,7 +2076,7 @@
     ],
     "sourceSha256": "093afe43b0b17fe25c8b51f12f73ce9796705d2946c10bc4e5079b7bcbf58564",
     "foregroundPercent": 56.1,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "baker/roles/watson",
@@ -2087,7 +2087,7 @@
     ],
     "sourceSha256": "eedaa4f9d4a44118b1837e281ae378c8d4b893b18c5f7af8b9046617e047ecde",
     "foregroundPercent": 53.18,
-    "differentPixels": 0
+    "background": "baker/card-paper.webp"
   },
   {
     "path": "banquet/roles/beggar",

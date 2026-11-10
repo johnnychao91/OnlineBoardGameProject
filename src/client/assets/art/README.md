@@ -25,7 +25,7 @@
 
 `source-layers/` 依照遊戲及原素材的路徑收錄 `subject.webp` 與 `background.webp`，索引 `manifest.json` 紀錄原圖尺寸、檔案雜湊與比對結果。獨立背景在原本被遮住的位置使用估算像素。若要將角色或道具挪到其他位置，需重新檢查露出的補繪區與主體輪廓。
 
-《貝克街迷霧》的皮靴是改畫項目。遊戲和圖鑑以透明皮靴 `baker/objects/boot.webp` 疊在獨立的羊皮紙 `baker/boot-paper.webp` 上。
+《貝克街迷霧》的角色與證物卡改用透明主體和共用羊皮紙 `baker/card-paper.webp`。分層索引以 `background` 記錄共用卡底的路徑。新版皮靴主體位於 `baker/objects/boot.webp`。
 
 ### 杯中回聲封詞杯
 

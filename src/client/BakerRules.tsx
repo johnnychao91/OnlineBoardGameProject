@@ -88,7 +88,7 @@ export function BakerRules() {
     </Chapter>
     <Chapter id="roles" title="2. 角色與標記圖鑑">
       <p>基礎身分牌共 12 張：福爾摩斯、華生、執行者、內應各 1 張，以及 8 張倫敦警察；每局依人數及設定取用。數位基本配置可按人數重複使用倫敦警察身分。福爾摩斯可以隨機分配，也可指定一位已入座玩家。其餘身分保密。</p>
-      <RoleGallery entries={roles} idPrefix="baker-role" />
+      <RoleGallery entries={roles} idPrefix="baker-role" portraitClassName="baker-card-paper" />
       <p>瑪麗、艾琳、邁克羅夫特、雷斯垂德探長、葛萊森探長與霍普金斯是預製人物圖卡，目前沒有額外技能，也不會被抽成新角色。莫里亞蒂是幕後主使，不占玩家名額。</p>
       <RoleGallery idPrefix="baker-token" entries={[
         { id: 'badge', name: '倫敦警徽', image: bakerImage('badge'), category: '破案機會 · 最多 11 枚', description: '福爾摩斯以外，每人持有一枚。一次錯誤的正式破案會交出警徽；失去警徽仍可討論與發言。', tone: 'neutral' },

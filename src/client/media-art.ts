@@ -45,7 +45,7 @@ function sectionFor(key: string, stem: string): SectionID {
   if (key.startsWith(splitFolder)) return key.endsWith('/background.webp') ? 'background' : 'subject';
   if (mediaAssets.has(splitFolder + stem + '/subject.webp')) return 'composite';
   const leaf = stem.split('/').at(-1)!;
-  if (/^(background|city|train|lab|scene(?:-.+)?|boot-paper|ink-space-station|ink-cipher-room|.*-tavern|home-table-v1)$/.test(leaf)) return 'background';
+  if (/^(background|city|train|lab|scene(?:-.+)?|card-paper|ink-space-station|ink-cipher-room|.*-tavern|home-table-v1)$/.test(leaf)) return 'background';
   if (standaloneSubjects.has(stem) || /^star\/tokens\//.test(stem)) return 'subject';
   if (/^art\/(?:fog\/|moon\/|turing\/(?:core|terminal)$|ink-)/.test(stem) && !/(?:ink-cipher-card|ink-cipher-room)$/.test(stem)) return 'subject';
   return 'other';

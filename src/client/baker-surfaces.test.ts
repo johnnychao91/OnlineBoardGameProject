@@ -109,9 +109,11 @@ describe('Baker Street private and read-only surfaces', () => {
     expect(gallery).toContain('現場物證 · 400 張'); expect(gallery).toContain('作案手段 · 180 張');
     expect(gallery.match(/class="baker-card"/g)?.length).toBeLessThanOrEqual(24);
     expect(gallery).toContain('搜尋牌名'); expect(gallery).toContain('下一頁');
+    expect(gallery).toContain('baker-object-art baker-card-paper');
     const rules = renderToStaticMarkup(createElement(BakerRules));
     for (const [chapter] of bakerChapters) expect(rules).toContain(`id="${chapter}"`);
     expect(rules).toContain('預製人物 · 未加入角色配置'); expect(rules).toContain('葛萊森探長');
+    expect(rules).toContain('rules-role-portrait baker-card-paper');
     expect(rules).toContain('目前沒有額外技能'); expect(rules).toContain('12 塊特別圖板');
     expect(rules).not.toContain('福爾摩斯：貝克街迷霧');
   });

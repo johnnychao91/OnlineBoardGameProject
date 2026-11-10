@@ -11,14 +11,17 @@ it('assigns each source pair and its original to separate sections under exactly
   expect(galleries.every(gallery => gallery.subject.length && gallery.background.length)).toBe(true);
   const sources = new Set(galleries.flatMap(gallery => gallery.composite.map(asset => asset.filename)));
   expect(sources.size).toBe(layers.length);
-  for (const { path, source } of layers) {
+  for (const { path, source, background = `art/source-layers/${path}/background.webp` } of layers) {
     const matches = galleries.filter(gallery => gallery.composite.some(asset => source.endsWith('/assets/' + asset.filename)));
     expect(matches, path).toHaveLength(1);
     expect(matches[0].subject.some(asset => asset.filename === 'art/source-layers/' + path + '/subject.webp'), path).toBe(true);
-    expect(matches[0].background.some(asset => asset.filename === 'art/source-layers/' + path + '/background.webp'), path).toBe(true);
+    expect(matches[0].background.some(asset => asset.filename === background), path).toBe(true);
   }
   expect(mediaFor('baker-street').subject.some(asset => asset.filename === 'baker/objects/boot.webp')).toBe(true);
-  expect(mediaFor('baker-street').background.some(asset => asset.filename === 'baker/boot-paper.webp')).toBe(true);
+  expect(mediaFor('baker-street').background.map(asset => asset.filename)).toEqual([
+    'baker/card-paper.webp', 'baker/scene-industrial.webp', 'baker/scene-modern.webp',
+    'baker/scene-victorian.webp', 'baker/scene-wartime.webp',
+  ]);
 });
 
 it('catalogs every image file in the frontend and public asset directories once', () => {

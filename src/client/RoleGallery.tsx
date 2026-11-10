@@ -10,10 +10,12 @@ export interface RoleGalleryEntry {
 }
 
 /** Public rulebook artwork and descriptions, independent of any room or seat. */
-export function RoleGallery({ entries, idPrefix }: { entries: readonly RoleGalleryEntry[]; idPrefix: string }) {
+export function RoleGallery({ entries, idPrefix, portraitClassName }: {
+  entries: readonly RoleGalleryEntry[]; idPrefix: string; portraitClassName?: string;
+}) {
   return <div className="rules-role-gallery">
     {entries.map(role => <article className="rules-role-card" data-tone={role.tone} key={role.id} aria-labelledby={`${idPrefix}-${role.id}`}>
-      <div className="rules-role-portrait">
+      <div className={portraitClassName ? `rules-role-portrait ${portraitClassName}` : 'rules-role-portrait'}>
         {role.sampleNumber === undefined
           ? <img src={role.image} alt={`${role.name}插畫`} width={1254} height={1254} loading="lazy" decoding="async" />
           : <div className="rules-signal-example" role="img" aria-label={`${role.name}範例：${role.sampleNumber}`}>
