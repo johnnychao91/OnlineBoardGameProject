@@ -36,7 +36,7 @@ const folders: Record<MediaID, readonly string[]> = {
 
 const standaloneSubjects = new Set([
   'endlessbar-logo-transparent', 'baker/badge', 'baker/chess-marker', 'baker/objects/boot',
-  'banquet/coin', 'banquet/court', 'heist/bank', 'firewall/credit', 'echo/sealed-cup',
+  'banquet/coin', 'banquet/court', 'heist/bank', 'firewall/credit', 'echo/sealed-cup', 'echo/open-cup',
 ]);
 
 const mediaAssets = new Map(Object.entries(assets).map(([path, url]) => [path.slice('./assets/'.length), url]));

@@ -6,6 +6,7 @@ import { GameSoundControl } from './GameSoundControl';
 import type { SnapshotProps } from './game-types';
 import { RoomContext } from './room-context';
 import { serverNow } from './server-clock';
+import openCup from './assets/echo/open-cup.webp';
 import sealedCup from './assets/echo/sealed-cup.webp';
 import type { SoundCueState } from './sound-cues';
 import './echo.css';
@@ -116,9 +117,18 @@ function EchoLayout({ G, info, live, children }: { G: EchoState; info: RoomInfo;
         <div className="echo-clues"><h2>{matched ? (G.result === 'same-word' ? '全員同詞' : '全員確認同義') : G.status === 'finished' ? '本桌尚未相遇' : G.status === 'review' ? '杯中的詞' : G.clues.length ? '沿著這些詞繼續想' : '先各想一個詞'}</h2>
           {G.status === 'writing' && !!G.clues.length && <ul>{G.clues.map(word => <li key={word}>{word}</li>)}</ul>}
           {matched && <span className="echo-ripples" aria-hidden="true"><i /><i /><i /></span>}</div>
-        <ul className="echo-cups">{ids.map(id => <li key={id} data-sealed={G.players[id].sealed || !!revealed?.words[id]}>
-          <img src={sealedCup} alt="" width={640} height={640} /><span>{playerName(info, id)}</span>
-          <strong>{revealed ? revealed.words[id] ?? '未作答' : G.players[id].sealed ? '已封詞' : '待封詞'}</strong></li>)}</ul>
+        <ul className="echo-cups">{ids.map(id => {
+          const sealed = G.status === 'writing' && G.players[id].sealed;
+          const word = revealed?.words[id];
+          const size = sealed ? 640 : 704;
+          return <li key={id} data-sealed={sealed || !!word}>
+            <span className="echo-cup-art" data-closed={sealed}>
+              <img src={sealed ? sealedCup : openCup} alt="" width={size} height={size} />
+            </span>
+            <span>{playerName(info, id)}</span>
+            <strong>{revealed ? word ?? '未作答' : sealed ? '已封詞' : '待封詞'}</strong>
+          </li>;
+        })}</ul>
         {(G.status === 'writing' || G.status === 'review') && <p className="small muted echo-progress">{confirmed}／{ids.length} 位{G.status === 'writing' ? '已封詞' : '已確認'}</p>}
         {G.status === 'finished' && <p className="small muted echo-progress">詞鏈已保留，可從房間的歷史對局進入復盤。</p>}
       </div>

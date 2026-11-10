@@ -29,6 +29,12 @@
 
 ### 杯中回聲封詞杯
 
+`echo/open-cup.webp` 是待封詞及揭曉時使用的開蓋插畫。以內建 ImageGen 參照開口杯身與原闔蓋插畫，將原杯蓋放在杯子的右前方。開蓋圖輸出為 704 × 704 透明 WebP，杯口與杯腳對齊置中於同一畫布的 640 × 640 闔蓋圖。
+
+```text
+Make a transparent square alternate sprite of this exact purple gold-trimmed plum blossom porcelain tea bowl. Reference image 1 is the lidless bowl, and reference image 2 shows the matching lid and bowl. Keep the bowl upright, full and centered with its dark violet open elliptical rim entirely visible and its gold foot aligned to the same baseline as reference image 1. Put the lid in the FOREGROUND on the LOWER RIGHT, propped up on its outer rim beside the bowl's foot. It leans against the outside of the lower right wall, with its front edge visibly OVERLAPPING the lower right of the painted cup. All parts of the lid are in front of the cup and the entire lid outline including the gold finial is visible; the cup cannot overlap any part of the lid. Position the lid fully below the cup mouth, right at table level, with its purple dome and gold finial seen in three-quarter view pointing slightly up and toward the viewer. The contact point of the tilted lid is at the same baseline as the cup foot. Approximate target layout on the square: bowl body x 14–81%, y 30–85%; foreground lid x 62–96%, y 52–85%. Keep upper third mostly clear. Match violet glaze, plum blossoms, gold, and painted gouache illustration with warm reflections. Exactly one bowl and one lid, no saucer, no shadow, no backdrop, no tabletop surface, no lettering, no smoke. Genuine transparent alpha surrounding both objects. Composition must read clearly at a small 100-pixel thumbnail.
+```
+
 以內建 `image_gen` 參考舊卡圖重製，輸出 640 × 640 的透明 WebP，供實戰卡面與圖鑑共用。
 
 ```text

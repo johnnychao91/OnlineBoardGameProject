@@ -24,7 +24,7 @@ export function EchoRules() {
     </section>
     <section className="rules-chapter panel" id="gallery"><h2>3. 酒肆道具圖鑑</h2>
       <RoleGallery idPrefix="echo" entries={[
-        { id: 'cup', name: '封詞杯', image: cup, category: '秘密提交', description: '闔上杯蓋就封存自己的詞。桌上只會顯示封詞進度，直到全桌一起揭曉。', tone: 'friendly' },
+        { id: 'cup', name: '封詞杯', image: cup, category: '秘密提交', description: '待封詞時杯蓋放在杯旁，送出後闔上。全桌揭曉時，杯蓋再次移開並顯示答案。', tone: 'friendly' },
         { id: 'bell', name: '回聲鐘', image: bell, category: '回合揭曉', description: '全員封詞或時間到時，回聲鐘讓已送出的詞同時公開。', tone: 'neutral' },
         { id: 'seal', name: '相遇印記', image: seal, category: '合作結算', description: '當全員同詞或一致確認同義，杯中的漣漪在桌心交會。', tone: 'friendly' },
       ]} />
