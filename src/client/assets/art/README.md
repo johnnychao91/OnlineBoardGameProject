@@ -12,6 +12,29 @@
 
 美術畫面在圖片上方保留足夠對比的操作面板；任何圖片下載失敗都不應妨礙遊戲。
 
+## 角色與道具卡圖製作流程
+
+1. **先生成主體。** 角色與道具預設各做成可獨立使用的透明插畫。單張只放當前角色或道具，保留完整輪廓和安全留白。生成時指定真正的透明 alpha，邊緣保持乾淨，陰影由介面處理。
+2. **背景另外生成。** 需要場景、材質或卡面底圖時，另存一張獨立背景。卡背與共用圖框可使用獨立素材，角色、道具、背景、牌框與遊戲文字分層呈現。卡名、數值、提示與狀態由介面繪製。
+3. **轉檔與驗收。** 成品採保留 alpha 的 WebP 或 PNG。確認四角透明、主體與背景確實分離，並在深淺兩種底色及手機牌面尺寸下檢查邊緣、輪廓、裁切與可讀性。
+4. **接回使用場景。** 實戰、觀戰、復盤與圖鑑可重用同一份主體。先通過既有權限投影，再決定何時顯示角色或牌面。舊卡若已把主體與場景合成，重製時先分離主體再組回介面。
+
+### 舊牌面保真分層
+
+維持舊牌面時，以原尺寸、原座標擷取主體，背景保留所有原本可見的像素，只補出原本被主體遮住的區域。輸出兩層後重新疊合，逐像素比對原始牌面。網站以原牌檔作為已驗證的合成版本，沿用同一個縮放及裁切流程，避免瀏覽器分別縮放兩層時產生接縫。
+
+`source-layers/` 依照遊戲及原素材的路徑收錄 `subject.webp` 與 `background.webp`，索引 `manifest.json` 紀錄原圖尺寸、檔案雜湊與比對結果。獨立背景在原本被遮住的位置使用估算像素。若要將角色或道具挪到其他位置，需重新檢查露出的補繪區與主體輪廓。
+
+《貝克街迷霧》的皮靴是改畫項目。遊戲和圖鑑以透明皮靴 `baker/objects/boot.webp` 疊在獨立的羊皮紙 `baker/boot-paper.webp` 上。
+
+### 杯中回聲封詞杯
+
+以內建 `image_gen` 參考舊卡圖重製，輸出 640 × 640 的透明 WebP，供實戰卡面與圖鑑共用。
+
+```text
+Use case: background-extraction. Regenerate the sealed-word cup prop asset for 《杯中回聲》 as a clean standalone painted cutout, using the supplied card as design reference. Preserve the cup's distinctive low purple glazed ceramic, delicate plum blossom decoration, gold lip and small gold finial on its fitted lid, and the warm amber rim light. Keep the entire cup and lid clearly centered in a square, occupying about 80% of the width with generous transparent padding and a clean antialiased silhouette. Remove the coaster as well as the candle, curtains, window, floor, table, distant scenery, cast shadow, and any atmospheric glow outside the object. The surroundings must be genuine transparent alpha on all sides, not a drawn checkerboard, no gradient or flat backdrop. No card frame, letters, logos, text or watermark. Refined gouache-style hand-painted fantasy tabletop object, readable at thumbnail scale.
+```
+
 ## 太空維修站生成提示
 
 ```text

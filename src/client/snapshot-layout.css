@@ -14,6 +14,13 @@
 .replay-sharing-disclosure { margin-top: 12px; }
 .replay-sharing-disclosure > summary { cursor: pointer; min-height: 36px; padding: 8px 12px; border: 1px solid #496984; border-radius: 8px; color: var(--mint); font-size: 12px; }
 .replay-sharing-disclosure .replay-sharing { margin: 10px 0 0; }
+.share-replay .replay-link-copy { display: none; }
+.echo-chain-preview { display: flex; flex-direction: column-reverse; gap: 10px; }
+@media (min-width: 701px) {
+  .share-replay .replay-link-copy { display: inline-flex; }
+  .share-replay .replay-link-share { display: none; }
+  .battle-report .echo-image-share { display: none; }
+}
 
 @media (max-width: 1099px), (max-height: 699px) {
   .snapshot-layout.cipher-layout { display: block; }

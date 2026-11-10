@@ -27,6 +27,7 @@ async function fixture() {
   const template = await readFile(resolve('index.html'), 'utf8');
   const icon = await readFile(resolve('public' + iconPath));
   await writeFile(join(clientDir, 'index.html'), template);
+  await writeFile(join(clientDir, 'media.html'), await readFile(resolve('media.html')));
   await writeFile(join(clientDir, iconPath.slice(1)), icon);
   const cover = await readFile(resolve('public' + coverPath));
   await writeFile(join(clientDir, coverPath.slice(1)), cover);
@@ -58,6 +59,28 @@ function jpegDimensions(bytes: Buffer) {
 }
 
 describe('Public link previews', () => {
+  it('serves the standalone media gallery by direct URL without linking to it from public pages', async () => {
+    const f = await fixture();
+    for (const path of ['/media', '/media/', '/media/endless-bar', ...GAME_IDS.map(id => `/media/${id}`)]) {
+      const response = await f.request(path);
+      expect(response.status).toBe(200);
+      expect(response.headers.get('x-robots-tag')).toBe('noindex, nofollow');
+      const html = await response.text();
+      expect(html).toContain('/src/client/media.tsx');
+      expect(metadata(html, 'robots')).toEqual(['noindex, nofollow']);
+      expect(metadata(html, 'og:title')).toEqual([]);
+    }
+    const head = await f.request('/media/baker-street/', { method: 'HEAD' });
+    expect(head.status).toBe(200);
+    expect(await head.text()).toBe('');
+    expect((await f.request('/media/unknown')).status).toBe(404);
+    expect((await f.request('/media/', { method: 'POST' })).status).toBe(404);
+    for (const path of ['/', '/rules', '/rules/baker-street']) {
+      const response = await f.request(path);
+      expect(await response.text()).not.toContain('/media');
+    }
+  });
+
   it('provides branded HTML on every page route without JavaScript or authentication', async () => {
     const f = await fixture();
     for (const path of ['/', '/index.html', '/join/unknown-room', '/room/unknown-room', '/replay/unknown-room']) {

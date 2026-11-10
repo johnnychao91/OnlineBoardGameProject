@@ -38,7 +38,8 @@ function transition(G: EchoState, status: EchoState['status'], deadline: number 
 function beginRound(G: EchoState, now: number) {
   clearPrivate(G);
   G.round++;
-  transition(G, 'writing', G.options.seconds ? now + G.options.seconds * 1000 : null);
+  G.options = normalizeEchoOptions(G.options);
+  transition(G, 'writing', now + G.options.seconds * 1000);
 }
 function finish(G: EchoState, result: EchoResult) {
   clearPrivate(G);
@@ -83,7 +84,7 @@ export function advanceEchoClock(G: EchoState, now: number): boolean {
 /** Called only after host authorization inside the room queue. */
 export function updateLiveEchoOptions(G: EchoState, options: EchoOptions, now: number) {
   if (G.status === 'writing' && options.seconds !== G.options.seconds) {
-    G.deadline = options.seconds ? now + options.seconds * 1000 : null;
+    G.deadline = now + options.seconds * 1000;
   }
   G.options = options;
   G.epoch++;

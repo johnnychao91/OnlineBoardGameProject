@@ -14,7 +14,9 @@ export function BakerArtwork({ card, role, token, hidden = false }: {
   card?: BakerCard; role?: string; token?: 'badge' | 'chess-marker'; hidden?: boolean;
 }) {
   const src = hidden ? bakerImage('card-back') : card ? bakerObject(card) : role ? bakerPortrait(role) : token ? bakerImage(token) : '';
-  return <span className={`baker-art${card ? ' baker-object-art' : ''}${token ? ' baker-token-art' : ''}${hidden ? ' baker-back-art' : ''}`} aria-hidden="true">
+  const paper = !hidden && card?.art === 'boot' ? bakerImage('boot-paper') : '';
+  return <span className={`baker-art${card ? ' baker-object-art' : ''}${token ? ' baker-token-art' : ''}${hidden ? ' baker-back-art' : ''}${paper ? ' baker-art-layered' : ''}`} aria-hidden="true">
+    {paper && <img className="baker-art-background" src={paper} alt="" loading="lazy" decoding="async" />}
     {src && <img src={src} alt="" loading="lazy" decoding="async" />}
   </span>;
 }

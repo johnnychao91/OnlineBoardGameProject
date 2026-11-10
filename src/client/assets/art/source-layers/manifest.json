@@ -1,0 +1,3379 @@
+[
+  {
+    "path": "baker/objects/access-card",
+    "source": "src/client/assets/baker/objects/access-card.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "750e37ff80880ffe21cf2af94a24e0164bc230dc045f43f8e5d7ae6409af7f3a",
+    "foregroundPercent": 34.2,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/apron",
+    "source": "src/client/assets/baker/objects/apron.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "30fe974107fdbc4722b99208954125147e6741a68d8b9c9eecc0222b831d5122",
+    "foregroundPercent": 41.73,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/ash",
+    "source": "src/client/assets/baker/objects/ash.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "8d20c3ff0c74af9224f60a51f3817fcaf9b689f29abebc44c06294d761ab2605",
+    "foregroundPercent": 30.11,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/axe",
+    "source": "src/client/assets/baker/objects/axe.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "d9b180723764729d5c04a4afd15353605135747c895ad3c1cc394062af8fd03d",
+    "foregroundPercent": 16.82,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/bandage",
+    "source": "src/client/assets/baker/objects/bandage.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "9971fbf3780ed9210e94ce73fd08f4c3bf3d17e39a25ddae6af46b6ede6046c5",
+    "foregroundPercent": 32.4,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/banknote",
+    "source": "src/client/assets/baker/objects/banknote.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "a31962700f1fee24c07c6071be76750bc0a39404257723005ae6493c8ae3b1dc",
+    "foregroundPercent": 40.19,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/basin",
+    "source": "src/client/assets/baker/objects/basin.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "3abf0f02577a0fc049e7fda478719068579170b3d97005afd2d987a4069693ac",
+    "foregroundPercent": 30.75,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/basket",
+    "source": "src/client/assets/baker/objects/basket.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "5bcd9c0c53c0ce44e302eebd87c0680936c4ef6dd1fccb915b1d71d01362c14c",
+    "foregroundPercent": 38.64,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/bathtub",
+    "source": "src/client/assets/baker/objects/bathtub.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "bed2e0b357bc35cec084f3d6f4570515b4925b00c7db7bf93b589ace7b704e84",
+    "foregroundPercent": 30.16,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/battery",
+    "source": "src/client/assets/baker/objects/battery.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "a333a875608a48395f858efe3f6efbd49ab0027d0eb5907bb53e21a7e71e0a3f",
+    "foregroundPercent": 25.19,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/bayonet",
+    "source": "src/client/assets/baker/objects/bayonet.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "56acd2a1f47ee757ee9c2ca4c15413dd4d25073c202ee8701517b3631aefe594",
+    "foregroundPercent": 10.19,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/belt",
+    "source": "src/client/assets/baker/objects/belt.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "57ce4f246c21454325ef830e56dfb1d4b4df0847440b780e188495d82f0157bd",
+    "foregroundPercent": 32.82,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/binoculars",
+    "source": "src/client/assets/baker/objects/binoculars.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "c5879e91d85a30264d95f3aeaf2051ecc1d6253070896810603c784e1fdbab39",
+    "foregroundPercent": 35.95,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/blanket",
+    "source": "src/client/assets/baker/objects/blanket.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "c3bc4d86ea510ace8f6a79d825d7293f59c1438240b20a68c0d533b3971d8b30",
+    "foregroundPercent": 38.96,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/bloodstain",
+    "source": "src/client/assets/baker/objects/bloodstain.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "286ecd4b5db1e63b5ad6eba032a1e7b33285cb02d3f563cfa9a3505e1efa6f4b",
+    "foregroundPercent": 26.66,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/bone",
+    "source": "src/client/assets/baker/objects/bone.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "4f2b7c4514e52d69beee14ff371852349afa7fa6c15a122f493ea5b6c4b5522d",
+    "foregroundPercent": 12.1,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/book",
+    "source": "src/client/assets/baker/objects/book.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "8de4ca7353caef8d2f665c34d9d2bbd0b226787477ad82c01d81b115741f83e3",
+    "foregroundPercent": 37.93,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/bottle",
+    "source": "src/client/assets/baker/objects/bottle.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "bcf7390a2c99e9c35e68698e4d95bbd2a9edc73d77f675a91c7e7817d336e178",
+    "foregroundPercent": 28.48,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/box",
+    "source": "src/client/assets/baker/objects/box.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "83346dc3736b47abe02c644706b1c74745ae239c7c4de7834dfa3a8507165652",
+    "foregroundPercent": 41.27,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/bread",
+    "source": "src/client/assets/baker/objects/bread.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "bad79aa64217702fc9b36eff3d3188909090283268d8a51f1002f33437d1559a",
+    "foregroundPercent": 29.34,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/brick",
+    "source": "src/client/assets/baker/objects/brick.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "f37bbcfa6af3216de07d94628a017279abca0a5dcbc012f9e774076616a94c86",
+    "foregroundPercent": 32.49,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/brooch",
+    "source": "src/client/assets/baker/objects/brooch.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "8f8c8607eb0d15352f8c20b3a2b600c00d1b0af0a8cbbcc6230c62819894cf10",
+    "foregroundPercent": 28.23,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/bucket",
+    "source": "src/client/assets/baker/objects/bucket.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "5c60d66f4f8afdca4eb43e3393ddd9d5e5d0b31530c6d27a494a6fd3e79c3393",
+    "foregroundPercent": 35.83,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/button",
+    "source": "src/client/assets/baker/objects/button.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "a52af3a07a575f89a5ce7cf5342692fbb737e72b4664b024a187fa8c26c2849e",
+    "foregroundPercent": 37.78,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/cable",
+    "source": "src/client/assets/baker/objects/cable.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "b6a98e560b5993a73bcde8471677bbf801d63b57187a38991847fdb39f0a41f4",
+    "foregroundPercent": 29.77,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/camera",
+    "source": "src/client/assets/baker/objects/camera.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "93e6061d2cfaf48b9aa4e16b56629f1b7536158a07d06f9e5a351c374fe431cd",
+    "foregroundPercent": 42.36,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/camera-victorian",
+    "source": "src/client/assets/baker/objects/camera-victorian.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "29b6588e540a81b86efc12e6f302146ce20f15d1966a00305d22ba7ccade07ff",
+    "foregroundPercent": 46.67,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/camera-wartime",
+    "source": "src/client/assets/baker/objects/camera-wartime.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "6cacf12ffdac7ca61145d1ef7173c383141c675cc977d3a9d6be76496df0f829",
+    "foregroundPercent": 43.17,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/candle",
+    "source": "src/client/assets/baker/objects/candle.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "74281cbd8e684b563e2493eb86e1bb6ae3f78764d5299540b820edf21ded16b8",
+    "foregroundPercent": 16.81,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/candlestick",
+    "source": "src/client/assets/baker/objects/candlestick.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "783b40c672e0aaa5e68e7f7619663b890bb8b35bac848de966533affd9b1b505",
+    "foregroundPercent": 14.05,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/cane",
+    "source": "src/client/assets/baker/objects/cane.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "c6015b254676ebddea4ff502be5aecf5866b9ae05cb31bff4e79280d116abccc",
+    "foregroundPercent": 5.08,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/canteen",
+    "source": "src/client/assets/baker/objects/canteen.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "c4c8c2485bd4c256e2953c1a85d943ac609282b2939fef048afe71926af242a8",
+    "foregroundPercent": 40.67,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/car",
+    "source": "src/client/assets/baker/objects/car.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "dfc41cd8b467e5f1839dbaf31a32811ff7ec22b1a01c3066a1ba9b3ba6e40e9b",
+    "foregroundPercent": 29.48,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/carriage",
+    "source": "src/client/assets/baker/objects/carriage.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "d0fee9073b701cd6d925c93d5f66ea0ed39dc578fc30e1eb47480a7a2c6e8fd7",
+    "foregroundPercent": 45.4,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/cctv",
+    "source": "src/client/assets/baker/objects/cctv.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "7144f3372a09b919edae5f5f1fb930215b52f66aa9649ee65807110bc1708934",
+    "foregroundPercent": 29.14,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/chain",
+    "source": "src/client/assets/baker/objects/chain.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "4ac942ecbaf08501542243f09bce40433831f186e21f6f9158dbb2c73bf772b4",
+    "foregroundPercent": 33.06,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/chair",
+    "source": "src/client/assets/baker/objects/chair.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "cb713fa4f035bdfc2acc2cc348cbff49b5997e25ab199e9e7dcc44143cca0367",
+    "foregroundPercent": 20.15,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/chalk",
+    "source": "src/client/assets/baker/objects/chalk.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "9ef76de7c62fbb43ddfa0ec20d3fbf0f4a9e52b0cadd71892ede076d3bb63c57",
+    "foregroundPercent": 20.42,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/chisel",
+    "source": "src/client/assets/baker/objects/chisel.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "5aa6334929dd1aac10caa5b25d4cb8cf27aa8514d68f04eacf12ab8b514d1938",
+    "foregroundPercent": 13.15,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/cigar",
+    "source": "src/client/assets/baker/objects/cigar.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "2e23099a4924b4381fda4d536466b055f6f23e2cd4c7384db276e4afeea5ad19",
+    "foregroundPercent": 19.07,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/clock",
+    "source": "src/client/assets/baker/objects/clock.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "868a73d17b2bc08935f4da091726e9c93be960cf4934a0c20bbc9a8f589f45ba",
+    "foregroundPercent": 40.93,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/coal",
+    "source": "src/client/assets/baker/objects/coal.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "f8d3fab75ece70dda163000e68d044850addfc529e30cda1d7f7852b809d5997",
+    "foregroundPercent": 36.75,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/coat",
+    "source": "src/client/assets/baker/objects/coat.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "229cb8328a2708099b653280555200d1d97b7bbad2fc8071a542666faeb1f3f1",
+    "foregroundPercent": 34.67,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/coin",
+    "source": "src/client/assets/baker/objects/coin.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "b11e86fbb522be0ec036fb00ada69d6ca19028ba3e2b44c356f9199ba2b34f02",
+    "foregroundPercent": 27.49,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/comb",
+    "source": "src/client/assets/baker/objects/comb.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "661fbfef3d2a40895ec1a36b202f4e1ae1c4f012d4e6420d8d2f2f3d73b029f3",
+    "foregroundPercent": 23.31,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/compass",
+    "source": "src/client/assets/baker/objects/compass.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "393d7d9cd23a3714665fada487268f35bb4769f4f3ba3d3a63e54cac08ebdb7d",
+    "foregroundPercent": 34.94,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/cork",
+    "source": "src/client/assets/baker/objects/cork.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "30353c13014919cb275389449b8f1ddd27c972059ffa9ed31a091de7e27a9e25",
+    "foregroundPercent": 30.83,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/crate",
+    "source": "src/client/assets/baker/objects/crate.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "e04c37d7e380b01c75ec49202707581dfa6b99ded8cf9bde8c3748f35e80b39e",
+    "foregroundPercent": 43.99,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/cup",
+    "source": "src/client/assets/baker/objects/cup.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "4478132aac46075e92df3326d6b6228b1ec90f7376f877b5e47394162157967e",
+    "foregroundPercent": 35.8,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/dog-tag",
+    "source": "src/client/assets/baker/objects/dog-tag.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "164ca465c234ab4679c1ceefd41fc459f716844496c4c8db050dba3501af0dd4",
+    "foregroundPercent": 19.16,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/door",
+    "source": "src/client/assets/baker/objects/door.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "514be503985e69be106c5c8509fb882d94aabb4adffb36969ce9e497617f44b5",
+    "foregroundPercent": 43.81,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/drone",
+    "source": "src/client/assets/baker/objects/drone.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "8cc11dbee19cc07dcaca3e79c7aae4078b5a3cdb3067d9b31cf27680ca6110d5",
+    "foregroundPercent": 15.44,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/envelope",
+    "source": "src/client/assets/baker/objects/envelope.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "03379fd643db07b0914c8afab848f5a4f57671736763c6aa7b96392b5e75ffb2",
+    "foregroundPercent": 36.19,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/fabric",
+    "source": "src/client/assets/baker/objects/fabric.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "ab63a5f588fc3782606c0b168b47cc7b464f8a9ddd69e435e2ddf5b0a9a13f9b",
+    "foregroundPercent": 37.94,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/feather",
+    "source": "src/client/assets/baker/objects/feather.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "9ccb0a57cec2827a8ccf34546a68c3f49b9ff49fb031c7c42cb1ead2020151bb",
+    "foregroundPercent": 32.21,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/film",
+    "source": "src/client/assets/baker/objects/film.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "2bb865e6be4f5a3fb15c33914ac8c8e6993832e751f5079c0b4e3ec94da91af3",
+    "foregroundPercent": 25.11,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/fingerprint",
+    "source": "src/client/assets/baker/objects/fingerprint.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "4edc305b6a46977b55f253a0dced3457a0c8342e8f0f5bdf13176103671a1f85",
+    "foregroundPercent": 30.71,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/fire",
+    "source": "src/client/assets/baker/objects/fire.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "3a77d558ee8e2706459a3f42150ff1803c042529de5341681d4702ffebaf74f2",
+    "foregroundPercent": 53.44,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/fire-extinguisher",
+    "source": "src/client/assets/baker/objects/fire-extinguisher.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "f5cca6c4a3478906f1893057c05e859927b956573af85ac6b66356e76a91bb7d",
+    "foregroundPercent": 22.86,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/fishhook",
+    "source": "src/client/assets/baker/objects/fishhook.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "6d1b6368a7201079e3c3b988ed2f6c8853cffb44b00d81be201c2582bed0ba3b",
+    "foregroundPercent": 6.08,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/flintlock",
+    "source": "src/client/assets/baker/objects/flintlock.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "aba293bb64b9c5064d6cd53e50badd34288eef6e67c62bd10dbfaf4cb5d5f673",
+    "foregroundPercent": 14.86,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/flower",
+    "source": "src/client/assets/baker/objects/flower.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "2d0a641cbd199b279dcdc6aa203db7f161f2f720d84eadc99d727d0f274fe053",
+    "foregroundPercent": 20.32,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/footprint",
+    "source": "src/client/assets/baker/objects/footprint.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "6062f349fa2d3da106e0651fddffa47927abc70242fc7d94a91731ce61854de3",
+    "foregroundPercent": 15.41,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/fork",
+    "source": "src/client/assets/baker/objects/fork.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "13657d2c03c920fb8cb793790233873c23b22d2f02938b4ad509a7423910b18e",
+    "foregroundPercent": 9.23,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/fruit",
+    "source": "src/client/assets/baker/objects/fruit.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "b5c4953a4e4d3b41e5f6c88cbd8e6675ee74174497eff9028a60b33dbf796b6e",
+    "foregroundPercent": 33.46,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/funnel",
+    "source": "src/client/assets/baker/objects/funnel.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "58e25507b1deb7fc994480704d5748c29f8eee17e07f3bfc2471d6f787e2698b",
+    "foregroundPercent": 28.14,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/gas-mask",
+    "source": "src/client/assets/baker/objects/gas-mask.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "bcf302097117af79215586fae938e302adaa37ca81c883d840c772505577bb8f",
+    "foregroundPercent": 37.85,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/gear",
+    "source": "src/client/assets/baker/objects/gear.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "47e04944a139eb7bf905badac7c9e82ab766f82d62d1bb0c414f118c2a29ce4f",
+    "foregroundPercent": 44.69,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/glass",
+    "source": "src/client/assets/baker/objects/glass.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "176f94a1b015bd33a93844a044ebbed5bb05626b68984fa0d1e1f77b52811e67",
+    "foregroundPercent": 34.5,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/glove",
+    "source": "src/client/assets/baker/objects/glove.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "01cc4fbd7767f6f195328a99c1d30cf27324244cba73511e76372d32fd50bfc4",
+    "foregroundPercent": 36.48,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/goggles",
+    "source": "src/client/assets/baker/objects/goggles.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "aef8d8e3596753182cd42b853b41a53434a133b924e28061bfd2cc89ec3c61aa",
+    "foregroundPercent": 35.0,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/grenade",
+    "source": "src/client/assets/baker/objects/grenade.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "9470e13413eca75b96e6af7c56e72328f39f22ab77a81432864763d946fe0fb4",
+    "foregroundPercent": 30.54,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/hair",
+    "source": "src/client/assets/baker/objects/hair.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "c03cb8ceb4bdeb145698aa77d874347564ad737eba8a13a3ed0a62092ad4df12",
+    "foregroundPercent": 17.44,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/hammer",
+    "source": "src/client/assets/baker/objects/hammer.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "5d3488d841c29f92383c22b61f462effe79926a14a1f73da9a1d3b0040d002a3",
+    "foregroundPercent": 16.19,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/handkerchief",
+    "source": "src/client/assets/baker/objects/handkerchief.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "d5e2235af1b887d22b4da885cef7555aa14c29394c7ac6d75ad7672004a6716e",
+    "foregroundPercent": 31.14,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/hat",
+    "source": "src/client/assets/baker/objects/hat.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "c54f80fa7fea5ea4a7c733fb528acaa2b412188e113081134ce9675b9e7844fb",
+    "foregroundPercent": 40.01,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/headphones",
+    "source": "src/client/assets/baker/objects/headphones.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "4158b73712f116111f89c641c78a56ccf8ce04468666656f8492a0fa3308003a",
+    "foregroundPercent": 28.85,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/helmet",
+    "source": "src/client/assets/baker/objects/helmet.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "7d5bf76019d5743b53c440a25ef7a6e21db3563884a2fa54733ea156d893caab",
+    "foregroundPercent": 29.76,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/inkwell",
+    "source": "src/client/assets/baker/objects/inkwell.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "57b513162d43ec7564ae0f2644712a5733dd76bbe7aea4722078c53950753329",
+    "foregroundPercent": 37.8,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/key",
+    "source": "src/client/assets/baker/objects/key.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "adfdd071fb6e72ba5885efb397bd0854371860868d5cb48b9eccc195607b95c8",
+    "foregroundPercent": 19.78,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/keyboard",
+    "source": "src/client/assets/baker/objects/keyboard.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "582a682f30df3a8b679607f791face7dcf8526b296dbbade4168b97c8d91a779",
+    "foregroundPercent": 28.03,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/knife",
+    "source": "src/client/assets/baker/objects/knife.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "bb4670047f730f63d849b9eedd923a608d48a33e549142c5c5034f4d4d86cd80",
+    "foregroundPercent": 12.19,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/ladder",
+    "source": "src/client/assets/baker/objects/ladder.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "448f5931cc4b458bc1606eea0b60f6ee3449dc6be456fac3cdad2981358716ff",
+    "foregroundPercent": 15.27,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/lantern",
+    "source": "src/client/assets/baker/objects/lantern.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "16b9c7fd6c6d2b709ed6004ed0943217a3015aa663e66250352ce630bd956f63",
+    "foregroundPercent": 30.99,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/laptop",
+    "source": "src/client/assets/baker/objects/laptop.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "d508ad2e8910962f84bb6df18554214053ca8c27ceb46a605b1a13447b419a1e",
+    "foregroundPercent": 37.57,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/leaf",
+    "source": "src/client/assets/baker/objects/leaf.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "4354fe00fb4669283c32e9cffec535f64c876ec093db25e5f82873dd1aeb889b",
+    "foregroundPercent": 38.67,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/ledger",
+    "source": "src/client/assets/baker/objects/ledger.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "5058f270e3f5aadf5a7cc51f2fd0fb755bf94ad60b0d5377feb647adec1bb151",
+    "foregroundPercent": 41.62,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/letter",
+    "source": "src/client/assets/baker/objects/letter.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "7a2a08cb46a48f8f9de6edcc14aa0b4a6d7b0223af820d5c48a8f05872f553ba",
+    "foregroundPercent": 31.47,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/lighter",
+    "source": "src/client/assets/baker/objects/lighter.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "1f0ee4457b624208ff3f1daf14a7ed258ddf70a726bfcbe8f3a1f7bbf04fa6dc",
+    "foregroundPercent": 31.4,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/lockpick",
+    "source": "src/client/assets/baker/objects/lockpick.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "ae3b0aed8b6c7fa47fede7cf2ad928e25a84809ec59d6375e84cd339b3a1ba0f",
+    "foregroundPercent": 20.97,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/machinery",
+    "source": "src/client/assets/baker/objects/machinery.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "9e1c38a08e163047cd642cfaad7fb93dd2ababd5e20a9c65896f8a313c42b8b7",
+    "foregroundPercent": 47.77,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/map",
+    "source": "src/client/assets/baker/objects/map.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "23fa7490e1c174a49775af451fee80871ffab89a2c95ba2cd237b12bf27d0d52",
+    "foregroundPercent": 46.52,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/mask",
+    "source": "src/client/assets/baker/objects/mask.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "f12ef94c2e1031454ff5a8e5fdb1a8f08db0cd9886f42b8d3b83eccc8fc5cbbd",
+    "foregroundPercent": 27.46,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/matches",
+    "source": "src/client/assets/baker/objects/matches.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "018501757b13aa699694ce5d2fb9510515481345b4dd55454ba5d52da804b1a4",
+    "foregroundPercent": 28.21,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/meat",
+    "source": "src/client/assets/baker/objects/meat.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "ffbe5d1d31214827a4b057fea594a80468961e44eeff36a7c96e4f8a69b56ede",
+    "foregroundPercent": 42.38,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/medal",
+    "source": "src/client/assets/baker/objects/medal.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "836faadf187ce545a9c747199ad027dfedb2099733f19d4bbceca3c25d342669",
+    "foregroundPercent": 24.53,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/medicine-bottle",
+    "source": "src/client/assets/baker/objects/medicine-bottle.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "20e34155b906564393c76b864d4f736fc1d7f6da8253a2242e405cb0a87985d2",
+    "foregroundPercent": 27.29,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/mirror",
+    "source": "src/client/assets/baker/objects/mirror.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "36ff960816b8d3a259df55e01ad7accfd09d80795c400ef8b3f12dbbba5364cd",
+    "foregroundPercent": 23.31,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/necklace",
+    "source": "src/client/assets/baker/objects/necklace.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "40df1766d3e8f27bf7642321c7636cc46b8389535163be7879ce397dda81e95b",
+    "foregroundPercent": 10.34,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/needle",
+    "source": "src/client/assets/baker/objects/needle.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "49688a83cbee925642d1f2f39e118f7d7a0c2e680cdde71976c8eec108c0db5f",
+    "foregroundPercent": 36.7,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/net",
+    "source": "src/client/assets/baker/objects/net.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "3dcc8924c272dae8f3b6265c360f34b55a29901692d142aa408b6d9bd0f7887e",
+    "foregroundPercent": 33.51,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/newspaper",
+    "source": "src/client/assets/baker/objects/newspaper.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "60357117732a39e9c0d35afe5081a9a3228dd6ecf7b1aa78357f76c61caca804",
+    "foregroundPercent": 37.09,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/notebook",
+    "source": "src/client/assets/baker/objects/notebook.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "5fa1cd5677cf121f3fe2be231d1364174911f7acec1a142badf1f6b0ff66e804",
+    "foregroundPercent": 42.09,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/oilcan",
+    "source": "src/client/assets/baker/objects/oilcan.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "8b37e123bde2e7f5735b2f6dbcabefc2b52e38f84e66b15667fcaa73cb2def8e",
+    "foregroundPercent": 17.49,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/padlock",
+    "source": "src/client/assets/baker/objects/padlock.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "d308b3a838eb380a104b21ce1c2f885890dd8b0cf046048bab085cbaa62c093d",
+    "foregroundPercent": 32.97,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/parachute",
+    "source": "src/client/assets/baker/objects/parachute.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "a03e14353f099198d2035e75e9b2a2f8a6139324b39daa54fa6ad8ab42e0f8a4",
+    "foregroundPercent": 47.16,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/pencil",
+    "source": "src/client/assets/baker/objects/pencil.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "0b3221108e73c1e558bb4a0217e13a6794a841de74927018f23e60c1a1301f36",
+    "foregroundPercent": 20.99,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/phone",
+    "source": "src/client/assets/baker/objects/phone.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "666b6b9eeed6fe259efe424361c52ccfb6857677b3a6ad6883576c885e3076a0",
+    "foregroundPercent": 29.07,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/photo",
+    "source": "src/client/assets/baker/objects/photo.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "0f2ef8ed177d25d46de90a1a0b71441e11521f0814b7c9726f0b54fbffc08336",
+    "foregroundPercent": 37.63,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/pickaxe",
+    "source": "src/client/assets/baker/objects/pickaxe.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "e29ffe25519680586afcfbc3172bb73e0033586cbb6ecb805d8650560502182b",
+    "foregroundPercent": 13.46,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/pillow",
+    "source": "src/client/assets/baker/objects/pillow.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "a69eff2521ea39b3db1c5b8d172a59c295acdc9d4442bb36178a007b74c92421",
+    "foregroundPercent": 31.98,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/pipe",
+    "source": "src/client/assets/baker/objects/pipe.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "1d81a2f876f417939a6519663446e1f99b35663c201ce68d6a1aa1379262205e",
+    "foregroundPercent": 21.48,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/pistol",
+    "source": "src/client/assets/baker/objects/pistol.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "ac7abfd950f8fd2ddce53e182f8de9bee53ecdd7ee115a4aaecb9bbb07902b4d",
+    "foregroundPercent": 14.59,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/plasticbag",
+    "source": "src/client/assets/baker/objects/plasticbag.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "b1af77307be3726e3f53bb0516a723ace7b212fc52cc10240181ebcc5f6cc1f2",
+    "foregroundPercent": 42.54,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/plate",
+    "source": "src/client/assets/baker/objects/plate.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "0ccea927ab7cab6e033dfcd7f1f2594511f25347229385d08a9a2fd8f956e566",
+    "foregroundPercent": 44.71,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/playing-card",
+    "source": "src/client/assets/baker/objects/playing-card.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "70acebf990ce9f6da23a2eb41f7beee4c237dc2d50a771c0a1e0969752d1cdc2",
+    "foregroundPercent": 44.94,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/plug",
+    "source": "src/client/assets/baker/objects/plug.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "8cf7aeb610bb51dbc2470c141edb1863e7c7f9c10b429d39dad95a86e5efbb73",
+    "foregroundPercent": 24.81,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/pocket-watch",
+    "source": "src/client/assets/baker/objects/pocket-watch.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "3aa03571e44fcecc3e6c13d8ae78d65c4bf00801f8d1d4faceee9933e23fc4c0",
+    "foregroundPercent": 38.82,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/poker",
+    "source": "src/client/assets/baker/objects/poker.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "8405583c7c18860ad085002d18ba300e3d6ce90475d615b450202a1916759cb0",
+    "foregroundPercent": 4.28,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/poster",
+    "source": "src/client/assets/baker/objects/poster.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "f08b3c405668ac960d192737cb29d4705aaa9de5363bfab10e5ff8c00b807f68",
+    "foregroundPercent": 52.76,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/powder",
+    "source": "src/client/assets/baker/objects/powder.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "d2ecc0e6a3336dcb83269c9d516ef0fd2114e62c0931aa419e428eebd544ddad",
+    "foregroundPercent": 25.36,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/purse",
+    "source": "src/client/assets/baker/objects/purse.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "5341aa237675d78e655eb5d9fe9b410890d684e7d32ff0d633b0efeab4099471",
+    "foregroundPercent": 37.5,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/quill",
+    "source": "src/client/assets/baker/objects/quill.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "bc6c201651460e3c80a89a3f7b6aac34914f089e6673eb27f35e6bb4a4ed6fdd",
+    "foregroundPercent": 16.88,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/radio",
+    "source": "src/client/assets/baker/objects/radio.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "487213638d6dac7204486054a649771ff819f51a591f9b4c9ac6dae6c1ef55f3",
+    "foregroundPercent": 44.37,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/razor",
+    "source": "src/client/assets/baker/objects/razor.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "a0f085ca814ceab60fd027919c297385853fa9553b742cee26410f84a82df191",
+    "foregroundPercent": 16.47,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/remote",
+    "source": "src/client/assets/baker/objects/remote.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "cae7f1456811368176e9dd724a0490a8d7bf74da6f347541a04ae2aeb3f13091",
+    "foregroundPercent": 24.41,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/ribbon",
+    "source": "src/client/assets/baker/objects/ribbon.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "18f5de4e4f701e4cb83e20c6962beee1e1e1f78b39213d9981143f70760b53c1",
+    "foregroundPercent": 30.24,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/rifle",
+    "source": "src/client/assets/baker/objects/rifle.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "3471706694505a99dfdf0a904130740cb7f9ac8f9025dfab29ce3f7c6d3b58e6",
+    "foregroundPercent": 7.35,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/ring",
+    "source": "src/client/assets/baker/objects/ring.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "622c4c42a021538bea6f0929763c2f9b44fba13faeb8cf9d17b9313d6af2da8c",
+    "foregroundPercent": 20.97,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/rope",
+    "source": "src/client/assets/baker/objects/rope.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "f2d295d1e547092402bb4d652b86c3c4e36d415fe7729f9f2a96d8c440c4fe80",
+    "foregroundPercent": 36.86,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/sand",
+    "source": "src/client/assets/baker/objects/sand.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "3a9de70987b98d1e7be0ae1932c64906f6888dbd661d512071617dedc1377482",
+    "foregroundPercent": 28.37,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/satchel",
+    "source": "src/client/assets/baker/objects/satchel.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "159ef7e29b129a8e6d47bdd61515d80005c9881314c7581d78956d87bf2ad54d",
+    "foregroundPercent": 55.38,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/saw",
+    "source": "src/client/assets/baker/objects/saw.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "3050faf7e562e5fc99c9be105fb7c4dfd56a13b53e882c64450c9848bda79683",
+    "foregroundPercent": 19.58,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/scarf",
+    "source": "src/client/assets/baker/objects/scarf.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "b1203b68bfdc2ae9727bac3f4a5780442bd68d914cc93e3e9f55117788c8d7b4",
+    "foregroundPercent": 52.08,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/scissors",
+    "source": "src/client/assets/baker/objects/scissors.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "5b84fafcf5d6c3e7ba88a1a1755b44270425b04ed6b784ae6ea0d4cb993489a6",
+    "foregroundPercent": 15.4,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/scooter",
+    "source": "src/client/assets/baker/objects/scooter.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "1fa3fabfcef0eb2d523dd5f9832154071aacd7d770c976bab8517c576a6df89f",
+    "foregroundPercent": 23.3,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/seal",
+    "source": "src/client/assets/baker/objects/seal.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "daf78ca30e908369f5f7da9a7801e4381c9ebd6f976bcd27ac3e4826954a09da",
+    "foregroundPercent": 26.49,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/seed",
+    "source": "src/client/assets/baker/objects/seed.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "201d712423fd557b0a5e815a3002489f245e506303edfda74f1d81c001298b83",
+    "foregroundPercent": 32.83,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/shell",
+    "source": "src/client/assets/baker/objects/shell.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "f073d0802f85ee21c7841c5b042783e6a14d0e421431788c82636b70c346b8d3",
+    "foregroundPercent": 22.74,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/shirt",
+    "source": "src/client/assets/baker/objects/shirt.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "0ad4c4a2c285fcb754c8709064c7dbeea55a28195cb71d1873e32e39fa6d5ee3",
+    "foregroundPercent": 48.89,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/shoe",
+    "source": "src/client/assets/baker/objects/shoe.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "003eb2df383984ba9437dac27a06d609b956ba5b706edc61b24ff6cd1b306816",
+    "foregroundPercent": 34.3,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/shovel",
+    "source": "src/client/assets/baker/objects/shovel.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "3987d68f7a7f1ca9a002f8344e3b147814c53f147518995b1eb5c5af28d0d848",
+    "foregroundPercent": 14.32,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/sickle",
+    "source": "src/client/assets/baker/objects/sickle.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "85b7b77a5a6ec57358e448624242d5f3ffa90d7192ad6a25355c0f1878abb8d4",
+    "foregroundPercent": 13.42,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/sim-card",
+    "source": "src/client/assets/baker/objects/sim-card.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "5f3670f307e91c6e68fcd203ffb426ac487b7494fcbadadc56bfffda5df72cc4",
+    "foregroundPercent": 11.75,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/snuffbox",
+    "source": "src/client/assets/baker/objects/snuffbox.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "c99f9df3493bd7269bc80cb2948d7acc5623fb590ba6117e21b685e5240c7b6d",
+    "foregroundPercent": 33.19,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/soil",
+    "source": "src/client/assets/baker/objects/soil.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "6d706e61e3255caf45e2095a63899a1c23ca0a24a8c53ef8194f4a5327ee84eb",
+    "foregroundPercent": 34.21,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/spectacles",
+    "source": "src/client/assets/baker/objects/spectacles.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "a682ac28542c591d79abd7f33d833fca22936c949517c4629d19f2b91e9b0f3c",
+    "foregroundPercent": 14.93,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/spoon",
+    "source": "src/client/assets/baker/objects/spoon.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "45d6b3c70136b910b5d623375e1fcc5ddc5304cfd49316af5f0b43b482a02e7d",
+    "foregroundPercent": 11.15,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/spray-can",
+    "source": "src/client/assets/baker/objects/spray-can.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "c9b09f8aa7312a029b17e8559f3eb54491dc6f6097544bb520620c43a971c307",
+    "foregroundPercent": 25.56,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/spring",
+    "source": "src/client/assets/baker/objects/spring.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "d84bdbddf2f33e5b2afbd2645d51cb394040845c04e0f2b5df8643328e321f41",
+    "foregroundPercent": 25.4,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/stairs",
+    "source": "src/client/assets/baker/objects/stairs.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "74e9a889916b6148a0f52737345bd0628c50b8be50052fe37f3102a8f1020c1d",
+    "foregroundPercent": 59.68,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/statue",
+    "source": "src/client/assets/baker/objects/statue.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "98c5ab83db5bcb15d42f1533eec37f2ee6f8293d481bccff8512572f357d8332",
+    "foregroundPercent": 28.01,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/stethoscope",
+    "source": "src/client/assets/baker/objects/stethoscope.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "02680883dc5900a267e181668a5858972b7362996876d02e99672901f336af68",
+    "foregroundPercent": 15.59,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/stone",
+    "source": "src/client/assets/baker/objects/stone.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "583410252885eea84478935e9cf2cbb55bbf1e8786123cf3bf0b394fda49bf70",
+    "foregroundPercent": 33.71,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/suitcase",
+    "source": "src/client/assets/baker/objects/suitcase.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "2d3a512d73b65d692644864c37121d93aa2f676f06bcb984101608a87ac9cc79",
+    "foregroundPercent": 44.98,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/sword",
+    "source": "src/client/assets/baker/objects/sword.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "a6978eaf95aab46cacd2e0fe6adfb0d6ccc58b0085c7676b39c807b895aab8a4",
+    "foregroundPercent": 8.92,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/syringe",
+    "source": "src/client/assets/baker/objects/syringe.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "7557534ded8bdaa58e9bf19532ed82e7e45b7e1ddda15a436e2ee6b9c214b55f",
+    "foregroundPercent": 8.89,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/telephone",
+    "source": "src/client/assets/baker/objects/telephone.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "8fd494824be5600906e533652c70b0090f15de0f5b8417f97263964172425694",
+    "foregroundPercent": 39.62,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/thermometer",
+    "source": "src/client/assets/baker/objects/thermometer.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "b3b994b574c37743517432f923b6386e974af76087eaf06a6cc8c9b5189e70f1",
+    "foregroundPercent": 7.15,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/thread",
+    "source": "src/client/assets/baker/objects/thread.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "145c31ff545844dc19e8ac6c1e149759130e1fdba350c70c0fd8578353d6cc52",
+    "foregroundPercent": 26.77,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/ticket",
+    "source": "src/client/assets/baker/objects/ticket.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "44f4176052d970985b00630a9f4d90a30d6c9b3d31b99a0ea96d500e3a43dfc0",
+    "foregroundPercent": 26.89,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/tinderbox",
+    "source": "src/client/assets/baker/objects/tinderbox.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "1054af1c49cd5318b3d64b926d123466840c1de83baeb2b6d82d1346abb57dec",
+    "foregroundPercent": 44.25,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/tobacco",
+    "source": "src/client/assets/baker/objects/tobacco.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "63c5fa2dfa328a67d891800de62628c3c465591225c7551a7ea77d51ba4edcb0",
+    "foregroundPercent": 36.13,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/tongs",
+    "source": "src/client/assets/baker/objects/tongs.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "3db1c7e6bf932096231f79b7ca9907fa100301cea351f1e16b1d5b35d4b19c09",
+    "foregroundPercent": 7.59,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/torch",
+    "source": "src/client/assets/baker/objects/torch.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "1c867c1679fa77f0705a3e012fdfafb0944400c82bef3b266a55b17ec3b4e112",
+    "foregroundPercent": 22.01,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/train",
+    "source": "src/client/assets/baker/objects/train.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "9a950bc5a137912e77b1373b86629906244b83925e4295e19b2b237d6adceed5",
+    "foregroundPercent": 42.38,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/umbrella",
+    "source": "src/client/assets/baker/objects/umbrella.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "4e2d9a4cc0e1f6d8be2ee839580a08ce12ef257ecb0f35cb2bd8ba1ccf123f61",
+    "foregroundPercent": 11.06,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/usb",
+    "source": "src/client/assets/baker/objects/usb.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "a7ea04e88a59c5efabcd880547f6ea7842c212ece0bb954cfaccf14ef6904564",
+    "foregroundPercent": 18.06,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/vase",
+    "source": "src/client/assets/baker/objects/vase.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "4e269831443a4206df9592c2d6027560d7bb23e77c7df8fe3a17a5654f2488ae",
+    "foregroundPercent": 25.34,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/wartime-truck",
+    "source": "src/client/assets/baker/objects/wartime-truck.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "8c946932d99bb67ba8c02b9a2e4a726ab7112c37251204624510f712cb6d9d3c",
+    "foregroundPercent": 40.71,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/water",
+    "source": "src/client/assets/baker/objects/water.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "5eaefc9d321454a1df5600c198aceb287d09f9d90f7610e996f09d981bed818b",
+    "foregroundPercent": 83.93,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/waterpipe",
+    "source": "src/client/assets/baker/objects/waterpipe.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "5dbdad27032024af5f766d19784dd46fe8145e480614f6cb37b3196a086b6b9f",
+    "foregroundPercent": 24.15,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/weight",
+    "source": "src/client/assets/baker/objects/weight.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "6f111605eb1a2c8c6923c1ccefe005846457367f5ce8cc0fee59302c8c77d775",
+    "foregroundPercent": 27.71,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/wheel",
+    "source": "src/client/assets/baker/objects/wheel.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "b21ee5edfc4c25a31ebf723da2256d7e70d0d631a72d8b5027f3a4c5acc816bb",
+    "foregroundPercent": 30.92,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/whistle",
+    "source": "src/client/assets/baker/objects/whistle.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "b8e9938d12cc765f214e5263e453156f33cdda5144ceec2217a5fb054c61fb6f",
+    "foregroundPercent": 19.24,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/window",
+    "source": "src/client/assets/baker/objects/window.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "47750725512c912b92aa028a4ca98aa6a418e6028d0527d70b8637672bf9933e",
+    "foregroundPercent": 35.31,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/wire",
+    "source": "src/client/assets/baker/objects/wire.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "2c58b714d9fd1293ea3c7b7df9c0a0cf275e197e1a2bde5dc7229576cda09664",
+    "foregroundPercent": 31.59,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/objects/wrench",
+    "source": "src/client/assets/baker/objects/wrench.webp",
+    "size": [
+      512,
+      512
+    ],
+    "sourceSha256": "b2dcfcfd5b309bb33d0028c34fb7ceb2474514edb6cfca395992b58686154a35",
+    "foregroundPercent": 16.81,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/roles/accomplice",
+    "source": "src/client/assets/baker/roles/accomplice.webp",
+    "size": [
+      600,
+      900
+    ],
+    "sourceSha256": "7a0fc4e3ae2996d53af36adb2cc4fd64b288e0567846b636442839a7a08d2498",
+    "foregroundPercent": 51.35,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/roles/gregson",
+    "source": "src/client/assets/baker/roles/gregson.webp",
+    "size": [
+      600,
+      900
+    ],
+    "sourceSha256": "9519233142b96f330c269ab93a7d76668904eb47ca41587c8165a4b7ac1b79e1",
+    "foregroundPercent": 58.75,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/roles/holmes",
+    "source": "src/client/assets/baker/roles/holmes.webp",
+    "size": [
+      600,
+      900
+    ],
+    "sourceSha256": "7586e661c34afc7a3d85789a81096d199a2dcf147f6944f611aba307e2ca7907",
+    "foregroundPercent": 57.06,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/roles/hopkins",
+    "source": "src/client/assets/baker/roles/hopkins.webp",
+    "size": [
+      600,
+      900
+    ],
+    "sourceSha256": "dea52bb4a639cf7d8df3046057ec8311404e5dbd6a09be0dc141477c643bacd7",
+    "foregroundPercent": 60.35,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/roles/investigator",
+    "source": "src/client/assets/baker/roles/investigator.webp",
+    "size": [
+      600,
+      900
+    ],
+    "sourceSha256": "30127fd4617cabac1a0e8df4c7732388a67208bbf0ee3d473dd7500c876a18b9",
+    "foregroundPercent": 51.76,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/roles/irene",
+    "source": "src/client/assets/baker/roles/irene.webp",
+    "size": [
+      600,
+      900
+    ],
+    "sourceSha256": "68ea8de18b8c616c1e091cc41fccd93de934ec00537c8ea6e5ac511b996e881c",
+    "foregroundPercent": 58.71,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/roles/lestrade",
+    "source": "src/client/assets/baker/roles/lestrade.webp",
+    "size": [
+      600,
+      900
+    ],
+    "sourceSha256": "76ae833085b9a1fca0f3d482b7e70472bc56a97eeace4f09b7a8c5ae886cb21d",
+    "foregroundPercent": 56.84,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/roles/mary",
+    "source": "src/client/assets/baker/roles/mary.webp",
+    "size": [
+      600,
+      900
+    ],
+    "sourceSha256": "71e394d0fc8b6764bcebc5b8bc9b44ab9148bc85a9ab51c899fa1fdca3d28c2c",
+    "foregroundPercent": 54.34,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/roles/moriarty",
+    "source": "src/client/assets/baker/roles/moriarty.webp",
+    "size": [
+      600,
+      900
+    ],
+    "sourceSha256": "53d51013021e4ea87b0d77cdd52ac91a91058c9106cb0f19b43b1394f9ff175a",
+    "foregroundPercent": 58.72,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/roles/murderer",
+    "source": "src/client/assets/baker/roles/murderer.webp",
+    "size": [
+      600,
+      900
+    ],
+    "sourceSha256": "a461fd10f9d4f53362c1291db829ae80c78cc9e6054bfe9654711da1c7d3f001",
+    "foregroundPercent": 67.26,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/roles/mycroft",
+    "source": "src/client/assets/baker/roles/mycroft.webp",
+    "size": [
+      600,
+      900
+    ],
+    "sourceSha256": "093afe43b0b17fe25c8b51f12f73ce9796705d2946c10bc4e5079b7bcbf58564",
+    "foregroundPercent": 56.1,
+    "differentPixels": 0
+  },
+  {
+    "path": "baker/roles/watson",
+    "source": "src/client/assets/baker/roles/watson.webp",
+    "size": [
+      600,
+      900
+    ],
+    "sourceSha256": "eedaa4f9d4a44118b1837e281ae378c8d4b893b18c5f7af8b9046617e047ecde",
+    "foregroundPercent": 53.18,
+    "differentPixels": 0
+  },
+  {
+    "path": "banquet/roles/beggar",
+    "source": "src/client/assets/banquet/roles/beggar.webp",
+    "size": [
+      640,
+      960
+    ],
+    "sourceSha256": "051ac5e17f4efa62402a6772fb0ef7c406701257d686b705cfdbd8988602d974",
+    "foregroundPercent": 63.76,
+    "differentPixels": 0
+  },
+  {
+    "path": "banquet/roles/cheater",
+    "source": "src/client/assets/banquet/roles/cheater.webp",
+    "size": [
+      640,
+      960
+    ],
+    "sourceSha256": "9fdc43198eb0a0597271855a1a87c64b99b65ad623783ec77fe48df09734d946",
+    "foregroundPercent": 64.67,
+    "differentPixels": 0
+  },
+  {
+    "path": "banquet/roles/empress",
+    "source": "src/client/assets/banquet/roles/empress.webp",
+    "size": [
+      640,
+      960
+    ],
+    "sourceSha256": "a154bd9bb1532a75f2cbeb8e10f871bc6be64cfeb2dc5d4a20dc9696d66c4e30",
+    "foregroundPercent": 64.35,
+    "differentPixels": 0
+  },
+  {
+    "path": "banquet/roles/fool",
+    "source": "src/client/assets/banquet/roles/fool.webp",
+    "size": [
+      640,
+      960
+    ],
+    "sourceSha256": "26a49cff50654894bb6f708acd14838e23a437b51530cbff651e5342d8b76ec8",
+    "foregroundPercent": 37.12,
+    "differentPixels": 0
+  },
+  {
+    "path": "banquet/roles/guru",
+    "source": "src/client/assets/banquet/roles/guru.webp",
+    "size": [
+      640,
+      960
+    ],
+    "sourceSha256": "aec33658eec18e9166a09395f25b8dc4ad62b4dbe6e64680605da2807628d34f",
+    "foregroundPercent": 75.2,
+    "differentPixels": 0
+  },
+  {
+    "path": "banquet/roles/judge",
+    "source": "src/client/assets/banquet/roles/judge.webp",
+    "size": [
+      640,
+      960
+    ],
+    "sourceSha256": "1cc1bd2ede27c960ee781cac05626c1d37dd92d75a8e6c1f15b85c1a41273208",
+    "foregroundPercent": 70.93,
+    "differentPixels": 0
+  },
+  {
+    "path": "banquet/roles/king",
+    "source": "src/client/assets/banquet/roles/king.webp",
+    "size": [
+      640,
+      960
+    ],
+    "sourceSha256": "7304de45045ebb350c51ba86088ffd6dc7ec68e02c217f7bf30082286b39077a",
+    "foregroundPercent": 57.52,
+    "differentPixels": 0
+  },
+  {
+    "path": "banquet/roles/patron",
+    "source": "src/client/assets/banquet/roles/patron.webp",
+    "size": [
+      640,
+      960
+    ],
+    "sourceSha256": "96c769a72f1c755a066b6dd52e26d339e5c354e9fe5217f11d26f7ceda7ae872",
+    "foregroundPercent": 77.38,
+    "differentPixels": 0
+  },
+  {
+    "path": "banquet/roles/peasant",
+    "source": "src/client/assets/banquet/roles/peasant.webp",
+    "size": [
+      640,
+      960
+    ],
+    "sourceSha256": "cdfaa917f63e69246e758eedf583a303cd00e2713d21b5278167a400bd209137",
+    "foregroundPercent": 39.83,
+    "differentPixels": 0
+  },
+  {
+    "path": "banquet/roles/princess",
+    "source": "src/client/assets/banquet/roles/princess.webp",
+    "size": [
+      640,
+      960
+    ],
+    "sourceSha256": "b7010f5968fb0cdc009c72302d2d75d6dc2f71fbee05a0f1c23a35e7fd330322",
+    "foregroundPercent": 60.09,
+    "differentPixels": 0
+  },
+  {
+    "path": "banquet/roles/puppeteer",
+    "source": "src/client/assets/banquet/roles/puppeteer.webp",
+    "size": [
+      640,
+      960
+    ],
+    "sourceSha256": "79139b41cfceb1a93241ac02918adbaf83d672ea8f68ac8953853f44da2d7391",
+    "foregroundPercent": 74.31,
+    "differentPixels": 0
+  },
+  {
+    "path": "banquet/roles/sorceress",
+    "source": "src/client/assets/banquet/roles/sorceress.webp",
+    "size": [
+      640,
+      960
+    ],
+    "sourceSha256": "9fec8c4984abef81a7a5dd6e8c79d0073dbd5e7cc27ec2fde2ca22ed711377e6",
+    "foregroundPercent": 73.9,
+    "differentPixels": 0
+  },
+  {
+    "path": "banquet/roles/spy",
+    "source": "src/client/assets/banquet/roles/spy.webp",
+    "size": [
+      640,
+      960
+    ],
+    "sourceSha256": "d7c368a58e88733c82f3e22a760ae97fe6c4b44a52a0fc29e6902f1d730489c7",
+    "foregroundPercent": 71.9,
+    "differentPixels": 0
+  },
+  {
+    "path": "banquet/roles/thief",
+    "source": "src/client/assets/banquet/roles/thief.webp",
+    "size": [
+      640,
+      960
+    ],
+    "sourceSha256": "d2e7fdfea65dbf3a1b2b58d23624c6f70bfbfa7a9a01fb44cfd43eb28a5d85bb",
+    "foregroundPercent": 62.14,
+    "differentPixels": 0
+  },
+  {
+    "path": "banquet/roles/trickster",
+    "source": "src/client/assets/banquet/roles/trickster.webp",
+    "size": [
+      640,
+      960
+    ],
+    "sourceSha256": "6bae5473e9e9769c8affd2304e92e3fcf42b50d8097dd8c9252de98f7e9e45e1",
+    "foregroundPercent": 67.3,
+    "differentPixels": 0
+  },
+  {
+    "path": "banquet/roles/widow",
+    "source": "src/client/assets/banquet/roles/widow.webp",
+    "size": [
+      640,
+      960
+    ],
+    "sourceSha256": "ffe02f5458f7b592d924f6103429e4d6d45ae55781922160b6ff023122761c22",
+    "foregroundPercent": 76.49,
+    "differentPixels": 0
+  },
+  {
+    "path": "firewall/actions/break-cart",
+    "source": "src/client/assets/firewall/actions/break-cart.webp",
+    "size": [
+      427,
+      640
+    ],
+    "sourceSha256": "0e72ea5b0d59f22a29a30223ed1656228352f80ad21400596709f2cef83ed054",
+    "foregroundPercent": 27.64,
+    "differentPixels": 0
+  },
+  {
+    "path": "firewall/actions/break-lantern",
+    "source": "src/client/assets/firewall/actions/break-lantern.webp",
+    "size": [
+      427,
+      640
+    ],
+    "sourceSha256": "da588d824035d1d2066ece00e756b3682205e51ea99d5cc7c7d49ce24c18ca32",
+    "foregroundPercent": 34.91,
+    "differentPixels": 0
+  },
+  {
+    "path": "firewall/actions/break-pickaxe",
+    "source": "src/client/assets/firewall/actions/break-pickaxe.webp",
+    "size": [
+      427,
+      640
+    ],
+    "sourceSha256": "d1a12a935ca48059a28a2e7436868bd606e3e0ad1f28d03d08bd59ee10c2327d",
+    "foregroundPercent": 37.47,
+    "differentPixels": 0
+  },
+  {
+    "path": "firewall/actions/change-role",
+    "source": "src/client/assets/firewall/actions/change-role.webp",
+    "size": [
+      427,
+      640
+    ],
+    "sourceSha256": "e59960a9ab076ebfd5e4dbeca6a4eb4e95cc47d4aa763107d58a699a842e97c2",
+    "foregroundPercent": 36.78,
+    "differentPixels": 0
+  },
+  {
+    "path": "firewall/actions/free",
+    "source": "src/client/assets/firewall/actions/free.webp",
+    "size": [
+      427,
+      640
+    ],
+    "sourceSha256": "de614192b2ced8e055b5707df95aab56533723a60f5db45d79422e061fe3c398",
+    "foregroundPercent": 30.18,
+    "differentPixels": 0
+  },
+  {
+    "path": "firewall/actions/hands-off",
+    "source": "src/client/assets/firewall/actions/hands-off.webp",
+    "size": [
+      427,
+      640
+    ],
+    "sourceSha256": "bb3b41916198dbe57c6356129d0aabc9c878b8274c7f30500f4a1142ed84f638",
+    "foregroundPercent": 63.63,
+    "differentPixels": 0
+  },
+  {
+    "path": "firewall/actions/inspection",
+    "source": "src/client/assets/firewall/actions/inspection.webp",
+    "size": [
+      427,
+      640
+    ],
+    "sourceSha256": "4e5907e23a3bc97dfc5549bea4489dd4e4c5306f357ba00d2f70998e07e0588e",
+    "foregroundPercent": 77.44,
+    "differentPixels": 0
+  },
+  {
+    "path": "firewall/actions/map",
+    "source": "src/client/assets/firewall/actions/map.webp",
+    "size": [
+      427,
+      640
+    ],
+    "sourceSha256": "07395e350f71a0f5557429d74efb482ef41fccdf08a3ca550bf6ad4fc910c00d",
+    "foregroundPercent": 43.54,
+    "differentPixels": 0
+  },
+  {
+    "path": "firewall/actions/rockfall",
+    "source": "src/client/assets/firewall/actions/rockfall.webp",
+    "size": [
+      427,
+      640
+    ],
+    "sourceSha256": "6ce6017589d9d0ad658d4ef19db49de34baa2f7d96e22081f76f0dc4076b77c3",
+    "foregroundPercent": 49.89,
+    "differentPixels": 0
+  },
+  {
+    "path": "firewall/actions/swap-hands",
+    "source": "src/client/assets/firewall/actions/swap-hands.webp",
+    "size": [
+      427,
+      640
+    ],
+    "sourceSha256": "031f1389365a7e10f08c1eee90707816c36af0e1b1cc27686c2ecb6fb12421ed",
+    "foregroundPercent": 19.61,
+    "differentPixels": 0
+  },
+  {
+    "path": "firewall/actions/theft",
+    "source": "src/client/assets/firewall/actions/theft.webp",
+    "size": [
+      427,
+      640
+    ],
+    "sourceSha256": "bb4116c6007b5c65cb6082003de08961968ced27af9c0accf49de0634eba6bc9",
+    "foregroundPercent": 35.56,
+    "differentPixels": 0
+  },
+  {
+    "path": "firewall/actions/trapped",
+    "source": "src/client/assets/firewall/actions/trapped.webp",
+    "size": [
+      427,
+      640
+    ],
+    "sourceSha256": "b600d09135abdaaf36b46cccf5718f2012b8e477393d222b7536c9590fe63cde",
+    "foregroundPercent": 22.95,
+    "differentPixels": 0
+  },
+  {
+    "path": "firewall/nodes/core",
+    "source": "src/client/assets/firewall/nodes/core.webp",
+    "size": [
+      640,
+      640
+    ],
+    "sourceSha256": "d3bca6445c235d2a91f5efac5dead0102ed412dcfecbdbff04fa9a15630d7412",
+    "foregroundPercent": 37.74,
+    "differentPixels": 0
+  },
+  {
+    "path": "firewall/nodes/decoy",
+    "source": "src/client/assets/firewall/nodes/decoy.webp",
+    "size": [
+      640,
+      640
+    ],
+    "sourceSha256": "5f91e025f8b64d90064c5c85e9c78d4ab3cce19efeddd5d84b9ced5470a95c7e",
+    "foregroundPercent": 35.56,
+    "differentPixels": 0
+  },
+  {
+    "path": "firewall/nodes/start",
+    "source": "src/client/assets/firewall/nodes/start.webp",
+    "size": [
+      640,
+      640
+    ],
+    "sourceSha256": "9c826f6865ab1b5db9b2db9fcba692bb57d43416c3a900163d589a4f0c5488fc",
+    "foregroundPercent": 41.22,
+    "differentPixels": 0
+  },
+  {
+    "path": "firewall/paths/blue-gate",
+    "source": "src/client/assets/firewall/paths/blue-gate.webp",
+    "size": [
+      640,
+      640
+    ],
+    "sourceSha256": "bc08417a24da2a46819d27a7a5148498b80d24e32c7e9db7e9675d202dcceb9f",
+    "foregroundPercent": 54.91,
+    "differentPixels": 0
+  },
+  {
+    "path": "firewall/paths/bridge",
+    "source": "src/client/assets/firewall/paths/bridge.webp",
+    "size": [
+      640,
+      640
+    ],
+    "sourceSha256": "3957ba9349b47e69b2bd80c1646a6820f93b0d49c0c08b63836c2315079755de",
+    "foregroundPercent": 42.8,
+    "differentPixels": 0
+  },
+  {
+    "path": "firewall/paths/crystal",
+    "source": "src/client/assets/firewall/paths/crystal.webp",
+    "size": [
+      640,
+      640
+    ],
+    "sourceSha256": "4fc0279e5d9d4d44b6973eb644555b65c600e0e431ae19ab6ce97e6e4314035d",
+    "foregroundPercent": 28.79,
+    "differentPixels": 0
+  },
+  {
+    "path": "firewall/paths/green-gate",
+    "source": "src/client/assets/firewall/paths/green-gate.webp",
+    "size": [
+      640,
+      640
+    ],
+    "sourceSha256": "3587243cd8e2470c0168d78d76d64e48c8c0bd279ec5ef286cb66e24e89243fa",
+    "foregroundPercent": 55.64,
+    "differentPixels": 0
+  },
+  {
+    "path": "firewall/paths/ladder",
+    "source": "src/client/assets/firewall/paths/ladder.webp",
+    "size": [
+      640,
+      640
+    ],
+    "sourceSha256": "b52d2e69169a5f6cbbd46f12f12a6205042f2eb2d2253fc643b822df29d878a2",
+    "foregroundPercent": 34.65,
+    "differentPixels": 0
+  },
+  {
+    "path": "firewall/roles/blue",
+    "source": "src/client/assets/firewall/roles/blue.webp",
+    "size": [
+      640,
+      960
+    ],
+    "sourceSha256": "bd67c6be1f253eb3008c49ea1da7144bc3a632a1e89c2d1df5699e57ac0fb2ec",
+    "foregroundPercent": 47.73,
+    "differentPixels": 0
+  },
+  {
+    "path": "firewall/roles/boss",
+    "source": "src/client/assets/firewall/roles/boss.webp",
+    "size": [
+      640,
+      960
+    ],
+    "sourceSha256": "4afc3ec34839ec186c8740f53cb686d8eddbc1b8c3a899275ebfe30fba1d49c2",
+    "foregroundPercent": 47.78,
+    "differentPixels": 0
+  },
+  {
+    "path": "firewall/roles/geologist",
+    "source": "src/client/assets/firewall/roles/geologist.webp",
+    "size": [
+      640,
+      960
+    ],
+    "sourceSha256": "8fc5d3229e02ce6e7921137b5872410c5c87472ac49089a242e580032d862bbe",
+    "foregroundPercent": 38.07,
+    "differentPixels": 0
+  },
+  {
+    "path": "firewall/roles/green",
+    "source": "src/client/assets/firewall/roles/green.webp",
+    "size": [
+      640,
+      960
+    ],
+    "sourceSha256": "f8e5a6e5c8946f131fc13a37854b6d7b6832377fd261d4f6d613960c9069ac92",
+    "foregroundPercent": 45.77,
+    "differentPixels": 0
+  },
+  {
+    "path": "firewall/roles/profiteer",
+    "source": "src/client/assets/firewall/roles/profiteer.webp",
+    "size": [
+      640,
+      960
+    ],
+    "sourceSha256": "002b019470176b9c46fb22edcf7a7a92669dd0aec2dff44c3522c33d4e1631b7",
+    "foregroundPercent": 62.5,
+    "differentPixels": 0
+  },
+  {
+    "path": "firewall/roles/saboteur",
+    "source": "src/client/assets/firewall/roles/saboteur.webp",
+    "size": [
+      640,
+      960
+    ],
+    "sourceSha256": "708a196ef7ef15781947d1cb3bf0e10446dc45652cc2ff777ec5edffff81ec08",
+    "foregroundPercent": 47.46,
+    "differentPixels": 0
+  },
+  {
+    "path": "firewall/tools/cart",
+    "source": "src/client/assets/firewall/tools/cart.webp",
+    "size": [
+      427,
+      640
+    ],
+    "sourceSha256": "b6ef52de82045da9cc99bec99974cea21b8906a75242dc54f8de8a3f7560756e",
+    "foregroundPercent": 41.66,
+    "differentPixels": 0
+  },
+  {
+    "path": "firewall/tools/lantern",
+    "source": "src/client/assets/firewall/tools/lantern.webp",
+    "size": [
+      427,
+      640
+    ],
+    "sourceSha256": "0b9378fc7e9460a14f40a4fa0365207d1c9bdf2b324b4826aa7877a9b8ee32ad",
+    "foregroundPercent": 18.75,
+    "differentPixels": 0
+  },
+  {
+    "path": "firewall/tools/pickaxe",
+    "source": "src/client/assets/firewall/tools/pickaxe.webp",
+    "size": [
+      427,
+      640
+    ],
+    "sourceSha256": "d4d35ca7f3a9adcee60589c7b84da6239cf1dee881ad3f654a9e4497752efb10",
+    "foregroundPercent": 20.69,
+    "differentPixels": 0
+  },
+  {
+    "path": "heist/artifacts/glass-crown",
+    "source": "src/client/assets/heist/artifacts/glass-crown.webp",
+    "size": [
+      427,
+      640
+    ],
+    "sourceSha256": "a7b6ef2bc2fd1489333431474d14f6114954d002628ca862598b1fd53666cbf1",
+    "foregroundPercent": 40.15,
+    "differentPixels": 0
+  },
+  {
+    "path": "heist/artifacts/moon-watch",
+    "source": "src/client/assets/heist/artifacts/moon-watch.webp",
+    "size": [
+      427,
+      640
+    ],
+    "sourceSha256": "c529df1b38509fdbbb9446ccd3bd373903e24a02391cbb0b55fa7db989b9478f",
+    "foregroundPercent": 22.59,
+    "differentPixels": 0
+  },
+  {
+    "path": "heist/artifacts/prism-heart",
+    "source": "src/client/assets/heist/artifacts/prism-heart.webp",
+    "size": [
+      427,
+      640
+    ],
+    "sourceSha256": "ea81ea9d126e54e149b5c1e37564518f48468ff71b657ac9f7e49481d5cd1d45",
+    "foregroundPercent": 33.33,
+    "differentPixels": 0
+  },
+  {
+    "path": "heist/artifacts/ruby-mask",
+    "source": "src/client/assets/heist/artifacts/ruby-mask.webp",
+    "size": [
+      427,
+      640
+    ],
+    "sourceSha256": "3dede441bc0c19fc47bab98cb1de9d610fc68478b219058b91ceb7d7b049ec9d",
+    "foregroundPercent": 19.19,
+    "differentPixels": 0
+  },
+  {
+    "path": "heist/artifacts/sapphire-eye",
+    "source": "src/client/assets/heist/artifacts/sapphire-eye.webp",
+    "size": [
+      427,
+      640
+    ],
+    "sourceSha256": "5f9ca3d90a8e629fabb6998e4520a7bab24b63f9bb7cb84ce01ef89d52063057",
+    "foregroundPercent": 11.93,
+    "differentPixels": 0
+  },
+  {
+    "path": "heist/decision-exit",
+    "source": "src/client/assets/heist/decision-exit.webp",
+    "size": [
+      427,
+      640
+    ],
+    "sourceSha256": "bc5c11f7f5aff87887540829109dafd6b05f7ad894f976248dfb997feebb8544",
+    "foregroundPercent": 18.99,
+    "differentPixels": 0
+  },
+  {
+    "path": "heist/decision-explore",
+    "source": "src/client/assets/heist/decision-explore.webp",
+    "size": [
+      427,
+      640
+    ],
+    "sourceSha256": "4e528f86d0a6c87d72d8abd8e42eb99ce89fdbbbf70b54c0589beb777cd3d002",
+    "foregroundPercent": 16.05,
+    "differentPixels": 0
+  },
+  {
+    "path": "heist/hazards/alarm",
+    "source": "src/client/assets/heist/hazards/alarm.webp",
+    "size": [
+      427,
+      640
+    ],
+    "sourceSha256": "b1202d86133b648c549ec79dba27878e696791aeabd5be0c78bcdc171b563d64",
+    "foregroundPercent": 25.85,
+    "differentPixels": 0
+  },
+  {
+    "path": "heist/hazards/camera",
+    "source": "src/client/assets/heist/hazards/camera.webp",
+    "size": [
+      427,
+      640
+    ],
+    "sourceSha256": "888ea9425a4b360378a586525f4a2dd23aaf92091f07290b932a3628feee3fb0",
+    "foregroundPercent": 15.26,
+    "differentPixels": 0
+  },
+  {
+    "path": "heist/hazards/laser",
+    "source": "src/client/assets/heist/hazards/laser.webp",
+    "size": [
+      427,
+      640
+    ],
+    "sourceSha256": "76e98fba6b398cca13ff53e91048fc000221c1e9899a0d3d02914915b5d98f70",
+    "foregroundPercent": 13.25,
+    "differentPixels": 0
+  },
+  {
+    "path": "heist/hazards/lockdown",
+    "source": "src/client/assets/heist/hazards/lockdown.webp",
+    "size": [
+      427,
+      640
+    ],
+    "sourceSha256": "ab2ebb2cc6b19ad90ffad1ed60f0cf0d6d233d8f120968802a102e6d3843e1bd",
+    "foregroundPercent": 36.54,
+    "differentPixels": 0
+  },
+  {
+    "path": "heist/hazards/patrol",
+    "source": "src/client/assets/heist/hazards/patrol.webp",
+    "size": [
+      427,
+      640
+    ],
+    "sourceSha256": "d65869492d8480bcf4d5e4546641ce57c664e6e20edb37a8c7a6c01427018d5a",
+    "foregroundPercent": 19.17,
+    "differentPixels": 0
+  },
+  {
+    "path": "heist/loot-a",
+    "source": "src/client/assets/heist/loot-a.webp",
+    "size": [
+      427,
+      640
+    ],
+    "sourceSha256": "17a09b36a3838b6fba27c1276ee2f2fd415c551b86708425177a9d85e844b36d",
+    "foregroundPercent": 35.24,
+    "differentPixels": 0
+  },
+  {
+    "path": "heist/loot-b",
+    "source": "src/client/assets/heist/loot-b.webp",
+    "size": [
+      427,
+      640
+    ],
+    "sourceSha256": "4611298f5d88023140220b5646f283d40589a99cdac50201e3cf5989556e4438",
+    "foregroundPercent": 31.36,
+    "differentPixels": 0
+  },
+  {
+    "path": "post/roles/assassin",
+    "source": "src/client/assets/post/roles/assassin.webp",
+    "size": [
+      418,
+      418
+    ],
+    "sourceSha256": "a18760b9f88c4d7291b394506ab4c3a66fa1d084df274737941f71781d95b807",
+    "foregroundPercent": 75.91,
+    "differentPixels": 0
+  },
+  {
+    "path": "post/roles/baron",
+    "source": "src/client/assets/post/roles/baron.webp",
+    "size": [
+      418,
+      418
+    ],
+    "sourceSha256": "7e7ceb9dfd26eef66a4a2205efe3a09494b3e2518689c9c6e5d6568b1bcb3bb6",
+    "foregroundPercent": 63.44,
+    "differentPixels": 0
+  },
+  {
+    "path": "post/roles/baroness",
+    "source": "src/client/assets/post/roles/baroness.webp",
+    "size": [
+      418,
+      418
+    ],
+    "sourceSha256": "5018aabbb7c61ca5bafe2e4841d75df440f4eee148fdbf96798734651c9a7305",
+    "foregroundPercent": 73.67,
+    "differentPixels": 0
+  },
+  {
+    "path": "post/roles/bishop",
+    "source": "src/client/assets/post/roles/bishop.webp",
+    "size": [
+      418,
+      418
+    ],
+    "sourceSha256": "a4f7b5d3e94512feabb9b46040f72a53aa2af70a6ea69b1195748459658c37ff",
+    "foregroundPercent": 69.26,
+    "differentPixels": 0
+  },
+  {
+    "path": "post/roles/cardinal",
+    "source": "src/client/assets/post/roles/cardinal.webp",
+    "size": [
+      418,
+      418
+    ],
+    "sourceSha256": "dd00e126a844c96bb8ad9d94111a6b4aebb0ad1ad6b03ff85147804aa93d6a90",
+    "foregroundPercent": 67.75,
+    "differentPixels": 0
+  },
+  {
+    "path": "post/roles/constable",
+    "source": "src/client/assets/post/roles/constable.webp",
+    "size": [
+      418,
+      418
+    ],
+    "sourceSha256": "121653e73e01dc56ffcc0aef6b4bef71132bd380575e22e9a82faf682ab71e14",
+    "foregroundPercent": 63.15,
+    "differentPixels": 0
+  },
+  {
+    "path": "post/roles/count",
+    "source": "src/client/assets/post/roles/count.webp",
+    "size": [
+      418,
+      418
+    ],
+    "sourceSha256": "ad45cbec9b4a4014a9715541cc2663921ec16af7a016229e0dce67b9a0533aac",
+    "foregroundPercent": 72.62,
+    "differentPixels": 0
+  },
+  {
+    "path": "post/roles/countess",
+    "source": "src/client/assets/post/roles/countess.webp",
+    "size": [
+      418,
+      418
+    ],
+    "sourceSha256": "0f4704ca096ce774b14e01ca2d2b7fb5790230526a7c206acb27cfd800509726",
+    "foregroundPercent": 82.77,
+    "differentPixels": 0
+  },
+  {
+    "path": "post/roles/director",
+    "source": "src/client/assets/post/roles/director.webp",
+    "size": [
+      418,
+      418
+    ],
+    "sourceSha256": "b84e490469d6ac036fe06a0d19f6b2fad191de4c438936f170ed5664a1d18919",
+    "foregroundPercent": 80.69,
+    "differentPixels": 0
+  },
+  {
+    "path": "post/roles/dowager",
+    "source": "src/client/assets/post/roles/dowager.webp",
+    "size": [
+      418,
+      418
+    ],
+    "sourceSha256": "7c72fd8dfd72b710e267460c7e453fcb13a787f6f0d99952ad736e566c0c89e6",
+    "foregroundPercent": 71.88,
+    "differentPixels": 0
+  },
+  {
+    "path": "post/roles/guard",
+    "source": "src/client/assets/post/roles/guard.webp",
+    "size": [
+      418,
+      418
+    ],
+    "sourceSha256": "2351198213cd8e5fdee98b2bdf96136793ef42b7eaa465371bac3b92d212e2d4",
+    "foregroundPercent": 67.93,
+    "differentPixels": 0
+  },
+  {
+    "path": "post/roles/handmaid",
+    "source": "src/client/assets/post/roles/handmaid.webp",
+    "size": [
+      418,
+      418
+    ],
+    "sourceSha256": "ffe2af1ee8bd139a4e6e71b9b3c7b893c8a69529beacac4fc394f2b6ae04a283",
+    "foregroundPercent": 74.75,
+    "differentPixels": 0
+  },
+  {
+    "path": "post/roles/jester",
+    "source": "src/client/assets/post/roles/jester.webp",
+    "size": [
+      418,
+      418
+    ],
+    "sourceSha256": "9ce8f582a6b405532558702d509be36c329dd70b764841dac67e74673e155758",
+    "foregroundPercent": 66.36,
+    "differentPixels": 0
+  },
+  {
+    "path": "post/roles/king",
+    "source": "src/client/assets/post/roles/king.webp",
+    "size": [
+      418,
+      418
+    ],
+    "sourceSha256": "bfe557a72dbfc72734b69e06919746f2ab48e998b783c1668eff2e4455016add",
+    "foregroundPercent": 74.65,
+    "differentPixels": 0
+  },
+  {
+    "path": "post/roles/priest",
+    "source": "src/client/assets/post/roles/priest.webp",
+    "size": [
+      418,
+      418
+    ],
+    "sourceSha256": "651a1fd16ad3baf9eea20ead1201a02b1e77575d7e2024e6b0a6707b6d70b9c7",
+    "foregroundPercent": 63.99,
+    "differentPixels": 0
+  },
+  {
+    "path": "post/roles/prince",
+    "source": "src/client/assets/post/roles/prince.webp",
+    "size": [
+      418,
+      418
+    ],
+    "sourceSha256": "0521c527ac36a7cc67ad98aced79c97da3ca0a718c7b0bb5bb69699cbc71250c",
+    "foregroundPercent": 67.4,
+    "differentPixels": 0
+  },
+  {
+    "path": "post/roles/princess",
+    "source": "src/client/assets/post/roles/princess.webp",
+    "size": [
+      418,
+      418
+    ],
+    "sourceSha256": "fc0e27cfb70909fb4b8813e08f11ba15d083e63682312aa5223a253e7de48d58",
+    "foregroundPercent": 68.35,
+    "differentPixels": 0
+  },
+  {
+    "path": "post/roles/sycophant",
+    "source": "src/client/assets/post/roles/sycophant.webp",
+    "size": [
+      418,
+      418
+    ],
+    "sourceSha256": "ba5bf83f6ef49aa0492d76362f324ccd1765b33c6c2c71dca366eb6095947a2f",
+    "foregroundPercent": 70.48,
+    "differentPixels": 0
+  },
+  {
+    "path": "star/crafts/black-1-a",
+    "source": "src/client/assets/star/crafts/black-1-a.webp",
+    "size": [
+      427,
+      640
+    ],
+    "sourceSha256": "7f9d64ee3ef16fe194b07e5aa6ca217c7cac17708eca1efff60da78fbdf41958",
+    "foregroundPercent": 24.37,
+    "differentPixels": 0
+  },
+  {
+    "path": "star/crafts/black-1-b",
+    "source": "src/client/assets/star/crafts/black-1-b.webp",
+    "size": [
+      427,
+      640
+    ],
+    "sourceSha256": "c3c503dbd0f1fea3f3728de726e58a2007675813f0268150f387d57ceee68c3a",
+    "foregroundPercent": 34.04,
+    "differentPixels": 0
+  },
+  {
+    "path": "star/crafts/black-2-a",
+    "source": "src/client/assets/star/crafts/black-2-a.webp",
+    "size": [
+      427,
+      640
+    ],
+    "sourceSha256": "1de8a9c489301e47dcfd4531c52326e01b122f95fa32526087fb7ef30117565a",
+    "foregroundPercent": 29.16,
+    "differentPixels": 0
+  },
+  {
+    "path": "star/crafts/black-2-b",
+    "source": "src/client/assets/star/crafts/black-2-b.webp",
+    "size": [
+      427,
+      640
+    ],
+    "sourceSha256": "3d7b0f84bc0bfca4435ae4a7746113d788f7de3cea9de1f6b06c1f9b5dc32e04",
+    "foregroundPercent": 28.87,
+    "differentPixels": 0
+  },
+  {
+    "path": "star/crafts/black-3-a",
+    "source": "src/client/assets/star/crafts/black-3-a.webp",
+    "size": [
+      427,
+      640
+    ],
+    "sourceSha256": "0ba8c32c8c96012c91d89f7de2c0f3fb02305f8f97112eba8786c5634f129cf6",
+    "foregroundPercent": 32.36,
+    "differentPixels": 0
+  },
+  {
+    "path": "star/crafts/black-3-b",
+    "source": "src/client/assets/star/crafts/black-3-b.webp",
+    "size": [
+      427,
+      640
+    ],
+    "sourceSha256": "265c21d8d584171bb6b6b27b39587129d4f80e619fda5503c9e589b5fb5330ec",
+    "foregroundPercent": 37.19,
+    "differentPixels": 0
+  },
+  {
+    "path": "star/crafts/blue-1-a",
+    "source": "src/client/assets/star/crafts/blue-1-a.webp",
+    "size": [
+      427,
+      640
+    ],
+    "sourceSha256": "6f2f28b7b2057c358e9683fb5a98b7a52731c098f7df26d960ab14eac40ef46f",
+    "foregroundPercent": 6.77,
+    "differentPixels": 0
+  },
+  {
+    "path": "star/crafts/blue-1-b",
+    "source": "src/client/assets/star/crafts/blue-1-b.webp",
+    "size": [
+      427,
+      640
+    ],
+    "sourceSha256": "282a9a0a0332cf7992d07e0f88f9ff4584463fd231da48b7f8b327addc7fbeb7",
+    "foregroundPercent": 10.84,
+    "differentPixels": 0
+  },
+  {
+    "path": "star/crafts/blue-2-a",
+    "source": "src/client/assets/star/crafts/blue-2-a.webp",
+    "size": [
+      427,
+      640
+    ],
+    "sourceSha256": "487cabc76c14d5c8177e3cd562f4e74faaa51f0b890e0634ed0b56cb670a21d4",
+    "foregroundPercent": 21.79,
+    "differentPixels": 0
+  },
+  {
+    "path": "star/crafts/blue-2-b",
+    "source": "src/client/assets/star/crafts/blue-2-b.webp",
+    "size": [
+      427,
+      640
+    ],
+    "sourceSha256": "7bd8a070bd6ac888d7592e8c7e44be62f7d63efdc054e3b69e45141c7ff8a4a5",
+    "foregroundPercent": 19.76,
+    "differentPixels": 0
+  },
+  {
+    "path": "star/crafts/blue-3-a",
+    "source": "src/client/assets/star/crafts/blue-3-a.webp",
+    "size": [
+      427,
+      640
+    ],
+    "sourceSha256": "c2ce84fb188f7ca1a48865f3920332fd0e63cf2f9a11d88fc00a318ed10fc51d",
+    "foregroundPercent": 43.03,
+    "differentPixels": 0
+  },
+  {
+    "path": "star/crafts/blue-3-b",
+    "source": "src/client/assets/star/crafts/blue-3-b.webp",
+    "size": [
+      427,
+      640
+    ],
+    "sourceSha256": "cc3c0bee0c6675dbebda0bf476c3a8e7a8ba785c513f29137b8e8d94b05c9aa7",
+    "foregroundPercent": 36.03,
+    "differentPixels": 0
+  },
+  {
+    "path": "star/crafts/green-1-a",
+    "source": "src/client/assets/star/crafts/green-1-a.webp",
+    "size": [
+      427,
+      640
+    ],
+    "sourceSha256": "2ff9f95f7a495d65a594047baf7f7fe14d97f82c19a29af7b36a89dc42b9fbbc",
+    "foregroundPercent": 25.92,
+    "differentPixels": 0
+  },
+  {
+    "path": "star/crafts/green-1-b",
+    "source": "src/client/assets/star/crafts/green-1-b.webp",
+    "size": [
+      427,
+      640
+    ],
+    "sourceSha256": "b795a439391f5119929f931c54f46386c6af22bd935204f49669549c7a690145",
+    "foregroundPercent": 22.29,
+    "differentPixels": 0
+  },
+  {
+    "path": "star/crafts/green-2-a",
+    "source": "src/client/assets/star/crafts/green-2-a.webp",
+    "size": [
+      427,
+      640
+    ],
+    "sourceSha256": "ca0016489301b051fb70a523ccef1aee9aa63bfc8e0be5d22cc2b80ac9c2aecf",
+    "foregroundPercent": 30.3,
+    "differentPixels": 0
+  },
+  {
+    "path": "star/crafts/green-2-b",
+    "source": "src/client/assets/star/crafts/green-2-b.webp",
+    "size": [
+      427,
+      640
+    ],
+    "sourceSha256": "3197edad222edb127b7dbae3995a29e6a15c8045384c9baaadc31ed06711b9de",
+    "foregroundPercent": 32.92,
+    "differentPixels": 0
+  },
+  {
+    "path": "star/crafts/green-3-a",
+    "source": "src/client/assets/star/crafts/green-3-a.webp",
+    "size": [
+      427,
+      640
+    ],
+    "sourceSha256": "06b3fb19d78844a5503fc5cf76b7fd6a37e4e9f2592fe0d937b9a2135f56fdf3",
+    "foregroundPercent": 34.34,
+    "differentPixels": 0
+  },
+  {
+    "path": "star/crafts/green-3-b",
+    "source": "src/client/assets/star/crafts/green-3-b.webp",
+    "size": [
+      427,
+      640
+    ],
+    "sourceSha256": "8484c7482b050f6a1ef0d9c7d58ae91dc820d4a476d4e885e42d0002614d5b7d",
+    "foregroundPercent": 26.05,
+    "differentPixels": 0
+  },
+  {
+    "path": "star/crafts/red-1-a",
+    "source": "src/client/assets/star/crafts/red-1-a.webp",
+    "size": [
+      427,
+      640
+    ],
+    "sourceSha256": "4035a6e8f2cc50ac55a246294d3f7007b529c345dbfa1a17a5a42328dec14966",
+    "foregroundPercent": 23.67,
+    "differentPixels": 0
+  },
+  {
+    "path": "star/crafts/red-1-b",
+    "source": "src/client/assets/star/crafts/red-1-b.webp",
+    "size": [
+      427,
+      640
+    ],
+    "sourceSha256": "6db89c107f98d465893d0c4d645ca7623c8f47232e12f1b501ed683457fed5cc",
+    "foregroundPercent": 20.08,
+    "differentPixels": 0
+  },
+  {
+    "path": "star/crafts/red-2-a",
+    "source": "src/client/assets/star/crafts/red-2-a.webp",
+    "size": [
+      427,
+      640
+    ],
+    "sourceSha256": "6681f29bfcd3a2146ffd44ff10d56865e54da82abb59aa6a8325cb9f30bd5553",
+    "foregroundPercent": 25.59,
+    "differentPixels": 0
+  },
+  {
+    "path": "star/crafts/red-2-b",
+    "source": "src/client/assets/star/crafts/red-2-b.webp",
+    "size": [
+      427,
+      640
+    ],
+    "sourceSha256": "915b68f61cc140140d774bff554d7da081ed8bcb0753215ea1f6f4bf742765be",
+    "foregroundPercent": 27.9,
+    "differentPixels": 0
+  },
+  {
+    "path": "star/crafts/red-3-a",
+    "source": "src/client/assets/star/crafts/red-3-a.webp",
+    "size": [
+      427,
+      640
+    ],
+    "sourceSha256": "d0ebdc00eec134592984c6bf8232f7a22f5d64a126cdcaf1bdd43cf76a4c6468",
+    "foregroundPercent": 32.87,
+    "differentPixels": 0
+  },
+  {
+    "path": "star/crafts/red-3-b",
+    "source": "src/client/assets/star/crafts/red-3-b.webp",
+    "size": [
+      427,
+      640
+    ],
+    "sourceSha256": "4c17595d87a8ee2033563aa0818ca03bc5bee3d583284f915c632be223c053cd",
+    "foregroundPercent": 39.9,
+    "differentPixels": 0
+  },
+  {
+    "path": "star/crafts/white-1-a",
+    "source": "src/client/assets/star/crafts/white-1-a.webp",
+    "size": [
+      427,
+      640
+    ],
+    "sourceSha256": "8df1b1d46b58eac727735263259636241039b4fc6dfa14a9c51bae5a6fc99d34",
+    "foregroundPercent": 23.8,
+    "differentPixels": 0
+  },
+  {
+    "path": "star/crafts/white-1-b",
+    "source": "src/client/assets/star/crafts/white-1-b.webp",
+    "size": [
+      427,
+      640
+    ],
+    "sourceSha256": "89c79a4947d38d4dc123241f86785d7ee603b591fcbd383b40cde299db38e606",
+    "foregroundPercent": 17.3,
+    "differentPixels": 0
+  },
+  {
+    "path": "star/crafts/white-2-a",
+    "source": "src/client/assets/star/crafts/white-2-a.webp",
+    "size": [
+      427,
+      640
+    ],
+    "sourceSha256": "7a0cc136a36c14b5ce692d73fecc3545612746b778608ae4cb940e7ef1d8d8a5",
+    "foregroundPercent": 28.06,
+    "differentPixels": 0
+  },
+  {
+    "path": "star/crafts/white-2-b",
+    "source": "src/client/assets/star/crafts/white-2-b.webp",
+    "size": [
+      427,
+      640
+    ],
+    "sourceSha256": "692904dd3b227a0972b4423af701a43349b1a2e52d9d165606911fceafff4873",
+    "foregroundPercent": 25.68,
+    "differentPixels": 0
+  },
+  {
+    "path": "star/crafts/white-3-a",
+    "source": "src/client/assets/star/crafts/white-3-a.webp",
+    "size": [
+      427,
+      640
+    ],
+    "sourceSha256": "47c13644f7e762451cd8b0dc526645788a1f7e4f9c1b7d0b23c68db79c0538f3",
+    "foregroundPercent": 36.87,
+    "differentPixels": 0
+  },
+  {
+    "path": "star/crafts/white-3-b",
+    "source": "src/client/assets/star/crafts/white-3-b.webp",
+    "size": [
+      427,
+      640
+    ],
+    "sourceSha256": "a7597bc193a0e0d1dba10b8d79fbab0bafff704e09a17d463374ca997fcab38a",
+    "foregroundPercent": 33.86,
+    "differentPixels": 0
+  },
+  {
+    "path": "star/guardians/andromeda",
+    "source": "src/client/assets/star/guardians/andromeda.webp",
+    "size": [
+      427,
+      640
+    ],
+    "sourceSha256": "015b3a0fa497f4473c97f00d127ca6fd7ceacb7641900c6f5c803affd5906abf",
+    "foregroundPercent": 31.64,
+    "differentPixels": 0
+  },
+  {
+    "path": "star/guardians/aquila",
+    "source": "src/client/assets/star/guardians/aquila.webp",
+    "size": [
+      427,
+      640
+    ],
+    "sourceSha256": "8687c01a58bd29423869927bacde3073264a0851df03061af58c4b2c2dedb4d5",
+    "foregroundPercent": 28.05,
+    "differentPixels": 0
+  },
+  {
+    "path": "star/guardians/corona",
+    "source": "src/client/assets/star/guardians/corona.webp",
+    "size": [
+      427,
+      640
+    ],
+    "sourceSha256": "43fcd38ce24514f2a3f6db119fa785d04587f04f2876372ed2014a88fcb7be4f",
+    "foregroundPercent": 52.98,
+    "differentPixels": 0
+  },
+  {
+    "path": "star/guardians/cygnus",
+    "source": "src/client/assets/star/guardians/cygnus.webp",
+    "size": [
+      427,
+      640
+    ],
+    "sourceSha256": "3283202a7ce561e9337d31e42588b8d474afac7c26522ce7c61956d168e85c89",
+    "foregroundPercent": 63.77,
+    "differentPixels": 0
+  },
+  {
+    "path": "star/guardians/draco",
+    "source": "src/client/assets/star/guardians/draco.webp",
+    "size": [
+      427,
+      640
+    ],
+    "sourceSha256": "fec6870115981d60ebdf189bd186968007ecb9ef444782782e7d964cffb577ed",
+    "foregroundPercent": 37.04,
+    "differentPixels": 0
+  },
+  {
+    "path": "star/guardians/lupus",
+    "source": "src/client/assets/star/guardians/lupus.webp",
+    "size": [
+      427,
+      640
+    ],
+    "sourceSha256": "a133bda269295064e144db0b119cd6b8cb1b7d9feb99fb802e12e38bb1922f54",
+    "foregroundPercent": 43.94,
+    "differentPixels": 0
+  },
+  {
+    "path": "star/guardians/lyra",
+    "source": "src/client/assets/star/guardians/lyra.webp",
+    "size": [
+      427,
+      640
+    ],
+    "sourceSha256": "2e3970ab88ea5ebe01be3fbe1be372a1fa976127868cc75134aa022421831c11",
+    "foregroundPercent": 56.37,
+    "differentPixels": 0
+  },
+  {
+    "path": "star/guardians/orion",
+    "source": "src/client/assets/star/guardians/orion.webp",
+    "size": [
+      427,
+      640
+    ],
+    "sourceSha256": "b18f7b2039e4656cae0bf2fd8d153ed2e92d1de6ec3edf151c96a459b8517034",
+    "foregroundPercent": 46.15,
+    "differentPixels": 0
+  },
+  {
+    "path": "star/guardians/pegasus",
+    "source": "src/client/assets/star/guardians/pegasus.webp",
+    "size": [
+      427,
+      640
+    ],
+    "sourceSha256": "54d06a4aa8df7db7f33a5f3e3a814325a66139aa7f59c41015378c9cf13bf21e",
+    "foregroundPercent": 46.79,
+    "differentPixels": 0
+  },
+  {
+    "path": "star/guardians/phoenix",
+    "source": "src/client/assets/star/guardians/phoenix.webp",
+    "size": [
+      427,
+      640
+    ],
+    "sourceSha256": "27bc66ee56371531974e91bcefc33ba3dc3210871730d362d5ba2f6a4ee455f1",
+    "foregroundPercent": 50.05,
+    "differentPixels": 0
+  }
+]

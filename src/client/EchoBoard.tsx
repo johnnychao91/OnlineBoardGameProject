@@ -1,4 +1,4 @@
-import { useContext, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { useContext, useEffect, useRef, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react';
 import { echoCanAgree, type EchoState } from '../games/echo/game';
 import { echoWord, ECHO_WORD_LIMIT } from '../games/echo/rules';
 import type { RoomInfo } from './api';
@@ -6,7 +6,7 @@ import { GameSoundControl } from './GameSoundControl';
 import type { SnapshotProps } from './game-types';
 import { RoomContext } from './room-context';
 import { serverNow } from './server-clock';
-import { Icon } from './ui';
+import sealedCup from './assets/echo/sealed-cup.webp';
 import type { SoundCueState } from './sound-cues';
 import './echo.css';
 
@@ -107,7 +107,7 @@ function EchoLayout({ G, info, live, children }: { G: EchoState; info: RoomInfo;
   const revealed = G.status === 'review' || G.status === 'finished' ? G.history.at(-1) : undefined;
   const matched = didMatch(G);
   const confirmed = G.status === 'writing' ? ids.filter(id => G.players[id].sealed).length : ids.filter(id => G.players[id].reviewed).length;
-  return <main className="game-layout echo-layout" data-player={!!children}>
+  return <main className="game-layout echo-layout" data-player={!!children} style={{ '--echo-player-count': Math.max(1, ids.length) } as CSSProperties}>
     <section className="game-main echo-main">
       <div className="echo-desk" data-matched={matched}>
         <div className="echo-desk-head"><span>第 {G.round}／{G.options.roundLimit} 輪</span><strong role="status">{phaseLabel(G)}</strong>
@@ -116,7 +116,8 @@ function EchoLayout({ G, info, live, children }: { G: EchoState; info: RoomInfo;
         <div className="echo-clues"><h2>{matched ? (G.result === 'same-word' ? '全員同詞' : '全員確認同義') : G.status === 'finished' ? '本桌尚未相遇' : G.status === 'review' ? '杯中的詞' : G.clues.length ? '沿著這些詞繼續想' : '先各想一個詞'}</h2>
           {G.status === 'writing' && !!G.clues.length && <ul>{G.clues.map(word => <li key={word}>{word}</li>)}</ul>}
           {matched && <span className="echo-ripples" aria-hidden="true"><i /><i /><i /></span>}</div>
-        <ul className="echo-cups">{ids.map(id => <li key={id}><Icon type="cup" size={29} /><span>{playerName(info, id)}</span>
+        <ul className="echo-cups">{ids.map(id => <li key={id} data-sealed={G.players[id].sealed || !!revealed?.words[id]}>
+          <img src={sealedCup} alt="" width={640} height={640} /><span>{playerName(info, id)}</span>
           <strong>{revealed ? revealed.words[id] ?? '未作答' : G.players[id].sealed ? '已封詞' : '待封詞'}</strong></li>)}</ul>
         {(G.status === 'writing' || G.status === 'review') && <p className="small muted echo-progress">{confirmed}／{ids.length} 位{G.status === 'writing' ? '已封詞' : '已確認'}</p>}
         {G.status === 'finished' && <p className="small muted echo-progress">詞鏈已保留，可從房間的歷史對局進入復盤。</p>}

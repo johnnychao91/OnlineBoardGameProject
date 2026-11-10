@@ -3,6 +3,7 @@ import { EchoGame } from '../games/echo/game';
 import { EchoBoard, EchoSnapshot, echoSoundAdapter } from './EchoBoard';
 import { EchoOptions } from './EchoOptions';
 import { EchoRules, EchoRuleSummary, echoChapters } from './EchoRules';
+import { createEchoPoster } from './echo-poster';
 import { StarGame } from '../games/star/game';
 import { StarBoard, StarSnapshot, StarRuleSummary } from './StarBoard';
 import { StarRules, starChapters } from './StarRules';
@@ -103,7 +104,7 @@ export interface ClientGameDefinition {
   chapters: readonly (readonly [string, string])[];
   /** Every game exposes a public role, equipment or card gallery in its rulebook. */
   gallery: { chapter: string; label: string };
-  createPoster?: (options: PosterOptions) => Promise<Blob>;
+  createPoster: (options: PosterOptions) => Promise<Blob>;
   soundAdapter: SoundAdapter;
   LobbyOptions?: ComponentType<LobbyOptionsProps>;
   validateLobby?: (options: unknown, count: number) => string | undefined;
@@ -123,7 +124,7 @@ export const clientGames: Record<GameID, ClientGameDefinition> & Record<string, 
   'cup-echo': {
     name: gameCatalog['cup-echo'].name, PlayerClient: props => <EchoClient {...props} />,
     Snapshot: EchoSnapshot, Rules: EchoRuleSummary, DetailedRules: EchoRules, LobbyOptions: EchoOptions,
-    chapters: echoChapters, gallery: { chapter: 'gallery', label: '酒肆道具圖鑑' }, soundAdapter: echoSoundAdapter,
+    chapters: echoChapters, gallery: { chapter: 'gallery', label: '酒肆道具圖鑑' }, soundAdapter: echoSoundAdapter, createPoster: createEchoPoster,
     lobbyTitle: '杯蓋掀開時，我們會想到一起嗎？', lobbyDescription: gameCatalog['cup-echo'].description,
     cooperative: true, factionLabels: { guests: '酒肆客人' },
     resultLabels: { guests: '在杯中相遇', unmatched: '這一桌尚未相遇' },

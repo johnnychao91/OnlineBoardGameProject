@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { normalizeEchoOptions, type EchoOptions as Options } from '../games/echo/rules';
+import { ECHO_TIMES, normalizeEchoOptions, type EchoOptions as Options } from '../games/echo/rules';
 import { api, isRoomHost, type RoomInfo } from './api';
 import type { LobbyOptionsProps } from './game-types';
 import { ErrorMessage } from './ui';
@@ -33,7 +33,7 @@ function EchoOptionsForm({ seat, info, disabled, onBusy, onUpdate, applied, live
     <h3>杯中回聲本局設定</h3>
     <div className="echo-options-fields"><label>封詞時間<select value={options.seconds} disabled={locked}
       onChange={event => setOptions({ ...options, seconds: Number(event.target.value) as Options['seconds'] })}>
-      <option value={12}>12 秒</option><option value={30}>30 秒</option><option value={60}>60 秒</option><option value={0}>不限時</option></select></label>
+      {ECHO_TIMES.map(seconds => <option key={seconds} value={seconds}>{seconds} 秒</option>)}</select></label>
       <label>提交後<select value={options.allowChanges ? 'editable' : 'locked'} disabled={locked}
         onChange={event => setOptions({ ...options, allowChanges: event.target.value === 'editable' })}>
         <option value="editable">可更改</option><option value="locked">不可更改</option></select></label>

@@ -18,6 +18,7 @@ import { GuardedTransport } from './transport';
 import type { EchoRankMetadata } from './echo-ranking';
 import { updateLiveEchoOptions, type EchoState } from '../games/echo/game';
 import { normalizeEchoOptions } from '../games/echo/rules';
+import { mediaPageID } from '../games/media-route';
 import { RoomStore, currentMatchID, hostPlayerID, hostObserverID, roomMatchIDs, matchGameID, ROOM_CAPACITY, type RoomRecord, type RoomHistory, type RoleSwitchReceipt } from './rooms';
 import { RoomPresence } from './presence';
 import { FileStorage } from './storage';
@@ -1030,6 +1031,10 @@ export async function createApplication(config: AppConfig) {
   });
   if (config.clientDir) {
     const directory = resolve(config.clientDir);
+    const mediaPage = await readFile(join(directory, 'media.html'), 'utf8').catch((error: NodeJS.ErrnoException) => {
+      if (error.code !== 'ENOENT') throw error;
+      return '';
+    });
     let privacyPage = '';
     try { privacyPage = await readFile(join(directory, 'privacy.html'), 'utf8'); } catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error; }
     if (privacyPage && publicContact) {
@@ -1039,6 +1044,11 @@ export async function createApplication(config: AppConfig) {
     server.app.use(async (ctx, next) => {
       if (privacyPage && ['GET', 'HEAD'].includes(ctx.method) && ['/privacy', '/privacy/', '/privacy.html'].includes(ctx.path)) {
         ctx.type = 'html'; ctx.set('Cache-Control', 'no-cache'); ctx.body = privacyPage;
+      } else if (mediaPage && ['GET', 'HEAD'].includes(ctx.method) && mediaPageID(ctx.path)) {
+        ctx.type = 'html';
+        ctx.set('Cache-Control', 'no-cache');
+        ctx.set('X-Robots-Tag', 'noindex, nofollow');
+        ctx.body = mediaPage;
       } else await next();
     });
     const previewPage = createPreviewPage(await readFile(join(directory, 'index.html'), 'utf8'), origin);

@@ -5,6 +5,7 @@ import type { State, SyncInfo } from 'boardgame.io';
 import { io, type Socket } from 'socket.io-client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { EchoState } from '../games/echo/game';
+import { normalizeEchoOptions } from '../games/echo/rules';
 import { createApplication } from './app';
 import { collectStatistics } from './statistics';
 
@@ -96,17 +97,22 @@ async function fixture() {
 }
 
 describe('Cup Echo authenticated multiplayer and statistics', () => {
+  it('keeps the 60-second default and upgrades previously saved 12-second and untimed settings', () => {
+    expect(normalizeEchoOptions().seconds).toBe(60);
+    expect([12, 0, 15, 30, 60, 120].map(seconds => normalizeEchoOptions({ seconds }).seconds)).toEqual([15, 120, 15, 30, 60, 120]);
+    expect(() => normalizeEchoOptions({ seconds: 20 })).toThrow();
+  });
   it('keeps drafts and edits private, handles a live deadline, and replays only revealed words after restart', async () => {
     const now = Date.now.bind(Date);
     let offset = 0;
     vi.spyOn(Date, 'now').mockImplementation(() => now() + offset);
     const f = await fixture(), g = await f.room(['甲', '乙', '丙'], [alpha, bravo, charlie]);
-    expect((await g.options({ seconds: 0, allowChanges: true, roundLimit: 5 })).status).toBe(200);
+    expect((await g.options({ seconds: 120, allowChanges: true, roundLimit: 5 })).status).toBe(200);
     await g.start();
     const [a, b, c] = await g.connect();
     const first = await g.state(), phase = first.G.phaseEpoch;
-    expect(first.G.deadline).toBeNull();
-    expect((await g.options({ ...first.G.options, seconds: 12 }, b.seat)).status).toBe(403);
+    expect(first.G.deadline).toBeGreaterThan(Date.now() + 115000);
+    expect((await g.options({ ...first.G.options, seconds: 15 }, b.seat)).status).toBe(403);
     a.move('sealWord', ['舊詞', phase], first._stateID);
     expect((await a.sync()).state.G.private[a.seat.playerID].word).toBe('舊詞');
     a.move('sealWord', ['雨夜', phase], first._stateID);
@@ -122,9 +128,9 @@ describe('Cup Echo authenticated multiplayer and statistics', () => {
     expect(view.G.private).toEqual({});
     expect(JSON.stringify(view)).not.toMatch(/雨夜|燈火|echoBrowserHashes|echoRankedSeats/);
     const before = await g.state();
-    expect((await g.options({ ...before.G.options, seconds: 12, allowChanges: false })).status).toBe(200);
+    expect((await g.options({ ...before.G.options, seconds: 15, allowChanges: false })).status).toBe(200);
     const timed = await g.state();
-    expect(timed.G.deadline).toBeGreaterThan(Date.now() + 11000);
+    expect(timed.G.deadline).toBeGreaterThan(Date.now() + 12000);
     a.move('sealWord', ['不能覆寫', phase], timed._stateID);
     expect((await a.sync()).state.G.private[a.seat.playerID].word).toBe('雨夜');
     expect((await g.state()).G.deadline).toBe(timed.G.deadline);
@@ -132,7 +138,7 @@ describe('Cup Echo authenticated multiplayer and statistics', () => {
     const fresh = await g.connect();
     expect(fresh[1].view.state.G.private[b.seat.playerID].draft).toBe('燈火');
     expect(fresh[0].view.state.G.deadline).toBe(timed.G.deadline);
-    offset = 13000;
+    offset = 16000;
     await vi.waitFor(async () => expect((await g.state()).G.round).toBe(2), pause);
     const second = await g.state();
     expect(second.G).toMatchObject({ status: 'writing', clues: ['雨夜', '燈火'], private: {}, history: [

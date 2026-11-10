@@ -74,6 +74,8 @@
 .baker-art img { display:block; width:100%; height:100%; object-fit:cover; }
 .baker-object-art { aspect-ratio:1; background:#d7c8a5; }
 .baker-object-art img { object-fit:cover; }
+.baker-art-layered { position:relative; }
+.baker-art-layered img { position:absolute; inset:0; }
 .baker-token-art { aspect-ratio:1; }
 .baker-token-art img { object-fit:contain; }
 .baker-card-name { display:flex; align-items:center; justify-content:center; width:100%; min-height:44px; padding:7px 5px; color:#23362d; font-size:12px; font-weight:650; line-height:1.55; overflow-wrap:anywhere; border-top:1px solid #56797855; }
