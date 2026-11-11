@@ -4,8 +4,8 @@ import { basename, dirname, join, resolve } from 'node:path';
 import type { State, SyncInfo } from 'boardgame.io';
 import { io, type Socket } from 'socket.io-client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { EchoState } from '../games/echo/game';
-import { normalizeEchoOptions } from '../games/echo/rules';
+import { advanceEchoClock, type EchoState } from '../games/echo/game';
+import { ECHO_ROUND_LIMIT, normalizeEchoOptions, normalizeNewEchoOptions } from '../games/echo/rules';
 import { createApplication } from './app';
 import { collectStatistics } from './statistics';
 
@@ -102,16 +102,36 @@ describe('Cup Echo authenticated multiplayer and statistics', () => {
     expect([12, 0, 15, 30, 60, 120].map(seconds => normalizeEchoOptions({ seconds }).seconds)).toEqual([15, 0, 15, 30, 60, 120]);
     expect(() => normalizeEchoOptions({ seconds: 20 })).toThrow();
   });
+  it.each([5, 8, 10, 12, 15, 30, ECHO_ROUND_LIMIT] as const)('ends a stored match exactly at round %i', roundLimit => {
+    const options = normalizeEchoOptions({ roundLimit });
+    expect(normalizeNewEchoOptions({ roundLimit }).roundLimit).toBe(roundLimit === 8 || roundLimit === 12 ? ECHO_ROUND_LIMIT : roundLimit);
+    const G: EchoState = {
+      rulesVersion: 1, status: 'writing', round: 1, epoch: 1, phaseEpoch: 1, deadline: 1, options,
+      players: { 0: { ready: true, sealed: false, reviewed: false }, 1: { ready: true, sealed: false, reviewed: false } },
+      clues: [], history: [], result: null, private: {},
+    };
+    for (let round = 1; round <= roundLimit; round++) {
+      expect(G.round).toBe(round);
+      expect(advanceEchoClock(G, G.deadline!)).toBe(true);
+    }
+    expect(G).toMatchObject({ round: roundLimit, status: 'finished', result: 'round-limit', deadline: null });
+    expect(G.history).toHaveLength(roundLimit);
+    expect(advanceEchoClock(G, Date.now())).toBe(false);
+  });
   it('keeps drafts and edits private, handles a live deadline, and replays only revealed words after restart', async () => {
     const now = Date.now.bind(Date);
     let offset = 0;
     vi.spyOn(Date, 'now').mockImplementation(() => now() + offset);
     const f = await fixture(), g = await f.room(['甲', '乙', '丙'], [alpha, bravo, charlie]);
-    expect((await g.options({ seconds: 0, allowChanges: true, roundLimit: 5 })).status).toBe(200);
+    const configured = await g.options({ seconds: 0, allowChanges: true, allowRepeats: false, roundLimit: 8 });
+    expect(configured.status).toBe(200);
+    expect(configured.body.gameOptions.roundLimit).toBe(ECHO_ROUND_LIMIT);
     await g.start();
     const [a, b, c] = await g.connect();
     const first = await g.state(), phase = first.G.phaseEpoch;
     expect(first.G.deadline).toBeNull();
+    expect(first.G.options.roundLimit).toBe(ECHO_ROUND_LIMIT);
+    expect((await g.options({ ...first.G.options, allowRepeats: true })).status).toBe(400);
     expect((await g.options({ ...first.G.options, seconds: 120 })).status).toBe(200);
     expect((await g.state()).G.deadline).toBeGreaterThan(Date.now() + 115000);
     expect((await g.options({ ...first.G.options, seconds: 0 })).status).toBe(200);
@@ -152,17 +172,28 @@ describe('Cup Echo authenticated multiplayer and statistics', () => {
       { number: 1, words: { [a.seat.playerID]: '雨夜', [b.seat.playerID]: '燈火' }, timedOut: true },
     ] });
     expect(second.G.history[0].words).not.toHaveProperty(c.seat.playerID);
+    fresh[0].move('sealWord', ['　燈火　', second.G.phaseEpoch], second._stateID);
+    expect((await fresh[0].sync()).state.G.players[a.seat.playerID].sealed).toBe(false);
+    fresh[0].move('saveDraft', ['尚未送出的新詞', second.G.phaseEpoch], second._stateID);
+    expect((await fresh[0].sync()).state.G.private[a.seat.playerID].draft).toBe('尚未送出的新詞');
+    fresh[0].move('saveDraft', ['燈火', second.G.phaseEpoch], second._stateID);
+    expect((await fresh[0].sync()).state.G.private[a.seat.playerID].draft).toBe('');
     for (const player of fresh) player.move('sealWord', ['街燈', second.G.phaseEpoch], second._stateID);
     await vi.waitFor(async () => expect((await g.state()).G.result).toBe('same-word'), pause);
     const replay = (await f.request(g.base + '/replay?matchID=' + g.matchID + '&perspective=god', undefined, g.watcher)).body;
     expect(replay.complete).toBe(true);
     expect(replay.frames.every((frame: { G: EchoState }) => Object.keys(frame.G.private).length === 0)).toBe(true);
-    expect(JSON.stringify(replay)).not.toMatch(/舊詞|已清除的詞|不能覆寫|echoBrowserHashes|echoRankedSeats/);
+    expect(JSON.stringify(replay)).not.toMatch(/舊詞|已清除的詞|不能覆寫|尚未送出的新詞|echoBrowserHashes|echoRankedSeats/);
     expect(replay.frames.at(-1).G.history).toHaveLength(2);
     expect((await f.request(finalReplayPath)).status).toBe(401);
     const summary = await f.request(finalReplayPath, undefined, g.watcher);
     expect(summary.status).toBe(200);
     expect(summary.body).toEqual({ room: replay.room, G: replay.frames.at(-1).G });
+    const compact = (await f.request(g.base + '/replay?matchID=' + g.matchID + '&compact=1', undefined, g.watcher)).body;
+    expect(compact.echoHistory).toEqual(summary.body.G.history);
+    expect(compact.frames.every((frame: { G: object }) => !Object.hasOwn(frame.G, 'history'))).toBe(true);
+    expect(compact.frames.map(({ echoHistoryLength, G, ...frame }: { echoHistoryLength: number; G: object; stateID: number; at: number }) =>
+      ({ ...frame, G: { ...G, history: compact.echoHistory.slice(0, echoHistoryLength) } }))).toEqual(replay.frames);
   }, 30000);
 
   it('counts one success per anonymous browser across rooms, handles aliases and excludes test rooms', async () => {

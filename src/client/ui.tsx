@@ -1,4 +1,4 @@
-import { useContext, type ReactNode } from 'react';
+import { useContext, useLayoutEffect, useRef, type ReactNode } from 'react';
 import { requiresFreshDocument, roomContextPath } from './adsense';
 import { GameHeaderContext } from './game-header-context';
 import './game-header.css';
@@ -50,11 +50,24 @@ export function GameIcon({ gameID, size = 30 }: { gameID: GameID; size?: number 
 
 export function Header({ room, rulesGame, gameID, background }: { room?: string; rulesGame?: string; gameID?: string; background?: BackgroundSelection }) {
   const chrome = useContext(GameHeaderContext);
+  const header = useRef<HTMLElement>(null);
+  useLayoutEffect(() => {
+    const element = header.current!;
+    const page = document.documentElement;
+    const measure = () => page.style.setProperty('--site-header-height', `${element.getBoundingClientRect().height}px`);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(element);
+    return () => {
+      observer.disconnect();
+      page.style.removeProperty('--site-header-height');
+    };
+  }, []);
   const activeGame = chrome?.replayGameID ?? gameID;
   const gameName = activeGame && isGameID(activeGame) ? gameCatalog[activeGame].name : undefined;
   const rulesTarget = activeGame ?? rulesGame;
   const rulesPath = rulesTarget && isGameID(rulesTarget) ? `/rules/${rulesTarget}` : '/rules';
-  return <header className={`site-header${gameName ? ' has-game-title' : ''}`}><div className="header-brand-group"><button className="brand" onClick={() => navigate('/')} aria-label="回未央酒肆首頁"><span className="brand-symbol"><img src={siteIcon} alt="" /></span><span>未央酒肆<small>ENDLESS BAR</small></span></button>{gameName && <h1 className="header-game-name">{gameName}</h1>}</div><div className="header-links"><div className="header-sound-slot" ref={chrome?.setSoundTarget} />{background && <BackgroundPicker {...background} />}<a data-google-vignette="false" className="header-rules-link" href={roomContextPath(rulesPath, room)} target={room ? '_blank' : undefined} rel={room ? 'noopener noreferrer' : undefined}>詳細規則</a><a data-google-vignette="false" className="header-rules-link" href={roomContextPath('/privacy', room)} target={room ? '_blank' : undefined} rel={room ? 'noopener noreferrer' : undefined}>隱私權</a>{room && <span className="room-tag">私人房間</span>}</div></header>;
+  return <header ref={header} className={`site-header${gameName ? ' has-game-title' : ''}`}><div className="header-brand-group"><button className="brand" onClick={() => navigate('/')} aria-label="回未央酒肆首頁"><span className="brand-symbol"><img src={siteIcon} alt="" /></span><span>未央酒肆<small>ENDLESS BAR</small></span></button>{gameName && <h1 className="header-game-name">{gameName}</h1>}</div><div className="header-links"><div className="header-sound-slot" ref={chrome?.setSoundTarget} />{background && <BackgroundPicker {...background} />}<a data-google-vignette="false" className="header-rules-link" href={roomContextPath(rulesPath, room)} target={room ? '_blank' : undefined} rel={room ? 'noopener noreferrer' : undefined}>詳細規則</a><a data-google-vignette="false" className="header-rules-link" href={roomContextPath('/privacy', room)} target={room ? '_blank' : undefined} rel={room ? 'noopener noreferrer' : undefined}>隱私權</a>{room && <span className="room-tag">私人房間</span>}</div></header>;
 }
 
 export function ErrorMessage({ children }: { children: ReactNode }) { return children ? <p className="error-message" role="alert">{children}</p> : null; }

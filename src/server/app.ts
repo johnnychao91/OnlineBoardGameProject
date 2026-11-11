@@ -145,7 +145,7 @@ export async function createApplication(config: AppConfig) {
     testRoom: room.testRoom === true,
     advertising: roomAdvertising(room, config.adsense, historical, ctx.state.advertisingCredentialHash),
     gameSelected: historical || room.gameSelected !== false, roomCapacity: ROOM_CAPACITY,
-    gameOptions: historical ? state.G.options : room.gameOptions,
+    gameOptions: historical || (room.gameId === 'cup-echo' && state.G.status !== 'lobby') ? state.G.options : room.gameOptions,
     hostPlayerID: historical ? null : hostPlayerID(room),
     hostObserverID: historical ? null : hostObserverID(room),
     history: historical ? [] : (room.history || []).map(entry => ({ ...entry, gameName: entry.gameName ?? room.gameId })),
@@ -239,11 +239,12 @@ export async function createApplication(config: AppConfig) {
     if (value === 'god') return 'god' as const;
     return fail(400, '觀看視角不正確');
   };
-  const replayPayload = async (room: RoomRecord, perspective: 'blind' | 'god', matchID = currentMatchID(room)) => {
-    const replay = await db.fetchReplay(matchID);
+  const replayPayload = async (room: RoomRecord, perspective: 'blind' | 'god', matchID = currentMatchID(room), compactEcho = false) => {
+    const replay = await db.fetchReplay(matchID, compactEcho);
     const definition = getGameDefinition(matchGameID(room, matchID))!;
-    return { complete: replay.complete, frames: replay.frames.map((frame) => ({
+    return { complete: replay.complete, echoHistory: replay.echoHistory, frames: replay.frames.map((frame) => ({
       stateID: frame.stateID, at: frame.at, G: definition.observerView(frame.G, perspective),
+      ...(frame.echoHistoryLength !== undefined ? { echoHistoryLength: frame.echoHistoryLength } : {}),
     })) };
   };
   const requestedMatch = (room: RoomRecord, value: unknown) => {
@@ -451,7 +452,7 @@ export async function createApplication(config: AppConfig) {
       const { metadata, state } = await snapshot(room, matchID);
       if (!getGameDefinition(matchGameID(room, matchID))!.getOutcome(state.G)) fail(409, '對局尚未結束');
       ctx.body = { room: publicRoom(ctx, room, metadata, state, matchID, true), perspective: share.perspective, frameIndex: share.frameIndex,
-        ...await replayPayload(room, share.perspective, matchID) };
+        ...await replayPayload(room, share.perspective, matchID, ctx.query.compact === '1') };
       return;
     }
     if (ctx.method === 'POST' && ctx.path === '/api/rooms') {
@@ -515,7 +516,7 @@ export async function createApplication(config: AppConfig) {
         const replayRoom = publicRoom(ctx, room, selected.metadata, state, matchID, true);
         ctx.body = ctx.query.final === '1'
           ? { room: replayRoom, G: definition.observerView(state.G, perspective) }
-          : { room: replayRoom, ...await replayPayload(room, perspective, matchID) };
+          : { room: replayRoom, ...await replayPayload(room, perspective, matchID, ctx.query.compact === '1') };
       } else {
         if (viewer.access !== 'spectator' && !finished) fail(403, '玩家不能取得觀戰視角');
         ctx.body = { G: definition.observerView(state.G, perspective), stateID: state._stateID, perspective };
@@ -773,7 +774,8 @@ export async function createApplication(config: AppConfig) {
           if (G.status === 'finished' || (G.deadline !== null && now >= G.deadline)) fail(409, '回合已結束，請確認目前進度');
           let options: ReturnType<typeof normalizeEchoOptions>;
           try { options = normalizeEchoOptions(body.options); } catch (error) { fail(400, (error as Error).message); }
-          if (options.roundLimit !== G.options.roundLimit) fail(400, '輪數上限只能在開局前調整');
+          if (options.roundLimit !== G.options.roundLimit) fail(400, '本局輪數上限已固定');
+          if (options.allowRepeats !== (G.options.allowRepeats !== false)) fail(400, '詞語重複規則只能在開局前調整');
           if (JSON.stringify(options) === JSON.stringify(G.options)) { ctx.body = publicRoom(ctx, current, metadata, state); return; }
           updateLiveEchoOptions(G, options, now);
           state._stateID++;
@@ -1010,7 +1012,7 @@ export async function createApplication(config: AppConfig) {
         const selected = await snapshot(current, replayMatchID);
         if (!getGameDefinition(matchGameID(current, replayMatchID))!.getOutcome(selected.state.G)) fail(409, '對局結束後才能分享復盤');
         const perspective = perspectiveOf(body.perspective);
-        const replay = await db.fetchReplay(replayMatchID);
+        const replay = await db.fetchReplay(replayMatchID, true);
         if (!replay.complete) fail(409, '這場對局沒有完整回放');
         if (!Number.isSafeInteger(body.frameIndex) || body.frameIndex < 0 || body.frameIndex >= replay.frames.length) fail(400, '回放步驟不正確');
         const shares = (current.replayShares || []).filter((entry) => entry.expiresAt > Date.now());

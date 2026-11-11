@@ -6,10 +6,11 @@ import { clientGames } from './game-registry';
 import { PerspectiveNote, PerspectiveSwitch } from './ObservationPanel';
 import { ErrorMessage, Header } from './ui';
 import { TestRoomBadge } from './TestRoom';
+import type { EchoRound } from '../games/echo/game';
 import './snapshot-layout.css';
 
-interface ReplayFrame { stateID: number; at: number | string; G: unknown; }
-interface ReplayData { complete: boolean; frames: ReplayFrame[]; room?: RoomInfo; }
+interface ReplayFrame { stateID: number; at: number | string; G: unknown; echoHistoryLength?: number; }
+interface ReplayData { complete: boolean; frames: ReplayFrame[]; room?: RoomInfo; echoHistory?: EchoRound[]; }
 interface SharedReplayData extends ReplayData { room: RoomInfo; perspective: Perspective; frameIndex: number; }
 
 const sharedTokenKey = (roomId: string) => `friends-table.replay-share.${roomId}`;
@@ -30,7 +31,7 @@ export function ReplayPanel({ seat, info, matchID = info.matchID, initialLast = 
   const [error, setError] = useState('');
   useEffect(() => {
     const controller = new AbortController(); setError('');
-    api<ReplayData>(`/api/rooms/${seat.roomId}/replay?matchID=${encodeURIComponent(matchID)}&perspective=${perspective}`, { signal: controller.signal }, seat)
+    api<ReplayData>(`/api/rooms/${seat.roomId}/replay?matchID=${encodeURIComponent(matchID)}&perspective=${perspective}&compact=1`, { signal: controller.signal }, seat)
       .then(replay => { if (!controller.signal.aborted) setData({ matchID, perspective, replay }); })
       .catch(e => { if (e.name !== 'AbortError') setError(e.message); });
     return () => controller.abort();
@@ -46,7 +47,7 @@ export function SharedReplay({ roomId }: { roomId: string }) {
     const token = sessionStorage.getItem(sharedTokenKey(roomId));
     if (!token) { setError('分享資訊不完整。請重新開啟朋友傳來的完整復盤連結。'); return; }
     const controller = new AbortController();
-    api<SharedReplayData>(`/api/replays/${roomId}`, { signal: controller.signal, headers: { 'X-Replay-Token': token } })
+    api<SharedReplayData>(`/api/replays/${roomId}?compact=1`, { signal: controller.signal, headers: { 'X-Replay-Token': token } })
       .then(setData).catch(e => { if (e.name !== 'AbortError') setError(e.message); });
     return () => controller.abort();
   }, [roomId]);
@@ -59,6 +60,10 @@ function ReplayViewer({ info, data, perspective, initialIndex = 0, seat, matchID
   const [playing, setPlaying] = useState(false);
   const definition = clientGames[info.gameName];
   const frame = frames[index];
+  function frameState(frame: ReplayFrame) {
+    return data.echoHistory && frame.echoHistoryLength !== undefined
+      ? { ...(frame.G as object), history: data.echoHistory.slice(0, frame.echoHistoryLength) } : frame.G;
+  }
   useEffect(() => { onIndexChange?.(index); }, [index, onIndexChange]);
   useEffect(() => {
     if (!playing || !data.complete || frames.length < 2) return;
@@ -67,10 +72,10 @@ function ReplayViewer({ info, data, perspective, initialIndex = 0, seat, matchID
   }, [playing, data.complete, frames.length, index]);
   function seek(next: number) { setPlaying(false); setIndex(Math.max(0, Math.min(next, frames.length - 1))); }
   if (!definition) return <ErrorMessage>此遊戲尚未註冊復盤介面。</ErrorMessage>;
-  if (!data.complete || frames.length === 0) return <section className="panel incomplete-replay"><h3>這局沒有完整的逐步回放</h3><p className="muted">較早版本的對局可能只保存最後狀態，無法還原完整過程。這裡不會用最後畫面冒充歷史紀錄。</p>{frames.length > 0 && <BattleReport G={frames[frames.length - 1].G} info={info} perspective={perspective} />}</section>;
+  if (!data.complete || frames.length === 0) return <section className="panel incomplete-replay"><h3>這局沒有完整的逐步回放</h3><p className="muted">較早版本的對局可能只保存最後狀態，無法還原完整過程。這裡不會用最後畫面冒充歷史紀錄。</p>{frames.length > 0 && <BattleReport G={frameState(frames[frames.length - 1])} info={info} perspective={perspective} />}</section>;
   const Snapshot = definition.Snapshot;
   const posterIndex = info.gameName === 'cup-echo' ? frames.length - 1 : index;
-  return <><section className="replay-controls panel"><div className="section-heading"><strong>步驟 {index + 1} / {frames.length}</strong><span>{Number.isNaN(new Date(frame.at).valueOf()) ? '' : new Date(frame.at).toLocaleTimeString('zh-TW')}</span></div><label className="visually-hidden" htmlFor="replay-timeline">復盤時間軸</label><input id="replay-timeline" type="range" min={0} max={frames.length - 1} value={index} step={1} onChange={e => seek(Number(e.target.value))} aria-valuetext={`第 ${index + 1} 步，共 ${frames.length} 步`} /><div className="replay-buttons"><button className="button secondary" disabled={index === 0} onClick={() => seek(index - 1)}>← 上一步</button><button className="button primary" disabled={frames.length < 2} onClick={() => { if (index === frames.length - 1 && !playing) setIndex(0); setPlaying(!playing); }}>{playing ? '暫停播放' : '自動播放'}</button><button className="button secondary" disabled={index === frames.length - 1} onClick={() => seek(index + 1)}>下一步 →</button></div><details className="replay-sharing-disclosure" onToggle={event => { if (event.currentTarget.open) setPlaying(false); }}><summary>分享與戰報</summary><section className="replay-sharing panel"><div className="section-heading"><h2>留下這個瞬間</h2><span>第 {index + 1} 步</span></div>{seat && <ShareReplay seat={seat} info={info} matchID={matchID} canManageShares={canManageShares} frameIndex={index} perspective={perspective} beforeShare={() => setPlaying(false)} />}<BattleReport G={frames[posterIndex].G} info={info} frameIndex={posterIndex} totalFrames={frames.length} perspective={perspective} beforeCreate={() => setPlaying(false)} /></section></details></section><Snapshot G={frame.G} info={info} perspective={perspective} replay /></>;
+  return <><section className="replay-controls panel"><div className="section-heading"><strong>步驟 {index + 1} / {frames.length}</strong><span>{Number.isNaN(new Date(frame.at).valueOf()) ? '' : new Date(frame.at).toLocaleTimeString('zh-TW')}</span></div><label className="visually-hidden" htmlFor="replay-timeline">復盤時間軸</label><input id="replay-timeline" type="range" min={0} max={frames.length - 1} value={index} step={1} onChange={e => seek(Number(e.target.value))} aria-valuetext={`第 ${index + 1} 步，共 ${frames.length} 步`} /><div className="replay-buttons"><button className="button secondary" disabled={index === 0} onClick={() => seek(index - 1)}>← 上一步</button><button className="button primary" disabled={frames.length < 2} onClick={() => { if (index === frames.length - 1 && !playing) setIndex(0); setPlaying(!playing); }}>{playing ? '暫停播放' : '自動播放'}</button><button className="button secondary" disabled={index === frames.length - 1} onClick={() => seek(index + 1)}>下一步 →</button></div><details className="replay-sharing-disclosure" onToggle={event => { if (event.currentTarget.open) setPlaying(false); }}><summary>分享與戰報</summary><section className="replay-sharing panel"><div className="section-heading"><h2>留下這個瞬間</h2><span>第 {index + 1} 步</span></div>{seat && <ShareReplay seat={seat} info={info} matchID={matchID} canManageShares={canManageShares} frameIndex={index} perspective={perspective} beforeShare={() => setPlaying(false)} />}<BattleReport G={frameState(frames[posterIndex])} info={info} frameIndex={posterIndex} totalFrames={frames.length} perspective={perspective} beforeCreate={() => setPlaying(false)} /></section></details></section><Snapshot G={frameState(frame)} info={info} perspective={perspective} replay /></>;
 }
 
 function ShareReplay({ seat, info, matchID, canManageShares, frameIndex, perspective, beforeShare }: { seat: AuthSession; info: RoomInfo; matchID: string; canManageShares: boolean; frameIndex: number; perspective: Perspective; beforeShare: () => void }) {

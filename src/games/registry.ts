@@ -21,7 +21,7 @@ import { normalizeFirewallOptions, validateFirewallOptions } from './firewall/ru
 import { StarGame, starObserverView, type StarState } from './star/game';
 import { normalizeStarOptions, validateStarOptions } from './star/rules';
 import { advanceEchoClock, EchoGame, echoObserverView, echoWinner, type EchoState } from './echo/game';
-import { normalizeEchoOptions, validateEchoOptions } from './echo/rules';
+import { normalizeNewEchoOptions, validateEchoOptions } from './echo/rules';
 
 export type ObserverPerspective = 'blind' | 'god';
 export interface GameOutcome {
@@ -232,10 +232,10 @@ registeredGames.push({
 registeredGames.push({
   id: 'cup-echo', ...gameCatalog['cup-echo'], game: EchoGame,
   isJoinable: state => state.status === 'lobby',
-  normalizeOptions: options => ({ ...normalizeEchoOptions(options) }),
+  normalizeOptions: options => ({ ...normalizeNewEchoOptions(options) }),
   validateLobbyOptions: options => validateEchoOptions(options),
   validateOptions: (options, count) => validateEchoOptions(options, count),
-  startSetupData: (participantIDs, options) => ({ startImmediately: true, participantIDs, options: normalizeEchoOptions(options) }),
+  startSetupData: (participantIDs, options) => ({ startImmediately: true, participantIDs, options: normalizeNewEchoOptions(options) }),
   observerView: echoObserverView, advanceClock: advanceEchoClock, hideMoveMetadata: true, completedDisplayMs: () => 8000,
   getOutcome: (state: EchoState) => state.result ? { winner: echoWinner(state.result), reason: state.result,
     roles: Object.fromEntries(Object.keys(state.players).map(id => [id, 'guests'])) } : null,

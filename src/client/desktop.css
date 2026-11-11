@@ -154,7 +154,7 @@
   .cipher-hand .snapshot-player-select { margin: 0; }
 
   /* Replay controls sit above a full-width board. Sharing opens over that board. */
-  .room-history-replay { position: fixed; inset: 12px; z-index: 30; margin: 0; padding: 12px 16px; display: flex; flex-direction: column; background: #0b1629; box-shadow: 0 0 0 20px #030814e6; }
+  .room-history-replay { position: fixed; inset: calc(var(--site-header-height, 0px) + 12px) 12px 12px; z-index: 30; margin: 0; padding: 12px 16px; display: flex; flex-direction: column; background: #0b1629; box-shadow: 0 0 0 20px #030814e6; }
   .room-history-replay > .close-history { position: absolute; top: 12px; right: 16px; z-index: 2; min-height: 32px; margin: 0; }
   .room-history-replay > .replay-panel > .observer-toolbar { padding-right: 165px; }
   .shared-replay, .room-history-replay > .replay-panel { flex: 1; min-height: 0; max-width: none; width: 100%; margin: 0; padding: 8px 20px 12px; display: flex; flex-direction: column; gap: 7px; }

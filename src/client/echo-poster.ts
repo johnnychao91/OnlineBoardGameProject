@@ -17,16 +17,20 @@ export function buildEchoPosterModel({ G: state, info }: PosterOptions) {
   const ids = Object.keys(G.players).slice(0, 4);
   const names = ids.map((id, index) => clean(info.players.find(player => String(player.id) === id)?.name, 20) || `客人 ${index + 1}`);
   const success = G.result === 'same-word' || G.result === 'same-meaning';
-  const rounds = G.history.slice(0, 12).map(round => ({
+  const rounds = G.history.map(round => ({
     number: round.number, matched: success && round.number === G.round,
     words: ids.map(id => clean(Object.hasOwn(round.words, id) ? round.words[id] : undefined, 32) || '未作答'),
   }));
   return {
-    names, rounds,
+    names, rounds, success,
     headline: success ? `我們在第 ${G.round} 輪相遇了` : G.result === 'round-limit' ? '這一桌尚未相遇' : '這一桌的聯想詞鏈',
     note: G.result === 'same-meaning' ? '全員確認同義' : success ? '全員同詞' : '未央酒肆 · 逐輪詞鏈',
   };
 }
+
+// Six rounds keep a four-player page with maximum-length answers within
+// mobile browser canvas limits. Only the requested page is rendered.
+export const ECHO_POSTER_ROUNDS_PER_PAGE = 6;
 
 const WIDTH = 1080;
 const FONT = 'system-ui, "Microsoft JhengHei", "PingFang TC", "Noto Sans TC", sans-serif';
@@ -105,27 +109,33 @@ function drawTavern(ctx: CanvasRenderingContext2D, height: number, image?: HTMLI
   ctx.fillRect(0, 0, WIDTH, height);
 }
 
-function drawEchoCup(ctx: CanvasRenderingContext2D, y: number, cup?: HTMLImageElement) {
+function drawEchoCup(ctx: CanvasRenderingContext2D, y: number, success: boolean, cup?: HTMLImageElement) {
   if (!cup) return;
   const size = 240, x = WIDTH / 2;
   // The bowl meets the table at (351.5, 578) on the 704 px sprite.
-  const footY = y + size * 578 / 704;
-  ctx.save();
-  ctx.shadowColor = '#efac5f';
-  ctx.shadowBlur = 13;
-  ctx.lineWidth = 2.5;
-  for (const [radius, color] of [[52, '#ffe3a9'], [98, '#ffd993d9'], [151, '#efb97099'], [212, '#e7a95f5e']] as const) {
-    ctx.strokeStyle = color;
-    ctx.beginPath();
-    ctx.ellipse(x, footY, radius, radius * .15, 0, 0, Math.PI * 2);
-    ctx.stroke();
+  if (success) {
+    const footY = y + size * 578 / 704;
+    ctx.save();
+    ctx.shadowColor = '#efac5f';
+    ctx.shadowBlur = 13;
+    ctx.lineWidth = 2.5;
+    for (const [radius, color] of [[52, '#ffe3a9'], [98, '#ffd993d9'], [151, '#efb97099'], [212, '#e7a95f5e']] as const) {
+      ctx.strokeStyle = color;
+      ctx.beginPath();
+      ctx.ellipse(x, footY, radius, radius * .15, 0, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    ctx.restore();
   }
-  ctx.restore();
   ctx.drawImage(cup, x - size * 351.5 / 704, y, size, size);
 }
 
 export async function createEchoPoster(options: PosterOptions): Promise<Blob> {
-  const { names, rounds, headline, note } = buildEchoPosterModel(options);
+  const { names, rounds: history, headline, note, success } = buildEchoPosterModel(options);
+  const pageCount = Math.max(1, Math.ceil(history.length / ECHO_POSTER_ROUNDS_PER_PAGE));
+  const page = Math.max(0, Math.min(options.page ?? 0, pageCount - 1));
+  const start = page * ECHO_POSTER_ROUNDS_PER_PAGE;
+  const rounds = history.slice(start, start + ECHO_POSTER_ROUNDS_PER_PAGE);
   const canvas = document.createElement('canvas');
   const ctx = canvas.getContext('2d');
   if (!ctx || !names.length) throw new Error('無法建立逐輪詞鏈圖。');
@@ -189,7 +199,9 @@ export async function createEchoPoster(options: PosterOptions): Promise<Blob> {
   }
   if (!rows.length) write(ctx, '這局還沒有揭曉的詞。', WIDTH / 2, startRows + 40, font(28, 550), MUTED);
   write(ctx, note, WIDTH / 2, footer + 15, font(27, 650), GOLD);
-  write(ctx, `共 ${rounds.length} 輪公開紀錄`, WIDTH / 2, footer + 51, font(21, 500), MUTED);
-  drawEchoCup(ctx, footer + 26, cup);
+  const summary = pageCount === 1 ? `共 ${history.length} 輪公開紀錄`
+    : `第 ${rounds[0].number}～${rounds.at(-1)!.number} 輪 · 共 ${history.length} 輪 · 第 ${page + 1}／${pageCount} 張`;
+  write(ctx, summary, WIDTH / 2, footer + 51, font(21, 500), MUTED);
+  drawEchoCup(ctx, footer + 26, success, cup);
   return new Promise((resolve, reject) => canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('逐輪詞鏈圖產生失敗。')), 'image/png'));
 }

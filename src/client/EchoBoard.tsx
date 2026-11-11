@@ -1,6 +1,6 @@
-import { useContext, useEffect, useRef, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react';
+import { useContext, useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent, type ReactNode } from 'react';
 import { echoCanAgree, type EchoState } from '../games/echo/game';
-import { echoWord, ECHO_WORD_LIMIT } from '../games/echo/rules';
+import { echoUsedWordKeys, echoWord, echoWordKey, ECHO_WORD_LIMIT } from '../games/echo/rules';
 import type { RoomInfo } from './api';
 import { GameSoundControl } from './GameSoundControl';
 import type { SnapshotProps } from './game-types';
@@ -18,13 +18,18 @@ const didMatch = (G: EchoState) => G.result === 'same-word' || G.result === 'sam
 
 export function EchoBoard({ G, playerID, moves, isConnected = true }: BoardProps) {
   const { info } = useContext(RoomContext)!;
-  return <EchoLayout G={G} info={info} live>
+  const [highlight, setHighlight] = useState<{ phase: number; key: string }>();
+  const repeatedKey = G.status === 'writing' && highlight?.phase === G.phaseEpoch ? highlight.key : undefined;
+  return <EchoLayout G={G} info={info} live repeatedKey={repeatedKey}>
     <GameSoundControl gameID="cup-echo" G={G} matchID={info.matchID} playerID={playerID ?? undefined} connected={isConnected} />
-    {playerID !== null && G.players[playerID] && <EchoControls key={G.phaseEpoch} G={G} id={playerID} connected={isConnected} moves={moves} />}
+    {playerID !== null && G.players[playerID] && <EchoControls key={G.phaseEpoch} G={G} id={playerID} connected={isConnected} moves={moves}
+      onRepeat={key => setHighlight(key ? { phase: G.phaseEpoch, key } : undefined)} />}
   </EchoLayout>;
 }
 
-function EchoControls({ G, id, connected, moves }: { G: EchoState; id: string; connected: boolean; moves: BoardProps['moves'] }) {
+function EchoControls({ G, id, connected, moves, onRepeat }: {
+  G: EchoState; id: string; connected: boolean; moves: BoardProps['moves']; onRepeat: (key?: string) => void;
+}) {
   const [draft, setDraft] = useState(G.private[id]?.draft ?? G.private[id]?.word ?? '');
   const [pending, setPending] = useState<string | boolean | null>(null);
   const [notice, setNotice] = useState('');
@@ -34,6 +39,10 @@ function EchoControls({ G, id, connected, moves }: { G: EchoState; id: string; c
   currentDraft.current = draft;
   const own = G.players[id];
   const editable = G.status === 'writing' && (!own.sealed || G.options.allowChanges);
+  const usedWords = useMemo(() => G.options.allowRepeats === false ? echoUsedWordKeys(G.history) : undefined, [G.history, G.options.allowRepeats]);
+  const word = echoWord(draft);
+  const wordKey = word ? echoWordKey(word) : '';
+  const repeated = usedWords?.has(wordKey) === true;
   const confirmed = typeof pending === 'string' ? own.sealed && G.private[id]?.word === pending : own.reviewed;
   const busy = pending !== null && !confirmed;
   useEffect(() => { if (pending !== null && confirmed) setPending(null); }, [pending, confirmed]);
@@ -69,8 +78,7 @@ function EchoControls({ G, id, connected, moves }: { G: EchoState; id: string; c
   }
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const word = echoWord(draft);
-    if (!composing && editable && word && word !== G.private[id]?.word) send('sealWord', word);
+    if (!composing && editable && word && !repeated && word !== G.private[id]?.word) send('sealWord', word);
   }
   return <section className="echo-controls panel" aria-label="本輪操作">
     {!connected && <p className="small muted" role="status">連線中斷，重新連線後可接續本輪。</p>}
@@ -79,8 +87,17 @@ function EchoControls({ G, id, connected, moves }: { G: EchoState; id: string; c
       : <form className="echo-input" onSubmit={submit}><label htmlFor="echo-word">你想到哪個詞？</label>
         <div><input id="echo-word" value={draft} maxLength={ECHO_WORD_LIMIT * 2} autoComplete="off" spellCheck={false}
           onCompositionStart={() => setComposing(true)} onCompositionEnd={() => setComposing(false)}
-          onChange={event => setDraft([...event.target.value].slice(0, ECHO_WORD_LIMIT).join(''))} disabled={busy || !connected} />
-          <button type="submit" className="button primary" disabled={busy || !connected || composing || !echoWord(draft) || echoWord(draft) === G.private[id]?.word}>{own.sealed ? '更新封詞' : '封詞'}</button></div>
+          aria-invalid={repeated} aria-describedby={repeated ? 'echo-repeated-word' : undefined}
+          onChange={event => {
+            const next = [...event.target.value].slice(0, ECHO_WORD_LIMIT).join('');
+            const key = echoWordKey(next);
+            setDraft(next);
+            onRepeat(usedWords?.has(key) ? key : undefined);
+          }} disabled={busy || !connected} />
+          <button type="submit" className="button primary" disabled={busy || !connected || composing || !word || repeated || word === G.private[id]?.word}>{own.sealed ? '更新封詞' : '封詞'}</button></div>
+        {repeated && <p id="echo-repeated-word" className="small amber" role="status">這個詞在前面的輪次出現過，請換一個詞。 <button type="button" className="text-button" onClick={() => {
+          document.querySelector('.echo-history mark')?.scrollIntoView({ block: 'center' });
+        }}>查看原詞</button></p>}
         <p className="small muted">最多 {ECHO_WORD_LIMIT} 個字元。{G.options.allowChanges ? '揭曉前可更改已封詞。' : '封詞後鎖定。'}倒數結束會採用伺服器最後收到的輸入內容。</p>
         {own.sealed && <p className="small muted" role="status">目前已封詞：{G.private[id]?.word}</p>}</form>
       : own.reviewed ? <p role="status">已確認，等待其他客人。</p>
@@ -103,7 +120,7 @@ function EchoTimer({ deadline }: { deadline: number }) {
   return <span className="echo-time">剩餘 {Math.max(0, Math.ceil((deadline - now) / 1000))} 秒</span>;
 }
 
-function EchoLayout({ G, info, live, children }: { G: EchoState; info: RoomInfo; live: boolean; children?: ReactNode }) {
+function EchoLayout({ G, info, live, repeatedKey, children }: { G: EchoState; info: RoomInfo; live: boolean; repeatedKey?: string; children?: ReactNode }) {
   const ids = Object.keys(G.players);
   const revealed = G.status === 'review' || G.status === 'finished' ? G.history.at(-1) : undefined;
   const matched = didMatch(G);
@@ -138,7 +155,12 @@ function EchoLayout({ G, info, live, children }: { G: EchoState; info: RoomInfo;
         {G.history.length ? <ol>{G.history.map(round => <li key={round.number} data-matched={matched && G.round === round.number}>
           <h3>第 {round.number} 輪 {matched && G.round === round.number && <small>{G.result === 'same-word' ? '同詞相遇' : '同義相遇'}</small>}</h3>
           {round.timedOut && <p className="small muted">倒數結束，採用最後同步的輸入。</p>}
-          <dl>{ids.map(id => <div key={id}><dt>{playerName(info, id)}</dt><dd>{round.words[id] ?? '未作答'}</dd></div>)}</dl>
+          <dl>{ids.map(id => {
+            const word = round.words[id];
+            return <div key={id}><dt>{playerName(info, id)}</dt><dd>
+              {word && repeatedKey && echoWordKey(word) === repeatedKey ? <mark>{word}</mark> : word ?? '未作答'}
+            </dd></div>;
+          })}</dl>
         </li>)}</ol> : <p className="small muted">第一輪揭曉後，詞鏈會出現在這裡。</p>}
     </section>
   </main>;

@@ -22,6 +22,7 @@
 .echo-previous-match ul { display: flex; flex-wrap: wrap; gap: 8px; list-style: none; padding: 0; margin: 6px 0 0; }
 .echo-previous-match li { padding: 4px 12px; border: 1px solid #bb925f; border-radius: 999px; background: var(--theme-dark); color: #edbd7e; font-weight: 700; overflow-wrap: anywhere; }
 .echo-previous-result > .battle-report { margin-top: 14px; }
+.echo-poster-pages { display: grid; gap: 6px; margin-bottom: 10px; max-width: 16rem; }
 .echo-options, .echo-controls, .echo-history { padding: clamp(14px, 3vw, 24px); }
 .echo-options-fields, .echo-actions, .echo-input > div { display: flex; flex-wrap: wrap; gap: 10px; }
 .echo-options-fields { margin-block: 10px 14px; }
@@ -37,6 +38,7 @@
 .echo-history dl { display: grid; grid-template-columns: repeat(var(--echo-player-count), minmax(0, 1fr)); gap: 8px; margin: 0; }
 .echo-history dt { font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
 .echo-history dd { margin: 0; overflow-wrap: anywhere; }
+.echo-history mark { padding: 2px 5px; border-radius: 4px; background: #efbd7a; color: #2b1b21; }
 .echo-ripples { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none; z-index: -1; }
 .echo-ripples i { grid-area: 1 / 1; width: 65%; max-width: 450px; aspect-ratio: 4; border: 1px solid #f0bc71; border-radius: 50%; opacity: .38; transform: scale(.72); box-shadow: 0 0 20px #d6975c65; }
 .echo-ripples i:nth-child(2) { transform: scale(.91); }

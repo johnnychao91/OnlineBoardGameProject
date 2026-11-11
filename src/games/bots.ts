@@ -13,6 +13,7 @@ import { legalHeistActions, heistPlayerView, type HeistState } from './heist/gam
 import { legalFirewallActions, firewallPlayerView, type FirewallState } from './firewall/game';
 import { legalStarActions, starPlayerView, type StarState } from './star/game';
 import { echoCanAgree, echoPlayerView, type EchoState } from './echo/game';
+import { echoUsedWordKeys, echoWordKey } from './echo/rules';
 
 export interface BotAction { move: string; args: unknown[] }
 type Random = () => number;
@@ -187,7 +188,15 @@ const adapters = {
   'cup-echo': (G: EchoState, id: string, random: Random) => {
     const view = echoPlayerView({ G, playerID: id });
     if (view.status === 'writing' && !view.players[id].sealed) {
-      return action('sealWord', pick(view.clues.length ? view.clues : ['雨夜', '燈火', '星空', '月光'], random), view.phaseEpoch);
+      const baseWords = ['雨夜', '燈火', '星空', '月光'];
+      if (view.options.allowRepeats !== false) return action('sealWord', pick(view.clues.length ? view.clues : baseWords, random), view.phaseEpoch);
+      const used = echoUsedWordKeys(view.history);
+      const available = baseWords.filter(word => !used.has(echoWordKey(word)));
+      if (available.length) return action('sealWord', pick(available, random), view.phaseEpoch);
+      const prefix = view.clues[0]?.slice(0, 12) || '夜色';
+      let suffix = view.round;
+      while (used.has(echoWordKey(`${prefix}・${suffix}`))) suffix++;
+      return action('sealWord', `${prefix}・${suffix}`, view.phaseEpoch);
     }
     if (view.status === 'review' && !view.players[id].reviewed) {
       return action('reviewWords', echoCanAgree(view) && random() < .25, view.phaseEpoch);

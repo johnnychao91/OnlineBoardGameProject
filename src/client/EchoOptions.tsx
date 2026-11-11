@@ -1,12 +1,13 @@
 import { useState } from 'react';
-import { ECHO_TIMES, normalizeEchoOptions, type EchoOptions as Options } from '../games/echo/rules';
+import { ECHO_TIMES, ECHO_ROUND_OPTIONS, normalizeEchoOptions, normalizeNewEchoOptions, type EchoOptions as Options } from '../games/echo/rules';
 import { api, isRoomHost, type RoomInfo } from './api';
 import type { LobbyOptionsProps } from './game-types';
 import { ErrorMessage } from './ui';
 
 export function EchoOptions({ seat, info, disabled, onBusy, onUpdate }: LobbyOptionsProps) {
-  const applied = normalizeEchoOptions(info.gameOptions);
-  return <EchoOptionsForm key={JSON.stringify(applied)} {...{ seat, info, disabled, onBusy, onUpdate }} applied={applied} live={info.status !== 'lobby'} />;
+  const live = info.status !== 'lobby';
+  const applied = (live ? normalizeEchoOptions : normalizeNewEchoOptions)(info.gameOptions);
+  return <EchoOptionsForm key={JSON.stringify(applied)} {...{ seat, info, disabled, onBusy, onUpdate }} applied={applied} live={live} />;
 }
 
 function EchoOptionsForm({ seat, info, disabled, onBusy, onUpdate, applied, live }: LobbyOptionsProps & { applied: Options; live: boolean }) {
@@ -37,9 +38,16 @@ function EchoOptionsForm({ seat, info, disabled, onBusy, onUpdate, applied, live
       <label>提交後<select value={options.allowChanges ? 'editable' : 'locked'} disabled={locked}
         onChange={event => void apply({ ...options, allowChanges: event.target.value === 'editable' })}>
         <option value="editable">可更改</option><option value="locked">不可更改</option></select></label>
-      {!live && <label>輪數上限<select value={options.roundLimit} disabled={locked}
-        onChange={event => void apply({ ...options, roundLimit: Number(event.target.value) as Options['roundLimit'] })}>
-        <option value={5}>5 輪</option><option value={8}>8 輪</option><option value={12}>12 輪</option></select></label>}</div>
+      {!live && <>
+        <label>輪數上限<select value={options.roundLimit} disabled={locked}
+          onChange={event => void apply({ ...options, roundLimit: Number(event.target.value) as Options['roundLimit'] })}>
+          {ECHO_ROUND_OPTIONS.map(roundLimit => <option key={roundLimit} value={roundLimit}>{roundLimit.toLocaleString('en-US')} 輪</option>)}
+        </select></label>
+        <label>詞語重複<select value={options.allowRepeats === false ? 'no' : 'yes'} disabled={locked}
+          onChange={event => void apply({ ...options, allowRepeats: event.target.value === 'yes' })}>
+          <option value="yes">可重複詞語</option><option value="no">不可重複詞語</option>
+        </select></label>
+      </>}</div>
     {busy && <p className="small muted" role="status">正在套用設定…</p>}
     <p className="small muted">{live ? '封詞中切換秒數會從套用時重新計時，選「不限時」會停止倒數。' : '選擇後立即套用，並清除全員準備。正式局會用匿名瀏覽器身分累計相遇次數，排行榜只顯示暱稱和次數。'}</p>
     <ErrorMessage>{error}</ErrorMessage>

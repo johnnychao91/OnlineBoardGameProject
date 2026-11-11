@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { EchoState } from '../games/echo/game';
 import { normalizeEchoOptions } from '../games/echo/rules';
 import type { RoomInfo } from './api';
-import { buildEchoPosterModel } from './echo-poster';
+import { buildEchoPosterModel, ECHO_POSTER_ROUNDS_PER_PAGE } from './echo-poster';
 
 const seats = ['2', '6', '10'];
 const info: RoomInfo = {
@@ -37,5 +37,12 @@ describe('Cup Echo full word-chain PNG', () => {
     const model = buildEchoPosterModel({ G: { ...state, result: 'round-limit' }, info, step: 12, totalSteps: 12 });
     expect(model.headline).toBe('這一桌尚未相遇');
     expect(model.rounds.every(round => !round.matched)).toBe(true);
+  });
+  it('retains every round for paginated export up to the 1,000-round limit', () => {
+    const history = Array.from({ length: 1000 }, (_, index) => ({ number: index + 1, words: { 2: '晚風' }, timedOut: false }));
+    const { rounds } = buildEchoPosterModel({ G: { ...state, history, round: 1000 }, info, step: 1, totalSteps: 1 });
+    expect(rounds).toHaveLength(1000);
+    expect(rounds.slice(166 * ECHO_POSTER_ROUNDS_PER_PAGE).map(round => round.number)).toEqual([997, 998, 999, 1000]);
+    expect(rounds.filter(round => round.matched).map(round => round.number)).toEqual([1000]);
   });
 });

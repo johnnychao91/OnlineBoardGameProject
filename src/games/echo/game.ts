@@ -1,7 +1,7 @@
 import type { FnContext, Game } from 'boardgame.io';
 import { ActivePlayers, INVALID_MOVE } from 'boardgame.io/core';
 import { isPlayerSeatID } from '../catalog';
-import { echoWord, echoWordKey, ECHO_REVIEW_SECONDS, normalizeEchoOptions, validateEchoOptions, type EchoOptions } from './rules';
+import { echoUsedWordKeys, echoWord, echoWordKey, ECHO_REVIEW_SECONDS, normalizeEchoOptions, validateEchoOptions, type EchoOptions } from './rules';
 
 export type EchoResult = 'same-word' | 'same-meaning' | 'round-limit';
 export interface EchoRound { number: number; words: Record<string, string>; timedOut: boolean }
@@ -47,6 +47,10 @@ function finish(G: EchoState, result: EchoResult) {
   G.result = result;
   transition(G, 'finished', null);
 }
+function repeatsWord(G: EchoState, word: string) {
+  return G.options.allowRepeats === false && echoUsedWordKeys(G.history).has(echoWordKey(word));
+}
+
 function reveal(G: EchoState, now: number, timedOut: boolean) {
   const words = Object.fromEntries(ids(G).flatMap(id => {
     const entry = G.private[id];
@@ -98,6 +102,7 @@ function mayAct(G: EchoState, playerID: string, phase: unknown, status: EchoStat
 function sealWord({ G, playerID }: EchoMove, value: unknown, phase: unknown) {
   const now = Date.now(), word = echoWord(value);
   if (!word || !mayAct(G, playerID, phase, 'writing', now)
+    || repeatsWord(G, word)
     || (G.players[playerID].sealed && (!G.options.allowChanges || word === G.private[playerID]?.word))) return INVALID_MOVE;
   G.players[playerID].sealed = true;
   G.private[playerID] = { word, draft: word };
@@ -106,7 +111,8 @@ function sealWord({ G, playerID }: EchoMove, value: unknown, phase: unknown) {
 }
 function saveDraft({ G, playerID }: EchoMove, value: unknown, phase: unknown) {
   if (!mayAct(G, playerID, phase, 'writing', Date.now()) || (G.players[playerID].sealed && !G.options.allowChanges)) return INVALID_MOVE;
-  const draft = typeof value === 'string' && value.trim() === '' ? '' : echoWord(value);
+  const word = typeof value === 'string' && value.trim() === '' ? '' : echoWord(value);
+  const draft = word && repeatsWord(G, word) ? '' : word;
   const prior = G.private[playerID];
   if (draft === undefined || draft === (prior?.draft ?? '')) return INVALID_MOVE;
   G.private[playerID] = { ...prior, draft };

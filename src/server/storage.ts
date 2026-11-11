@@ -5,13 +5,14 @@ import { Async } from 'boardgame.io/internal';
 import type { LogEntry, Server, State, StorageAPI } from 'boardgame.io';
 import { hashToken, safeEqual, validRoomID } from './security';
 import { atomicReplace } from './atomic-file';
-import { echoObserverView } from '../games/echo/game';
+import { echoObserverView, type EchoRound } from '../games/echo/game';
 
 /** 伺服器私有回放資料；對外提供前仍須另做觀看權限與遊戲資訊過濾。 */
 export interface ReplayFrame {
   stateID: number;
   at: number;
   G: any;
+  echoHistoryLength?: number;
 }
 
 interface StoredMatch extends StorageAPI.FetchFields {
@@ -36,7 +37,11 @@ function validateStateID(state: State): void {
 }
 
 function replayFrame(state: State, gameName: string): ReplayFrame {
-  return { stateID: state._stateID, at: Date.now(), G: gameName === 'cup-echo' ? echoObserverView(state.G) : state.G };
+  const frame = { stateID: state._stateID, at: Date.now(), G: state.G };
+  if (gameName !== 'cup-echo') return frame;
+  // Echo's revealed history is append-only and already saved in the match state.
+  const { history, ...G } = echoObserverView(state.G);
+  return { ...frame, G, echoHistoryLength: history.length };
 }
 
 function newRecord(matchID: string, options: StorageAPI.CreateMatchOpts): StoredMatch {
@@ -125,6 +130,11 @@ export class FileStorage extends Async {
         for (const frame of match.replayFrames) {
           if (!isReplayFrame(frame) || frame.stateID <= previousID || frame.stateID > match.state._stateID) {
             throw new Error('回放資料格式錯誤');
+          }
+          if (frame.echoHistoryLength !== undefined && (match.metadata.gameName !== 'cup-echo'
+            || !Array.isArray(match.state.G.history) || !Number.isSafeInteger(frame.echoHistoryLength)
+            || frame.echoHistoryLength < 0 || frame.echoHistoryLength > match.state.G.history.length)) {
+            throw new Error('回放詞鏈長度不正確');
           }
           previousID = frame.stateID;
         }
@@ -286,14 +296,23 @@ export class FileStorage extends Async {
     return done;
   }
 
-  async fetchReplay(matchID: string): Promise<{ complete: boolean; frames: ReplayFrame[] }> {
+  async fetchReplay(matchID: string, compactEcho = false): Promise<{ complete: boolean; frames: ReplayFrame[]; echoHistory?: EchoRound[] }> {
     return this.enqueue(matchID, async () => {
       const record = await this.readMatch(matchID);
       if (!record) throw new Error('對局不存在');
+      const echo = record.metadata.gameName === 'cup-echo';
+      const echoHistory: EchoRound[] = echo ? record.state.G.history : [];
       return {
         complete: record.replayComplete === true && Array.isArray(record.replayFrames),
-        // 限定輸出三個欄位，不帶出對局 metadata、憑證、ctx 或 plugins。
-        frames: (record.replayFrames || []).map(({ stateID, at, G }) => ({ stateID, at, G })),
+        ...(echo && compactEcho ? { echoHistory } : {}),
+        frames: (record.replayFrames || []).map(({ stateID, at, G, echoHistoryLength }) => {
+          if (!echo) return { stateID, at, G };
+          if (compactEcho) {
+            const { history, ...state } = G;
+            return { stateID, at, G: state, echoHistoryLength: echoHistoryLength ?? history.length };
+          }
+          return { stateID, at, G: echoHistoryLength === undefined ? G : { ...G, history: echoHistory.slice(0, echoHistoryLength) } };
+        }),
       };
     });
   }
