@@ -187,6 +187,9 @@ function turingAction(G: TuringState, id: string, random: Random): BotAction | n
 const adapters = {
   'cup-echo': (G: EchoState, id: string, random: Random) => {
     const view = echoPlayerView({ G, playerID: id });
+    if (view.rulesVersion === 2 && !view.players[id].reviewed && echoCanAgree(view) && random() < .25) {
+      return action('reviewWords', true, view.phaseEpoch);
+    }
     if (view.status === 'writing' && !view.players[id].sealed) {
       const baseWords = ['雨夜', '燈火', '星空', '月光'];
       if (view.options.allowRepeats !== false) return action('sealWord', pick(view.clues.length ? view.clues : baseWords, random), view.phaseEpoch);
@@ -198,7 +201,7 @@ const adapters = {
       while (used.has(echoWordKey(`${prefix}・${suffix}`))) suffix++;
       return action('sealWord', `${prefix}・${suffix}`, view.phaseEpoch);
     }
-    if (view.status === 'review' && !view.players[id].reviewed) {
+    if (view.rulesVersion === 1 && view.status === 'review' && !view.players[id].reviewed) {
       return action('reviewWords', echoCanAgree(view) && random() < .25, view.phaseEpoch);
     }
     return null;

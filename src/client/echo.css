@@ -4,8 +4,10 @@
 .echo-side { grid-area: controls; min-width: 0; }
 .echo-history { grid-area: history; min-width: 0; }
 .echo-desk { position: relative; min-width: 0; padding: clamp(16px, 4vw, 36px); border: 1px solid var(--theme-border); border-radius: 20px; background: linear-gradient(180deg, #1610207a, #1b1021e8 85%), var(--art-echo) center / cover; }
-.echo-desk-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 8px 16px; color: var(--theme-accent); }
-.echo-desk-head strong { color: var(--theme-title); }
+.echo-desk-head { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: baseline; gap: 8px; color: var(--theme-accent); }
+.echo-desk-head span { overflow-wrap: anywhere; }
+.echo-desk-head strong { color: var(--theme-title); text-align: center; }
+.echo-desk-head strong + span { text-align: right; }
 .echo-time { font-variant-numeric: tabular-nums; }
 .echo-clues { position: relative; display: grid; align-content: center; min-height: 126px; text-align: center; margin: 18px 0; isolation: isolate; }
 .echo-clues h2 { margin: 0; }
@@ -30,6 +32,8 @@
 .echo-options-fields select { width: 100%; margin-top: 5px; }
 .echo-input label { display: block; margin-bottom: 8px; }
 .echo-options p, .echo-input p { margin: 10px 0 0; }
+.echo-meaning { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); }
+.echo-meaning p { margin: 0 0 8px; }
 .echo-controls > p:last-child { margin-bottom: 0; }
 .echo-history h2 { margin-bottom: 8px; }
 .echo-history ol { list-style: none; display: grid; gap: 8px; margin: 0; padding: 0; }

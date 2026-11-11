@@ -6,33 +6,38 @@ import type { EchoState } from '../games/echo/game';
 import { ECHO_POSTER_ROUNDS_PER_PAGE } from './echo-poster';
 
 export function BattleReport({ G, info, frameIndex = 0, totalFrames = 1, perspective, label = '製作這一步的戰報圖', beforeCreate }: { G: unknown; info: RoomInfo; frameIndex?: number; totalFrames?: number; perspective: Perspective; label?: string; beforeCreate?: () => void }) {
-  const [preview, setPreview] = useState<{ url: string; blob: Blob } | null>(null);
+  const [preview, setPreview] = useState<{ url: string; blob: Blob; showImage: boolean } | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
-  const [page, setPage] = useState(0);
+  const [page, setPage] = useState<number | 'all'>(0);
   const currentUrl = useRef<string | null>(null);
   const generation = useRef(0);
   const render = clientGames[info.gameName]?.createPoster;
   const wordChain = info.gameName === 'cup-echo';
   const rounds = wordChain ? (G as EchoState).history : [];
   const pageCount = Math.max(1, Math.ceil(rounds.length / ECHO_POSTER_ROUNDS_PER_PAGE));
-  const currentPage = Math.min(page, pageCount - 1);
-  const filename = wordChain ? `cup-echo-word-chain${pageCount > 1 ? `-${currentPage + 1}` : ''}.png` : `boardgame-step-${frameIndex + 1}.png`;
+  const fullLength = wordChain && page === 'all';
+  const currentPage = typeof page === 'number' ? Math.min(page, pageCount - 1) : 0;
+  const filename = wordChain ? `cup-echo-word-chain${fullLength ? '-full' : pageCount > 1 ? `-${currentPage + 1}` : ''}.png` : `boardgame-step-${frameIndex + 1}.png`;
   useEffect(() => () => { if (currentUrl.current) URL.revokeObjectURL(currentUrl.current); }, []);
   useEffect(() => { setPage(0); }, [info.roomId, info.matchID, frameIndex, perspective, totalFrames]);
-  useEffect(() => { generation.current += 1; setPreview(null); setError(''); setMessage(''); if (currentUrl.current) { URL.revokeObjectURL(currentUrl.current); currentUrl.current = null; } }, [info.roomId, info.matchID, frameIndex, perspective, totalFrames, currentPage]);
+  useEffect(() => { generation.current += 1; setPreview(null); setError(''); setMessage(''); if (currentUrl.current) { URL.revokeObjectURL(currentUrl.current); currentUrl.current = null; } }, [info.roomId, info.matchID, frameIndex, perspective, totalFrames, currentPage, fullLength]);
   if (!render) return null;
   const makeReport = async () => {
     beforeCreate?.();
     setBusy(true); setError(''); setMessage('');
     const requestGeneration = generation.current;
     try {
-      const blob = await render({ G, info, step: frameIndex + 1, totalSteps: totalFrames, page: currentPage });
+      const blob = await render({ G, info, step: frameIndex + 1, totalSteps: totalFrames, page: currentPage, fullLength });
+      // PNG stores its height in the IHDR chunk. Avoid decoding very tall exports in the page.
+      const showImage = !fullLength || new DataView(await blob.slice(20, 24).arrayBuffer()).getUint32(0) <= 8192;
       if (requestGeneration !== generation.current) return;
       if (currentUrl.current) URL.revokeObjectURL(currentUrl.current);
-      const url = URL.createObjectURL(blob); currentUrl.current = url; setPreview({ url, blob });
-    } catch { setError('戰報圖暫時無法產生，請稍後再試。'); }
+      const url = URL.createObjectURL(blob); currentUrl.current = url; setPreview({ url, blob, showImage });
+    } catch {
+      if (requestGeneration === generation.current) setError(fullLength ? '這次無法產生單張長圖，請選擇分段範圍。' : '戰報圖暫時無法產生，請稍後再試。');
+    }
     finally { setBusy(false); }
   };
   function download() {
@@ -57,7 +62,8 @@ export function BattleReport({ G, info, frameIndex = 0, totalFrames = 1, perspec
   }
   return <section className="battle-report">
     {pageCount > 1 && <label className="echo-poster-pages">詞鏈圖範圍
-      <select value={currentPage} disabled={busy} onChange={event => setPage(Number(event.target.value))}>
+      <select value={fullLength ? 'all' : currentPage} disabled={busy} onChange={event => setPage(event.target.value === 'all' ? 'all' : Number(event.target.value))}>
+        <option value="all">整局・單張長圖（{rounds.length} 輪）</option>
         {Array.from({ length: pageCount }, (_, index) => {
           const start = index * ECHO_POSTER_ROUNDS_PER_PAGE;
           const end = Math.min(start + ECHO_POSTER_ROUNDS_PER_PAGE, rounds.length) - 1;
@@ -68,7 +74,9 @@ export function BattleReport({ G, info, frameIndex = 0, totalFrames = 1, perspec
     <button className="button secondary" disabled={busy} onClick={makeReport}>{busy ? '正在繪製戰報…' : wordChain ? '製作逐輪詞鏈圖' : label}</button>
     <p className="small muted">{wordChain ? '圖中包含玩家暱稱、整局已揭曉的詞語及相遇結果。' : '只把公開操作、玩家暱稱與對局進度放進圖片，不包含邀請、網址、憑證或秘密牌面。'}</p>
     {preview && <div className={`report-preview${wordChain ? ' echo-chain-preview' : ''}`}>
-      <img src={preview.url} alt={wordChain ? '杯中回聲整局逐輪詞鏈圖' : `未央酒肆第 ${frameIndex + 1} 步的公開戰報`} />
+      {preview.showImage
+        ? <img src={preview.url} alt={wordChain ? '杯中回聲整局逐輪詞鏈圖' : `未央酒肆第 ${frameIndex + 1} 步的公開戰報`} />
+        : <p className="small" role="status">整局長圖已完成，可直接下載查看。</p>}
       <div className="button-row">
         <button className={wordChain ? 'button primary echo-image-share' : 'button primary'} onClick={shareImage}>分享圖片</button>
         <button className="button secondary" onClick={download}>下載 PNG</button>

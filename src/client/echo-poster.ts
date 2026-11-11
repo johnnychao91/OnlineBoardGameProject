@@ -1,5 +1,6 @@
 import type { EchoState } from '../games/echo/game';
 import type { PosterOptions } from './game-types';
+import { encodeStripPng, PNG_STRIP_HEIGHT } from './strip-png';
 import tavernArt from './assets/art/cup-echo-tavern.webp';
 import endlessBarLogo from './assets/endlessbar-logo-transparent.png';
 import openCup from './assets/echo/open-cup.webp';
@@ -29,7 +30,7 @@ export function buildEchoPosterModel({ G: state, info }: PosterOptions) {
 }
 
 // Six rounds keep a four-player page with maximum-length answers within
-// mobile browser canvas limits. Only the requested page is rendered.
+// mobile browser canvas limits in paginated exports.
 export const ECHO_POSTER_ROUNDS_PER_PAGE = 6;
 
 const WIDTH = 1080;
@@ -92,21 +93,58 @@ async function loadArt(src: string) {
   try { await image.decode(); return image; } catch { return undefined; }
 }
 
-function drawTavern(ctx: CanvasRenderingContext2D, height: number, image?: HTMLImageElement) {
-  if (image) {
-    const width = image.naturalWidth;
-    const windowHeight = Math.round(image.naturalHeight * .65);
-    const tableTop = Math.round(windowHeight * WIDTH / width);
-    ctx.drawImage(image, 0, 0, width, windowHeight, 0, 0, WIDTH, tableTop);
-    // Keep the window and both lanterns in frame when long games extend the tabletop.
-    ctx.drawImage(image, 0, windowHeight, width, image.naturalHeight - windowHeight, 0, tableTop, WIDTH, height - tableTop);
+function prepareTavern(image?: HTMLImageElement) {
+  if (!image) return undefined;
+  const { naturalWidth, naturalHeight } = image;
+  const scale = WIDTH / naturalWidth;
+  const header = document.createElement('canvas');
+  header.width = WIDTH;
+  header.height = Math.ceil(naturalHeight * scale * .8);
+  const ctx = header.getContext('2d');
+  if (!ctx) return undefined;
+  ctx.drawImage(image, 0, 0, WIDTH, naturalHeight * scale);
+  const fade = ctx.createLinearGradient(0, naturalHeight * scale * .63, 0, header.height);
+  fade.addColorStop(0, '#fff');
+  fade.addColorStop(1, '#fff0');
+  ctx.globalCompositeOperation = 'destination-in';
+  ctx.fillStyle = fade;
+  ctx.fillRect(0, 0, WIDTH, header.height);
+
+  // Crop just the wood. Repeating the tavern would duplicate the props.
+  const table = document.createElement('canvas');
+  table.width = WIDTH;
+  table.height = Math.round(WIDTH * (naturalHeight * .30) / (naturalWidth * .66));
+  const tableContext = table.getContext('2d');
+  if (!tableContext) return undefined;
+  tableContext.drawImage(image, naturalWidth * .17, naturalHeight * .61, naturalWidth * .66, naturalHeight * .30,
+    0, 0, WIDTH, table.height);
+  return { header, table };
+}
+
+function drawTavern(ctx: CanvasRenderingContext2D, top: number, bottom: number, art: ReturnType<typeof prepareTavern>) {
+  if (art) {
+    const { header, table } = art;
+    const tileHeight = table.height;
+    for (let tile = Math.max(0, Math.floor(top / tileHeight)); tile * tileHeight < bottom; tile++) {
+      const y = tile * tileHeight;
+      if (tile % 2 === 0) ctx.drawImage(table, 0, y);
+      else {
+        // Match the wood grain along the edge of the adjoining tile.
+        ctx.save();
+        ctx.translate(0, y + tileHeight);
+        ctx.scale(1, -1);
+        ctx.drawImage(table, 0, 0);
+        ctx.restore();
+      }
+    }
+    if (top < header.height) ctx.drawImage(header, 0, 0);
   }
-  const tint = ctx.createLinearGradient(0, 0, 0, height);
-  tint.addColorStop(0, image ? '#17102039' : '#2e203c');
-  tint.addColorStop(.28, image ? '#1c12226e' : '#281b33');
-  tint.addColorStop(1, image ? '#17121f9e' : '#17121f');
+  const tint = ctx.createLinearGradient(0, 0, 0, 560);
+  tint.addColorStop(0, art ? '#17102039' : '#2e203c');
+  tint.addColorStop(.5, art ? '#1c12226e' : '#281b33');
+  tint.addColorStop(1, art ? '#17121f9e' : '#17121f');
   ctx.fillStyle = tint;
-  ctx.fillRect(0, 0, WIDTH, height);
+  ctx.fillRect(0, top, WIDTH, bottom - top);
 }
 
 function drawEchoCup(ctx: CanvasRenderingContext2D, y: number, success: boolean, cup?: HTMLImageElement) {
@@ -135,9 +173,9 @@ export async function createEchoPoster(options: PosterOptions): Promise<Blob> {
   const pageCount = Math.max(1, Math.ceil(history.length / ECHO_POSTER_ROUNDS_PER_PAGE));
   const page = Math.max(0, Math.min(options.page ?? 0, pageCount - 1));
   const start = page * ECHO_POSTER_ROUNDS_PER_PAGE;
-  const rounds = history.slice(start, start + ECHO_POSTER_ROUNDS_PER_PAGE);
+  const rounds = options.fullLength ? history : history.slice(start, start + ECHO_POSTER_ROUNDS_PER_PAGE);
   const canvas = document.createElement('canvas');
-  const ctx = canvas.getContext('2d');
+  const ctx = canvas.getContext('2d', { alpha: false, willReadFrequently: options.fullLength === true });
   if (!ctx || !names.length) throw new Error('無法建立逐輪詞鏈圖。');
 
   const margin = 48, rowLabel = 114, gap = 14;
@@ -161,47 +199,75 @@ export async function createEchoPoster(options: PosterOptions): Promise<Blob> {
   const rowExtra = rows.length ? Math.min(84, Math.floor(extra * .45 / rows.length)) : 0;
   const startRows = 188 + namesHeight + headerOffset;
   const footer = startRows + rowsHeight + rowExtra * rows.length + 18;
+  const height = naturalHeight + extra;
   canvas.width = WIDTH;
-  canvas.height = naturalHeight + extra;
 
   const [tavern, logo, cup, paper] = await Promise.all([loadArt(tavernArt), loadArt(endlessBarLogo), loadArt(openCup), loadArt(wordSlip)]);
-  drawTavern(ctx, canvas.height, tavern);
-  if (logo) ctx.drawImage(logo, WIDTH / 2 - 78, headerOffset - 105, 156, 156);
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  write(ctx, '未央酒肆 · 杯中回聲', WIDTH / 2, 54 + headerOffset, font(26, 700), GOLD);
-  write(ctx, headline, WIDTH / 2, 120 + headerOffset, font(54, 750), TEXT);
-  ctx.strokeStyle = '#a97951';
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.moveTo(310, 162 + headerOffset);
-  ctx.lineTo(770, 162 + headerOffset);
-  ctx.stroke();
-  names.forEach((name, index) => {
-    const x = columnX(index), palette = PALETTES[index];
-    box(ctx, x + columnWidth / 2 - 14, 181 + headerOffset, 28, 10, palette.accent);
-    nameLines[index].forEach((line, i) => write(ctx, line, x + columnWidth / 2, 212 + headerOffset + i * 32, namesFont, palette.accent));
+  const backdrop = prepareTavern(tavern);
+  function drawHeader(ctx: CanvasRenderingContext2D) {
+    if (logo) ctx.drawImage(logo, WIDTH / 2 - 78, headerOffset - 105, 156, 156);
+    write(ctx, '未央酒肆 · 杯中回聲', WIDTH / 2, 54 + headerOffset, font(26, 700), GOLD);
+    write(ctx, headline, WIDTH / 2, 120 + headerOffset, font(54, 750), TEXT);
+    ctx.strokeStyle = '#a97951';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(310, 162 + headerOffset);
+    ctx.lineTo(770, 162 + headerOffset);
+    ctx.stroke();
+    names.forEach((name, index) => {
+      const x = columnX(index), palette = PALETTES[index];
+      box(ctx, x + columnWidth / 2 - 14, 181 + headerOffset, 28, 10, palette.accent);
+      nameLines[index].forEach((line, i) => write(ctx, line, x + columnWidth / 2, 212 + headerOffset + i * 32, namesFont, palette.accent));
+    });
+  }
+
+  let nextRowY = startRows;
+  const positionedRows = rows.map(row => {
+    const position = { ...row, y: nextRowY, height: row.height + rowExtra };
+    nextRowY += position.height + gap;
+    return position;
   });
 
-  let y = startRows;
-  for (const row of rows) {
-    const height = row.height + rowExtra;
-    write(ctx, `第 ${row.number} 輪`, margin + (rowLabel - gap) / 2, y + height / 2, font(22, 600), row.matched ? GOLD : MUTED);
-    row.words.forEach((lines, index) => {
-      const x = columnX(index), palette = PALETTES[index];
-      drawWordSlip(ctx, x, y, columnWidth, height, row.matched, paper);
-      if (row.matched) write(ctx, '✦', x + columnWidth / 2, y + 27 + rowExtra / 2, font(24, 700), '#815123');
-      const textCenter = y + height / 2 + (row.matched ? 16 : 0);
-      lines.forEach((line, i) => write(ctx, line, x + columnWidth / 2,
-        textCenter + (i - (lines.length - 1) / 2) * row.lineHeight, row.style, palette.ink));
-    });
-    y += height + gap;
+  function paint(ctx: CanvasRenderingContext2D, top: number, bottom: number) {
+    drawTavern(ctx, top, bottom, backdrop);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    if (top < startRows + 32) drawHeader(ctx);
+    for (const row of positionedRows) {
+      const { y, height } = row;
+      if (y + height + 24 < top) continue;
+      if (y - 24 > bottom) break;
+      write(ctx, `第 ${row.number} 輪`, margin + (rowLabel - gap) / 2, y + height / 2, font(22, 600), row.matched ? GOLD : MUTED);
+      row.words.forEach((lines, index) => {
+        const x = columnX(index), palette = PALETTES[index];
+        drawWordSlip(ctx, x, y, columnWidth, height, row.matched, paper);
+        if (row.matched) write(ctx, '✦', x + columnWidth / 2, y + 27 + rowExtra / 2, font(24, 700), '#815123');
+        const textCenter = y + height / 2 + (row.matched ? 16 : 0);
+        lines.forEach((line, i) => write(ctx, line, x + columnWidth / 2,
+          textCenter + (i - (lines.length - 1) / 2) * row.lineHeight, row.style, palette.ink));
+      });
+    }
+    if (!rows.length) write(ctx, '這局還沒有揭曉的詞。', WIDTH / 2, startRows + 40, font(28, 550), MUTED);
+    if (bottom >= footer) {
+      write(ctx, note, WIDTH / 2, footer + 15, font(27, 650), GOLD);
+      const summary = options.fullLength || pageCount === 1 ? `共 ${history.length} 輪公開紀錄`
+        : `第 ${rounds[0].number}～${rounds.at(-1)!.number} 輪 · 共 ${history.length} 輪 · 第 ${page + 1}／${pageCount} 張`;
+      write(ctx, summary, WIDTH / 2, footer + 51, font(21, 500), MUTED);
+      drawEchoCup(ctx, footer + 26, success, cup);
+    }
   }
-  if (!rows.length) write(ctx, '這局還沒有揭曉的詞。', WIDTH / 2, startRows + 40, font(28, 550), MUTED);
-  write(ctx, note, WIDTH / 2, footer + 15, font(27, 650), GOLD);
-  const summary = pageCount === 1 ? `共 ${history.length} 輪公開紀錄`
-    : `第 ${rounds[0].number}～${rounds.at(-1)!.number} 輪 · 共 ${history.length} 輪 · 第 ${page + 1}／${pageCount} 張`;
-  write(ctx, summary, WIDTH / 2, footer + 51, font(21, 500), MUTED);
-  drawEchoCup(ctx, footer + 26, success, cup);
+
+  if (height > 4096 && typeof CompressionStream === 'function') {
+    const padding = 24;
+    canvas.height = PNG_STRIP_HEIGHT + padding * 2;
+    return encodeStripPng(WIDTH, height, (top, count) => {
+      ctx.setTransform(1, 0, 0, 1, 0, padding - top);
+      paint(ctx, top - padding, top + count + padding);
+      return ctx.getImageData(0, padding, WIDTH, count);
+    });
+  }
+  if (height > 4096) throw new Error('此瀏覽器無法輸出這麼長的圖片。');
+  canvas.height = height;
+  paint(ctx, 0, height);
   return new Promise((resolve, reject) => canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('逐輪詞鏈圖產生失敗。')), 'image/png'));
 }

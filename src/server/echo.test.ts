@@ -196,6 +196,40 @@ describe('Cup Echo authenticated multiplayer and statistics', () => {
       ({ ...frame, G: { ...G, history: compact.echoHistory.slice(0, echoHistoryLength) } }))).toEqual(replay.frames);
   }, 30000);
 
+  it('expires a partial meaning vote at the next reveal and settles the last round automatically', async () => {
+    const now = Date.now.bind(Date);
+    let offset = 0;
+    vi.spyOn(Date, 'now').mockImplementation(() => now() + offset);
+    const f = await fixture(), g = await f.room(['甲', '乙'], [alpha, bravo]);
+    expect((await g.options({ seconds: 0, roundLimit: 5 })).status).toBe(200);
+    await g.start();
+    const [a, b] = await g.connect();
+    let previousPhase = 0;
+    for (let round = 1; round <= 5; round++) {
+      const state = await g.state();
+      expect(state.G).toMatchObject({ status: 'writing', round });
+      const phase = state.G.phaseEpoch;
+      if (round === 2) {
+        a.move('reviewWords', [true, phase], state._stateID);
+        expect((await a.sync()).state.G.players[a.seat.playerID].reviewed).toBe(true);
+      }
+      if (round === 3) {
+        b.move('reviewWords', [true, previousPhase], state._stateID);
+        expect((await b.sync()).state.G.players[b.seat.playerID].reviewed).toBe(false);
+        expect((await g.state()).G.players[a.seat.playerID].reviewed).toBe(false);
+      }
+      for (const [player, name] of [[a, '甲'], [b, '乙']] as const) player.move('sealWord', [name + round, phase], state._stateID);
+      await vi.waitFor(async () => expect((await g.state()).G.history).toHaveLength(round), pause);
+      previousPhase = phase;
+    }
+    const last = await g.state();
+    expect(last.G).toMatchObject({ status: 'review', round: 5, result: null });
+    a.move('reviewWords', [true, last.G.phaseEpoch], last._stateID);
+    expect((await a.sync()).state.G.players[a.seat.playerID].reviewed).toBe(true);
+    offset = 31000;
+    await vi.waitFor(async () => expect((await g.state()).G).toMatchObject({ status: 'finished', round: 5, result: 'round-limit' }), pause);
+  }, 30000);
+
   it('counts one success per anonymous browser across rooms, handles aliases and excludes test rooms', async () => {
     const f = await fixture();
     async function finish(names: string[], tokens: string[], synonyms = false, test = false) {
@@ -206,9 +240,21 @@ describe('Cup Echo authenticated multiplayer and statistics', () => {
         synonyms ? ['鳳梨', '菠蘿'][index] : ['Moon', 'ＭＯＯＮ', 'moon'][index], start.G.phaseEpoch,
       ], start._stateID);
       if (synonyms) {
-        await vi.waitFor(async () => expect((await g.state()).G.status).toBe('review'), pause);
+        await vi.waitFor(async () => expect((await g.state()).G).toMatchObject({
+          status: 'writing', round: 2, clues: ['鳳梨', '菠蘿'], history: [{ number: 1 }],
+        }), pause);
         const review = await g.state();
-        for (const player of clients) player.move('reviewWords', [true, review.G.phaseEpoch], review._stateID);
+        const [first, second] = clients;
+        first.move('reviewWords', [true, start.G.phaseEpoch], review._stateID);
+        expect((await first.sync()).state.G.players[first.seat.playerID].reviewed).toBe(false);
+        first.move('reviewWords', [true, review.G.phaseEpoch], review._stateID);
+        first.move('sealWord', ['秘密下一輪', review.G.phaseEpoch], review._stateID);
+        expect((await first.sync()).state.G.private[first.seat.playerID]).toMatchObject({ agrees: true, word: '秘密下一輪' });
+        expect((await second.sync()).state.G.private).toEqual({});
+        second.move('reviewWords', [true, review.G.phaseEpoch], review._stateID);
+        await vi.waitFor(async () => expect((await g.state()).G).toMatchObject({
+          result: 'same-meaning', round: 1, private: {}, history: [{ number: 1 }],
+        }), pause);
       }
       await vi.waitFor(async () => expect((await g.state()).G.result).toBe(synonyms ? 'same-meaning' : 'same-word'), pause);
     }

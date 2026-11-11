@@ -38,6 +38,7 @@ function EchoControls({ G, id, connected, moves, onRepeat }: {
   const currentDraft = useRef(draft);
   currentDraft.current = draft;
   const own = G.players[id];
+  const offersMeaning = G.rulesVersion === 2 && echoCanAgree(G);
   const editable = G.status === 'writing' && (!own.sealed || G.options.allowChanges);
   const usedWords = useMemo(() => G.options.allowRepeats === false ? echoUsedWordKeys(G.history) : undefined, [G.history, G.options.allowRepeats]);
   const word = echoWord(draft);
@@ -100,14 +101,31 @@ function EchoControls({ G, id, connected, moves, onRepeat }: {
         }}>查看原詞</button></p>}
         <p className="small muted">最多 {ECHO_WORD_LIMIT} 個字元。{G.options.allowChanges ? '揭曉前可更改已封詞。' : '封詞後鎖定。'}倒數結束會採用伺服器最後收到的輸入內容。</p>
         {own.sealed && <p className="small muted" role="status">目前已封詞：{G.private[id]?.word}</p>}</form>
+      : G.rulesVersion === 2 ? <p>最後一輪已揭曉，倒數結束後自動結算。</p>
       : own.reviewed ? <p role="status">已確認，等待其他客人。</p>
       : <><p>{echoCanAgree(G) ? '如果用詞不同但意思相同，全員選擇「意思相同」也算相遇。' : '有人沒有送出，這輪繼續往下聯想。'}</p>
         <div className="echo-actions">{echoCanAgree(G) && <button type="button" className="button primary" disabled={busy || !connected} onClick={() => send('reviewWords', true)}>意思相同</button>}
           <button type="button" className="button secondary" disabled={busy || !connected} onClick={() => send('reviewWords', false)}>
             {G.round >= G.options.roundLimit ? '查看結算' : '繼續聯想'}</button></div></>}
+    {offersMeaning && <EchoMeaningVote G={G} reviewed={own.reviewed} connected={connected} vote={() => moves.reviewWords(true, G.phaseEpoch)} />}
     {busy && <p className="small muted" role="status">正在確認…</p>}
     {notice && !confirmed && <p className="small" role="status">{notice}</p>}
   </section>;
+}
+
+function EchoMeaningVote({ G, reviewed, connected, vote }: { G: EchoState; reviewed: boolean; connected: boolean; vote: () => void }) {
+  const [pending, setPending] = useState(false);
+  useEffect(() => {
+    if (!pending || reviewed) return;
+    const timer = window.setTimeout(() => setPending(false), 8000);
+    return () => window.clearTimeout(timer);
+  }, [pending, reviewed]);
+  return <div className="echo-meaning">
+    <p className="small muted">第 {G.history.at(-1)?.number} 輪的詞若意思相同，全員確認即相遇。</p>
+    <button type="button" className="button secondary" disabled={!connected || pending || reviewed} onClick={() => { setPending(true); vote(); }}>
+      {reviewed ? '已確認意思相同' : pending ? '正在確認…' : '意思相同'}
+    </button>
+  </div>;
 }
 
 function EchoTimer({ deadline }: { deadline: number }) {

@@ -19,4 +19,5 @@ export interface PosterOptions {
   step: number;
   totalSteps: number;
   page?: number;
+  fullLength?: boolean;
 }

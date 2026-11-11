@@ -6,7 +6,7 @@ import { echoUsedWordKeys, echoWord, echoWordKey, ECHO_REVIEW_SECONDS, normalize
 export type EchoResult = 'same-word' | 'same-meaning' | 'round-limit';
 export interface EchoRound { number: number; words: Record<string, string>; timedOut: boolean }
 export interface EchoState {
-  rulesVersion: 1;
+  rulesVersion: 1 | 2;
   status: 'lobby' | 'writing' | 'review' | 'finished';
   options: EchoOptions;
   players: Record<string, { ready: boolean; sealed: boolean; reviewed: boolean }>;
@@ -23,7 +23,11 @@ interface EchoSetup { startImmediately?: boolean; participantIDs?: string[]; opt
 type EchoMove = FnContext<EchoState> & { playerID: string };
 const ids = (G: EchoState) => Object.keys(G.players);
 const latestRound = (G: EchoState) => G.history.at(-1);
-export const echoCanAgree = (G: EchoState) => G.status === 'review' && Object.keys(latestRound(G)?.words ?? {}).length === ids(G).length;
+export function echoCanAgree(G: EchoState) {
+  const round = latestRound(G);
+  return !!round && !round.timedOut && Object.keys(round.words).length === ids(G).length
+    && (G.status === 'review' || (G.rulesVersion === 2 && G.status === 'writing' && round.number === G.round - 1));
+}
 export const echoWinner = (result: EchoResult) => result === 'round-limit' ? 'unmatched' : 'guests';
 
 function clearPrivate(G: EchoState) {
@@ -64,11 +68,16 @@ function reveal(G: EchoState, now: number, timedOut: boolean) {
     return;
   }
   if (timedOut) { nextAfterReveal(G, now); return; }
+  if (G.rulesVersion === 2 && G.round < G.options.roundLimit) { nextAfterReveal(G, now); return; }
   clearPrivate(G);
   transition(G, 'review', now + ECHO_REVIEW_SECONDS * 1000);
 }
 function endReview(G: EchoState, now: number) {
-  if (echoCanAgree(G) && ids(G).every(id => G.private[id]?.agrees === true)) { finish(G, 'same-meaning'); return; }
+  if (echoCanAgree(G) && ids(G).every(id => G.private[id]?.agrees === true)) {
+    G.round = latestRound(G)!.number;
+    finish(G, 'same-meaning');
+    return;
+  }
   nextAfterReveal(G, now);
 }
 function nextAfterReveal(G: EchoState, now: number) {
@@ -105,7 +114,7 @@ function sealWord({ G, playerID }: EchoMove, value: unknown, phase: unknown) {
     || repeatsWord(G, word)
     || (G.players[playerID].sealed && (!G.options.allowChanges || word === G.private[playerID]?.word))) return INVALID_MOVE;
   G.players[playerID].sealed = true;
-  G.private[playerID] = { word, draft: word };
+  G.private[playerID] = { ...G.private[playerID], word, draft: word };
   G.epoch++;
   if (ids(G).every(id => G.players[id].sealed)) reveal(G, now, false);
 }
@@ -119,10 +128,12 @@ function saveDraft({ G, playerID }: EchoMove, value: unknown, phase: unknown) {
 }
 function reviewWords({ G, playerID }: EchoMove, agrees: unknown, phase: unknown) {
   const now = Date.now();
-  if (!mayAct(G, playerID, phase, 'review', now) || G.players[playerID].reviewed
-    || typeof agrees !== 'boolean' || (agrees && !echoCanAgree(G))) return INVALID_MOVE;
+  const concurrent = G.rulesVersion === 2;
+  if ((G.status !== 'review' && !(concurrent && G.status === 'writing'))
+    || !mayAct(G, playerID, phase, G.status, now) || G.players[playerID].reviewed
+    || typeof agrees !== 'boolean' || (agrees ? !echoCanAgree(G) : concurrent)) return INVALID_MOVE;
   G.players[playerID].reviewed = true;
-  G.private[playerID] = { agrees };
+  G.private[playerID] = { ...G.private[playerID], agrees };
   G.epoch++;
   if (ids(G).every(id => G.players[id].reviewed)) endReview(G, now);
 }
@@ -156,7 +167,7 @@ export const EchoGame: Game<EchoState, Record<string, unknown>, EchoSetup> = {
   setup: ({ ctx }, data) => {
     const seats = data?.participantIDs ?? Array.from({ length: ctx.numPlayers }, (_, i) => String(i));
     const G: EchoState = {
-      rulesVersion: 1, options: normalizeEchoOptions(data?.options), status: 'lobby', round: 0, epoch: 0, phaseEpoch: 0,
+      rulesVersion: 2, options: normalizeEchoOptions(data?.options), status: 'lobby', round: 0, epoch: 0, phaseEpoch: 0,
       deadline: null, clues: [], history: [], result: null, private: {},
       players: Object.fromEntries(seats.map(id => [id, { ready: data?.startImmediately === true, sealed: false, reviewed: false }])),
     };
