@@ -35,11 +35,12 @@ function transition(G: EchoState, status: EchoState['status'], deadline: number 
   G.deadline = deadline;
   G.phaseEpoch = ++G.epoch;
 }
+const writingDeadline = (seconds: EchoOptions['seconds'], now: number) => seconds === 0 ? null : now + seconds * 1000;
 function beginRound(G: EchoState, now: number) {
   clearPrivate(G);
   G.round++;
   G.options = normalizeEchoOptions(G.options);
-  transition(G, 'writing', now + G.options.seconds * 1000);
+  transition(G, 'writing', writingDeadline(G.options.seconds, now));
 }
 function finish(G: EchoState, result: EchoResult) {
   clearPrivate(G);
@@ -84,7 +85,7 @@ export function advanceEchoClock(G: EchoState, now: number): boolean {
 /** Called only after host authorization inside the room queue. */
 export function updateLiveEchoOptions(G: EchoState, options: EchoOptions, now: number) {
   if (G.status === 'writing' && options.seconds !== G.options.seconds) {
-    G.deadline = now + options.seconds * 1000;
+    G.deadline = writingDeadline(options.seconds, now);
   }
   G.options = options;
   G.epoch++;

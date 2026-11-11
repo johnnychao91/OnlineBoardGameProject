@@ -97,9 +97,9 @@ async function fixture() {
 }
 
 describe('Cup Echo authenticated multiplayer and statistics', () => {
-  it('keeps the 60-second default and upgrades previously saved 12-second and untimed settings', () => {
+  it('keeps the 60-second default, preserves untimed settings and upgrades previously saved 12-second settings', () => {
     expect(normalizeEchoOptions().seconds).toBe(60);
-    expect([12, 0, 15, 30, 60, 120].map(seconds => normalizeEchoOptions({ seconds }).seconds)).toEqual([15, 120, 15, 30, 60, 120]);
+    expect([12, 0, 15, 30, 60, 120].map(seconds => normalizeEchoOptions({ seconds }).seconds)).toEqual([15, 0, 15, 30, 60, 120]);
     expect(() => normalizeEchoOptions({ seconds: 20 })).toThrow();
   });
   it('keeps drafts and edits private, handles a live deadline, and replays only revealed words after restart', async () => {
@@ -107,13 +107,18 @@ describe('Cup Echo authenticated multiplayer and statistics', () => {
     let offset = 0;
     vi.spyOn(Date, 'now').mockImplementation(() => now() + offset);
     const f = await fixture(), g = await f.room(['甲', '乙', '丙'], [alpha, bravo, charlie]);
-    expect((await g.options({ seconds: 120, allowChanges: true, roundLimit: 5 })).status).toBe(200);
+    expect((await g.options({ seconds: 0, allowChanges: true, roundLimit: 5 })).status).toBe(200);
     await g.start();
     const [a, b, c] = await g.connect();
     const first = await g.state(), phase = first.G.phaseEpoch;
-    expect(first.G.deadline).toBeGreaterThan(Date.now() + 115000);
+    expect(first.G.deadline).toBeNull();
+    expect((await g.options({ ...first.G.options, seconds: 120 })).status).toBe(200);
+    expect((await g.state()).G.deadline).toBeGreaterThan(Date.now() + 115000);
+    expect((await g.options({ ...first.G.options, seconds: 0 })).status).toBe(200);
+    expect((await g.state()).G).toMatchObject({ deadline: null, phaseEpoch: phase });
     expect((await g.options({ ...first.G.options, seconds: 15 }, b.seat)).status).toBe(403);
-    a.move('sealWord', ['舊詞', phase], first._stateID);
+    const untimed = await g.state();
+    a.move('sealWord', ['舊詞', phase], untimed._stateID);
     expect((await a.sync()).state.G.private[a.seat.playerID].word).toBe('舊詞');
     a.move('sealWord', ['雨夜', phase], first._stateID);
     b.move('saveDraft', ['燈火', phase], first._stateID);
@@ -127,6 +132,8 @@ describe('Cup Echo authenticated multiplayer and statistics', () => {
     const view = (await f.request(g.base + '/view?perspective=god', undefined, g.watcher)).body;
     expect(view.G.private).toEqual({});
     expect(JSON.stringify(view)).not.toMatch(/雨夜|燈火|echoBrowserHashes|echoRankedSeats/);
+    const finalReplayPath = g.base + '/replay?matchID=' + g.matchID + '&final=1';
+    expect((await f.request(finalReplayPath, undefined, g.watcher)).status).toBe(409);
     const before = await g.state();
     expect((await g.options({ ...before.G.options, seconds: 15, allowChanges: false })).status).toBe(200);
     const timed = await g.state();
@@ -152,6 +159,10 @@ describe('Cup Echo authenticated multiplayer and statistics', () => {
     expect(replay.frames.every((frame: { G: EchoState }) => Object.keys(frame.G.private).length === 0)).toBe(true);
     expect(JSON.stringify(replay)).not.toMatch(/舊詞|已清除的詞|不能覆寫|echoBrowserHashes|echoRankedSeats/);
     expect(replay.frames.at(-1).G.history).toHaveLength(2);
+    expect((await f.request(finalReplayPath)).status).toBe(401);
+    const summary = await f.request(finalReplayPath, undefined, g.watcher);
+    expect(summary.status).toBe(200);
+    expect(summary.body).toEqual({ room: replay.room, G: replay.frames.at(-1).G });
   }, 30000);
 
   it('counts one success per anonymous browser across rooms, handles aliases and excludes test rooms', async () => {

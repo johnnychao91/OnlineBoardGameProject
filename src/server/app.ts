@@ -512,7 +512,10 @@ export async function createApplication(config: AppConfig) {
       const perspective = perspectiveOf(ctx.query.perspective);
       if (operation === 'replay') {
         if (!finished) fail(409, '完整復盤於對局結束後開放');
-        ctx.body = { room: publicRoom(ctx, room, selected.metadata, state, matchID, true), ...await replayPayload(room, perspective, matchID) };
+        const replayRoom = publicRoom(ctx, room, selected.metadata, state, matchID, true);
+        ctx.body = ctx.query.final === '1'
+          ? { room: replayRoom, G: definition.observerView(state.G, perspective) }
+          : { room: replayRoom, ...await replayPayload(room, perspective, matchID) };
       } else {
         if (viewer.access !== 'spectator' && !finished) fail(403, '玩家不能取得觀戰視角');
         ctx.body = { G: definition.observerView(state.G, perspective), stateID: state._stateID, perspective };

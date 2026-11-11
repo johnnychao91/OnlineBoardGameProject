@@ -21,6 +21,9 @@
 .echo-cups li[data-sealed="true"] { border-color: #bb925f; }
 .echo-cups li[data-sealed="true"] strong, [data-matched="true"] .echo-clues h2 { color: #edbd7e; }
 .echo-progress { margin: 14px 0 0; text-align: center; }
+.echo-previous-match ul { display: flex; flex-wrap: wrap; gap: 8px; list-style: none; padding: 0; margin: 6px 0 0; }
+.echo-previous-match li { padding: 4px 12px; border: 1px solid #bb925f; border-radius: 999px; background: var(--theme-dark); color: #edbd7e; font-weight: 700; overflow-wrap: anywhere; }
+.echo-previous-result > .battle-report { margin-top: 14px; }
 .echo-options, .echo-controls, .echo-history { padding: clamp(14px, 3vw, 24px); }
 .echo-options-fields, .echo-actions, .echo-input > div { display: flex; flex-wrap: wrap; gap: 10px; }
 .echo-options-fields { margin-block: 10px 14px; }

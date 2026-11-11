@@ -1,5 +1,8 @@
 import type { EchoState } from '../games/echo/game';
 import type { PosterOptions } from './game-types';
+import tavernArt from './assets/art/cup-echo-tavern.webp';
+import endlessBarLogo from './assets/endlessbar-logo-transparent.png';
+import openCup from './assets/echo/open-cup.webp';
 
 function clean(value: unknown, limit: number) {
   if (typeof value !== 'string') return '';
@@ -65,6 +68,56 @@ function box(ctx: CanvasRenderingContext2D, x: number, y: number, width: number,
   if (edge) { ctx.strokeStyle = edge; ctx.lineWidth = 2; ctx.stroke(); }
 }
 
+async function loadArt(src: string) {
+  const image = new Image();
+  image.src = src;
+  try { await image.decode(); return image; } catch { return undefined; }
+}
+
+function drawTavern(ctx: CanvasRenderingContext2D, height: number, image?: HTMLImageElement) {
+  if (image) {
+    const width = image.naturalWidth;
+    const windowHeight = Math.round(image.naturalHeight * .65);
+    const tableTop = Math.round(windowHeight * WIDTH / width);
+    ctx.drawImage(image, 0, 0, width, windowHeight, 0, 0, WIDTH, tableTop);
+    // Keep the window and both lanterns in frame when long games extend the tabletop.
+    ctx.drawImage(image, 0, windowHeight, width, image.naturalHeight - windowHeight, 0, tableTop, WIDTH, height - tableTop);
+  }
+  const tint = ctx.createLinearGradient(0, 0, 0, height);
+  tint.addColorStop(0, image ? '#17102039' : '#2e203c');
+  tint.addColorStop(.28, image ? '#1c12226e' : '#281b33');
+  tint.addColorStop(1, image ? '#17121f9e' : '#17121f');
+  ctx.fillStyle = tint;
+  ctx.fillRect(0, 0, WIDTH, height);
+}
+
+function drawEchoCup(ctx: CanvasRenderingContext2D, y: number, cup?: HTMLImageElement) {
+  if (!cup) return;
+  const size = 240, x = WIDTH / 2;
+  // The mouth center sits at (351.5, 272) on the 704 px open-cup artwork.
+  const rimY = y + size * 272 / 704;
+  ctx.save();
+  ctx.shadowColor = '#efac5f';
+  ctx.shadowBlur = 16;
+  ctx.lineWidth = 2.5;
+  for (const [radius, color] of [[98, '#ffd993d9'], [151, '#efb97099'], [212, '#e7a95f5e']] as const) {
+    ctx.strokeStyle = color;
+    ctx.beginPath();
+    ctx.ellipse(x, rimY, radius, radius * .19, 0, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  ctx.shadowBlur = 0;
+  ctx.drawImage(cup, x - size * 351.5 / 704, y, size, size);
+  ctx.shadowBlur = 10;
+  for (const [radius, color] of [[20, '#ffe7b8'], [44, '#ffce8699']] as const) {
+    ctx.strokeStyle = color;
+    ctx.beginPath();
+    ctx.ellipse(x, rimY, radius, radius * .17, 0, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
 export async function createEchoPoster(options: PosterOptions): Promise<Blob> {
   const { names, rounds, headline, note } = buildEchoPosterModel(options);
   const canvas = document.createElement('canvas');
@@ -85,20 +138,19 @@ export async function createEchoPoster(options: PosterOptions): Promise<Blob> {
     return { ...round, style, lineHeight, words, height };
   });
   const rowsHeight = rows.length ? rows.reduce((height, row) => height + row.height + gap, 0) : 96;
-  const naturalHeight = 188 + namesHeight + rowsHeight + 106;
+  const brandHeight = 130, footerHeight = 282;
+  const naturalHeight = brandHeight + 188 + namesHeight + rowsHeight + footerHeight;
   const extra = Math.max(0, 1180 - naturalHeight);
-  const headerOffset = Math.round(extra * .16);
+  const headerOffset = brandHeight + Math.round(extra * .16);
   const rowExtra = rows.length ? Math.min(84, Math.floor(extra * .45 / rows.length)) : 0;
   const startRows = 188 + namesHeight + headerOffset;
-  const footer = startRows + rowsHeight + rowExtra * rows.length + 18 + Math.round((extra - headerOffset - rowExtra * rows.length) * .32);
+  const footer = startRows + rowsHeight + rowExtra * rows.length + 18;
   canvas.width = WIDTH;
   canvas.height = naturalHeight + extra;
 
-  const background = ctx.createLinearGradient(0, 0, WIDTH, canvas.height);
-  background.addColorStop(0, '#2e203c');
-  background.addColorStop(1, '#17121f');
-  ctx.fillStyle = background;
-  ctx.fillRect(0, 0, WIDTH, canvas.height);
+  const [tavern, logo, cup] = await Promise.all([loadArt(tavernArt), loadArt(endlessBarLogo), loadArt(openCup)]);
+  drawTavern(ctx, canvas.height, tavern);
+  if (logo) ctx.drawImage(logo, WIDTH / 2 - 78, headerOffset - 105, 156, 156);
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   write(ctx, '未央酒肆 · 杯中回聲', WIDTH / 2, 54 + headerOffset, font(26, 700), GOLD);
@@ -132,14 +184,6 @@ export async function createEchoPoster(options: PosterOptions): Promise<Blob> {
   if (!rows.length) write(ctx, '這局還沒有揭曉的詞。', WIDTH / 2, startRows + 40, font(28, 550), MUTED);
   write(ctx, note, WIDTH / 2, footer + 15, font(27, 650), GOLD);
   write(ctx, `共 ${rounds.length} 輪公開紀錄`, WIDTH / 2, footer + 51, font(21, 500), MUTED);
-  if (canvas.height - footer > 150) {
-    ctx.strokeStyle = '#be905c70';
-    const center = (footer + 66 + canvas.height) / 2;
-    for (const radius of [34, 60, 90]) {
-      ctx.beginPath();
-      ctx.ellipse(WIDTH / 2, center, radius, radius / 3, 0, 0, Math.PI * 2);
-      ctx.stroke();
-    }
-  }
+  drawEchoCup(ctx, footer + 26, cup);
   return new Promise((resolve, reject) => canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('逐輪詞鏈圖產生失敗。')), 'image/png'));
 }
