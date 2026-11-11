@@ -95,12 +95,14 @@ async function fixture() {
     }), ioWait);
     // The engine broadcasts before persisting. Check storage separately without
     // sending a sync that would rewrite connection metadata after every move.
+    let lastReadVersion = before._stateID;
     return vi.waitFor(async () => {
       const after = await state(group.matchID);
+      lastReadVersion = after._stateID;
       expect(after._stateID).toBe(expectedVersion);
       return after;
     }, ioWait).catch(error => {
-      throw new Error(`Persisted move: ${context}`, { cause: error });
+      throw new Error(`Persisted move: ${context}; expected version=${expectedVersion}; last read=${lastReadVersion}; socket errors=${JSON.stringify(socketErrors.get(socket))}`, { cause: error });
     });
   };
   const rejectMove = async (group: Group, id: string, type: string, args: unknown[]) => {

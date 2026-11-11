@@ -114,6 +114,25 @@ describe('本機 JSON 對局儲存', () => {
     expect((await storage.fetch(ID, { log: true })).log).toHaveLength(20);
   });
 
+  it('將引擎相鄰的狀態與中繼資料更新提交為同一份存檔', async () => {
+    const { storage, dir } = await fixture();
+    await storage.createMatch(ID, { initialState: gameState(0, 'playing'), metadata: metadata() });
+    let writeChecks = 0;
+    storage.isMatchActive = () => ++writeChecks === 1;
+    const result = { winner: 'crew' };
+    await Promise.all([
+      storage.setState(ID, gameState(1, 'finished'), [entry(1)]),
+      storage.setMetadata(ID, { ...metadata(200), gameover: result }),
+    ]);
+    expect(writeChecks).toBe(1);
+    const reopened = new FileStorage({ dir });
+    const saved = await reopened.fetch(ID, { state: true, metadata: true, log: true });
+    expect(saved.state.G.status).toBe('finished');
+    expect(saved.metadata.gameover).toEqual(result);
+    expect(saved.log).toEqual([entry(1)]);
+    expect((await reopened.fetchReplay(ID)).frames.map(frame => frame.stateID)).toEqual([0, 1]);
+  });
+
   it('使用獨立目錄的 adapter 不共享全域資料', async () => {
     const first = await fixture(); const second = await fixture();
     await Promise.all([

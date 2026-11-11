@@ -67,6 +67,7 @@ export class FileStorage extends Async {
   isMatchActive?: (matchID: string) => boolean;
   private readonly directory: string;
   private readonly queues = new Map<string, Promise<void>>();
+  private pendingStateWrite?: { matchID: string; update: { metadata?: Server.MatchData }; done: Promise<void> };
 
   constructor({ dir }: { dir: string }) {
     super();
@@ -84,6 +85,7 @@ export class FileStorage extends Async {
 
   private enqueue<T>(matchID: string, operation: () => Promise<T>): Promise<T> {
     this.filename(matchID);
+    this.pendingStateWrite = undefined;
     // Windows 檔案系統通常忽略大小寫；別讓同名大小寫變體繞過序列化。
     const key = matchID.toLowerCase();
     const previous = this.queues.get(key) || Promise.resolve();
@@ -250,29 +252,38 @@ export class FileStorage extends Async {
   override async setState(matchID: string, state: State, deltalog?: LogEntry[]): Promise<void> {
     validateStateID(state);
     const incoming = jsonCopy({ state, deltalog: deltalog || [] });
-    return this.enqueue(matchID, async () => {
+    const update: { metadata?: Server.MatchData } = {};
+    const done = this.enqueue(matchID, async () => {
       if (this.isMatchActive && !this.isMatchActive(matchID)) return;
       const record = await this.readMatch(matchID);
       if (!record) throw new Error('對局不存在');
       // 同版本重送與較舊的更新不得覆寫現況，也不重複追加操作或回放紀錄。
-      if (incoming.state._stateID <= record.state._stateID) return;
-      const hadReplay = Array.isArray(record.replayFrames);
-      record.replayComplete = hadReplay && record.replayComplete === true;
-      record.replayFrames ||= [];
-      // 缺少進行中狀態的版本時，只保留真正觀察到的畫面並標記歷史不完整。
-      if (incoming.state._stateID > record.state._stateID + 1
-        && (record.state.G?.status !== 'lobby' || incoming.state.G?.status !== 'lobby')) {
-        record.replayComplete = false;
+      if (incoming.state._stateID > record.state._stateID) {
+        record.replayComplete = Array.isArray(record.replayFrames) && record.replayComplete === true;
+        record.replayFrames ||= [];
+        // 缺少進行中狀態的版本時，只保留真正觀察到的畫面並標記歷史不完整。
+        if (incoming.state._stateID > record.state._stateID + 1
+          && (record.state.G?.status !== 'lobby' || incoming.state.G?.status !== 'lobby')) {
+          record.replayComplete = false;
+        }
+        const echo = record.metadata.gameName === 'cup-echo';
+        // Draft-only actions leave the public epoch unchanged.
+        const draftOnly = echo && incoming.state.G.epoch === record.state.G.epoch;
+        if (incoming.state.G?.status !== 'lobby' && !draftOnly) record.replayFrames.push(replayFrame(incoming.state, record.metadata.gameName));
+        record.state = incoming.state;
+        if (!echo) record.log.push(...incoming.deltalog);
+      } else if (!update.metadata) {
+        return;
       }
-      const echo = record.metadata.gameName === 'cup-echo';
-      // Draft-only actions leave the public epoch unchanged. Keep only the
-      // current private draft, with no typing history or drafts in replays.
-      const draftOnly = echo && incoming.state.G.epoch === record.state.G.epoch;
-      if (incoming.state.G?.status !== 'lobby' && !draftOnly) record.replayFrames.push(replayFrame(incoming.state, record.metadata.gameName));
-      record.state = incoming.state;
-      if (!echo) record.log.push(...incoming.deltalog);
+      if (update.metadata) record.metadata = update.metadata;
       await this.writeMatch(matchID, record);
     });
+    // boardgame.io calls setState and setMetadata consecutively for a move.
+    // Only that adjacent same-turn write can share this commit.
+    const pending = { matchID, update, done };
+    this.pendingStateWrite = pending;
+    queueMicrotask(() => { if (this.pendingStateWrite === pending) this.pendingStateWrite = undefined; });
+    return done;
   }
 
   async fetchReplay(matchID: string): Promise<{ complete: boolean; frames: ReplayFrame[] }> {
@@ -289,6 +300,12 @@ export class FileStorage extends Async {
 
   override async setMetadata(matchID: string, metadata: Server.MatchData): Promise<void> {
     const incoming = jsonCopy(metadata);
+    const pending = this.pendingStateWrite;
+    if (pending?.matchID === matchID) {
+      this.pendingStateWrite = undefined;
+      pending.update.metadata = incoming;
+      return pending.done;
+    }
     return this.enqueue(matchID, async () => {
       if (this.isMatchActive && !this.isMatchActive(matchID)) return;
       const record = await this.readMatch(matchID);
