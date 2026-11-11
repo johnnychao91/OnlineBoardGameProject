@@ -18,6 +18,4 @@ export interface PosterOptions {
   info: RoomInfo;
   step: number;
   totalSteps: number;
-  page?: number;
-  fullLength?: boolean;
 }

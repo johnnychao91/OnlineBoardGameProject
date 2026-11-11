@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { EchoState } from '../games/echo/game';
 import { normalizeEchoOptions } from '../games/echo/rules';
 import type { RoomInfo } from './api';
-import { buildEchoPosterModel, ECHO_POSTER_ROUNDS_PER_PAGE } from './echo-poster';
+import { buildEchoPosterModel } from './echo-poster';
 
 const seats = ['2', '6', '10'];
 const info: RoomInfo = {
@@ -29,20 +29,20 @@ describe('Cup Echo full word-chain PNG', () => {
       { number: 1, matched: false, words: ['風箏', '未作答', '…'] },
       { number: 2, matched: true, words: ['鳳梨', '菠蘿', '鳳梨'] },
     ]);
-    expect(model.headline).toBe('我們在第 2 輪相遇了');
-    expect(model.note).toBe('全員確認同義');
+    expect(model.headline).toBe('我們在第 2 輪產生共鳴');
+    expect(model.note).toBe('同義共鳴');
     expect(JSON.stringify(model)).not.toMatch(/private-room|private-match|機密草稿|未公開封詞|hidden-link/);
   });
   it('does not mark a last round as successful when the round limit was reached', () => {
     const model = buildEchoPosterModel({ G: { ...state, result: 'round-limit' }, info, step: 12, totalSteps: 12 });
-    expect(model.headline).toBe('這一桌尚未相遇');
+    expect(model.headline).toBe('這一桌尚未共鳴');
     expect(model.rounds.every(round => !round.matched)).toBe(true);
   });
-  it('retains every round for paginated export up to the 1,000-round limit', () => {
+  it('retains every round in a single export up to the 1,000-round limit', () => {
     const history = Array.from({ length: 1000 }, (_, index) => ({ number: index + 1, words: { 2: '晚風' }, timedOut: false }));
     const { rounds } = buildEchoPosterModel({ G: { ...state, history, round: 1000 }, info, step: 1, totalSteps: 1 });
     expect(rounds).toHaveLength(1000);
-    expect(rounds.slice(166 * ECHO_POSTER_ROUNDS_PER_PAGE).map(round => round.number)).toEqual([997, 998, 999, 1000]);
+    expect(rounds.slice(-4).map(round => round.number)).toEqual([997, 998, 999, 1000]);
     expect(rounds.filter(round => round.matched).map(round => round.number)).toEqual([1000]);
   });
 });

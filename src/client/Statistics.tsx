@@ -196,15 +196,15 @@ export function GameStatisticsCard({ game }: { game: GameStatistics }) {
 function EchoStatistics({ echo }: { echo?: GameStatistics['echo'] }) {
   const { groups = [], leaders = [] } = echo ?? {};
   return <div className="echo-statistics">
-    <h4>相遇紀錄</h4>
-    {groups.length ? <div className="table-scroll"><table aria-label="依人數查看相遇紀錄">
-      <thead><tr><th>人數</th><th>完成局數</th><th>相遇率</th><th>成功局平均輪數</th></tr></thead>
+    <h4>共鳴紀錄</h4>
+    {groups.length ? <div className="table-scroll"><table aria-label="依人數查看共鳴紀錄">
+      <thead><tr><th>人數</th><th>完成局數</th><th>共鳴率</th><th>達成共鳴的平均輪數</th></tr></thead>
       <tbody>{groups.map(group => <tr key={group.numPlayers}><td>{group.numPlayers} 人</td><td>{group.completed} 局</td>
         <td>{(100 * group.matched / group.completed).toFixed(1)}%</td><td>{group.averageRounds === null ? '—' : group.averageRounds + ' 輪'}</td></tr>)}</tbody>
     </table></div> : <p className="small muted">尚無正式對局。</p>}
-    <h4>相遇次數排行榜</h4>
-    {leaders.length ? <div className="table-scroll"><table aria-label="相遇次數排行榜">
-      <thead><tr><th>名次</th><th>暱稱</th><th>相遇次數</th></tr></thead>
+    <h4>共鳴次數排行榜</h4>
+    {leaders.length ? <div className="table-scroll"><table aria-label="共鳴次數排行榜">
+      <thead><tr><th>名次</th><th>暱稱</th><th>共鳴次數</th></tr></thead>
       <tbody>{leaders.map((leader, index) => <tr key={index}><td>{leaders.findIndex(entry => entry.matches === leader.matches) + 1}</td>
         <td>{leader.name}</td><td><strong>{leader.matches} 次</strong></td></tr>)}</tbody>
     </table></div> : <p className="small muted">還沒有玩家上榜。</p>}

@@ -24,14 +24,10 @@ export function buildEchoPosterModel({ G: state, info }: PosterOptions) {
   }));
   return {
     names, rounds, success,
-    headline: success ? `我們在第 ${G.round} 輪相遇了` : G.result === 'round-limit' ? '這一桌尚未相遇' : '這一桌的聯想詞鏈',
-    note: G.result === 'same-meaning' ? '全員確認同義' : success ? '全員同詞' : '未央酒肆 · 逐輪詞鏈',
+    headline: success ? `我們在第 ${G.round} 輪產生共鳴` : G.result === 'round-limit' ? '這一桌尚未共鳴' : '這一桌的聯想詞鏈',
+    note: G.result === 'same-meaning' ? '同義共鳴' : success ? '同詞共鳴' : '未央酒肆 · 逐輪詞鏈',
   };
 }
-
-// Six rounds keep a four-player page with maximum-length answers within
-// mobile browser canvas limits in paginated exports.
-export const ECHO_POSTER_ROUNDS_PER_PAGE = 6;
 
 const WIDTH = 1080;
 const FONT = 'system-ui, "Microsoft JhengHei", "PingFang TC", "Noto Sans TC", sans-serif';
@@ -169,13 +165,9 @@ function drawEchoCup(ctx: CanvasRenderingContext2D, y: number, success: boolean,
 }
 
 export async function createEchoPoster(options: PosterOptions): Promise<Blob> {
-  const { names, rounds: history, headline, note, success } = buildEchoPosterModel(options);
-  const pageCount = Math.max(1, Math.ceil(history.length / ECHO_POSTER_ROUNDS_PER_PAGE));
-  const page = Math.max(0, Math.min(options.page ?? 0, pageCount - 1));
-  const start = page * ECHO_POSTER_ROUNDS_PER_PAGE;
-  const rounds = options.fullLength ? history : history.slice(start, start + ECHO_POSTER_ROUNDS_PER_PAGE);
+  const { names, rounds, headline, note, success } = buildEchoPosterModel(options);
   const canvas = document.createElement('canvas');
-  const ctx = canvas.getContext('2d', { alpha: false, willReadFrequently: options.fullLength === true });
+  const ctx = canvas.getContext('2d', { alpha: false, willReadFrequently: true });
   if (!ctx || !names.length) throw new Error('無法建立逐輪詞鏈圖。');
 
   const margin = 48, rowLabel = 114, gap = 14;
@@ -250,9 +242,7 @@ export async function createEchoPoster(options: PosterOptions): Promise<Blob> {
     if (!rows.length) write(ctx, '這局還沒有揭曉的詞。', WIDTH / 2, startRows + 40, font(28, 550), MUTED);
     if (bottom >= footer) {
       write(ctx, note, WIDTH / 2, footer + 15, font(27, 650), GOLD);
-      const summary = options.fullLength || pageCount === 1 ? `共 ${history.length} 輪公開紀錄`
-        : `第 ${rounds[0].number}～${rounds.at(-1)!.number} 輪 · 共 ${history.length} 輪 · 第 ${page + 1}／${pageCount} 張`;
-      write(ctx, summary, WIDTH / 2, footer + 51, font(21, 500), MUTED);
+      write(ctx, `共 ${rounds.length} 輪公開紀錄`, WIDTH / 2, footer + 51, font(21, 500), MUTED);
       drawEchoCup(ctx, footer + 26, success, cup);
     }
   }

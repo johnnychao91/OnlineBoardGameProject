@@ -13,7 +13,7 @@ import './echo.css';
 
 type BoardProps = { G: EchoState; playerID: string | null; isConnected?: boolean; moves: Record<string, (...args: any[]) => unknown> };
 const playerName = (info: RoomInfo, id: string) => info.players.find(player => String(player.id) === id)?.name || '酒肆客人';
-const phaseLabel = (G: EchoState) => G.status === 'writing' ? '各自封詞' : G.status === 'review' ? '一起揭曉' : G.result === 'round-limit' ? '本桌已結束' : '相遇了';
+const phaseLabel = (G: EchoState) => G.status === 'writing' ? '各自封詞' : G.status === 'review' ? '一起揭曉' : G.result === 'round-limit' ? '本桌已結束' : '全桌共鳴';
 const didMatch = (G: EchoState) => G.result === 'same-word' || G.result === 'same-meaning';
 
 export function EchoBoard({ G, playerID, moves, isConnected = true }: BoardProps) {
@@ -103,7 +103,7 @@ function EchoControls({ G, id, connected, moves, onRepeat }: {
         {own.sealed && <p className="small muted" role="status">目前已封詞：{G.private[id]?.word}</p>}</form>
       : G.rulesVersion === 2 ? <p>最後一輪已揭曉，倒數結束後自動結算。</p>
       : own.reviewed ? <p role="status">已確認，等待其他客人。</p>
-      : <><p>{echoCanAgree(G) ? '如果用詞不同但意思相同，全員選擇「意思相同」也算相遇。' : '有人沒有送出，這輪繼續往下聯想。'}</p>
+      : <><p>{echoCanAgree(G) ? '用詞不同也能共鳴。全員選擇「意思相同」，就達成同義共鳴。' : '有人沒有送出，這輪繼續往下聯想。'}</p>
         <div className="echo-actions">{echoCanAgree(G) && <button type="button" className="button primary" disabled={busy || !connected} onClick={() => send('reviewWords', true)}>意思相同</button>}
           <button type="button" className="button secondary" disabled={busy || !connected} onClick={() => send('reviewWords', false)}>
             {G.round >= G.options.roundLimit ? '查看結算' : '繼續聯想'}</button></div></>}
@@ -121,7 +121,7 @@ function EchoMeaningVote({ G, reviewed, connected, vote }: { G: EchoState; revie
     return () => window.clearTimeout(timer);
   }, [pending, reviewed]);
   return <div className="echo-meaning">
-    <p className="small muted">第 {G.history.at(-1)?.number} 輪的詞若意思相同，全員確認即相遇。</p>
+    <p className="small muted">第 {G.history.at(-1)?.number} 輪的詞若意思相同，全員確認就能達成同義共鳴。</p>
     <button type="button" className="button secondary" disabled={!connected || pending || reviewed} onClick={() => { setPending(true); vote(); }}>
       {reviewed ? '已確認意思相同' : pending ? '正在確認…' : '意思相同'}
     </button>
@@ -149,7 +149,7 @@ function EchoLayout({ G, info, live, repeatedKey, children }: { G: EchoState; in
         <div className="echo-desk-head"><span>第 {G.round}／{G.options.roundLimit} 輪</span><strong role="status">{phaseLabel(G)}</strong>
           {live && G.deadline !== null && <EchoTimer deadline={G.deadline} />}
           {live && G.status === 'writing' && G.deadline === null && <span>不限時</span>}</div>
-        <div className="echo-clues"><h2>{matched ? (G.result === 'same-word' ? '全員同詞' : '全員確認同義') : G.status === 'finished' ? '本桌尚未相遇' : G.status === 'review' ? '杯中的詞' : G.clues.length ? '沿著這些詞繼續想' : '先各想一個詞'}</h2>
+        <div className="echo-clues"><h2>{matched ? (G.result === 'same-word' ? '同詞共鳴' : '同義共鳴') : G.status === 'finished' ? '本桌尚未共鳴' : G.status === 'review' ? '杯中的詞' : G.clues.length ? '沿著這些詞繼續想' : '先各想一個詞'}</h2>
           {G.status === 'writing' && !!G.clues.length && <ul>{G.clues.map(word => <li key={word}>{word}</li>)}</ul>}
           {matched && <span className="echo-ripples" aria-hidden="true"><i /><i /><i /></span>}</div>
         <ul className="echo-cups">{ids.map(id => {
@@ -171,7 +171,7 @@ function EchoLayout({ G, info, live, repeatedKey, children }: { G: EchoState; in
     <section className="panel echo-history" aria-label="逐輪詞鏈">
         <h2>逐輪詞鏈</h2>
         {G.history.length ? <ol>{G.history.map(round => <li key={round.number} data-matched={matched && G.round === round.number}>
-          <h3>第 {round.number} 輪 {matched && G.round === round.number && <small>{G.result === 'same-word' ? '同詞相遇' : '同義相遇'}</small>}</h3>
+          <h3>第 {round.number} 輪 {matched && G.round === round.number && <small>{G.result === 'same-word' ? '同詞共鳴' : '同義共鳴'}</small>}</h3>
           {round.timedOut && <p className="small muted">倒數結束，採用最後同步的輸入。</p>}
           <dl>{ids.map(id => {
             const word = round.words[id];

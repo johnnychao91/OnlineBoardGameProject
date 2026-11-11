@@ -34,7 +34,7 @@ export function EchoPreviousResult({ seat, matchID }: { seat: AuthSession; match
 
   return <div className="echo-previous-result">
     {matchedWords.length > 0 && <div className="echo-previous-match">
-      <span className="small muted">第 {finalRound?.number} 輪相遇的詞</span>
+      <span className="small muted">第 {finalRound?.number} 輪達成共鳴的詞</span>
       <ul>{matchedWords.map(word => <li key={word}>{word}</li>)}</ul>
     </div>}
     <BattleReport G={G} info={room} perspective="blind" />

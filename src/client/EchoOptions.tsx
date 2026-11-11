@@ -49,7 +49,7 @@ function EchoOptionsForm({ seat, info, disabled, onBusy, onUpdate, applied, live
         </select></label>
       </>}</div>
     {busy && <p className="small muted" role="status">正在套用設定…</p>}
-    <p className="small muted">{live ? '封詞中切換秒數會從套用時重新計時，選「不限時」會停止倒數。' : '選擇後立即套用，並清除全員準備。正式局會用匿名瀏覽器身分累計相遇次數，排行榜只顯示暱稱和次數。'}</p>
+    <p className="small muted">{live ? '封詞中切換秒數會從套用時重新計時，選「不限時」會停止倒數。' : '選擇後立即套用，並清除全員準備。正式局會用匿名瀏覽器身分累計共鳴次數，排行榜只顯示暱稱和次數。'}</p>
     <ErrorMessage>{error}</ErrorMessage>
   </section>;
 }
