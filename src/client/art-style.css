@@ -84,7 +84,7 @@
 #root:has(> [data-art-game="star-workshop"]) { --theme-hue: 230; }
 #root:has(> [data-art-game="cup-echo"]) { --theme-hue: 278; }
 
-#root :is(.home-page, .rules-page, .room-lobby) { --mint: var(--theme-accent); }
+#root :is(.home-page, .join-page, .rules-page, .room-lobby) { --mint: var(--theme-accent); }
 #root > .site-footer { color: var(--theme-text); }
 #root > .site-footer .site-footer-privacy { color: var(--theme-accent); }
 
@@ -124,6 +124,22 @@
 :root:root :is(.intro-copy, .create-panel form > label, .feature-row, .room-flexibility) { color: var(--theme-text); }
 :root:root .note > svg { color: var(--theme-accent); }
 :root:root .intro h1 { text-shadow: 2px 3px 0 #080e13, 0 0 28px #000; }
+
+:root:root .join-panel .large-orbit {
+  color: var(--theme-accent);
+  background: var(--theme-raised);
+  border-color: var(--theme-border);
+}
+:root:root .join-panel .access-picker legend { color: var(--theme-text); }
+:root:root .join-panel .access-picker button {
+  background: var(--theme-dark);
+  border-color: var(--theme-border);
+  color: var(--theme-text);
+}
+:root:root .join-panel .access-picker button.selected {
+  background: var(--theme-raised);
+  border-color: var(--theme-accent);
+}
 
 /* Flat, opaque reading surfaces keep the illustration behind public text. */
 :root:root :is(.panel, .note, .action-dock, .spectator-roster-panel) {
