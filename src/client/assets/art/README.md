@@ -41,6 +41,14 @@ Make a transparent square alternate sprite of this exact purple gold-trimmed plu
 Use case: background-extraction. Regenerate the sealed-word cup prop asset for 《杯中回聲》 as a clean standalone painted cutout, using the supplied card as design reference. Preserve the cup's distinctive low purple glazed ceramic, delicate plum blossom decoration, gold lip and small gold finial on its fitted lid, and the warm amber rim light. Keep the entire cup and lid clearly centered in a square, occupying about 80% of the width with generous transparent padding and a clean antialiased silhouette. Remove the coaster as well as the candle, curtains, window, floor, table, distant scenery, cast shadow, and any atmospheric glow outside the object. The surroundings must be genuine transparent alpha on all sides, not a drawn checkerboard, no gradient or flat backdrop. No card frame, letters, logos, text or watermark. Refined gouache-style hand-painted fantasy tabletop object, readable at thumbnail scale.
 ```
 
+### 杯中回聲詞鏈紙條
+
+`echo/word-slip.webp` 由內建 ImageGen 生成，轉為 1086 × 362 的透明 WebP。PNG 詞鏈圖會把公開詞語排在紙條上，相遇輪次另加金色星記。
+
+```text
+Use case: stylized-concept. Generate a single standalone blank horizontal handwritten-note paper slip asset for the Taiwanese fantasy tavern game Cup Echo (杯中回聲). Direct overhead view, almost rectangular and very flat, roughly 3:1 width-to-height, gently uneven hand-torn deckle edges, no curls or rolled ends. Muted warm antique wheat and light honey paper, softly lit by amber lantern light, subtle fine mulberry fibers in hand-painted gouache. A little delicate pale plum blossom watermark confined to a far corner. Center 85% calm, matte, consistently medium-light and fully opaque so dark runtime Chinese text will be readable. Whole uninterrupted paper silhouette, centered in a wide canvas, with true transparent alpha and a modest empty margin on all four sides. One slip only. No lettering, symbols, lines, printed borders, stamp, background, scene, table, props or cast shadow.
+```
+
 ## 太空維修站生成提示
 
 ```text

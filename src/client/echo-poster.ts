@@ -3,6 +3,7 @@ import type { PosterOptions } from './game-types';
 import tavernArt from './assets/art/cup-echo-tavern.webp';
 import endlessBarLogo from './assets/endlessbar-logo-transparent.png';
 import openCup from './assets/echo/open-cup.webp';
+import wordSlip from './assets/echo/word-slip.webp';
 
 function clean(value: unknown, limit: number) {
   if (typeof value !== 'string') return '';
@@ -30,10 +31,10 @@ export function buildEchoPosterModel({ G: state, info }: PosterOptions) {
 const WIDTH = 1080;
 const FONT = 'system-ui, "Microsoft JhengHei", "PingFang TC", "Noto Sans TC", sans-serif';
 const PALETTES = [
-  { card: '#332444', accent: '#dbc4ef' },
-  { card: '#213b3d', accent: '#b6e1d8' },
-  { card: '#49302e', accent: '#f5ccb1' },
-  { card: '#2a3450', accent: '#c6d3ff' },
+  { ink: '#432540', accent: '#dbc4ef' },
+  { ink: '#23433b', accent: '#b6e1d8' },
+  { ink: '#552d24', accent: '#f5ccb1' },
+  { ink: '#2c3454', accent: '#c6d3ff' },
 ];
 const GOLD = '#e7b773';
 const TEXT = '#f2e4ef';
@@ -68,6 +69,19 @@ function box(ctx: CanvasRenderingContext2D, x: number, y: number, width: number,
   if (edge) { ctx.strokeStyle = edge; ctx.lineWidth = 2; ctx.stroke(); }
 }
 
+function drawWordSlip(ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number, matched: boolean, paper?: HTMLImageElement) {
+  if (!paper) {
+    box(ctx, x, y, width, height, '#e8c795', matched ? GOLD : undefined);
+    return;
+  }
+  ctx.save();
+  ctx.shadowColor = matched ? '#e7b773aa' : '#100912b0';
+  ctx.shadowBlur = matched ? 12 : 5;
+  ctx.shadowOffsetY = matched ? 0 : 3;
+  ctx.drawImage(paper, x, y, width, height);
+  ctx.restore();
+}
+
 async function loadArt(src: string) {
   const image = new Image();
   image.src = src;
@@ -94,28 +108,20 @@ function drawTavern(ctx: CanvasRenderingContext2D, height: number, image?: HTMLI
 function drawEchoCup(ctx: CanvasRenderingContext2D, y: number, cup?: HTMLImageElement) {
   if (!cup) return;
   const size = 240, x = WIDTH / 2;
-  // The mouth center sits at (351.5, 272) on the 704 px open-cup artwork.
-  const rimY = y + size * 272 / 704;
+  // The bowl meets the table at (351.5, 578) on the 704 px sprite.
+  const footY = y + size * 578 / 704;
   ctx.save();
   ctx.shadowColor = '#efac5f';
-  ctx.shadowBlur = 16;
+  ctx.shadowBlur = 13;
   ctx.lineWidth = 2.5;
-  for (const [radius, color] of [[98, '#ffd993d9'], [151, '#efb97099'], [212, '#e7a95f5e']] as const) {
+  for (const [radius, color] of [[52, '#ffe3a9'], [98, '#ffd993d9'], [151, '#efb97099'], [212, '#e7a95f5e']] as const) {
     ctx.strokeStyle = color;
     ctx.beginPath();
-    ctx.ellipse(x, rimY, radius, radius * .19, 0, 0, Math.PI * 2);
-    ctx.stroke();
-  }
-  ctx.shadowBlur = 0;
-  ctx.drawImage(cup, x - size * 351.5 / 704, y, size, size);
-  ctx.shadowBlur = 10;
-  for (const [radius, color] of [[20, '#ffe7b8'], [44, '#ffce8699']] as const) {
-    ctx.strokeStyle = color;
-    ctx.beginPath();
-    ctx.ellipse(x, rimY, radius, radius * .17, 0, 0, Math.PI * 2);
+    ctx.ellipse(x, footY, radius, radius * .15, 0, 0, Math.PI * 2);
     ctx.stroke();
   }
   ctx.restore();
+  ctx.drawImage(cup, x - size * 351.5 / 704, y, size, size);
 }
 
 export async function createEchoPoster(options: PosterOptions): Promise<Blob> {
@@ -133,8 +139,8 @@ export async function createEchoPoster(options: PosterOptions): Promise<Blob> {
   const rows = rounds.map(round => {
     const style = font(round.matched ? 38 : 32, round.matched ? 750 : 550);
     const lineHeight = round.matched ? 48 : 42;
-    const words = round.words.map(word => wrap(ctx, word, columnWidth - 30, style));
-    const height = Math.max(round.matched ? 120 : 74, Math.max(...words.map(lines => lines.length)) * lineHeight + (round.matched ? 52 : 24));
+    const words = round.words.map(word => wrap(ctx, word, columnWidth - 40, style));
+    const height = Math.max(round.matched ? 120 : 74, Math.max(...words.map(lines => lines.length)) * lineHeight + (round.matched ? 60 : 32));
     return { ...round, style, lineHeight, words, height };
   });
   const rowsHeight = rows.length ? rows.reduce((height, row) => height + row.height + gap, 0) : 96;
@@ -148,7 +154,7 @@ export async function createEchoPoster(options: PosterOptions): Promise<Blob> {
   canvas.width = WIDTH;
   canvas.height = naturalHeight + extra;
 
-  const [tavern, logo, cup] = await Promise.all([loadArt(tavernArt), loadArt(endlessBarLogo), loadArt(openCup)]);
+  const [tavern, logo, cup, paper] = await Promise.all([loadArt(tavernArt), loadArt(endlessBarLogo), loadArt(openCup), loadArt(wordSlip)]);
   drawTavern(ctx, canvas.height, tavern);
   if (logo) ctx.drawImage(logo, WIDTH / 2 - 78, headerOffset - 105, 156, 156);
   ctx.textAlign = 'center';
@@ -173,11 +179,11 @@ export async function createEchoPoster(options: PosterOptions): Promise<Blob> {
     write(ctx, `第 ${row.number} 輪`, margin + (rowLabel - gap) / 2, y + height / 2, font(22, 600), row.matched ? GOLD : MUTED);
     row.words.forEach((lines, index) => {
       const x = columnX(index), palette = PALETTES[index];
-      box(ctx, x, y, columnWidth, height, palette.card, row.matched ? GOLD : undefined);
-      if (row.matched) write(ctx, '✦', x + columnWidth / 2, y + 24 + rowExtra / 2, font(24, 700), GOLD);
+      drawWordSlip(ctx, x, y, columnWidth, height, row.matched, paper);
+      if (row.matched) write(ctx, '✦', x + columnWidth / 2, y + 27 + rowExtra / 2, font(24, 700), '#815123');
       const textCenter = y + height / 2 + (row.matched ? 16 : 0);
       lines.forEach((line, i) => write(ctx, line, x + columnWidth / 2,
-        textCenter + (i - (lines.length - 1) / 2) * row.lineHeight, row.style, palette.accent));
+        textCenter + (i - (lines.length - 1) / 2) * row.lineHeight, row.style, palette.ink));
     });
     y += height + gap;
   }
