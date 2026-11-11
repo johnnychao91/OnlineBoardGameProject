@@ -3,7 +3,7 @@ import type { PosterOptions } from './game-types';
 import tavernArt from './assets/art/cup-echo-tavern.webp';
 import endlessBarLogo from './assets/endlessbar-logo-transparent.png';
 import openCup from './assets/echo/open-cup.webp';
-import wordSlip from './assets/echo/word-slip.webp';
+import wordSlip from './assets/echo/word-slip-aged.webp';
 
 function clean(value: unknown, limit: number) {
   if (typeof value !== 'string') return '';

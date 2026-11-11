@@ -16,8 +16,6 @@
 .echo-cups li { position: relative; display: grid; align-content: start; justify-items: center; min-width: 0; gap: 4px; text-align: center; padding: 12px 6px; border: 1px solid var(--theme-border); border-radius: 12px; background: var(--theme-panel); overflow-wrap: anywhere; }
 .echo-cup-art { display: grid; place-items: center; width: min(100%, 150px); aspect-ratio: 1; }
 .echo-cup-art img { display: block; width: 100%; height: auto; }
-/* The 640 px closed sprite fits inside the centered 704 px open sprite canvas. */
-.echo-cup-art[data-closed="true"] img { width: calc(100% * 640 / 704); }
 .echo-cups li[data-sealed="true"] { border-color: #bb925f; }
 .echo-cups li[data-sealed="true"] strong, [data-matched="true"] .echo-clues h2 { color: #edbd7e; }
 .echo-progress { margin: 14px 0 0; text-align: center; }

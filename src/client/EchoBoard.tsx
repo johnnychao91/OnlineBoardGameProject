@@ -120,10 +120,9 @@ function EchoLayout({ G, info, live, children }: { G: EchoState; info: RoomInfo;
         <ul className="echo-cups">{ids.map(id => {
           const sealed = G.status === 'writing' && G.players[id].sealed;
           const word = revealed?.words[id];
-          const size = sealed ? 640 : 704;
           return <li key={id} data-sealed={sealed || !!word}>
-            <span className="echo-cup-art" data-closed={sealed}>
-              <img src={sealed ? sealedCup : openCup} alt="" width={size} height={size} />
+            <span className="echo-cup-art">
+              <img src={sealed ? sealedCup : openCup} alt="" width={704} height={704} />
             </span>
             <span>{playerName(info, id)}</span>
             <strong>{revealed ? word ?? '未作答' : sealed ? '已封詞' : '待封詞'}</strong>

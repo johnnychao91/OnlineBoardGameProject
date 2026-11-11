@@ -29,24 +29,24 @@
 
 ### 杯中回聲封詞杯
 
-`echo/open-cup.webp` 是待封詞及揭曉時使用的開蓋插畫。以內建 ImageGen 參照開口杯身與原闔蓋插畫，將原杯蓋放在杯子的右前方。開蓋圖輸出為 704 × 704 透明 WebP，杯口與杯腳對齊置中於同一畫布的 640 × 640 闔蓋圖。
+`echo/open-cup.webp` 與 `echo/sealed-cup.webp` 是 704 × 704 的透明 WebP。用內建 ImageGen 同時生成分離的陶杯與杯蓋，兩張圖共用同一張杯身及相同座標。開蓋時杯蓋在右前方，闔蓋時放在杯口。杯腳中心維持於 (351.5, 578)，供逐輪詞鏈圖對齊桌面波紋。
 
 ```text
-Make a transparent square alternate sprite of this exact purple gold-trimmed plum blossom porcelain tea bowl. Reference image 1 is the lidless bowl, and reference image 2 shows the matching lid and bowl. Keep the bowl upright, full and centered with its dark violet open elliptical rim entirely visible and its gold foot aligned to the same baseline as reference image 1. Put the lid in the FOREGROUND on the LOWER RIGHT, propped up on its outer rim beside the bowl's foot. It leans against the outside of the lower right wall, with its front edge visibly OVERLAPPING the lower right of the painted cup. All parts of the lid are in front of the cup and the entire lid outline including the gold finial is visible; the cup cannot overlap any part of the lid. Position the lid fully below the cup mouth, right at table level, with its purple dome and gold finial seen in three-quarter view pointing slightly up and toward the viewer. The contact point of the tilted lid is at the same baseline as the cup foot. Approximate target layout on the square: bowl body x 14–81%, y 30–85%; foreground lid x 62–96%, y 52–85%. Keep upper third mostly clear. Match violet glaze, plum blossoms, gold, and painted gouache illustration with warm reflections. Exactly one bowl and one lid, no saucer, no shadow, no backdrop, no tabletop surface, no lettering, no smoke. Genuine transparent alpha surrounding both objects. Composition must read clearly at a small 100-pixel thumbnail.
-```
-
-以內建 `image_gen` 參考舊卡圖重製，輸出 640 × 640 的透明 WebP，供實戰卡面與圖鑑共用。
-
-```text
-Use case: background-extraction. Regenerate the sealed-word cup prop asset for 《杯中回聲》 as a clean standalone painted cutout, using the supplied card as design reference. Preserve the cup's distinctive low purple glazed ceramic, delicate plum blossom decoration, gold lip and small gold finial on its fitted lid, and the warm amber rim light. Keep the entire cup and lid clearly centered in a square, occupying about 80% of the width with generous transparent padding and a clean antialiased silhouette. Remove the coaster as well as the candle, curtains, window, floor, table, distant scenery, cast shadow, and any atmospheric glow outside the object. The surroundings must be genuine transparent alpha on all sides, not a drawn checkerboard, no gradient or flat backdrop. No card frame, letters, logos, text or watermark. Refined gouache-style hand-painted fantasy tabletop object, readable at thumbnail scale.
+Create a new production sprite sheet for Cup Echo using the two pictured old cup variants as design references. Change material decisively from glossy porcelain and shiny metal to rustic handmade kiln-fired stoneware: matte dusty plum-violet clay, visible fine clay grog, horizontal throwing rings, irregular dark speckles, brown terracotta showing through at the unglazed foot, soft diffuse amber light. Retain the recognizable flared handleless bowl profile, pale hand-painted plum blossom twig, and a restrained ochre slip line as a matte rim accent. Crucial layout: exactly TWO separate objects in ONE wide transparent image, side by side, with a broad vertical completely transparent gutter through the center, no overlap. Left half: one upright OPEN bowl with no lid, fully visible oval mouth and foot, same front view as references. Right half: one detached matching convex lid by itself with small blunt teardrop clay knob, seen at the SAME camera angle, with a broad horizontal elliptical lip as if ready to fit atop the bowl. No other cup and no assembled variant. Both objects completely within their respective halves with generous transparent margins. Preserve the warm hand-painted fantasy board game art style. No ground, shadow outside objects, text, background, saucer, reflective glaze, gold metal, or props. True transparent alpha.
 ```
 
 ### 杯中回聲詞鏈紙條
 
-`echo/word-slip.webp` 由內建 ImageGen 生成，轉為 1086 × 362 的透明 WebP。PNG 詞鏈圖會把公開詞語排在紙條上，相遇輪次另加金色星記。
+`echo/word-slip.webp` 是原版透明梅花紙條，由內建 ImageGen 生成，轉為 1086 × 362 的 WebP。
 
 ```text
 Use case: stylized-concept. Generate a single standalone blank horizontal handwritten-note paper slip asset for the Taiwanese fantasy tavern game Cup Echo (杯中回聲). Direct overhead view, almost rectangular and very flat, roughly 3:1 width-to-height, gently uneven hand-torn deckle edges, no curls or rolled ends. Muted warm antique wheat and light honey paper, softly lit by amber lantern light, subtle fine mulberry fibers in hand-painted gouache. A little delicate pale plum blossom watermark confined to a far corner. Center 85% calm, matte, consistently medium-light and fully opaque so dark runtime Chinese text will be readable. Whole uninterrupted paper silhouette, centered in a wide canvas, with true transparent alpha and a modest empty margin on all four sides. One slip only. No lettering, symbols, lines, printed borders, stamp, background, scene, table, props or cast shadow.
+```
+
+`echo/word-slip-aged.webp` 是逐輪詞鏈 PNG 使用的微作舊版本。紙邊有少量自然缺口、外露纖維和淡褐色磨痕，保留右上角梅花與中央題字區。
+
+```text
+Refine the ORIGINAL flat honey-colored Cup Echo mulberry paper slip in the supplied reference. Keep its exact broad horizontal 3:1 composition, quiet honey-toned writing surface, faint upper-right plum blossoms, near-straight overall silhouette, and thin flat paper. The desired effect is elegant, lightly timeworn handmade paper from a well-kept East Asian tavern. The silhouette should stay quite close to the reference, with subtle naturally feathered edges and just 3 tiny, asymmetrically placed chipped nicks the size of a grain of rice. Place one small angular flake near the upper left quarter, one small fine nick near the lower right quarter, and a very shallow loss on the right edge. Each indentation less than 2% of paper height; preserve every corner and a clean intact rectangular reading area. Very delicate short fibers visible on some sections, natural unevenness along the edges, slight warm aging near edges, no large bites, no undulating valleys, no fuzzy fringe, no rounded corners with heavy shadows, no burned edge, no stains, no heavy distress, no text or curl. Photorealistically believable paper fibers within the original soft illustration style. The full sheet has genuine transparent alpha around it, with empty safe margins and no exterior glow.
 ```
 
 ## 太空維修站生成提示
