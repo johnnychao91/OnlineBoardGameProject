@@ -5,8 +5,8 @@ import { Icon } from './ui';
 import { DeviceArtwork } from './StationArtwork';
 import './station-display.css';
 
-export const roleNames = { engineer: '維修員', saboteur: '干擾者' };
-export const cardNames = { stable: '穩定設備', repair: '維修模組', hazard: '反應爐危機' };
+export const roleNames = { engineer: '維修員', saboteur: '干擾者', 'chief-engineer': '大工程師' };
+export const cardNames = { stable: '穩定設備', repair: '維修模組', hazard: '反應爐危機', stabilized: '已穩定的反應爐' };
 export function initials(name: string) { return Array.from(name || '?').slice(0, 1).join(''); }
 
 export function MissionProgress({ G, numPlayers }: { G: StationState; numPlayers: number }) {
@@ -26,6 +26,7 @@ export function TurnNotice({ G, nameOf, ownID, replay = false }: {
   const playing = G.status === 'playing';
   const myTurn = playing && G.activePlayer === ownID;
   const lastReveal = G.log.at(-1);
+  const savior = G.log.find(entry => entry.round === G.round && entry.savior);
   const review = G.status === 'round-review';
   const heading = G.status === 'briefing' ? '先確認你的任務資訊'
     : G.status === 'claiming' ? '宣稱階段 · 每人說出維修模組數量'
@@ -44,7 +45,11 @@ export function TurnNotice({ G, nameOf, ownID, replay = false }: {
             : G.status === 'finished' ? `${G.winReason === 'all-repairs' ? '所有維修模組都已找出。'
               : G.winReason === 'hazard' ? '反應爐危機被揭開。' : '四輪結束，仍有維修模組沒有找到。'}${replay ? '下方保留最後牌桌，可繼續復盤。' : '保留最後牌桌片刻後，大家會一起返回等待室。'}`
               : '集合完成後即可開始。'}</p>
-      {(review || G.status === 'finished') && lastReveal && <p className="last-reveal" role="status">
+      {savior && <div className="station-savior-result">
+        <DeviceArtwork kind={savior.kind} />
+        <p className="last-reveal"><strong>{nameOf(savior.actorID)} 是大工程師</strong>，對 {nameOf(savior.targetID)} 的第 {savior.slot + 1} 張牌使用了反應爐救星。{savior.kind === 'stabilized' ? '反應爐危機已解除。' : <>公開「{cardNames[savior.kind]}」，該玩家的暗牌已重洗。</>}</p>
+      </div>}
+      {(review || G.status === 'finished') && lastReveal && !lastReveal.savior && <p className="last-reveal" role="status">
         最後揭開：<strong className={`card-kind-${lastReveal.kind}`}>{cardNames[lastReveal.kind]}</strong>
         <span> · {nameOf(lastReveal.actorID)} → {nameOf(lastReveal.targetID)} · 第 {lastReveal.slot + 1} 張</span>
       </p>}
@@ -54,7 +59,7 @@ export function TurnNotice({ G, nameOf, ownID, replay = false }: {
 
 /** Only the public reveal log is used, including in god-view snapshots. */
 export function RoundRevealList({ G, nameOf }: { G: StationState; nameOf: (id: string) => string }) {
-  const reveals = G.log.filter(entry => entry.round === G.round);
+  const reveals = G.log.filter(entry => entry.round === G.round && !entry.savior);
   return <section className="panel station-round-reveals" aria-label={`第 ${G.round} 輪檢修順序`}>
     <div className="section-heading"><h2>本輪檢修順序</h2><span>第 {G.round} 輪 · {reveals.length} 張</span></div>
     {reveals.length ? <ol>{reveals.map((entry, index) => <li key={`${entry.round}-${index}`}
@@ -86,19 +91,21 @@ function CardContents({ slot, kind, revealed, selected }: {
     <DeviceArtwork kind={kind} />
     <Icon type={kind === 'hazard' ? 'signal' : kind === 'repair' ? 'check' : 'orbit'} size={22} />
     <strong>{kind ? cardNames[kind] : '暗牌'}</strong>
-    <span className="card-state-label">{selected ? '預選中' : revealed ? '已翻開' : '未翻開'}</span>
+    <span className="card-state-label">{selected ? '預選中' : revealed ? '已翻開' : kind === 'stabilized' ? '未檢修' : '未翻開'}</span>
   </>;
 }
 
 /** Shared fixed-slot table for players, observers and historical snapshots. */
-export function StationTable({ G, nameOf, ownID, god = false, canSelect = false, onCardClick }: {
+export function StationTable({ G, nameOf, ownID, god = false, canSelect = false, saviorSelection = false, onCardClick }: {
   G: StationState;
   nameOf: (id: string) => string;
   ownID?: string;
   god?: boolean;
   canSelect?: boolean;
+  saviorSelection?: boolean;
   onCardClick?: (targetID: string, slot: number) => void;
 }) {
+  const stabilized = G.log.find(entry => entry.round === G.round && entry.savior && entry.kind === 'stabilized');
   return <section className="table station-table">
     <div className="section-heading">
       <h2>{G.status === 'finished' ? '最後一輪牌桌' : '隊員的設備'}</h2>
@@ -124,7 +131,7 @@ export function StationTable({ G, nameOf, ownID, god = false, canSelect = false,
             {confirmed ? '✓ 已準備' : '待準備'}
           </span>}
           {active && <span className="actor-tag"><Icon type="arrow" size={13} />正在檢修</span>}
-          {role && <span className={`observer-role ${role === 'engineer' ? 'mint' : 'role-saboteur'}`}>{roleNames[role]}</span>}
+          {role && <span className={`observer-role ${role === 'saboteur' ? 'role-saboteur' : 'mint'}`}>{roleNames[role]}</span>}
           <span className="remaining">暗牌 {player.cardCount} 張</span>
         </div>
         <div className="station-player-facts">
@@ -140,7 +147,8 @@ export function StationTable({ G, nameOf, ownID, god = false, canSelect = false,
         <div className="module-cards">
           {slots.map(({ slot, kind: publicKind }) => {
             const revealed = publicKind !== null;
-            const kind = publicKind ?? (god ? G.secret?.cards?.[id]?.[slot] ?? null : null);
+            const knownStabilized = stabilized?.targetID === id && stabilized.slot === slot;
+            const kind = publicKind ?? (knownStabilized ? 'stabilized' : god ? G.secret?.cards?.[id]?.[slot] ?? null : null);
             const pending = G.status === 'playing' ? G.pendingReveal : null;
             const selected = pending?.targetID === id && pending.slot === slot;
             const className = `module-card station-card ${kind ? `face-${kind}` : ''} ${revealed ? 'revealed-card' : ''} ${selected ? 'selected-card' : ''}`;
@@ -150,8 +158,8 @@ export function StationTable({ G, nameOf, ownID, god = false, canSelect = false,
               {contents}
             </div>;
             return <button key={slot} type="button" className={className}
-              disabled={!canSelect || id === ownID} aria-pressed={selected}
-              aria-label={`${selected ? '再次點選確認檢修：' : '預選'}${nameOf(id)}的第 ${slot + 1} 張設備牌`}
+              disabled={!canSelect || (!saviorSelection && id === ownID)} aria-pressed={selected}
+              aria-label={`${saviorSelection ? '用救星選擇：' : selected ? '再次點選確認檢修：' : '預選'}${nameOf(id)}的第 ${slot + 1} 張設備牌${knownStabilized ? '，已穩定的反應爐' : ''}`}
               onClick={() => onCardClick(id, slot)}>
               {contents}
             </button>;

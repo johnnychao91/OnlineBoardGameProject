@@ -1,5 +1,5 @@
 import type { GameID } from './catalog';
-import { stationPlayerView, type StationState } from './station/game';
+import { canUseReactorSavior, stationPlayerView, type StationState } from './station/game';
 import { getCardSlots, repairClaimMaximum } from './station/view-model';
 import { cipherPlayerView, type CipherState } from './cipher/game';
 import { fogAllowedQuestCards, fogPlayerView, type FogState } from './fog/game';
@@ -40,6 +40,10 @@ function stationAction(G: StationState, id: string, random: Random): BotAction |
     return action('declareRepairs', random() < 0.6 ? truth : Math.floor(random() * (maximum + 1)), G.round);
   }
   if (G.status === 'round-review' && !own.reviewAcknowledged) return action('acknowledgeRound', G.round);
+  if (canUseReactorSavior(G, id) && G.private[id]?.composition.hazard) {
+    const choices = getCardSlots(G, id).filter(card => card.kind === null);
+    if (choices.length) return action('useReactorSavior', id, pick(choices, random).slot, G.round);
+  }
   if (G.status !== 'playing' || G.activePlayer !== id) return null;
   if (G.pendingReveal?.actorID === id) {
     return action('reveal', G.pendingReveal.targetID, G.pendingReveal.slot, G.pendingReveal.selectionID);

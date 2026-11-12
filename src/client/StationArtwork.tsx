@@ -9,3 +9,7 @@ export function DeviceArtwork({ kind }: { kind: CardKind | null }) {
 export function RoleArtwork({ role }: { role: Role | undefined }) {
   return role ? <span className="station-role-art" data-art-role={role} aria-hidden="true" /> : null;
 }
+
+export function ReactorSaviorArtwork() {
+  return <span className="station-device-art" data-art-kind="reactor-savior" aria-hidden="true" />;
+}

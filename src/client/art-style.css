@@ -252,7 +252,7 @@
   background: #20362df5;
   border-color: #d8d49b;
 }
-:root:root .station-card:not(.face-stable):not(.face-repair):not(.face-hazard) {
+:root:root .station-card:not(.face-stable):not(.face-repair):not(.face-hazard):not(.face-stabilized) {
   background: linear-gradient(#12222bb3, #0c1822eb), var(--art-station) 70% 42% / 240%;
   border-color: #7e8875;
   color: #e2e5d1;
@@ -262,7 +262,7 @@
   outline-offset: -2px;
   border-color: #eed69b;
 }
-:root:root .role-card.engineer { background: #20372f; border-color: #8cb99c; }
+:root:root .role-card:is(.engineer, .chief-engineer) { background: #20372f; border-color: #8cb99c; }
 :root:root .role-card.saboteur { background: #37242a; border-color: #b1757a; }
 
 /* Only authorized faces receive an artwork marker. Unrevealed equipment uses
@@ -277,6 +277,8 @@
 :root:root .station-device-art[data-art-kind="stable"] { background-image: url('./assets/art/ink-stable-equipment.png'); }
 :root:root .station-device-art[data-art-kind="repair"] { background-image: url('./assets/art/ink-repair-module.png'); }
 :root:root .station-device-art[data-art-kind="hazard"] { background-image: url('./assets/art/ink-reactor-crisis.png'); }
+:root:root .station-device-art[data-art-kind="stabilized"] { background-image: url('./assets/art/ink-stabilized-reactor.webp'); }
+:root:root .station-device-art[data-art-kind="reactor-savior"] { background-image: url('./assets/art/ink-reactor-savior.webp'); }
 :root:root .station-table .station-card:has(.station-device-art) {
   position: relative;
   display: block;
@@ -304,6 +306,7 @@
 }
 :root:root .station-role-art[data-art-role="engineer"] { background-image: url('./assets/art/ink-engineer.png'); }
 :root:root .station-role-art[data-art-role="saboteur"] { background-image: url('./assets/art/ink-saboteur.png'); }
+:root:root .station-role-art[data-art-role="chief-engineer"] { background-image: url('./assets/art/ink-chief-engineer.webp'); }
 :root:root .role-card .possible-roles { clear: both; }
 :root:root :is(.station-round-reveals, .cipher-log) {
   background-image: linear-gradient(180deg, #122025fa, #122025e6 40%, #12202580), var(--art-scene);

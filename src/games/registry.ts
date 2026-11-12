@@ -1,5 +1,5 @@
 import type { Game } from 'boardgame.io';
-import { StationGame, stationObserverView, type StationState } from './station/game';
+import { StationGame, normalizeStationOptions, stationObserverView, type StationState } from './station/game';
 import { CipherGame, cipherObserverView, type CipherState } from './cipher/game';
 import { FogGame, fogObserverView, type FogState } from './fog/game';
 import { normalizeFogOptions, validateFogOptions } from './fog/rules';
@@ -105,7 +105,8 @@ const registeredGames: GameDefinition[] = [{
 }, {
   id: 'space-station', ...gameCatalog['space-station'], game: StationGame,
   isJoinable: (state) => state.status === 'lobby',
-  startSetupData: (participantIDs) => ({ startImmediately: true, participantIDs }),
+  normalizeOptions: normalizeStationOptions,
+  startSetupData: (participantIDs, options) => ({ startImmediately: true, participantIDs, options: normalizeStationOptions(options) }),
   observerView: stationObserverView,
   completedDisplayMs: (state: StationState) => state.rulesVersion === 3 ? 8000 : 0,
   getOutcome: (state: StationState) => {
@@ -114,7 +115,7 @@ const registeredGames: GameDefinition[] = [{
     for (const [id, player] of Object.entries(state.players)) {
       const role = player.revealedRole ?? state.private[id]?.role;
       if (!role) return null;
-      roles[id] = role;
+      roles[id] = role === 'chief-engineer' ? 'engineer' : role;
     }
     return { winner: state.winner, reason: state.winReason, roles };
   },

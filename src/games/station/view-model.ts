@@ -23,7 +23,7 @@ export function possibleRoleCounts(
   const result: Array<{ engineer: number; saboteur: number }> = [];
   for (let engineer = Math.max(0, numPlayers - saboteurs); engineer <= Math.min(engineers, numPlayers); engineer += 1) {
     const saboteur = numPlayers - engineer;
-    if (ownRole === 'engineer' && engineer === 0) continue;
+    if ((ownRole === 'engineer' || ownRole === 'chief-engineer') && engineer === 0) continue;
     if (ownRole === 'saboteur' && saboteur === 0) continue;
     result.push({ engineer, saboteur });
   }

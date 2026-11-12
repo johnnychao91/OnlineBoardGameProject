@@ -6,9 +6,11 @@ import type { Perspective } from './api';
 export function stationSnapshotState(G: StationState, perspective: Perspective): StationState {
   if (perspective === 'god') return G;
   const { private: _private, secret: _secret, ...publicState } = G;
+  const revealedChief = G.log.find(entry => entry.savior)?.actorID;
   return { ...publicState, private: {}, players: Object.fromEntries(Object.entries(G.players).map(([id, player]) => {
     const { revealedRole, ...publicPlayer } = player;
-    return [id, G.status === 'finished' ? { ...publicPlayer, revealedRole } : publicPlayer];
+    return [id, G.status === 'finished' ? { ...publicPlayer, revealedRole }
+      : id === revealedChief ? { ...publicPlayer, revealedRole: 'chief-engineer' } : publicPlayer];
   })) };
 }
 

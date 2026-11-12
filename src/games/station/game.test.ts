@@ -42,7 +42,7 @@ function acknowledgeAll(client: TestClient) {
 
 function counts(cards: CardKind[]): Composition {
   return cards.reduce((total, kind) => {
-    total[kind] += 1;
+    total[kind === 'stabilized' ? 'stable' : kind] += 1;
     return total;
   }, { stable: 0, repair: 0, hazard: 0 });
 }
@@ -113,6 +113,76 @@ function reviewAll(client: TestClient) {
   }
   expect(raw(client)).toMatchObject({ status: 'briefing', round: round + 1 });
 }
+
+describe('optional Chief Engineer', () => {
+  function startWithChief() {
+    const client = makeClient(4, 'chief-engineer', {
+      ...StationGame,
+      setup: context => StationGame.setup!(context, { options: { chiefEngineer: true } }),
+    });
+    readyAndStart(client);
+    const chief = Object.keys(raw(client).players).filter(id => raw(client).private[id].role === 'chief-engineer');
+    expect(chief).toHaveLength(1);
+    expect(Object.values(stationObserverView(raw(client), 'blind').players).every(player => player.revealedRole === undefined)).toBe(true);
+    const [id] = chief;
+    acknowledgeAll(client);
+    return { client, chief: id };
+  }
+
+  it('authorizes the Chief once, defuses the hazard and lets it be inspected like stable equipment', () => {
+    const { client, chief } = startWithChief();
+    const initial = raw(client);
+    const [target, cards] = Object.entries(initial.secret!.cards).find(([, hand]) => hand.includes('hazard'))!;
+    const slot = cards.indexOf('hazard');
+    const other = Object.keys(initial.players).find(id => id !== chief)!;
+    act(client, other, 'useReactorSavior', target, slot, initial.round);
+    act(client, chief, 'useReactorSavior', target, slot, initial.round - 1);
+    expect(raw(client)).toEqual(initial);
+
+    act(client, chief, 'useReactorSavior', target, slot, initial.round);
+    const saved = raw(client);
+    expect(saved).toMatchObject({ status: 'playing', revealsThisRound: 0, activePlayer: initial.activePlayer, repairsFound: 0 });
+    expect(saved.secret!.cards[target][slot]).toBe('stabilized');
+    expect(saved.publicCards![target][slot]).toBeNull();
+    expect(saved.private[target].composition).toEqual({ ...initial.private[target].composition, hazard: 0,
+      stable: initial.private[target].composition.stable + 1 });
+    const publicView = stationObserverView(saved, 'blind');
+    expect(publicView.players[chief].revealedRole).toBe('chief-engineer');
+    expect(publicView.log).toEqual([{ savior: true, kind: 'stabilized', actorID: chief, targetID: target, slot, round: 1 }]);
+    expect(publicView.secret).toBeUndefined();
+    act(client, chief, 'useReactorSavior', target, (slot + 1) % cards.length, saved.round);
+    expect(raw(client)).toEqual(saved);
+    if (raw(client).activePlayer === target) revealChoice(client, choose(client, kind => kind === 'stable'));
+    revealChoice(client, { targetID: target, slot, kind: 'stabilized' });
+    expect(raw(client)).toMatchObject({ status: 'playing', repairsFound: 0, winner: null });
+    expect(raw(client).publicCards![target][slot]).toBe('stabilized');
+    expect(raw(client).private[target].composition.stable).toBe(initial.private[target].composition.stable);
+  });
+
+  it.each(['stable', 'repair'] as const)('publishes a %s result and shuffles only the target’s hidden cards', kind => {
+    const { client, chief } = startWithChief();
+    const initial = raw(client);
+    const target = Object.keys(initial.players).find(id => id !== initial.activePlayer
+      && initial.secret!.cards[id].includes(kind) && initial.secret!.cards[id].includes('stable')
+      && initial.secret!.cards[id].filter(card => card === 'stable').length >= (kind === 'stable' ? 2 : 1))!;
+    const inspected = initial.secret!.cards[target].indexOf('stable');
+    revealChoice(client, { targetID: target, slot: inspected, kind: 'stable' });
+    const before = raw(client);
+    const slot = before.secret!.cards[target].findIndex((card, index) => card === kind && index !== inspected);
+    act(client, chief, 'useReactorSavior', target, inspected, before.round);
+    expect(raw(client)).toEqual(before);
+    act(client, chief, 'useReactorSavior', target, slot, before.round);
+    const after = raw(client);
+    expect(after.log.at(-1)).toMatchObject({ savior: true, kind, slot });
+    expect(after.publicCards).toEqual(before.publicCards);
+    expect(after.private[target].composition).toEqual(before.private[target].composition);
+    expect(after.secret!.cards[target][inspected]).toBe('stable');
+    expect([...after.secret!.cards[target]].sort()).toEqual([...before.secret!.cards[target]].sort());
+    expect(after.revealsThisRound).toBe(1);
+    expect(after.repairsFound).toBe(0);
+    expect(after.activePlayer).toBe(target);
+  });
+});
 
 beforeEach(() => {
   // Rejected adversarial moves deliberately trigger boardgame.io error logging.
@@ -347,7 +417,7 @@ describe('旁觀、復盤與共用遊戲登錄介面', () => {
     const definition = getGameDefinition('space-station')!;
     const client = makeClient();
     expect(definition.startSetupData(['0', '2', '3', '4'])).toEqual({
-      startImmediately: true, participantIDs: ['0', '2', '3', '4'],
+      startImmediately: true, participantIDs: ['0', '2', '3', '4'], options: { chiefEngineer: false },
     });
     expect(definition.getOutcome(raw(client))).toBeNull();
     readyAndStart(client);

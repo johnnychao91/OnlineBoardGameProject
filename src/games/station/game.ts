@@ -3,9 +3,10 @@ import type { FnContext, Game } from 'boardgame.io';
 import { ActivePlayers, INVALID_MOVE } from 'boardgame.io/core';
 import { repairClaimMaximum, stationRolePool } from './view-model';
 
-export type Role = 'engineer' | 'saboteur';
-export type CardKind = 'stable' | 'repair' | 'hazard';
-export type Composition = Record<CardKind, number>;
+export type Faction = 'engineer' | 'saboteur';
+export type Role = Faction | 'chief-engineer';
+export type CardKind = 'stable' | 'repair' | 'hazard' | 'stabilized';
+export type Composition = Record<Exclude<CardKind, 'stabilized'>, number>;
 export type GameStatus = 'lobby' | 'briefing' | 'claiming' | 'playing' | 'round-review' | 'finished';
 export type WinReason = 'all-repairs' | 'hazard' | 'round-limit';
 
@@ -14,6 +15,16 @@ export interface StationSetupData {
   startImmediately?: boolean;
   /** Stable occupied seat IDs, provided only by the authorized server lobby. */
   participantIDs?: string[];
+  options?: StationOptions;
+}
+
+export interface StationOptions { chiefEngineer: boolean }
+export function normalizeStationOptions(input: unknown = {}) {
+  if (!input || typeof input !== 'object' || Array.isArray(input)
+    || Object.keys(input).some(key => key !== 'chiefEngineer')) throw new Error('太空維修站設定不正確。');
+  const { chiefEngineer = false } = input as Partial<StationOptions>;
+  if (typeof chiefEngineer !== 'boolean') throw new Error('請選擇是否加入大工程師。');
+  return { chiefEngineer };
 }
 
 export interface StationPlayer {
@@ -41,6 +52,7 @@ export interface RevealRecord {
   /** V2/V3: fixed round slot. Legacy: position in the remaining cards when revealed. */
   slot: number;
   kind: CardKind;
+  savior?: true;
 }
 
 export interface PendingReveal {
@@ -56,6 +68,7 @@ export interface StationState {
   /** Absent in saved legacy matches; those keep their original move semantics. */
   rulesVersion?: 2 | 3;
   status: GameStatus;
+  options?: StationOptions;
   players: Record<string, StationPlayer>;
   /** V2/V3 use fixed slots throughout a round; null means still face down. */
   publicCards?: Record<string, (CardKind | null)[]>;
@@ -66,7 +79,7 @@ export interface StationState {
   repairsFound: number;
   repairsRequired: number;
   activePlayer: string | null;
-  winner: Role | null;
+  winner: Faction | null;
   winReason: WinReason | null;
   log: RevealRecord[];
   /** The server holds every entry. A client receives only its own entry. */
@@ -98,7 +111,7 @@ function isSeat(G: StationState, playerID: unknown): playerID is string {
 
 function compositionOf(cards: CardKind[]): Composition {
   const result: Composition = { stable: 0, repair: 0, hazard: 0 };
-  for (const kind of cards) result[kind] += 1;
+  for (const kind of cards) result[kind === 'stabilized' ? 'stable' : kind] += 1;
   return result;
 }
 
@@ -129,7 +142,7 @@ function dealRound(G: StationState, deck: CardKind[], random: RandomAPI): void {
   G.status = 'briefing';
 }
 
-function finish(G: StationState, winner: Role, reason: WinReason): void {
+function finish(G: StationState, winner: Faction, reason: WinReason): void {
   G.status = 'finished';
   G.winner = winner;
   G.winReason = reason;
@@ -150,6 +163,10 @@ function setReady({ G, playerID }: MoveContext, ready: unknown) {
 function beginGame(G: StationState, random: RandomAPI): void {
   const ids = Object.keys(G.players);
   const roles = random.Shuffle(stationRolePool(ids.length));
+  if (G.options?.chiefEngineer) {
+    const engineers = roles.slice(0, ids.length).flatMap((role, index) => role === 'engineer' ? [index] : []);
+    roles[random.Shuffle(engineers)[0]] = 'chief-engineer';
+  }
   G.secret = { cards: {}, unusedRoles: roles.slice(ids.length) };
   ids.forEach((id, index) => {
     G.private[id] = {
@@ -269,7 +286,7 @@ function reveal(
   } else {
     G.players[targetID].cardCount = cards.length;
   }
-  G.private[targetID].composition[kind] -= 1;
+  G.private[targetID].composition[kind === 'stabilized' ? 'stable' : kind] -= 1;
   G.revealsThisRound += 1;
   G.log.push({ round: G.round, actorID: playerID, targetID, slot: position, kind });
   G.activePlayer = targetID;
@@ -296,6 +313,32 @@ function reveal(
     }
     advanceRound(G, random);
   }
+}
+
+export function canUseReactorSavior(G: StationState, playerID: string) {
+  return G.options?.chiefEngineer === true && G.status === 'playing'
+    && G.revealsThisRound < Object.keys(G.players).length
+    && G.private[playerID]?.role === 'chief-engineer' && !G.log.some(entry => entry.savior);
+}
+
+function useReactorSavior({ G, playerID, random }: MoveContext, targetID: unknown, slot: unknown, round: unknown) {
+  if (!canUseReactorSavior(G, playerID) || !isSeat(G, targetID) || round !== G.round
+    || typeof slot !== 'number' || !Number.isInteger(slot) || G.publicCards?.[targetID]?.[slot] !== null
+    || !G.secret) return INVALID_MOVE;
+  const cards = G.secret.cards[targetID];
+  const kind = cards[slot];
+  if (kind === 'hazard') {
+    cards[slot] = 'stabilized';
+    G.private[targetID].composition.hazard--;
+    G.private[targetID].composition.stable++;
+  } else {
+    const slots = G.publicCards![targetID].flatMap((face, index) => face === null ? [index] : []);
+    const shuffled = random.Shuffle(slots.map(index => cards[index]));
+    slots.forEach((index, position) => { cards[index] = shuffled[position]; });
+  }
+  if (G.pendingReveal?.targetID === targetID) G.pendingReveal = null;
+  G.players[playerID].revealedRole = 'chief-engineer';
+  G.log.push({ round: G.round, actorID: playerID, targetID, slot, kind: kind === 'hazard' ? 'stabilized' : kind, savior: true });
 }
 
 function advanceRound(G: StationState, random: RandomAPI): void {
@@ -340,6 +383,7 @@ export function stationPlayerView({ G, playerID }: {
   return {
     ...(G.rulesVersion === undefined ? {} : { rulesVersion: G.rulesVersion }),
     status: G.status,
+    ...(G.options ? { options: { chiefEngineer: G.options.chiefEngineer } } : {}),
     players: Object.fromEntries(Object.entries(G.players).map(([id, player]) => [id, {
       ready: player.ready,
       acknowledged: player.acknowledged,
@@ -376,6 +420,7 @@ export function stationPlayerView({ G, playerID }: {
     log: G.log.map((entry) => ({
       round: entry.round, actorID: entry.actorID, targetID: entry.targetID,
       slot: entry.slot, kind: entry.kind,
+      ...(entry.savior ? { savior: true } : {}),
     })),
     private: ownInfo && playerID !== null
       ? { [playerID]: copyPrivateInfo(ownInfo) }
@@ -423,6 +468,8 @@ export const StationGame: Game<StationState, Record<string, unknown>, StationSet
       || new Set(setupData.participantIDs).size !== numPlayers)) {
       return '參與玩家席位不正確。';
     }
+    try { normalizeStationOptions(setupData?.options); }
+    catch (error) { return (error as Error).message; }
     return undefined;
   },
   setup: ({ ctx, random }, setupData) => {
@@ -433,6 +480,7 @@ export const StationGame: Game<StationState, Record<string, unknown>, StationSet
     const G: StationState = {
       rulesVersion: 3,
       status: 'lobby',
+      ...(setupData?.options ? { options: normalizeStationOptions(setupData.options) } : {}),
       players: Object.fromEntries((setupData?.participantIDs ?? Array.from({ length: ctx.numPlayers }, (_, index) => String(index))).map((id: string) => [
         id, { ready: setupData?.startImmediately === true, acknowledged: false, reviewAcknowledged: false, cardCount: 0, claim: null },
       ])),
@@ -485,6 +533,7 @@ export const StationGame: Game<StationState, Record<string, unknown>, StationSet
     selectCard: { move: selectCard, client: false, undoable: false, redact: true },
     clearSelection: { move: clearSelection, client: false, undoable: false, redact: true },
     reveal: { move: reveal, client: false, undoable: false, redact: true },
+    useReactorSavior: { move: useReactorSavior, client: false, undoable: false, redact: true },
   },
   disableUndo: true,
   // In boardgame.io 0.50.2, disabling event dispatchers alone does not reject a

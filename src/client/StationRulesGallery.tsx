@@ -4,8 +4,17 @@ import saboteurImage from './assets/art/ink-saboteur.png';
 import stableImage from './assets/art/ink-stable-equipment.png';
 import repairImage from './assets/art/ink-repair-module.png';
 import hazardImage from './assets/art/ink-reactor-crisis.png';
+import chiefImage from './assets/art/ink-chief-engineer.webp';
+import saviorImage from './assets/art/ink-reactor-savior.webp';
+import stabilizedImage from './assets/art/ink-stabilized-reactor.webp';
 
 const entries: readonly RoleGalleryEntry[] = [
+  { id: 'chief-engineer', name: '大工程師', image: chiefImage, category: '角色 · 維修員陣營', tone: 'friendly',
+    description: '房主開啟後必定有一名大工程師。他持有反應爐救星，使用時公開身分。' },
+  { id: 'reactor-savior', name: '反應爐救星', image: saviorImage, category: '道具 · 整局一次', tone: 'friendly',
+    description: '其實是反應爐救星九號，問起前八號，大工程師就開始收工具。' },
+  { id: 'stabilized', name: '已穩定的反應爐', image: stabilizedImage, category: '設備 · 檢修牌', tone: 'neutral',
+    description: '反應爐危機解除後留下的設備。後續檢修視同穩定設備。' },
   {
     id: 'engineer', name: '維修員', image: engineerImage,
     category: '角色 · 維修員陣營', tone: 'friendly',

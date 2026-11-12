@@ -25,6 +25,7 @@ import { SocketIO } from 'boardgame.io/multiplayer';
 import { StationGame, type StationObserverState } from '../games/station/game';
 import { RuleSummary, StationBoard } from './StationBoard';
 import { StationSnapshot } from './StationSnapshot';
+import { StationOptions } from './StationOptions';
 import type { SnapshotProps, PosterOptions, LobbyOptionsProps } from './game-types';
 import { CipherGame, type CipherState } from '../games/cipher/game';
 import { CipherBoard, CipherRuleSummary } from './CipherBoard';
@@ -254,13 +255,14 @@ export const clientGames: Record<GameID, ClientGameDefinition> & Record<string, 
     name: '太空維修站',
     PlayerClient: props => <StationClient {...props} />,
     Snapshot: StationSnapshot,
+    LobbyOptions: StationOptions,
     Rules: RuleSummary,
     DetailedRules: StationRules,
     chapters: [['setup', '人數與配置'], ['goals', '角色與設備圖鑑'], ['round', '每輪流程'], ['inspect', '如何檢修'], ['review', '換輪與結束']],
     gallery: { chapter: 'goals', label: '角色與設備圖鑑' },
     createPoster: ({ G, info, step, totalSteps }) => createReplayPoster({ G: G as StationObserverState, players: info.players, step, totalSteps }),
     soundAdapter: (G, id) => ({ revision: G.round * 1000 + G.log.length, events: G.log.map((entry: unknown) => JSON.stringify(entry)),
-      attention: id && G.status === 'playing' && G.activePlayer === id ? `${G.round}:${G.log.length}:${id}` : undefined }),
+      attention: id && G.status === 'playing' && G.activePlayer === id ? `${G.round}:${G.revealsThisRound}:${id}` : undefined }),
     lobbyTitle: '這裡，每個人都有秘密。',
     lobbyDescription: '維修員要找齊維修模組；干擾者要讓反應爐危機被揭開，或讓維修拖過第四輪。',
     factionLabels: { engineer: '維修員', saboteur: '干擾者' },

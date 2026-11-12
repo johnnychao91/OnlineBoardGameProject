@@ -1,5 +1,5 @@
 import { useContext, useEffect, useRef, useState } from 'react';
-import type { StationState } from '../games/station/game';
+import { canUseReactorSavior, type StationState } from '../games/station/game';
 import { getCardSlots, possibleRoleCounts, repairClaimMaximum } from '../games/station/view-model';
 import { isPlayer } from './api';
 import { RoomContext } from './room-context';
@@ -7,7 +7,7 @@ import { Icon } from './ui';
 import { BattleReport } from './BattleReport';
 import { GameSoundControl } from './GameSoundControl';
 import { cardNames, initials, MissionProgress, roleNames, RoundRevealList, StationTable, TurnNotice } from './StationTable';
-import { DeviceArtwork, RoleArtwork } from './StationArtwork';
+import { DeviceArtwork, ReactorSaviorArtwork, RoleArtwork } from './StationArtwork';
 
 export { cardNames, initials, roleNames } from './StationTable';
 
@@ -17,7 +17,7 @@ type BoardProps = {
   isConnected?: boolean;
   moves: Record<string, (...args: any[]) => any>;
 };
-type Selection = { targetID: string; slot: number; round: number; actorID: string; logLength: number; selectionID?: number };
+type Selection = { targetID: string; slot: number; round: number; actorID: string; logLength: number; selectionID?: number; savior?: true };
 type SelectionRequest = { targetID: string; slot: number; round: number; previousID: number };
 
 export function StationBoard({ G, playerID, moves, isConnected }: BoardProps) {
@@ -27,6 +27,7 @@ export function StationBoard({ G, playerID, moves, isConnected }: BoardProps) {
   // Catch two clicks before React has rendered the first move.
   const requestRef = useRef<SelectionRequest | null>(null);
   const [notice, setNotice] = useState('');
+  const [saviorArmed, setSaviorArmed] = useState(false);
   const [privateVisible, setPrivateVisible] = useState(true);
   const [pageVisible, setPageVisible] = useState(() => typeof document === 'undefined' || !document.hidden);
   const privateExpanded = privateVisible && pageVisible;
@@ -44,18 +45,23 @@ export function StationBoard({ G, playerID, moves, isConnected }: BoardProps) {
   };
   const myTurn = G.status === 'playing' && G.activePlayer === id;
   const canAct = isConnected !== false;
+  const canUseSavior = canAct && canUseReactorSavior(G, id);
+  const choosingSavior = saviorArmed && canUseSavior;
   const version2 = (G.rulesVersion ?? 1) >= 2;
   const pending = G.pendingReveal;
   const needsClaim = G.status === 'claiming' && !!own && own.claim == null;
   const claimMaximum = repairClaimMaximum(G, id);
   const roles = possibleRoleCounts(Object.keys(G.players).length, mine?.role);
-  const validSelection = !!selection && canAct && myTurn
+  const validSelection = !!selection && canAct
     && selection.round === G.round && selection.actorID === id
     && getCardSlots(G, selection.targetID).some(card => card.slot === selection.slot && card.kind === null)
-    && (version2 || selection.logLength === G.log.length)
-    && (!version2 || !!pending && pending.round === selection.round
+    && (selection.savior ? canUseSavior && selection.logLength === G.log.length
+      : myTurn && (version2 ? !!pending && pending.round === selection.round
       && pending.actorID === id && pending.targetID === selection.targetID
-      && pending.slot === selection.slot && pending.selectionID === selection.selectionID);
+      && pending.slot === selection.slot && pending.selectionID === selection.selectionID
+      : selection.logLength === G.log.length));
+
+  useEffect(() => { setSaviorArmed(false); }, [G.round, G.status]);
 
   useEffect(() => {
     if (selection && !validSelection) setSelection(null);
@@ -115,6 +121,10 @@ export function StationBoard({ G, playerID, moves, isConnected }: BoardProps) {
   }, []);
 
   function chooseCard(targetID: string, slot: number) {
+    if (choosingSavior) {
+      setSelection({ targetID, slot, round: G.round, actorID: id, logLength: G.log.length, savior: true });
+      return;
+    }
     if (!canAct || !myTurn || requestRef.current || targetID === id
       || !getCardSlots(G, targetID).some(card => card.slot === slot && card.kind === null)) return;
     setNotice('');
@@ -134,13 +144,16 @@ export function StationBoard({ G, playerID, moves, isConnected }: BoardProps) {
 
   function cancelSelection() {
     // An old dialog must not clear a newer selection received from the server.
-    if (version2 && validSelection) moves.clearSelection();
+    if (version2 && validSelection && !selection?.savior) moves.clearSelection();
     setSelection(null);
   }
 
   function confirmSelection() {
     if (!selection || !validSelection) return;
-    if (version2) moves.reveal(selection.targetID, selection.slot, selection.selectionID);
+    if (selection.savior) {
+      moves.useReactorSavior(selection.targetID, selection.slot, selection.round);
+      setSaviorArmed(false);
+    } else if (version2) moves.reveal(selection.targetID, selection.slot, selection.selectionID);
     else moves.reveal(selection.targetID, selection.slot);
     setSelection(null);
   }
@@ -167,9 +180,9 @@ export function StationBoard({ G, playerID, moves, isConnected }: BoardProps) {
         <MissionProgress G={G} numPlayers={info.numPlayers} />
         <TurnNotice G={G} nameOf={nameOf} ownID={id} />
         <div className="selection-feedback" role="status">
-          {request ? '正在向全桌同步你的預選…' : notice || (myTurn && pending?.actorID === id ? '大家已看見你的預選。再點同一張牌，開啟檢修確認。' : '')}
+          {choosingSavior ? '選擇要使用反應爐救星的一張暗牌。' : request ? '正在向全桌同步你的預選…' : notice || (myTurn && pending?.actorID === id ? '大家已看見你的預選。再點同一張牌，開啟檢修確認。' : '')}
         </div>
-        <StationTable G={G} nameOf={nameOf} ownID={id} canSelect={canAct && myTurn && !request} onCardClick={chooseCard} />
+        <StationTable G={G} nameOf={nameOf} ownID={id} canSelect={choosingSavior || canAct && myTurn && !request} saviorSelection={choosingSavior} onCardClick={chooseCard} />
       </section>
       <aside className="station-personal-aside">
         <section className="panel private-panel">
@@ -187,8 +200,15 @@ export function StationBoard({ G, playerID, moves, isConnected }: BoardProps) {
                 </p>)}
                 {roles.length > 1 && <small>以上是可能組合，實際陣營人數不公開。</small>}
               </div>
-              <p>{mine.role === 'engineer' ? '找齊所有維修模組，讓維修站恢復運作。' : '讓反應爐危機被揭開，或讓維修模組留到四輪結束。'}</p>
+              <p>{mine.role === 'saboteur' ? '讓反應爐危機被揭開，或讓維修模組留到四輪結束。' : '找齊所有維修模組，讓維修站恢復運作。'}</p>
             </div>
+            {mine.role === 'chief-engineer' && <div className="station-savior-tool">
+              <ReactorSaviorArtwork />
+              <div><strong>反應爐救星</strong><p className="small muted">其實是反應爐救星九號，問起前八號，大工程師就開始收工具。</p>
+                <button type="button" className="button secondary" disabled={!canUseSavior} aria-pressed={choosingSavior}
+                  onClick={() => setSaviorArmed(!choosingSavior)}>{G.log.some(entry => entry.savior) ? '已使用'
+                    : choosingSavior ? '取消選擇' : '使用反應爐救星'}</button></div>
+            </div>}
             <p className="small muted">目前剩餘設備組成</p>
             <div className="composition">
               <div><DeviceArtwork kind="stable" /><strong>{mine.composition.stable}</strong><span>穩定設備</span></div>
@@ -240,12 +260,12 @@ export function StationBoard({ G, playerID, moves, isConnected }: BoardProps) {
     <dialog ref={modal} onCancel={event => { event.preventDefault(); cancelSelection(); }}
       onClose={() => setSelection(null)} className="confirm-dialog" aria-labelledby="station-confirm-title">
       <div className="eyebrow">CONFIRM YOUR CHOICE</div>
-      <h2 id="station-confirm-title">確定檢修這項設備？</h2>
+      <h2 id="station-confirm-title">{selection?.savior ? '確定使用反應爐救星？' : '確定檢修這項設備？'}</h2>
       <p>揭開 <strong>{selection ? nameOf(selection.targetID) : ''}</strong> 的第 <strong>{(selection?.slot ?? 0) + 1}</strong> 張設備牌。</p>
-      <p className="muted small">確認後才會公開牌面，並由對方接手下一次檢修。</p>
+      <p className="muted small">{selection?.savior ? '牌面與你的大工程師身分都會公開。整局只能使用一次。' : '確認後才會公開牌面，並由對方接手下一次檢修。'}</p>
       <div className="button-row">
         <button className="button secondary" autoFocus onClick={cancelSelection}>取消預選</button>
-        <button className="button primary" disabled={!validSelection} onClick={confirmSelection}>確認檢修</button>
+        <button className="button primary" disabled={!validSelection} onClick={confirmSelection}>{selection?.savior ? '確認使用' : '確認檢修'}</button>
       </div>
     </dialog>
     <dialog ref={claimModal} className="confirm-dialog claim-dialog" aria-labelledby="station-claim-title"
@@ -270,10 +290,10 @@ export function StationBoard({ G, playerID, moves, isConnected }: BoardProps) {
 export function Log({ G, nameOf }: { G: StationState; nameOf: (id: string) => string }) {
   return <section className="panel event-log">
     <div className="section-heading"><h2>任務紀錄</h2><span className="small muted">公開資訊</span></div>
-    {G.log.length ? <ol>{[...G.log].reverse().slice(0, 32).map((entry, index) => <li key={`${G.log.length - index}`}>
+    {G.log.length ? <ol>{[...G.log].reverse().map((entry, index) => <li key={`${G.log.length - index}`}>
       <span className={`log-dot ${entry.kind}`} />
       <div>
-        <p><strong>{nameOf(entry.actorID)}</strong> 檢修了 {nameOf(entry.targetID)} 的第 {entry.slot + 1} 張設備牌</p>
+        <p><strong>{nameOf(entry.actorID)}</strong> {entry.savior ? '對' : '檢修了'} {nameOf(entry.targetID)} 的第 {entry.slot + 1} 張設備牌{entry.savior ? '使用反應爐救星' : ''}</p>
         <span className={entry.kind === 'repair' ? 'mint' : entry.kind === 'hazard' ? 'card-kind-hazard' : 'muted'}>{cardNames[entry.kind]}</span>
         <small>第 {entry.round} 輪</small>
       </div>

@@ -20,7 +20,7 @@ type MediaSections = Record<SectionID, MediaAsset[]>;
 
 const folders: Record<MediaID, readonly string[]> = {
   'endless-bar': ['endlessbar-logo-transparent', 'site-icon', 'art/endless-bar-tavern', 'art/home-table'],
-  'space-station': ['art/ink-space-station', 'art/ink-engineer', 'art/ink-saboteur', 'art/ink-stable-equipment', 'art/ink-repair-module', 'art/ink-reactor-crisis'],
+  'space-station': ['art/ink-space-station', 'art/ink-engineer', 'art/ink-saboteur', 'art/ink-stable-equipment', 'art/ink-repair-module', 'art/ink-reactor-crisis', 'art/ink-chief-engineer', 'art/ink-reactor-savior', 'art/ink-stabilized-reactor'],
   'encrypted-call': ['art/ink-cipher-', 'art/ink-cover', 'art/ink-silent-pulse'],
   'black-fog': ['art/fog/'],
   'silver-moon': ['art/moon/'],

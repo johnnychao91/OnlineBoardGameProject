@@ -7,6 +7,7 @@
 - `ink-cipher-room.png`：諜報通訊室場景，用於美術模式的頁面背景與主題卡片。
 - `ink-stable-equipment.png`、`ink-repair-module.png`、`ink-reactor-crisis.png`：透明設備插畫，用於授權牌面、私人組成與公開檢修紀錄。[完整設備提示](DEVICE-PROMPTS.md)。
 - `ink-engineer.png`、`ink-saboteur.png`：透明角色插畫，僅出現在已知身分欄。
+- `ink-chief-engineer.webp`、`ink-reactor-savior.webp`、`ink-stabilized-reactor.webp`：大工程師擴充的透明半身像、道具與設備插畫。已穩定的反應爐由反應爐危機卡圖改繪。
 - `ink-cipher-card.png`：無數字的諜報紙張牌框，數字 1～100 由介面顯示。
 - `ink-cover.png`、`ink-silent-pulse.png`：透明掩護／靜默脈衝道具插畫，用於公開資源欄及脈衝操作。[完整角色、牌框與道具提示](ROLE-CIPHER-PROMPTS.md)。
 
