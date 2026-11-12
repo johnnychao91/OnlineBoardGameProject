@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { possibleRoleCounts, stationRolePool } from '../games/station/view-model';
-import { StationRulesGallery } from './StationRulesGallery';
+import { ChiefEngineerRulesGallery, StationRulesGallery } from './StationRulesGallery';
 import { CipherRulesGallery } from './CipherRulesGallery';
 function Chapter({ id, title, children }: { id: string; title: string; children: ReactNode }) {
   return <section className="rules-chapter panel" id={id}><h2>{title}</h2>{children}</section>;
@@ -16,7 +16,7 @@ export function StationRules() {
       <p>身分牌洗勻後每人取一張；多出的一張不發出，也不公開。因此 4 人、7 人局的實際陣營比例不一定相同。身分整局固定，畫面列出的可能人數包含你自己。</p>
     </Chapter>
     <Chapter id="goals" title="2. 角色、設備與勝負">
-      <p>N 代表本局參與人數。房主可在開局前加入大工程師，預設關閉。啟用後，一名維修員會成為大工程師，陣營人數配置不變。</p>
+      <p>N 代表本局參與人數。</p>
       <StationRulesGallery />
       <p>勝敗屬於整個陣營。若第四輪最後一次檢修找到最後一張維修模組，維修員仍然獲勝；牌面結果先於輪數限制判定。</p>
     </Chapter>
@@ -35,15 +35,26 @@ export function StationRules() {
         <li>翻開的牌留在原位置，公開顯示種類。該玩家的暗牌數量與秘密資訊中的剩餘設備數量會扣除這張牌。</li>
         <li>若任務未結束，工具交給<strong>剛剛被檢修設備的玩家</strong>，由他選下一張。</li></ol>
       <p>本輪檢修順序與全部任務紀錄都會保留。提示音可開關，音量可調整為 0～100%；預設 50%，0% 為靜音。</p>
-      <h3>反應爐救星</h3>
-      <p>檢修階段尚有額度時，大工程師可對任一張暗牌使用反應爐救星，整局一次。使用會公開大工程師身分，保留本輪檢修額度與目前行動者。</p>
-      <ul><li>反應爐危機會解除並成為「已穩定的反應爐」，後續檢修比照穩定設備。</li>
-        <li>穩定設備或維修模組會先向全場公開，再和持有者的其餘暗牌重洗。已檢修的牌留在原位。</li></ul>
     </Chapter>
     <Chapter id="review" title="5. 換輪與任務結束">
       <p>每輪全場合計可檢修 N 張牌，並非每人各檢修一次。若尚未分出勝負，第一至第三輪的額度用完時會保留最後牌桌，等待<strong>所有參與玩家確認</strong>；畫面會列出還沒確認的人，觀戰者不需確認。</p>
       <p>全員確認後，把全部未翻開的牌重新洗勻、平均分配。第二、三、四輪每人分別收到 4、3、2 張牌，再經過查看資訊與宣稱階段。工具保留給上一輪最後被檢修的玩家。</p>
       <p>分出勝負時公開身分，保留終局牌桌至少 8 秒後返回原等待室。房間、邀請與歷史仍在，大家重新準備便能再玩；也可以先換一款遊戲。</p>
+    </Chapter>
+    <Chapter id="chief-engineer" title="額外規則・大工程師詳細規則">
+      <p>房主可在開局前加入大工程師，預設關閉。開啟時，隨機一名維修員成為大工程師，陣營人數照原配置。</p>
+      <ChiefEngineerRulesGallery />
+      <h3>如何使用反應爐救星</h3>
+      <ol>
+        <li>進入檢修階段且本輪還有檢修額度時，在「我的秘密資訊」按「使用反應爐救星」。即使檢修工具在別人手上，也可以使用。</li>
+        <li>選擇任一張未檢修設備，可以選自己的牌。按「確認使用」後，全桌會知道你是大工程師。</li>
+      </ol>
+      <p>反應爐救星整局可使用一次，使用後由目前的行動者繼續檢修，剩餘檢修額度照舊。</p>
+      <h3>牌面結果</h3>
+      <ul>
+        <li><strong>反應爐危機</strong>：危機解除，原位置留下「已穩定的反應爐」。這張牌仍可在之後檢修，效果與穩定設備相同。</li>
+        <li><strong>穩定設備或維修模組</strong>：向全桌公開牌面，然後把這張牌與該玩家的其餘未檢修牌一起重洗。已檢修的牌留在原位，公開的維修模組仍須經正式檢修才會計入進度。</li>
+      </ul>
     </Chapter>
   </>;
 }

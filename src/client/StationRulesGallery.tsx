@@ -8,13 +8,16 @@ import chiefImage from './assets/art/ink-chief-engineer.webp';
 import saviorImage from './assets/art/ink-reactor-savior.webp';
 import stabilizedImage from './assets/art/ink-stabilized-reactor.webp';
 
-const entries: readonly RoleGalleryEntry[] = [
+const chiefEngineerEntries: readonly RoleGalleryEntry[] = [
   { id: 'chief-engineer', name: '大工程師', image: chiefImage, category: '角色 · 維修員陣營', tone: 'friendly',
     description: '房主開啟後必定有一名大工程師。他持有反應爐救星，使用時公開身分。' },
   { id: 'reactor-savior', name: '反應爐救星', image: saviorImage, category: '道具 · 整局一次', tone: 'friendly',
-    description: '其實是反應爐救星九號，問起前八號，大工程師就開始收工具。' },
+    description: '其實是反應爐救星九號，問起前八號，大工程師就開始收工具。檢修階段尚有額度時，在「我的秘密資訊」按「使用反應爐救星」，選一張未檢修的設備牌，再按「確認使用」。' },
   { id: 'stabilized', name: '已穩定的反應爐', image: stabilizedImage, category: '設備 · 檢修牌', tone: 'neutral',
     description: '反應爐危機解除後留下的設備。後續檢修視同穩定設備。' },
+];
+
+const entries: readonly RoleGalleryEntry[] = [
   {
     id: 'engineer', name: '維修員', image: engineerImage,
     category: '角色 · 維修員陣營', tone: 'friendly',
@@ -44,4 +47,8 @@ const entries: readonly RoleGalleryEntry[] = [
 
 export function StationRulesGallery() {
   return <RoleGallery entries={entries} idPrefix="station-guide" />;
+}
+
+export function ChiefEngineerRulesGallery() {
+  return <RoleGallery entries={chiefEngineerEntries} idPrefix="station-guide" />;
 }
