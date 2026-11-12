@@ -7,7 +7,8 @@ import { createApplication } from './app';
 import { createPreviewPage } from './link-preview';
 
 const publicOrigin = 'https://boardgame.example.com';
-const iconPath = '/endless-bar-icon.svg';
+const iconPath = '/src/client/assets/endlessbar-logo-transparent.png';
+const faviconTag = 'rel="icon" type="image/png" href="' + iconPath + '"';
 const coverPath = '/social/endless-bar-cover-v2.jpg';
 const title = '未央酒肆 Endless Bar';
 const description = '免下載、免註冊的多人線上桌遊。開房分享連結，就能和朋友一起推理、合作、冒險，還能即時觀戰與賽後復盤。';
@@ -25,10 +26,13 @@ async function fixture() {
   const clientDir = join(root, 'client');
   await mkdir(join(clientDir, 'social'), { recursive: true });
   const template = await readFile(resolve('index.html'), 'utf8');
-  const icon = await readFile(resolve('public' + iconPath));
+  const icon = await readFile(resolve(iconPath.slice(1)));
   await writeFile(join(clientDir, 'index.html'), template);
   await writeFile(join(clientDir, 'media.html'), await readFile(resolve('media.html')));
-  await writeFile(join(clientDir, iconPath.slice(1)), icon);
+  await writeFile(join(clientDir, 'privacy.html'), await readFile(resolve('privacy.html')));
+  const fixtureIcon = join(clientDir, iconPath.slice(1));
+  await mkdir(dirname(fixtureIcon), { recursive: true });
+  await writeFile(fixtureIcon, icon);
   const cover = await readFile(resolve('public' + coverPath));
   await writeFile(join(clientDir, coverPath.slice(1)), cover);
   const app = await createApplication({
@@ -67,6 +71,7 @@ describe('Public link previews', () => {
       expect(response.headers.get('x-robots-tag')).toBe('noindex, nofollow');
       const html = await response.text();
       expect(html).toContain('/src/client/media.tsx');
+      expect(html).toContain(faviconTag);
       expect(metadata(html, 'robots')).toEqual(['noindex, nofollow']);
       expect(metadata(html, 'og:title')).toEqual([]);
     }
@@ -92,7 +97,7 @@ describe('Public link previews', () => {
       expect(html).toContain(`<title>${title}</title>`);
       expect(metadata(html, 'og:title')).toEqual([title]);
       expect(metadata(html, 'og:site_name')).toEqual([title]);
-      expect(html).toContain('rel="icon" type="image/svg+xml" href="' + iconPath + '"');
+      expect(html).toContain(faviconTag);
       expect(metadata(html, 'og:type')).toEqual(['website']);
       expect(metadata(html, 'og:locale')).toEqual(['zh_TW']);
       for(const key of ['description','og:description','twitter:description'])expect(metadata(html,key)).toEqual([description]);
@@ -117,8 +122,11 @@ describe('Public link previews', () => {
     const imageHead=await f.request(coverPath,{method:'HEAD'});
     expect(imageHead.status).toBe(200);expect(imageHead.headers.get('content-type')).toContain('image/jpeg');
     expect(Number(imageHead.headers.get('content-length'))).toBe(f.cover.length);expect(await imageHead.text()).toBe('');
+    const privacy = await f.request('/privacy');
+    expect(privacy.status).toBe(200);
+    expect(await privacy.text()).toContain(faviconTag);
     const icon = await f.request(iconPath);
-    expect(icon.status).toBe(200);expect(icon.headers.get('content-type')).toContain('image/svg+xml');expect(Buffer.from(await icon.arrayBuffer())).toEqual(f.icon);
+    expect(icon.status).toBe(200);expect(icon.headers.get('content-type')).toContain('image/png');expect(Buffer.from(await icon.arrayBuffer())).toEqual(f.icon);
     expect(f.app.rooms.rooms.size).toBe(0);
   });
 

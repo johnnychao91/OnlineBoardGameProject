@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { mediaPageID, type MediaID } from '../games/media-route';
 import { mediaFor, mediaGames, mediaSections } from './media-art';
 import { SiteFooter } from './SiteFooter';
+import endlessBarLogo from './assets/endlessbar-logo-transparent.png';
 import './media.css';
 
 function MediaPage({ game }: { game: MediaID }) {
@@ -18,7 +19,7 @@ function MediaPage({ game }: { game: MediaID }) {
   return <>
     <main className="media-page">
       <header className="media-heading">
-        <img src="/endless-bar-icon.svg" width="64" height="64" alt="" />
+        <img src={endlessBarLogo} width="64" height="64" alt="" />
         <div><p>未央酒肆 · ENDLESS BAR</p><h1>美術素材檢查</h1></div>
       </header>
       <nav className="media-game-nav" aria-label="依遊戲瀏覽">
