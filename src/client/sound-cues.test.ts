@@ -35,23 +35,39 @@ describe('Shared live sound cursor', () => {
       expect(tracker.update(snapshot(4, ['begin', 'missed', 'also-missed', 'future'], 'future-turn'))).toEqual({ reveals: 1, ownTurn: true });
     }
   });
-  const frame = (changes: Partial<StationState> = {}) => ({ round: 1, status: 'claiming', activePlayer: '0', log: [], ...changes } as StationState);
-  const reveal = (targetID: string, slot: number) => ({ round: 1, actorID: '0', targetID, slot, kind: 'stable' as const });
-  const stationInput = (G: StationState, playerID?: string): GameSoundInput => ({
+  type StationSoundFrame = Pick<StationState, 'round' | 'status' | 'activePlayer' | 'log' | 'revealsThisRound' | 'pendingReveal'>;
+  const frame = ({ round = 1, log = [], ...changes }: Partial<StationSoundFrame> = {}): StationSoundFrame => ({
+    round, log, revealsThisRound: log.filter(entry => entry.round === round && !entry.savior).length,
+    status: 'claiming', activePlayer: '0', ...changes,
+  });
+  const reveal = (targetID: string, slot: number, actorID = '0'): StationState['log'][number] => ({ round: 1, actorID, targetID, slot, kind: 'stable' });
+  const stationInput = (G: StationSoundFrame, playerID?: string): GameSoundInput => ({
     G: clientGames['space-station'].soundAdapter(G, playerID), matchID: 'station', playerID,
   });
   it('uses the live Station adapter for reveals, skipped turns, selection-only updates and the next round', () => {
     const tracker = new GameSoundTracker();
-    const update = (G: StationState) => tracker.update(stationInput(G, '0'));
+    const update = (G: StationSoundFrame) => tracker.update(stationInput(G, '0'));
     expect(update(frame())).toEqual({ reveals: 0, ownTurn: false });
     expect(update(frame({ status: 'playing' }))).toEqual({ reveals: 0, ownTurn: true });
-    expect(update(frame({ status: 'playing' }))).toEqual({ reveals: 0, ownTurn: false });
-    const log = [reveal('1', 0), reveal('0', 1)];
+    expect(update(frame({ status: 'playing', pendingReveal: { actorID: '0', targetID: '1', slot: 0, round: 1, selectionID: 1 } })))
+      .toEqual({ reveals: 0, ownTurn: false });
+    const log = [reveal('1', 0), reveal('0', 1, '1')];
     expect(update(frame({ status: 'playing', log }))).toEqual({ reveals: 2, ownTurn: true });
     expect(update(frame({ status: 'playing', log: [reveal('2', 0)] }))).toEqual({ reveals: 0, ownTurn: false });
     expect(update(frame({ status: 'round-review', log: [...log, reveal('2', 2)] }))).toEqual({ reveals: 1, ownTurn: false });
     expect(update(frame({ round: 2, status: 'briefing', log: [...log, reveal('2', 2)] }))).toEqual({ reveals: 0, ownTurn: false });
     expect(update(frame({ round: 2, status: 'playing', log: [...log, reveal('2', 2)] }))).toEqual({ reveals: 0, ownTurn: true });
+  });
+  it('announces Reactor Savior as a public result without replaying the current turn prompt', () => {
+    const tracker = new GameSoundTracker();
+    const update = (G: StationSoundFrame) => tracker.update(stationInput(G, '0'));
+    const playing = { status: 'playing' } as const;
+    const savior: StationState['log'][number] = { round: 1, actorID: '2', targetID: '1', slot: 2, kind: 'stabilized', savior: true };
+    update(frame());
+    expect(update(frame(playing))).toEqual({ reveals: 0, ownTurn: true });
+    expect(update(frame({ ...playing, log: [savior] }))).toEqual({ reveals: 1, ownTurn: false });
+    expect(update(frame({ ...playing, log: [savior, reveal('1', 0), reveal('0', 1, '1')] })))
+      .toEqual({ reveals: 2, ownTurn: true });
   });
   it('uses the live Station adapter to keep observer and other-player turns silent while announcing public reveals', () => {
     for (const playerID of [undefined, '3']) {
